@@ -1,0 +1,47 @@
+{
+    "configurations": [
+        {
+            "browse": {
+                "databaseFilename": "${default}",
+                "limitSymbolsToIncludedHeaders": false
+            },
+            "includePath": [
+                "/opt/ros/noetic/include/**",
+                "/home/godzilla/catkin_workspaces/exploration_ws/devel/include/**",
+                "/home/godzilla/catkin_workspaces/exploration_ws/src/Dsp/include/**",
+                "/home/godzilla/catkin_workspaces/exploration_ws/src/eigen_checks/include/**",
+                "/home/godzilla/catkin_workspaces/exploration_ws/src/ewok/ewok_optimization/include/**",
+                "/home/godzilla/catkin_workspaces/exploration_ws/src/ewok/ewok_poly_spline/include/**",
+                "/home/godzilla/catkin_workspaces/exploration_ws/src/ewok/ewok_ring_buffer/include/**",
+                "/home/godzilla/catkin_workspaces/exploration_ws/src/exploration/include/**",
+                "/home/godzilla/catkin_workspaces/exploration_ws/src/mav_comm/mav_msgs/include/**",
+                "/home/godzilla/catkin_workspaces/exploration_ws/src/mav_comm/mav_planning_msgs/include/**",
+                "/home/godzilla/catkin_workspaces/exploration_ws/src/nlopt/include/**",
+                "/home/godzilla/catkin_workspaces/exploration_ws/src/ufomap/ufomap/include/**",
+                "/home/godzilla/catkin_workspaces/exploration_ws/src/ufomap/ufomap_ros/ufomap_mapping/include/**",
+                "/home/godzilla/catkin_workspaces/exploration_ws/src/ufomap/ufomap_ros/ufomap_msgs/include/**",
+                "/home/godzilla/catkin_workspaces/exploration_ws/src/ufomap/ufomap_ros/ufomap_ros/include/**",
+                "/home/godzilla/catkin_workspaces/exploration_ws/src/ufomap/ufomap_ros/ufomap_rviz_plugins/include/**",
+                "/home/godzilla/catkin_workspaces/exploration_ws/src/visualization_tools/include/**",
+                "/usr/include/**"
+            ],
+            "name": "ROS",
+            "intelliSenseMode": "gcc-x64",
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "gnu11",
+            "cppStandard": "c++14"
+        },
+        {
+            "name": "ros",
+            "includePath": [
+                "${workspaceFolder}/**"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/clang",
+            "cStandard": "c17",
+            "cppStandard": "c++14",
+            "intelliSenseMode": "linux-clang-x64"
+        }
+    ],
+    "version": 4
+}

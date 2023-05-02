@@ -1,0 +1,118 @@
+<?xml version="1.0" ?>
+<launch>
+
+  <node pkg="acl_exploration" type="exploration_node" name="exploration_node" output="screen">
+
+		<param name="xFiltering" value="true" />
+		<param name="yFiltering" value="true" />
+		<param name="zFiltering" value="true" />
+		<param name="publish_the_map" value="false" />
+
+		<param name="resolution" value="0.3" />
+		<!-- <param name="cloud_in" value="/camera/depth/color/points" /> -->
+
+		<param name="cloud_in" value="/hummingbird/velodyne_points" />
+		<!-- <param name="cloud_in" value="/velodyne_points" /> -->
+
+		<param name="distance" value="8" />
+
+		<!-- fixed map frame (set to 'map' if SLAM or localization running!) -->
+		<param name="frame_id" type="string" value="world" />
+
+		<!-- maximum range to integrate (speedup!) -->
+		<param name="sensor_model/max_range" value="9" />
+
+		<param name="odometry" value="hummingbird/ground_truth/odometry" />
+		<!-- <param name="odometry" value="/odometry/imu" /> -->
+
+		<!-- data source to integrate (PointCloud2) -->
+
+		<!-- <remap from="cloud_in" to="/camera/depth/color/points" /> -->
+		<remap from="cloud_in" to="/hummingbird/velodyne_points" />
+		<!-- <remap from="cloud_in" to="/velodyne_points" /> -->
+
+		<param name="number_of_unknowns" value="4" />
+		
+  </node>
+
+		<arg name="resolution" default="0.2" />
+		<arg name="depth_levels" default="16" />
+		<arg name="num_workers" default="1" />
+		<arg name="color" default="true" />
+
+
+  <node pkg="ufomap_mapping" type="ufomap_mapping_server_node" name="ufomap_mapping_server_node" output="screen" required="true">
+		
+		<param name="cloud_in" value="/hummingbird/velodyne_points" />
+		<!-- <param name="cloud_in" value="/velodyne_points" /> -->
+
+		<param name="frame_id" type="string" value="world" />
+
+		<remap from="cloud_in" to="/hummingbird/velodyne_points" />
+		<!-- <remap from="cloud_in" to="/velodyne_points" /> -->
+
+    	<param name="robot_frame_id" value="hummingbird/base_link" />
+		<!-- <param name="robot_frame_id" value="base_link" /> -->
+
+		<param name="num_workers" value="$(arg num_workers)" />
+		<param name="max_range" value="10" />
+		<param name="min_range" value="0.5" />
+		<param name="robot_radius" value="0.5" />
+		<param name="robot_height" value="0.5" />
+		<param name="compress" value="True" />
+
+		<!-- <param name="clear_robot" value="False" /> -->
+
+		<!-- FOR SHAFTER/PIONEER/SPOT CLEAR ROBOT SHOULD BE SET TO TRUE -->
+
+		<param name="clear_robot" value="True" />
+
+		<param name="clearing_depth" value="0" />
+		<param name="publish_depth" value="4" />
+		<param name="pub_rate" value="1" />
+		<param name="insert_depth" value="0" />
+		
+		<param name="resolution" value="$(arg resolution)" />
+		<param name="depth_levels" value="$(arg depth_levels)" />
+		<param name="color_map" value="$(arg color)"/>
+  </node>
+
+  <!-- <node pkg="acl_exploration" type="acl_exploration_node" name="acl_exploration_node" output="screen">
+  </node> -->
+
+  <node type="rviz" name="rviz" pkg="rviz" args="-d $(find acl_exploration)/rviz/ufo.rviz" />
+
+  <!--
+  <arg name="robot_name" default="hummingbird" />
+  <arg name="voxel_size" default="0.2" />
+  <arg name="voxels_per_side" default="16" />
+  <arg name="world_frame" default="world" />
+  <group ns="$(arg robot_name)">
+
+    <node name="voxblox_node" pkg="voxblox_ros" type="esdf_server" output="screen" args="-alsologtostderr" clear_params="true">
+        <remap from="pointcloud" to="/hummingbird/velodyne_points"/>
+      <remap from="voxblox_node/esdf_map_out" to="esdf_map" />
+      <param name="tsdf_voxel_size" value="$(arg voxel_size)" />
+      <param name="tsdf_voxels_per_side" value="$(arg voxels_per_side)" />
+      <param name="publish_esdf_map" value="true" />
+      <param name="publish_pointclouds" value="true" />
+      <param name="use_tf_transforms" value="true" />
+      <param name="update_mesh_every_n_sec" value="1.0" />
+      <param name="clear_sphere_for_planning" value="true" />
+      <param name="world_frame" value="$(arg world_frame)" />
+    </node>
+
+    <node name="my_voxblox_planner" pkg="voxblox_planner" type="my_voxblox_planner" output="screen" args="-alsologtostderr">
+        <remap from="odometry" to="/hummingbird/ground_truth/odometry" />
+      <remap from="my_voxblox_planner/esdf_map_in" to="esdf_map" />
+      <param name="tsdf_voxel_size" value="$(arg voxel_size)" />
+      <param name="tsdf_voxels_per_side" value="$(arg voxels_per_side)" />
+      <param name="update_mesh_every_n_sec" value="0.0" />
+      <param name="world_frame" value="$(arg world_frame)" />
+    </node>
+  </group>      
+
+  -->
+
+
+</launch>

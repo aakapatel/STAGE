@@ -1,0 +1,68 @@
+<?xml version="1.0" ?>
+<launch>
+
+  <node pkg="acl_exploration" type="exploration_node" name="exploration_node" output="screen">
+
+		<param name="xFiltering" value="true" />
+		<param name="yFiltering" value="true" />
+		<param name="zFiltering" value="true" />
+		<param name="publish_the_map" value="false" />
+
+		<param name="resolution" value="0.3" />
+
+		<param name="cloud_in" value="shafter2/ouster/points" />
+
+		<param name="distance" value="8" />
+
+		<param name="frame_id" type="string" value="shafter2/world" />
+
+		<param name="sensor_model/max_range" value="10" />
+
+		<param name="odometry" value="shafter2/odometry/imu" />
+
+		<remap from="cloud_in" to="shafter2/ouster/points" />
+
+		<param name="number_of_unknowns" value="4" />
+		
+  </node>
+
+		<arg name="resolution" default="0.4" />
+		<arg name="depth_levels" default="16" />
+		<arg name="num_workers" default="1" />
+		<arg name="color" default="true" />
+
+
+  <node pkg="ufomap_mapping" type="ufomap_mapping_server_node" name="ufomap_mapping_server_node" output="screen" required="true">
+		
+		<param name="cloud_in" value="shafter2/ouster/points" />
+
+		<param name="frame_id" type="string" value="shafter2/world" />
+
+		<remap from="cloud_in" to="shafter2/ouster/points" />
+
+    	<param name="robot_frame_id" value="shafter2/base_link" />
+
+		<param name="num_workers" value="$(arg num_workers)" />
+		<param name="max_range" value="16" />
+		<param name="min_range" value="0.5" />
+		<param name="robot_radius" value="0.5" />
+		<param name="robot_height" value="0.5" />
+		<param name="compress" value="True" />
+
+		<!-- <param name="clear_robot" value="False" /> -->
+
+		<!-- FOR SHAFTER/PIONEER/SPOT CLEAR ROBOT SHOULD BE SET TO TRUE -->
+
+		<param name="clear_robot" value="True" />
+
+		<param name="clearing_depth" value="0" />
+		<param name="publish_depth" value="0" />
+		<param name="pub_rate" value="1" />
+		<param name="insert_depth" value="0" />
+		
+		<param name="resolution" value="$(arg resolution)" />
+		<param name="depth_levels" value="$(arg depth_levels)" />
+		<param name="color_map" value="$(arg color)"/>
+  </node>
+
+</launch>
