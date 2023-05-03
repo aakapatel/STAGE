@@ -32,11 +32,11 @@ FrontierExtraction::FrontierExtraction(ros::NodeHandle private_nh_)
     m_distance_deletion(8.0),
     m_currentHeading(0),
     LOCAL_SPACE(10),
-    LOCAL_FOV(40)    
-
+    LOCAL_FOV(40),    
+    m_ufomap("/ufomap_mapping_server_node/map")
    {
 
-    // ufo::map::OccupancyMapColor ufoMAP(0.2);
+   
 
     double probHit, probMiss, thresMin, thresMax;
 
@@ -55,11 +55,12 @@ FrontierExtraction::FrontierExtraction(ros::NodeHandle private_nh_)
     private_nh.param("cloud_in", cloud_in, cloud_in);
     private_nh.param("distance", m_distance_deletion, m_distance_deletion);
     private_nh.param("odometry", m_odometry, m_odometry);
-
+    
     private_nh.param("number_of_unknowns", numberOfUnknowns, numberOfUnknowns);
 
     private_nh.param("local_sliding_space", LOCAL_SPACE, LOCAL_SPACE);
     private_nh.param("local_field_of_view", LOCAL_FOV, LOCAL_SPACE);
+    private_nh.param("ufomap", m_ufomap, m_ufomap);
 
     //Filtering
     private_nh.param("xFiltering", xFiltering, xFiltering);
@@ -103,10 +104,31 @@ FrontierExtraction::FrontierExtraction(ros::NodeHandle private_nh_)
     m_poseSubscriber = new message_filters::Subscriber<nav_msgs::Odometry> (m_nh, m_odometry, 5);
     m_poseSubscriber->registerCallback(boost::bind(&FrontierExtraction::updateCurrentPosition, this, _1));
 
+    m_ufoMapSubscriber = new message_filters::Subscriber<ufomap_msgs::UFOMapStamped> (m_nh, m_ufomap, 1);
+    m_ufoMapSubscriber->registerCallback(boost::bind(&FrontierExtraction::mapCallback, this, _1));
+
     //Register publishers
     m_frontierPub = m_nh.advertise<visualization_msgs::MarkerArray>("/frontier_nodes_vis", 1, true);
     // m_frontierSelectionPub = m_nh.advertise<Frontiers>("frontiers_nodes", 1, true);
 };
+
+ ufo::map::OccupancyMapColor m_ufoMAP(0.2);
+
+void FrontierExtraction::mapCallback(ufomap_msgs::UFOMapStamped::ConstPtr const &msg)
+{
+
+ 
+  if (ufomap_msgs::msgToUfo(msg->map, m_ufoMAP))
+  {
+    ROS_INFO("MAP RECEIVED");
+    map_received = true;
+  }
+  else
+  {
+    ROS_WARN("MAP NOT RECEIVED");
+  }
+}
+
 
 void FrontierExtraction::insertPointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& cloud) {
     PCLPointCloud pc;

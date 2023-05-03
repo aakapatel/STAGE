@@ -76,27 +76,42 @@ class FrontierExtraction {
         typedef octomap::point3d point3d;
         typedef octomap::OcTree OcTreeT;
         typedef octomap::KeySet KeySet;
+        
         FrontierExtraction(ros::NodeHandle private_nh_ = ros::NodeHandle("~"));
+        
         virtual void updateCurrentPosition(const nav_msgs::Odometry::ConstPtr& pos);
+        
         virtual void insertPointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& cloud);
+        
         virtual void insertPointCloudScan(const tf::Point& sensorOrigin, const PCLPointCloud& ground, const PCLPointCloud& nonground);
+        
         virtual void publishFrontiers(const tf::Point& sensorOrigin, const ros::Time& rostime = ros::Time::now());
+        
+        virtual void mapCallback(ufomap_msgs::UFOMapStamped::ConstPtr const &map);
+        
         bool isFrontier(float x, float y, float z, point3d sensorOrigin);
+        
         double calculateDistance(ufo::math::Vector3 point1, ufo::math::Vector3 point2);
+        
         bool isInCollision(ufo::map::OccupancyMapColor const &map,
                ufo::geometry::BoundingVar const &bounding_volume,
                bool occupied_space, bool free_space,
                bool unknown_space, ufo::map::DepthType min_depth);
+        
         ufo::geometry::OBB makeOBB(ufo::math::Vector3 source, ufo::math::Vector3 goal, float radius); 
+        
         double calculateAngle(ufo::math::Vector3 fpoint, ufo::math::Vector3 position, double heading);
+        
         bool isLocal(ufo::math::Vector3 point);
-
+        
 
         //variables
         ufo::math::Vector3 m_currentPosition;
         double m_currentHeading;
         double LOCAL_SPACE;
         double LOCAL_FOV;
+        bool map_received;
+        std::string m_ufomap;
 
 
         ros::NodeHandle m_nh;
@@ -152,6 +167,9 @@ class FrontierExtraction {
         message_filters::Subscriber<sensor_msgs::PointCloud2>* m_pointCloudSubscriber;
         tf::MessageFilter<sensor_msgs::PointCloud2>* m_tfPointCloudSubscriber;
         message_filters::Subscriber<nav_msgs::Odometry>* m_poseSubscriber;
+        message_filters::Subscriber<ufomap_msgs::UFOMapStamped>* m_ufoMapSubscriber;
+        
+
 
         //Publisher
         ros::Publisher m_frontierPub;

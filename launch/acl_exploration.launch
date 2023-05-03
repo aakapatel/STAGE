@@ -20,6 +20,11 @@
 		<param name="odometry" value="/hummingbird/ground_truth/odometry" />
 
 		<remap from="cloud_in" to="/hummingbird/velodyne_points" />
+		
+		<param name="ufomap" value="/ufomap_mapping_server_node/map" />
+
+		<remap from="ufomap" to="/ufomap_mapping_server_node/map" />
+
 
 		<param name="number_of_unknowns" value="4" />
 		<param name="local_sliding_space" value="10" />
