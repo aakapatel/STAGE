@@ -1,9 +1,9 @@
-#include "exploration.h"
+#include "frontiers_extraction.h"
 
 using namespace octomap;
 using namespace std;
 
-FrontierExploration::FrontierExploration(ros::NodeHandle private_nh_)
+FrontierExtraction::FrontierExtraction(ros::NodeHandle private_nh_)
     : m_nh(),
     m_maxRange(10.0),
     m_filterGroundPlane(false),
@@ -90,10 +90,10 @@ FrontierExploration::FrontierExploration(ros::NodeHandle private_nh_)
     //Register to the subscriber topic and register it to the callback function
     m_pointCloudSubscriber = new message_filters::Subscriber<sensor_msgs::PointCloud2> (m_nh, cloud_in, 5);
     m_tfPointCloudSubscriber = new tf::MessageFilter<sensor_msgs::PointCloud2> (*m_pointCloudSubscriber, m_tfListener, m_worldFrameId, 5);
-    m_tfPointCloudSubscriber->registerCallback(boost::bind(&FrontierExploration::insertPointCloudCallback, this, _1));
+    m_tfPointCloudSubscriber->registerCallback(boost::bind(&FrontierExtraction::insertPointCloudCallback, this, _1));
 
     m_poseSubscriber = new message_filters::Subscriber<nav_msgs::Odometry> (m_nh, m_odometry, 5);
-    m_poseSubscriber->registerCallback(boost::bind(&FrontierExploration::updateCurrentPosition, this, _1));
+    m_poseSubscriber->registerCallback(boost::bind(&FrontierExtraction::updateCurrentPosition, this, _1));
 
     //Register publishers
     m_frontierPub = m_nh.advertise<visualization_msgs::MarkerArray>("/frontier_nodes_vis", 1, true);
@@ -101,7 +101,7 @@ FrontierExploration::FrontierExploration(ros::NodeHandle private_nh_)
     m_occupiedPub = m_nh.advertise<visualization_msgs::MarkerArray>("/occupied_nodes", 1, true);
 };
 
-void FrontierExploration::insertPointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& cloud) {
+void FrontierExtraction::insertPointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& cloud) {
     PCLPointCloud pc;
     pcl::fromROSMsg(*cloud, pc);
 
@@ -163,7 +163,7 @@ Use Rviz for visualization.
 ** NOTICE **
 Frontier cells is marked as occupied in the octree.
 */
-void FrontierExploration::insertPointCloudScan(const tf::Point& sensorOriginTf, const PCLPointCloud& ground, const PCLPointCloud& nonground) {
+void FrontierExtraction::insertPointCloudScan(const tf::Point& sensorOriginTf, const PCLPointCloud& ground, const PCLPointCloud& nonground) {
     point3d sensorOrigin = octomap::pointTfToOctomap(sensorOriginTf);
     if (!m_octree->coordToKeyChecked(sensorOrigin, m_updateBBXMin) || !m_octree->coordToKeyChecked(sensorOrigin, m_updateBBXMax)) {
         ROS_ERROR_STREAM("Could not generate Key for origin "<<sensorOrigin);
@@ -225,7 +225,7 @@ void FrontierExploration::insertPointCloudScan(const tf::Point& sensorOriginTf, 
     maxPt = m_octree->keyToCoord(m_updateBBXMax);
 }
 
-void FrontierExploration::publishMap(const ros::Time& rostime) {
+void FrontierExtraction::publishMap(const ros::Time& rostime) {
     visualization_msgs::MarkerArray occupiedNodesVis;
     occupiedNodesVis.markers.resize(m_treeDepth+1);
      for (OcTreeT::iterator it = m_octree->begin(m_maxTreeDepth), end = m_octree->end(); it != end; ++it) {
@@ -284,7 +284,7 @@ void FrontierExploration::publishMap(const ros::Time& rostime) {
 }
 
 
-void FrontierExploration::publishFrontiers(const tf::Point& sensorOriginTf, const ros::Time& rostime) {
+void FrontierExtraction::publishFrontiers(const tf::Point& sensorOriginTf, const ros::Time& rostime) {
     point3d sensorOrigin = octomap::pointTfToOctomap(sensorOriginTf);
 
     visualization_msgs::MarkerArray frontierVis;
@@ -298,7 +298,7 @@ void FrontierExploration::publishFrontiers(const tf::Point& sensorOriginTf, cons
         float x = it->x();
         float y = it->y();
         float z = it->z();
-        if (!FrontierExploration::isFrontier(x, y, z, sensorOrigin)) {
+        if (!FrontierExtraction::isFrontier(x, y, z, sensorOrigin)) {
             it = frontierPointList.erase(it);
         }
     }
@@ -327,7 +327,7 @@ void FrontierExploration::publishFrontiers(const tf::Point& sensorOriginTf, cons
                     // if ((pt.x() > 0) && (z_diff < 0.5)) {
                     if ((z_diff < 4)) {     
                         
-                        if (FrontierExploration::isFrontier(x, y, z, sensorOrigin) && !(m_octree->isNodeOccupied(me))) {
+                        if (FrontierExtraction::isFrontier(x, y, z, sensorOrigin) && !(m_octree->isNodeOccupied(me))) {
                             frontierPointList.push_back(pt);
                         }
                 }
@@ -377,7 +377,7 @@ void FrontierExploration::publishFrontiers(const tf::Point& sensorOriginTf, cons
 }
 
 
-void FrontierExploration::updateCurrentPosition(const nav_msgs::Odometry::ConstPtr& pose) {
+void FrontierExtraction::updateCurrentPosition(const nav_msgs::Odometry::ConstPtr& pose) {
 
     if (firstTime) {
         m_prevPose = *pose;
@@ -388,7 +388,7 @@ void FrontierExploration::updateCurrentPosition(const nav_msgs::Odometry::ConstP
 
 }
 
-bool FrontierExploration::isFrontier(float x, float y, float z, point3d sensorOrigin) {
+bool FrontierExtraction::isFrontier(float x, float y, float z, point3d sensorOrigin) {
 
     octomap::OcTreeNode* me;
     octomap::OcTreeNode* nodeX;
@@ -636,7 +636,7 @@ bool FrontierExploration::isFrontier(float x, float y, float z, point3d sensorOr
 
 }
 
-std_msgs::ColorRGBA FrontierExploration::heightMapColor(double h) {
+std_msgs::ColorRGBA FrontierExtraction::heightMapColor(double h) {
 
   std_msgs::ColorRGBA color;
   color.a = 1.0;

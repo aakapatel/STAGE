@@ -1,11 +1,10 @@
-#ifndef EXPLORATION_H
-#define EXPLORATION_H
+#ifndef FRONTIERS_EXTRACTION_H
+#define FRONTIERS_EXTRACTION_H
 
 #include <ros/ros.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <message_filters/subscriber.h>
 #include <std_msgs/ColorRGBA.h>
-#include "acl_exploration/Frontiers.h"
 #include <tf/transform_listener.h>
 #include <tf/message_filter.h>
 #include <nav_msgs/Odometry.h>
@@ -34,14 +33,14 @@
 #include <std_msgs/String.h>
 
 
-class FrontierExploration {
+class FrontierExtraction {
     public:
         typedef pcl::PointCloud<pcl::PointXYZ> PCLPointCloud; 
         typedef pcl::PointXYZ PCLPoint;
         typedef octomap::point3d point3d;
         typedef octomap::OcTree OcTreeT;
         typedef octomap::KeySet KeySet;
-        FrontierExploration(ros::NodeHandle private_nh_ = ros::NodeHandle("~"));
+        FrontierExtraction(ros::NodeHandle private_nh_ = ros::NodeHandle("~"));
         virtual void updateCurrentPosition(const nav_msgs::Odometry::ConstPtr& pos);
         virtual void insertPointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& cloud);
         virtual void insertPointCloudScan(const tf::Point& sensorOrigin, const PCLPointCloud& ground, const PCLPointCloud& nonground);

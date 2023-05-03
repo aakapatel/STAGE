@@ -53,6 +53,7 @@ find_package(catkin REQUIRED COMPONENTS
   move_base_msgs
   actionlib
   message_generation
+  ufomap_mapping
 )
 find_package(ufomap REQUIRED)
 find_package(Eigen3 REQUIRED)
@@ -76,36 +77,35 @@ generate_messages(
 
 catkin_package(
   INCLUDE_DIRS include
-#  LIBRARIES exploration
  CATKIN_DEPENDS
  message_runtime
-#  DEPENDS system_lib
 )
 
 include_directories(
     ${catkin_INCLUDE_DIRS}
     $(OCTOMAP_INCLUDE_DIRS)
-    # ${NLOPT_LIBRARIES}
     include/
     ${Eigen_INCLUDE_DIRS}
 	${Boost_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
-add_library(${PROJECT_NAME}
-src/exploration.cpp
+# add_library(${PROJECT_NAME}
+# src/frontiers_extraction.cpp
 # src/stage_interface.cpp
-)
+# )
 
 
-add_executable(exploration_node src/exploration_node.cpp)
+add_executable(frontiers_extraction_node src/frontiers_extraction_node.cpp)
 ## Specify libraries to link a library or executable target against
  target_link_libraries(
-   exploration_node
+   frontiers_extraction_node
    ${catkin_LIBRARIES}
    ${OCTOMAP_LIBRARIES}
    ${PCL_LIBRARIES}
- )
+    ${CMAKE_DL_LIBS}
+    UFO::Map
+   )
 
 add_executable(stage_interface_node src/stage_interface_node.cpp)
 ## Specify libraries to link a library or executable target against
