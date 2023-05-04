@@ -114,6 +114,8 @@ class FrontierExtraction {
 
         std::vector<ufo::math::Vector3> fetchLocallyTraversableFrontiers();
 
+        double computeVolumetricGain (ufo::math::Vector3 frontier, ufo::map::OccupancyMapColor const &map);
+
 
 
         //variables

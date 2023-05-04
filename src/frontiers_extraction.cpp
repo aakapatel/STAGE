@@ -759,7 +759,38 @@ std::vector<ufo::math::Vector3> FrontierExtraction::fetchLocallyTraversableFront
   return locally_traversable_frontiers;
 }
 
+double FrontierExtraction::computeVolumetricGain (ufo::math::Vector3 frontier, ufo::map::OccupancyMapColor const &map) {
+    
+    double r = 4;
+    int unknown_cells, free_cells, occupied_cells = 0;
+    ufo::geometry::Sphere sphere (frontier, r);
 
+    for (auto it = map.beginLeaves(sphere, false, false, true, false, PLANNING_CHECK_DEPTH), it_end = map.endLeaves(); it != it_end; ++it)  {
+        
+        ufo::math::Vector3 end_point(it.getX(), it.getY(), it.getZ());
+
+        unknown_cells++;
+    }
+
+
+    for (auto it = map.beginLeaves(sphere, false, true, false, false, PLANNING_CHECK_DEPTH), it_end = map.endLeaves(); it != it_end; ++it)  {
+        
+        ufo::math::Vector3 end_point(it.getX(), it.getY(), it.getZ());
+
+        free_cells++;
+    }
+
+    for (auto it = map.beginLeaves(sphere, true, false, false, false, PLANNING_CHECK_DEPTH), it_end = map.endLeaves(); it != it_end; ++it)  {
+        
+        ufo::math::Vector3 end_point(it.getX(), it.getY(), it.getZ());
+
+        occupied_cells++;
+    }
+
+    double volumetric_gain = ( unknown_cells + free_cells ) / exp(occupied_cells);
+
+    return volumetric_gain;
+}
 
 
 
