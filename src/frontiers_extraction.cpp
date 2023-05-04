@@ -36,7 +36,8 @@ FrontierExtraction::FrontierExtraction(ros::NodeHandle private_nh_)
     m_ufomap("/ufomap_mapping_server_node/map"),
     m_max_allowed_Z(4),  
     OBB_RADIUS(0.5),
-    PLANNING_CHECK_DEPTH(0)
+    PLANNING_CHECK_DEPTH(0),
+    VOLUMETRIC_GAIN_THREASHOLD(0.01)
 
 
 
@@ -72,6 +73,7 @@ FrontierExtraction::FrontierExtraction(ros::NodeHandle private_nh_)
     private_nh.param("safety_height", m_max_allowed_Z, m_max_allowed_Z);
     private_nh.param("traversability_radius", OBB_RADIUS, OBB_RADIUS);
     private_nh.param("planning_check_depth", PLANNING_CHECK_DEPTH, PLANNING_CHECK_DEPTH);
+    private_nh.param("volumetric_gain_threashold", VOLUMETRIC_GAIN_THREASHOLD, VOLUMETRIC_GAIN_THREASHOLD);
 
 
 
@@ -326,11 +328,12 @@ std::vector<ufo::math::Vector3> FrontierExtraction::fetchFrontiers () {
     
     ufo::geometry::Sphere sphere (frontier_pt, 1);
 
-    if (!isInCollision(m_ufoMAP, sphere, true, false, true, PLANNING_CHECK_DEPTH)) {
+    if (!isInCollision(m_ufoMAP, sphere, true, false, true, PLANNING_CHECK_DEPTH) && computeVolumetricGain(frontier_pt, m_ufoMAP) > VOLUMETRIC_GAIN_THREASHOLD) {
 
-        unfiltered_frontiers.push_back(frontier_pt);    
+        unfiltered_frontiers.push_back(frontier_pt);
     }
   }
+
   return unfiltered_frontiers;
 }
 
@@ -767,29 +770,42 @@ double FrontierExtraction::computeVolumetricGain (ufo::math::Vector3 frontier, u
 
     for (auto it = map.beginLeaves(sphere, false, false, true, false, PLANNING_CHECK_DEPTH), it_end = map.endLeaves(); it != it_end; ++it)  {
         
-        ufo::math::Vector3 end_point(it.getX(), it.getY(), it.getZ());
-
         unknown_cells++;
     }
 
-
     for (auto it = map.beginLeaves(sphere, false, true, false, false, PLANNING_CHECK_DEPTH), it_end = map.endLeaves(); it != it_end; ++it)  {
         
-        ufo::math::Vector3 end_point(it.getX(), it.getY(), it.getZ());
-
         free_cells++;
     }
 
     for (auto it = map.beginLeaves(sphere, true, false, false, false, PLANNING_CHECK_DEPTH), it_end = map.endLeaves(); it != it_end; ++it)  {
         
-        ufo::math::Vector3 end_point(it.getX(), it.getY(), it.getZ());
-
         occupied_cells++;
     }
 
     double volumetric_gain = ( unknown_cells + free_cells ) / exp(occupied_cells);
 
     return volumetric_gain;
+}
+
+ufo::math::Vector3 FrontierExtraction::fetchInformativeFrontier () {
+
+    ufo::math::Vector3 informative_frontier;
+
+    double total_cost = std::numeric_limits<double>::max();
+    double cost;
+
+    for (ufo::math::Vector3 frontier : fetchLocalFrontiers()) {
+
+        cost = calculateAngle(frontier, fetchCurrentPosition(), m_currentHeading);
+
+        if (cost < total_cost) {
+            total_cost = cost;
+            informative_frontier = frontier;
+        }
+    }
+    return informative_frontier;
+
 }
 
 

@@ -116,7 +116,7 @@ class FrontierExtraction {
 
         double computeVolumetricGain (ufo::math::Vector3 frontier, ufo::map::OccupancyMapColor const &map);
 
-
+        ufo::math::Vector3 fetchInformativeFrontier ();
 
         //variables
         ufo::math::Vector3 m_currentPosition;
@@ -128,6 +128,9 @@ class FrontierExtraction {
         bool m_max_allowed_Z;
         double OBB_RADIUS;
         int PLANNING_CHECK_DEPTH;
+        double VOLUMETRIC_GAIN_THREASHOLD;
+
+
 
 
         ros::NodeHandle m_nh;
