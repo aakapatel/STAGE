@@ -29,7 +29,10 @@
 		<param name="number_of_unknowns" value="4" />
 		<param name="local_sliding_space" value="10" />
 		<param name="local_field_of_view" value="40" />
-	
+		<param name="safety_height" value = "4" />
+		<param name="traversability_radius" value="0.8" />
+		<param name="planning_check_depth" value="0" />
+
   </node>
 
 

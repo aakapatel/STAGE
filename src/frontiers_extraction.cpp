@@ -33,8 +33,16 @@ FrontierExtraction::FrontierExtraction(ros::NodeHandle private_nh_)
     m_currentHeading(0),
     LOCAL_SPACE(10),
     LOCAL_FOV(40),    
-    m_ufomap("/ufomap_mapping_server_node/map")
-   {
+    m_ufomap("/ufomap_mapping_server_node/map"),
+    m_max_allowed_Z(4),  
+    OBB_RADIUS(0.5),
+    PLANNING_CHECK_DEPTH(0)
+
+
+
+
+{
+
 
    
 
@@ -61,6 +69,14 @@ FrontierExtraction::FrontierExtraction(ros::NodeHandle private_nh_)
     private_nh.param("local_sliding_space", LOCAL_SPACE, LOCAL_SPACE);
     private_nh.param("local_field_of_view", LOCAL_FOV, LOCAL_SPACE);
     private_nh.param("ufomap", m_ufomap, m_ufomap);
+    private_nh.param("safety_height", m_max_allowed_Z, m_max_allowed_Z);
+    private_nh.param("traversability_radius", OBB_RADIUS, OBB_RADIUS);
+    private_nh.param("planning_check_depth", PLANNING_CHECK_DEPTH, PLANNING_CHECK_DEPTH);
+
+
+
+
+
 
     //Filtering
     private_nh.param("xFiltering", xFiltering, xFiltering);
@@ -116,7 +132,6 @@ FrontierExtraction::FrontierExtraction(ros::NodeHandle private_nh_)
 
 void FrontierExtraction::mapCallback(ufomap_msgs::UFOMapStamped::ConstPtr const &msg)
 {
-
  
   if (ufomap_msgs::msgToUfo(msg->map, m_ufoMAP))
   {
@@ -178,7 +193,7 @@ void FrontierExtraction::insertPointCloudCallback(const sensor_msgs::PointCloud2
     pc_nonground.header = pc.header;
 
     insertPointCloudScan(sensorToWorldTf.getOrigin(), pc_ground, pc_nonground);
-    publishFrontiers(sensorToWorldTf.getOrigin(), cloud->header.stamp);
+    extractFrontiers(sensorToWorldTf.getOrigin(), cloud->header.stamp);
 
 }
 
@@ -225,8 +240,6 @@ void FrontierExtraction::insertPointCloudScan(const tf::Point& sensorOriginTf, c
                 } else{
                 ROS_ERROR_STREAM("Could not generate Key for endpoint "<<new_end);
                 }
-
-
             }
         }
     }
@@ -253,13 +266,8 @@ void FrontierExtraction::insertPointCloudScan(const tf::Point& sensorOriginTf, c
 
 
 
-void FrontierExtraction::publishFrontiers(const tf::Point& sensorOriginTf, const ros::Time& rostime) {
+void FrontierExtraction::extractFrontiers(const tf::Point& sensorOriginTf, const ros::Time& rostime) {
     point3d sensorOrigin = octomap::pointTfToOctomap(sensorOriginTf);
-
-    visualization_msgs::MarkerArray frontierVis;
-    // stage_planner::Frontiers frontierPoints;
-
-    frontierVis.markers.resize(m_octree->numChangesDetected()+frontierPointList.size()+1);
 
     //Go through the old list of Frontier keys and check if they are still frontiers
     for (octomap::point3d_list::iterator it = frontierPointList.begin(), end = frontierPointList.end(); it != end; ++it) {
@@ -292,9 +300,7 @@ void FrontierExtraction::publishFrontiers(const tf::Point& sensorOriginTf, const
                     
                     double z_diff = abs(m_currentPose.pose.pose.position.z - pt.z());
 
-
-                    // if ((pt.x() > 0) && (z_diff < 0.5)) {
-                    if ((z_diff < 4)) {     
+                    if ((z_diff < m_max_allowed_Z)) {     
                         
                         if (FrontierExtraction::isFrontier(x, y, z, sensorOrigin) && !(m_octree->isNodeOccupied(me))) {
                             frontierPointList.push_back(pt);
@@ -306,43 +312,26 @@ void FrontierExtraction::publishFrontiers(const tf::Point& sensorOriginTf, const
         }
     }
 
-    //For visual and topic publishing
-    int idx = 0;
-    std_msgs::ColorRGBA color;
-    color.a = 0.5;
-    color.r = 1; color.g = 1; color.b = 0;
-    for (point3d point : frontierPointList) {
-        geometry_msgs::Point cubeCenter;
-        cubeCenter.x = point.x();
-        cubeCenter.y = point.y();
-        cubeCenter.z = point.z();
-        frontierVis.markers[idx].color.a =  1.0;
-        frontierVis.markers[idx].points.push_back(cubeCenter);
-        frontierVis.markers[idx].colors.push_back(color);
-        // frontierPoints.points.push_back(cubeCenter);
-        idx++;
-    }
 
     m_octree->resetChangeDetection();
+}
 
-    if (frontierVis.markers.size() > 0){
-        for (unsigned i= 0; i < frontierVis.markers.size(); ++i){
-            //double size = m_octree->getNodeSize(i);
-            frontierVis.markers[i].header.frame_id = m_worldFrameId;
-            frontierVis.markers[i].header.stamp = rostime;
-            frontierVis.markers[i].ns = i;
-            frontierVis.markers[i].id = i;
-            frontierVis.markers[i].type = visualization_msgs::Marker::SPHERE_LIST;
-            frontierVis.markers[i].scale.x = (m_res);
-            frontierVis.markers[i].scale.y = (m_res);
-            frontierVis.markers[i].scale.z = (m_res);
-            if (frontierVis.markers[i].points.size() > 0)
-                frontierVis.markers[i].action = visualization_msgs::Marker::ADD;
-    }
-    m_frontierPub.publish(frontierVis);
-    // m_frontierSelectionPub.publish(frontierPoints);
-    }
+std::vector<ufo::math::Vector3> FrontierExtraction::fetchFrontiers () {
 
+  std::vector<ufo::math::Vector3> unfiltered_frontiers;
+
+  for (auto i = frontierPointList.begin(); i != frontierPointList.end(); i++) {
+
+    ufo::math::Vector3 frontier_pt (i->x(), i->y(), i->z());
+    
+    ufo::geometry::Sphere sphere (frontier_pt, 1);
+
+    if (!isInCollision(m_ufoMAP, sphere, true, false, true, PLANNING_CHECK_DEPTH)) {
+
+        unfiltered_frontiers.push_back(frontier_pt);    
+    }
+  }
+  return unfiltered_frontiers;
 }
 
 
@@ -367,7 +356,10 @@ void FrontierExtraction::updateCurrentPosition(const nav_msgs::Odometry::ConstPt
     double roll,pitch,yaw;
     m.getRPY(roll, pitch, yaw);
     m_currentHeading = yaw * (180 / 3.14159);
+}
 
+ufo::math::Vector3 FrontierExtraction::fetchCurrentPosition () {
+  return m_currentPosition;
 }
 
 bool FrontierExtraction::isFrontier(float x, float y, float z, point3d sensorOrigin) {
@@ -713,5 +705,61 @@ bool FrontierExtraction::isLocal (ufo::math::Vector3 point) {
     } else { return false; }
 
 }
+
+std::vector<ufo::math::Vector3> FrontierExtraction::fetchLocalFrontiers () {
+
+  std::vector<ufo::math::Vector3> local_frontiers;
+  std::vector<ufo::math::Vector3> frontiers = fetchFrontiers();
+
+  for (ufo::math::Vector3 frontier_point : frontiers) {
+  
+    if (isLocal(frontier_point)) {
+
+      local_frontiers.push_back(frontier_point);
+
+    }
+
+  }
+
+  return local_frontiers;
+}
+
+std::vector<ufo::math::Vector3> FrontierExtraction::fetchGlobalFrontiers () {
+
+  std::vector<ufo::math::Vector3> global_frontiers;
+  std::vector<ufo::math::Vector3> frontiers = fetchFrontiers();
+
+  for (ufo::math::Vector3 frontier_point : frontiers) {
+  
+    if (!isLocal(frontier_point)) {
+
+      global_frontiers.push_back(frontier_point);
+
+    }
+
+  }
+
+  return global_frontiers;
+}
+
+std::vector<ufo::math::Vector3> FrontierExtraction::fetchLocallyTraversableFrontiers () {
+
+  std::vector<ufo::math::Vector3> locally_traversable_frontiers;
+
+  for (ufo::math::Vector3 local_frontier : fetchLocalFrontiers() ) {
+
+  ufo::geometry::OBB obb = makeOBB (fetchCurrentPosition(), local_frontier, OBB_RADIUS);
+
+  if (!isInCollision(m_ufoMAP, obb, true, false, true, PLANNING_CHECK_DEPTH)) {
+
+      locally_traversable_frontiers.push_back(local_frontier);
+
+    }
+  }
+  return locally_traversable_frontiers;
+}
+
+
+
 
 

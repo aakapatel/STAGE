@@ -85,7 +85,7 @@ class FrontierExtraction {
         
         virtual void insertPointCloudScan(const tf::Point& sensorOrigin, const PCLPointCloud& ground, const PCLPointCloud& nonground);
         
-        virtual void publishFrontiers(const tf::Point& sensorOrigin, const ros::Time& rostime = ros::Time::now());
+        virtual void extractFrontiers(const tf::Point& sensorOrigin, const ros::Time& rostime = ros::Time::now());
         
         virtual void mapCallback(ufomap_msgs::UFOMapStamped::ConstPtr const &map);
         
@@ -104,6 +104,17 @@ class FrontierExtraction {
         
         bool isLocal(ufo::math::Vector3 point);
         
+        ufo::math::Vector3 fetchCurrentPosition ();
+        
+        std::vector<ufo::math::Vector3> fetchFrontiers();
+        
+        std::vector<ufo::math::Vector3> fetchLocalFrontiers ();
+
+        std::vector<ufo::math::Vector3> fetchGlobalFrontiers ();
+
+        std::vector<ufo::math::Vector3> fetchLocallyTraversableFrontiers();
+
+
 
         //variables
         ufo::math::Vector3 m_currentPosition;
@@ -112,6 +123,9 @@ class FrontierExtraction {
         double LOCAL_FOV;
         bool map_received;
         std::string m_ufomap;
+        bool m_max_allowed_Z;
+        double OBB_RADIUS;
+        int PLANNING_CHECK_DEPTH;
 
 
         ros::NodeHandle m_nh;
