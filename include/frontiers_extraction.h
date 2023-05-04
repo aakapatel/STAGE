@@ -118,6 +118,8 @@ class FrontierExtraction {
 
         ufo::math::Vector3 fetchInformativeFrontier ();
 
+    std::vector< std::pair<ufo::math::Vector3, double>> fetchGlobalRepositioningTargets ();
+
         //variables
         ufo::math::Vector3 m_currentPosition;
         double m_currentHeading;

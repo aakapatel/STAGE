@@ -808,5 +808,21 @@ ufo::math::Vector3 FrontierExtraction::fetchInformativeFrontier () {
 
 }
 
+std::vector< std::pair<ufo::math::Vector3, double>> FrontierExtraction::fetchGlobalRepositioningTargets() {
+
+    std::vector< std::pair<ufo::math::Vector3, double>> global_repos_targets;
+    
+    for (ufo::math::Vector3 global_frontier : fetchGlobalFrontiers() ) {
+
+        double volumetric_gain = computeVolumetricGain(global_frontier, m_ufoMAP);
+
+        std::pair<ufo::math::Vector3, double> frontier_w_gain = std::make_pair (global_frontier, volumetric_gain);
+
+        global_repos_targets.push_back(frontier_w_gain);
+
+    }
+
+    return global_repos_targets;
+}
 
 
