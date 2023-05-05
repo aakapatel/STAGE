@@ -277,19 +277,40 @@ void GraphManager::tunePlanningSpace(bool local_graph, float range, ufo::math::V
   SCALER_Z = highest_z - lowest_z;
 }
 
+ufo::math::Vector3* GraphManager::node::getNodePointer() {
+    return point;
+} 
 
-void GraphManager::extractRawGraph(bool require_local, ufo::math::Vector3 root_node, int max_iterations)
+void GraphManager::node::addChild (node *newChild) {
+    myChilds.push_back(newChild);
+}
+
+void GraphManager::node::addParent (node *newParent) {
+    myParent = newParent;
+}
+
+void GraphManager::node::setTraversabilityStatus(bool Traversable) {
+    isTraversableByDrone = Traversable;
+}
+bool GraphManager::node::getTraversabilityStatus() {
+    return isTraversableByDrone;
+}
+void GraphManager::node::readyForDeletion() {
+    delete point;
+}
+
+void GraphManager::extractNodes(bool require_local, ufo::math::Vector3 root_node, int max_iterations)
 {
-    for (std::vector<node *>::iterator it_clear_helper = raw_graph.begin(); it_clear_helper != --raw_graph.end(); it_clear_helper++)
+    for (std::vector<node *>::iterator it_clear_helper = raw_nodes.begin(); it_clear_helper != --raw_nodes.end(); it_clear_helper++)
     {
     (*it_clear_helper)->readyForDeletion();
     delete (*it_clear_helper);
     }
 
-    raw_graph.clear();
+    raw_nodes.clear();
     node* current_pos = new node(root_node.x(), root_node.y(), root_node.z());
     current_pos->addParent(nullptr);
-    raw_graph.push_back(current_pos);
+    raw_nodes.push_back(current_pos);
 
     srand(time(0));
     int itterations = 0;
@@ -307,7 +328,7 @@ void GraphManager::extractRawGraph(bool require_local, ufo::math::Vector3 root_n
       float distance = std::numeric_limits<float>::max();
       node *parent;
       std::vector<node *>::iterator it_node;
-      for (it_node = raw_graph.begin(); it_node != raw_graph.end(); it_node++)
+      for (it_node = raw_nodes.begin(); it_node != raw_nodes.end(); it_node++)
       {
         ufo::math::Vector3 direction = random_point - *((*it_node)->point);
         double new_distance = abs(direction.norm());
@@ -337,13 +358,75 @@ void GraphManager::extractRawGraph(bool require_local, ufo::math::Vector3 root_n
         node *new_node = new node(x, y, z);
         new_node->addParent(parent);
         parent->addChild(new_node);
-        raw_graph.push_back(new_node);
+        raw_nodes.push_back(new_node);
       }
     };
     itterations++;
     };
-    ROS_INFO_STREAM("Graph contains --> " << raw_graph.size() << " Nodes\n");
+    ROS_INFO_STREAM("Planning space contains --> " << raw_nodes.size() << " nodes\n");
 
 
 }
 
+
+std::vector<GraphManager::Graph::Point> GraphManager::Graph::fetchPath(Point &start_pos, Point &end_pos, std::vector<vertex> all_vertices)
+{
+  vertex start_vert;
+  vertex end_vert;
+    
+  for (vertex &vert : all_vertices)
+  {
+    if (vert.location == end_pos)
+      start_vert = vert;
+    if (vert.location == start_pos)
+      end_vert = vert;
+  }
+
+  std::vector<Point> found_path; // Output path
+  std::set<vertex> open_list;
+  std::vector<Point> closed_list;
+
+  open_list.emplace(start_vert);
+
+  while (!open_list.empty())
+  {
+    vertex current_vert = *open_list.begin();
+
+    open_list.erase(open_list.begin());
+    closed_list.push_back(current_vert.location);
+
+    if (current_vert.location == end_vert.location)
+    {
+      vertex *parent = &current_vert;
+
+      while (parent != nullptr)
+      {
+        found_path.push_back(parent->location);
+        parent = parent->parent.get();
+      }
+      return (found_path);
+    }
+
+    for (vertex &vert : *current_vert.edges)
+    {
+      vertex child(vert);
+      child.parent.reset(new vertex(current_vert));
+
+      if (std::find_if(closed_list.begin(), closed_list.end(), [&child](Point &pt)
+                       { return (pt == child.location); }) != closed_list.end())
+        continue;
+
+      child.dist_to_start = current_vert.dist_to_start + child.location.DistTo(current_vert.location);
+
+      child.total_dist = 0.1 * (child.dist_to_start + (child.location.DistTo(end_vert.location)));
+
+      if (std::find_if(open_list.begin(), open_list.end(), [&child](const vertex &vert)
+                       { return ((vert == child) && (child.dist_to_start > vert.dist_to_start)); }) != open_list.end())
+        continue;
+
+      open_list.emplace(child);
+    }
+  }
+
+  return (found_path);
+}
