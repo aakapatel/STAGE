@@ -70,63 +70,122 @@
 #include <variant>
 
 class GraphManager {
+
+public:
+ 
+    class node {    
+    
     public:
-        
-        GraphManager(ros::NodeHandle private_nh_ = ros::NodeHandle("~"));
-        
-        virtual void updateCurrentPosition(const nav_msgs::Odometry::ConstPtr& pos);
-        
-        virtual void mapCallback(ufomap_msgs::UFOMapStamped::ConstPtr const &map);
-        
-        double calculateDistance(ufo::math::Vector3 point1, ufo::math::Vector3 point2);
-        
-        bool isInCollision(ufo::map::OccupancyMapColor const &map,
-               ufo::geometry::BoundingVar const &bounding_volume,
-               bool occupied_space, bool free_space,
-               bool unknown_space, ufo::map::DepthType min_depth);
-        
-        ufo::geometry::OBB makeOBB(ufo::math::Vector3 source, ufo::math::Vector3 goal, float radius); 
-        
-        double calculateAngle(ufo::math::Vector3 fpoint, ufo::math::Vector3 position, double heading);
-        
-        bool isLocal(ufo::math::Vector3 point);
-        
-        ufo::math::Vector3 fetchCurrentPosition ();
-        
-        double computeVolumetricGain (ufo::math::Vector3 frontier, ufo::map::OccupancyMapColor const &map);
+        ufo::math::Vector3 *point;
+        node *myParent = nullptr;
+        double distanceToParent = -1;
+        std::vector<node *> myChilds{};
+        std::vector<node *> myPath{};
+        bool isTraversableByDrone = true;
+        double distanceToGoal;
+        node(float x, float y, float z)
+        {
+        point = new ufo::math::Vector3(x, y, z);
+        }
+        node(ufo::math::Vector3 *givenPoint)
+        {
+        point = new ufo::math::Vector3(givenPoint->x(), givenPoint->y(), givenPoint->z());
+        }
+        ufo::math::Vector3 *getNodePointer()
+        {
+        return point;
+        }
+        void addChild(node *newChild)
+        {
+        myChilds.push_back(newChild);
+        }
+        void addParent(node *newParent)
+        {
+        myParent = newParent;
+        }
+        void setTraversabilityStatus(bool Traversable)
+        {
+        isTraversableByDrone = Traversable;
+        }
+        bool getTraversabilityStatus()
+        {
+        return isTraversableByDrone;
+        }
+        void readyForDeletion()
+        {
+        delete point;
+        }
+    };
 
-        //variables
-        bool firstTime = true;
-        ufo::math::Vector3 m_currentPosition;
-        double m_currentHeading;
-        double LOCAL_SPACE;
-        double LOCAL_FOV;
-        bool map_received;
-        std::string m_ufomap;
-        bool m_max_allowed_Z;
-        double OBB_RADIUS;
-        int PLANNING_CHECK_DEPTH;
-        double VOLUMETRIC_GAIN_THREASHOLD;
-        bool check = false;
+   
+    GraphManager(ros::NodeHandle private_nh_ = ros::NodeHandle("~"));
+        
+    virtual void updateCurrentPosition(const nav_msgs::Odometry::ConstPtr& pos);
+    
+    virtual void mapCallback(ufomap_msgs::UFOMapStamped::ConstPtr const &map);
+    
+    double calculateDistance(ufo::math::Vector3 point1, ufo::math::Vector3 point2);
+    
+    bool isInCollision(ufo::map::OccupancyMapColor const &map,
+           ufo::geometry::BoundingVar const &bounding_volume,
+           bool occupied_space, bool free_space,
+           bool unknown_space, ufo::map::DepthType min_depth);
+    
+    ufo::geometry::OBB makeOBB(ufo::math::Vector3 source, ufo::math::Vector3 goal, float radius); 
+    
+    double calculateAngle(ufo::math::Vector3 fpoint, ufo::math::Vector3 position, double heading);
+    
+    bool isLocal(ufo::math::Vector3 point);
+    
+    ufo::math::Vector3 fetchCurrentPosition ();
+    
+    double computeVolumetricGain (ufo::math::Vector3 frontier, ufo::map::OccupancyMapColor const &map);
+    
+    void tunePlanningSpace(bool local_graph, float range, ufo::math::Vector3 root_node, 
+                                    ufo::map::OccupancyMapColor const &map);
+
+    void extractRawGraph(bool require_local, ufo::math::Vector3 root_node, int max_iterations);
 
 
 
-        ros::NodeHandle m_nh;
-        std::string m_worldFrameId; // the map frame
-        std::string m_odometry;
-        std::string m_baseFrameId; // base of the robot for ground plane filtering
-        nav_msgs::Odometry m_currentPose;
-        nav_msgs::Odometry m_prevPose; //Holds the point where the direction changed.
-
-        //Subscriber
-        message_filters::Subscriber<nav_msgs::Odometry>* m_poseSubscriber;
-        message_filters::Subscriber<ufomap_msgs::UFOMapStamped>* m_ufoMapSubscriber;
 
 
-        //Publisher
-        ros::Publisher m_frontierPub;
-        ros::Publisher m_frontierSelectionPub;
-        ros::Publisher command_pub;
+
+    //variables
+    bool firstTime = true;
+    ufo::math::Vector3 m_currentPosition;
+    double m_currentHeading;
+    double LOCAL_SPACE;
+    double LOCAL_FOV;
+    bool map_received;
+    std::string m_ufomap;
+    bool m_max_allowed_Z;
+    double OBB_RADIUS;
+    int PLANNING_CHECK_DEPTH;
+    double VOLUMETRIC_GAIN_THREASHOLD;
+    bool check = false;
+    float SCALER_X, SCALER_Y, SCALER_Z, highest_x, highest_y ,highest_z, lowest_x, lowest_y, lowest_z;
+    std::vector<node *> raw_graph;
+    double MIN_DIST_BW_NODES;
+    
+
+
+    ros::NodeHandle m_nh;
+    std::string m_worldFrameId; // the map frame
+    std::string m_odometry;
+    std::string m_baseFrameId; // base of the robot for ground plane filtering
+    nav_msgs::Odometry m_currentPose;
+    nav_msgs::Odometry m_prevPose; //Holds the point where the direction changed.
+
+    //Subscriber
+    message_filters::Subscriber<nav_msgs::Odometry>* m_poseSubscriber;
+    message_filters::Subscriber<ufomap_msgs::UFOMapStamped>* m_ufoMapSubscriber;
+
+
+    //Publisher
+    ros::Publisher m_frontierPub;
+    ros::Publisher m_frontierSelectionPub;
+    ros::Publisher command_pub;
 
 };
 

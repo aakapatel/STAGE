@@ -15,8 +15,8 @@ GraphManager::GraphManager(ros::NodeHandle private_nh_)
     m_max_allowed_Z(4),  
     OBB_RADIUS(0.5),
     PLANNING_CHECK_DEPTH(0),
-    VOLUMETRIC_GAIN_THREASHOLD(10)
-
+    VOLUMETRIC_GAIN_THREASHOLD(10),
+    MIN_DIST_BW_NODES(0.8)
 
 
 
@@ -37,7 +37,7 @@ GraphManager::GraphManager(ros::NodeHandle private_nh_)
     private_nh.param("traversability_radius", OBB_RADIUS, OBB_RADIUS);
     private_nh.param("planning_check_depth", PLANNING_CHECK_DEPTH, PLANNING_CHECK_DEPTH);
     private_nh.param("volumetric_gain_threashold", VOLUMETRIC_GAIN_THREASHOLD, VOLUMETRIC_GAIN_THREASHOLD);
-
+    private_nh.param("minimum_distance_between_nodes", MIN_DIST_BW_NODES, MIN_DIST_BW_NODES);
 
 
 
@@ -229,5 +229,121 @@ double GraphManager::computeVolumetricGain (ufo::math::Vector3 frontier, ufo::ma
     return volumetric_gain;
 }
 
-    
+
+void GraphManager::tunePlanningSpace(bool local_graph, float range, ufo::math::Vector3 root_node, ufo::map::OccupancyMapColor const &map)
+{
+
+  highest_x = -std::numeric_limits<float>::max();
+  highest_y = -std::numeric_limits<float>::max();
+  highest_z = -std::numeric_limits<float>::max();
+  lowest_x = std::numeric_limits<float>::max();
+  lowest_y = std::numeric_limits<float>::max();
+  lowest_z = std::numeric_limits<float>::max();
+
+  ufo::math::Vector3 minPoint(root_node.x() - 1 * range, root_node.y() - 1 * range, root_node.z() - 1 * range);
+  ufo::math::Vector3 maxPoint(root_node.x() + 1 * range, root_node.y() + 1 * range, root_node.z() + 1 * range);
+  ufo::geometry::AABB aabb(minPoint, maxPoint);
+
+  for (auto it = map.beginLeaves(aabb, false, true, false, false, PLANNING_CHECK_DEPTH); it != map.endLeaves();  ++it)
+  {
+    if (it.getX() > highest_x)
+    {
+      highest_x = it.getX();
+    }
+    if (it.getX() < lowest_x)
+    {
+      lowest_x = it.getX();
+    }
+    if (it.getY() > highest_y)
+    {
+      highest_y = it.getY();
+    }
+    if (it.getY() < lowest_y)
+    {
+      lowest_y = it.getY();
+    }
+    if (it.getZ() > highest_z)
+    {
+      highest_z = it.getZ();
+    }
+    if (it.getZ() < lowest_z)
+    {
+      lowest_z = it.getZ();
+    }
+  }
+
+  SCALER_X = highest_x - lowest_x;
+  SCALER_Y = highest_y - lowest_y;
+  SCALER_Z = highest_z - lowest_z;
+}
+
+
+void GraphManager::extractRawGraph(bool require_local, ufo::math::Vector3 root_node, int max_iterations)
+{
+    for (std::vector<node *>::iterator it_clear_helper = raw_graph.begin(); it_clear_helper != --raw_graph.end(); it_clear_helper++)
+    {
+    (*it_clear_helper)->readyForDeletion();
+    delete (*it_clear_helper);
+    }
+
+    raw_graph.clear();
+    node* current_pos = new node(root_node.x(), root_node.y(), root_node.z());
+    current_pos->addParent(nullptr);
+    raw_graph.push_back(current_pos);
+
+    srand(time(0));
+    int itterations = 0;
+
+    while (itterations < max_iterations)
+    {
+    // Generate a random point
+    float x = lowest_x + abs(1024 * rand() / (RAND_MAX + 1.0)) * SCALER_X;
+    float y = lowest_y + abs(1024 * rand() / (RAND_MAX + 1.0)) * SCALER_Y;
+    float z = lowest_z + abs(1024 * rand() / (RAND_MAX + 1.0)) * SCALER_Z;
+    ufo::math::Vector3 random_point(x, y, z);
+    ufo::geometry::Sphere point_sphere(random_point, OBB_RADIUS);
+    if (!isInCollision(m_ufoMAP, point_sphere, true, false, true, PLANNING_CHECK_DEPTH) and isInCollision(m_ufoMAP, point_sphere, false, true, false, PLANNING_CHECK_DEPTH))
+    {
+      float distance = std::numeric_limits<float>::max();
+      node *parent;
+      std::vector<node *>::iterator it_node;
+      for (it_node = raw_graph.begin(); it_node != raw_graph.end(); it_node++)
+      {
+        ufo::math::Vector3 direction = random_point - *((*it_node)->point);
+        double new_distance = abs(direction.norm());
+        if (new_distance < distance)
+        {
+          distance = new_distance;
+          parent = *it_node;
+        }
+      };
+      ufo::math::Vector3 start_point(parent->point->x(), parent->point->y(), parent->point->z());
+      ufo::math::Vector3 direction = random_point - start_point;
+      ufo::geometry::LineSegment myline(random_point, start_point);
+      // ufo::geometry::OBB obb = makeOBB (start_point, random_point, RAW_GRAPH_COLISSION_MARGIN);
+      double min_dist = MIN_DIST_BW_NODES;
+      if (require_local)
+      {
+        min_dist = min_dist;
+      }
+      else
+      {
+        min_dist = MIN_DIST_BW_NODES;
+      }
+      if (!isInCollision(m_ufoMAP, myline, true, false, true, PLANNING_CHECK_DEPTH) 
+                    and calculateDistance(random_point, start_point) > min_dist)
+
+      {
+        node *new_node = new node(x, y, z);
+        new_node->addParent(parent);
+        parent->addChild(new_node);
+        raw_graph.push_back(new_node);
+      }
+    };
+    itterations++;
+    };
+    ROS_INFO_STREAM("Graph contains --> " << raw_graph.size() << " Nodes\n");
+
+
+}
 
