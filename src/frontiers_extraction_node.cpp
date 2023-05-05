@@ -9,11 +9,12 @@ int main(int argc, char** argv) {
     const ros::NodeHandle& private_nh = ros::NodeHandle("~");
 
     FrontierExtraction frontierExtraction;
-    // frontierExtraction.fetchGlobalRepositioningTargets();  
-    ros::spinOnce();
     
+    ros::spinOnce();
     try{
         ros::spin();
+   
+
     }catch(std::runtime_error& e){
         ROS_ERROR("octree exception: %s", e.what());
         return -1;

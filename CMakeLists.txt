@@ -107,6 +107,18 @@ add_executable(frontiers_extraction_node src/frontiers_extraction_node.cpp)
     UFO::Map
    )
 
+
+add_executable(graph_management_node src/graph_management_node.cpp)
+## Specify libraries to link a library or executable target against
+ target_link_libraries(
+   graph_management_node
+   ${catkin_LIBRARIES}
+   ${OCTOMAP_LIBRARIES}
+   ${PCL_LIBRARIES}
+    ${CMAKE_DL_LIBS}
+    UFO::Map
+   )
+
 add_executable(stage_interface_node src/stage_interface_node.cpp)
 ## Specify libraries to link a library or executable target against
  target_link_libraries(

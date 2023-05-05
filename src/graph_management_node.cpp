@@ -1,20 +1,22 @@
 #include <ros/ros.h>
-#include "exploration.h"
-#include "exploration.cpp"
+#include "graph_management.h"
+#include "graph_management.cpp"
 
 using namespace std;
 
 int main(int argc, char** argv) {
-    ros::init(argc, argv, "Frontier_Exploration_Node");
+    ros::init(argc, argv, "Graph_Management_Node");
     const ros::NodeHandle& private_nh = ros::NodeHandle("~");
 
-    FrontierExploration frontierExploration;
-    ros::spinOnce();
+    GraphManager graphManager;
     
+    ros::spinOnce();
     try{
         ros::spin();
+   
+
     }catch(std::runtime_error& e){
-        ROS_ERROR("octomap_server exception: %s", e.what());
+        ROS_ERROR("Graph Building Error: %s", e.what());
         return -1;
     }
 

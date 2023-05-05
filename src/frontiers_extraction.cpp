@@ -827,7 +827,6 @@ std::vector< std::pair<ufo::math::Vector3, double>> FrontierExtraction::fetchGlo
 
     }
 
-    // std::cout << "global repos target infogain " << global_repos_targets.back().second << std::endl;
 
     return global_repos_targets;
 }
