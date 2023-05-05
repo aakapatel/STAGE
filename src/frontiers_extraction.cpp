@@ -37,7 +37,7 @@ FrontierExtraction::FrontierExtraction(ros::NodeHandle private_nh_)
     m_max_allowed_Z(4),  
     OBB_RADIUS(0.5),
     PLANNING_CHECK_DEPTH(0),
-    VOLUMETRIC_GAIN_THREASHOLD(0.01)
+    VOLUMETRIC_GAIN_THREASHOLD(10)
 
 
 
@@ -314,7 +314,6 @@ void FrontierExtraction::extractFrontiers(const tf::Point& sensorOriginTf, const
         }
     }
 
-
     m_octree->resetChangeDetection();
 }
 
@@ -326,12 +325,13 @@ std::vector<ufo::math::Vector3> FrontierExtraction::fetchFrontiers () {
 
     ufo::math::Vector3 frontier_pt (i->x(), i->y(), i->z());
     
-    ufo::geometry::Sphere sphere (frontier_pt, 1);
+    ufo::geometry::Sphere sphere (frontier_pt, 0.5);
 
     if (!isInCollision(m_ufoMAP, sphere, true, false, true, PLANNING_CHECK_DEPTH) && computeVolumetricGain(frontier_pt, m_ufoMAP) > VOLUMETRIC_GAIN_THREASHOLD) {
 
         unfiltered_frontiers.push_back(frontier_pt);
     }
+
   }
 
   return unfiltered_frontiers;
@@ -359,6 +359,7 @@ void FrontierExtraction::updateCurrentPosition(const nav_msgs::Odometry::ConstPt
     double roll,pitch,yaw;
     m.getRPY(roll, pitch, yaw);
     m_currentHeading = yaw * (180 / 3.14159);
+
 }
 
 ufo::math::Vector3 FrontierExtraction::fetchCurrentPosition () {
@@ -366,6 +367,7 @@ ufo::math::Vector3 FrontierExtraction::fetchCurrentPosition () {
 }
 
 bool FrontierExtraction::isFrontier(float x, float y, float z, point3d sensorOrigin) {
+
 
     octomap::OcTreeNode* me;
     octomap::OcTreeNode* nodeX;
@@ -711,6 +713,7 @@ bool FrontierExtraction::isLocal (ufo::math::Vector3 point) {
 
 std::vector<ufo::math::Vector3> FrontierExtraction::fetchLocalFrontiers () {
 
+
   std::vector<ufo::math::Vector3> local_frontiers;
   std::vector<ufo::math::Vector3> frontiers = fetchFrontiers();
 
@@ -723,6 +726,8 @@ std::vector<ufo::math::Vector3> FrontierExtraction::fetchLocalFrontiers () {
     }
 
   }
+    
+    // ROS_INFO_STREAM("local frontiers size " << local_frontiers.size());
 
   return local_frontiers;
 }
@@ -783,7 +788,7 @@ double FrontierExtraction::computeVolumetricGain (ufo::math::Vector3 frontier, u
         occupied_cells++;
     }
 
-    double volumetric_gain = ( unknown_cells + free_cells ) / exp(occupied_cells);
+    double volumetric_gain = 10 * (log(unknown_cells + free_cells ) / log (occupied_cells));
 
     return volumetric_gain;
 }
@@ -797,7 +802,7 @@ ufo::math::Vector3 FrontierExtraction::fetchInformativeFrontier () {
 
     for (ufo::math::Vector3 frontier : fetchLocalFrontiers()) {
 
-        cost = calculateAngle(frontier, fetchCurrentPosition(), m_currentHeading);
+        cost = calculateAngle(frontier, fetchCurrentPosition(), m_currentHeading) + (1/computeVolumetricGain(frontier, m_ufoMAP));
 
         if (cost < total_cost) {
             total_cost = cost;
@@ -822,7 +827,11 @@ std::vector< std::pair<ufo::math::Vector3, double>> FrontierExtraction::fetchGlo
 
     }
 
+    // std::cout << "global repos target infogain " << global_repos_targets.back().second << std::endl;
+
     return global_repos_targets;
 }
 
+
+    
 

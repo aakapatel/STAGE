@@ -131,7 +131,7 @@ class FrontierExtraction {
         double OBB_RADIUS;
         int PLANNING_CHECK_DEPTH;
         double VOLUMETRIC_GAIN_THREASHOLD;
-
+        bool check = false;
 
 
 

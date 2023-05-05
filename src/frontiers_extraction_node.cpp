@@ -9,6 +9,7 @@ int main(int argc, char** argv) {
     const ros::NodeHandle& private_nh = ros::NodeHandle("~");
 
     FrontierExtraction frontierExtraction;
+    // frontierExtraction.fetchGlobalRepositioningTargets();  
     ros::spinOnce();
     
     try{
