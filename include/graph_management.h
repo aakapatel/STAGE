@@ -165,9 +165,9 @@ public:
     void tunePlanningSpace(bool local_graph, float range, ufo::math::Vector3 root_node, 
                                     ufo::map::OccupancyMapColor const &map);
 
-    void extractNodes(bool require_local, ufo::math::Vector3 root_node, int max_iterations);
+    std::vector<node *> extractNodes(bool require_local, bool build_reserved_tree, ufo::math::Vector3 root_node, int max_iterations);
 
-
+    
 
 
 
@@ -186,7 +186,7 @@ public:
     double VOLUMETRIC_GAIN_THREASHOLD;
     bool check = false;
     float SCALER_X, SCALER_Y, SCALER_Z, highest_x, highest_y ,highest_z, lowest_x, lowest_y, lowest_z;
-    std::vector<node *> raw_nodes;
+    std::vector<node *> reserved_nodes;
     double MIN_DIST_BW_NODES;
     
 

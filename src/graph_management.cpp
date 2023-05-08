@@ -299,18 +299,20 @@ void GraphManager::node::readyForDeletion() {
     delete point;
 }
 
-void GraphManager::extractNodes(bool require_local, ufo::math::Vector3 root_node, int max_iterations)
+std::vector<GraphManager::node *> GraphManager::extractNodes(bool require_local, bool build_reserved_tree, ufo::math::Vector3 root_node, int max_iterations)
 {
-    for (std::vector<node *>::iterator it_clear_helper = raw_nodes.begin(); it_clear_helper != --raw_nodes.end(); it_clear_helper++)
+  std::vector<node *> temporary_nodes;
+
+    for (std::vector<node *>::iterator it_clear_helper = temporary_nodes.begin(); it_clear_helper != --temporary_nodes.end(); it_clear_helper++)
     {
     (*it_clear_helper)->readyForDeletion();
     delete (*it_clear_helper);
     }
 
-    raw_nodes.clear();
+    temporary_nodes.clear();
     node* current_pos = new node(root_node.x(), root_node.y(), root_node.z());
     current_pos->addParent(nullptr);
-    raw_nodes.push_back(current_pos);
+    temporary_nodes.push_back(current_pos);
 
     srand(time(0));
     int itterations = 0;
@@ -328,7 +330,7 @@ void GraphManager::extractNodes(bool require_local, ufo::math::Vector3 root_node
       float distance = std::numeric_limits<float>::max();
       node *parent;
       std::vector<node *>::iterator it_node;
-      for (it_node = raw_nodes.begin(); it_node != raw_nodes.end(); it_node++)
+      for (it_node = temporary_nodes.begin(); it_node != temporary_nodes.end(); it_node++)
       {
         ufo::math::Vector3 direction = random_point - *((*it_node)->point);
         double new_distance = abs(direction.norm());
@@ -342,7 +344,7 @@ void GraphManager::extractNodes(bool require_local, ufo::math::Vector3 root_node
       ufo::math::Vector3 direction = random_point - start_point;
       ufo::geometry::LineSegment myline(random_point, start_point);
       // ufo::geometry::OBB obb = makeOBB (start_point, random_point, RAW_GRAPH_COLISSION_MARGIN);
-      double min_dist = MIN_DIST_BW_NODES;
+      double min_dist = MIN_DIST_BW_NODES/2;
       if (require_local)
       {
         min_dist = min_dist;
@@ -358,16 +360,22 @@ void GraphManager::extractNodes(bool require_local, ufo::math::Vector3 root_node
         node *new_node = new node(x, y, z);
         new_node->addParent(parent);
         parent->addChild(new_node);
-        raw_nodes.push_back(new_node);
+        temporary_nodes.push_back(new_node);
       }
     };
     itterations++;
     };
-    ROS_INFO_STREAM("Planning space contains --> " << raw_nodes.size() << " nodes\n");
 
-
+  if (!build_reserved_tree) {
+     ROS_INFO_STREAM("Planning space contains --> " << temporary_nodes.size() << " nodes\n");
+    return temporary_nodes;
+  } else {
+    for (auto it = temporary_nodes.begin(); it != temporary_nodes.end(); it++) {
+      reserved_nodes.push_back(*it);
+    }
+    return reserved_nodes;
+  }
 }
-
 
 std::vector<GraphManager::Graph::Point> GraphManager::Graph::fetchPath(Point &start_pos, Point &end_pos, std::vector<vertex> all_vertices)
 {
@@ -430,3 +438,6 @@ std::vector<GraphManager::Graph::Point> GraphManager::Graph::fetchPath(Point &st
 
   return (found_path);
 }
+
+
+
