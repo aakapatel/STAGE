@@ -68,6 +68,8 @@
 #include <memory>
 #include <fstream>
 #include <variant>
+#include "stage_planner/frontierRequest.h"
+
 
 class FrontierExtraction {
     public:
@@ -118,7 +120,11 @@ class FrontierExtraction {
 
         ufo::math::Vector3 fetchInformativeFrontier ();
 
-        std::vector< std::pair<ufo::math::Vector3, double>> fetchGlobalRepositioningTargets ();
+        std::vector< geometry_msgs::Point> fetchGlobalRepositioningTargets ();
+
+        bool exportFrontierTargets (stage_planner::frontierRequest::Request &req, stage_planner::frontierRequest::Response &res);
+
+        geometry_msgs::Point ufoToPoint (ufo::math::Vector3 v);
 
         //variables
         ufo::math::Vector3 m_currentPosition;
@@ -136,6 +142,7 @@ class FrontierExtraction {
 
 
         ros::NodeHandle m_nh;
+        ros::ServiceServer m_frontier_srv;
         tf::TransformListener m_tfListener;
         std::string m_worldFrameId; // the map frame
         std::string m_odometry;

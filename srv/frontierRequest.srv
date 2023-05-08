@@ -1,0 +1,4 @@
+bool local
+---
+geometry_msgs/Point best_local
+geometry_msgs/Point[] global_targets

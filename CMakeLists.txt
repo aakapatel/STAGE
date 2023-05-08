@@ -68,6 +68,12 @@ add_message_files(
   path.msg
 )
 
+add_service_files(
+  FILES
+  frontierRequest.srv
+)
+
+
 generate_messages(
   DEPENDENCIES
   geometry_msgs

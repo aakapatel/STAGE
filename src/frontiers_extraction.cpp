@@ -128,6 +128,11 @@ FrontierExtraction::FrontierExtraction(ros::NodeHandle private_nh_)
     //Register publishers
     m_frontierPub = m_nh.advertise<visualization_msgs::MarkerArray>("/frontier_nodes_vis", 1, true);
     // m_frontierSelectionPub = m_nh.advertise<Frontiers>("frontiers_nodes", 1, true);
+
+    /* Setup ros services */
+    m_frontier_srv = m_nh.advertiseService("request_frontier_target", &FrontierExtraction::exportFrontierTargets, this); 
+
+
 };
 
  ufo::map::OccupancyMapColor m_ufoMAP(0.2);
@@ -137,7 +142,7 @@ void FrontierExtraction::mapCallback(ufomap_msgs::UFOMapStamped::ConstPtr const 
  
   if (ufomap_msgs::msgToUfo(msg->map, m_ufoMAP))
   {
-    ROS_INFO("MAP RECEIVED");
+    // ROS_INFO("MAP RECEIVED");
     map_received = true;
   }
   else
@@ -702,10 +707,10 @@ double FrontierExtraction::calculateAngle(ufo::math::Vector3 fpoint, ufo::math::
 
 bool FrontierExtraction::isLocal (ufo::math::Vector3 point) {
 
-    double angle = FrontierExtraction::calculateAngle (point, m_currentPosition, m_currentHeading);
-    double distance = FrontierExtraction::calculateDistance (point, m_currentPosition);
+    double angle =calculateAngle (point, m_currentPosition, m_currentHeading);
+    double distance = calculateDistance (point, m_currentPosition);
 
-    if ((angle < LOCAL_FOV && angle > LOCAL_FOV) && distance < LOCAL_SPACE) {
+    if (((angle < LOCAL_FOV) && (angle > -LOCAL_FOV)) && distance < LOCAL_SPACE) {
         return true;
     } else { return false; }
 
@@ -809,28 +814,44 @@ ufo::math::Vector3 FrontierExtraction::fetchInformativeFrontier () {
             informative_frontier = frontier;
         }
     }
+    // cout << "informative frontier : " << informative_frontier.x() << " " << informative_frontier.y() << " " << informative_frontier.z() << endl;
     return informative_frontier;
-
 }
 
-std::vector< std::pair<ufo::math::Vector3, double>> FrontierExtraction::fetchGlobalRepositioningTargets() {
+geometry_msgs::Point FrontierExtraction::ufoToPoint (ufo::math::Vector3 v) {
+    geometry_msgs::Point p;
+    p.x = v.x();
+    p.y = v.y();
+    p.z = v.z();
+    return p;
+}
 
-    std::vector< std::pair<ufo::math::Vector3, double>> global_repos_targets;
+std::vector< geometry_msgs::Point > FrontierExtraction::fetchGlobalRepositioningTargets() {
+
+    std::vector< geometry_msgs::Point> global_repos_targets;
     
     for (ufo::math::Vector3 global_frontier : fetchGlobalFrontiers() ) {
 
-        double volumetric_gain = computeVolumetricGain(global_frontier, m_ufoMAP);
-
-        std::pair<ufo::math::Vector3, double> frontier_w_gain = std::make_pair (global_frontier, volumetric_gain);
-
-        global_repos_targets.push_back(frontier_w_gain);
-
+        global_repos_targets.push_back(ufoToPoint(global_frontier));
     }
-
 
     return global_repos_targets;
 }
 
+bool FrontierExtraction::exportFrontierTargets (stage_planner::frontierRequest::Request &req, 
+                                                    stage_planner::frontierRequest::Response &res) {
 
+    if (req.local) {
+
+        geometry_msgs::Point frontier_point = ufoToPoint(fetchInformativeFrontier());
+        res.best_local = frontier_point;
+
+    } else {
+       
+        res.global_targets = fetchGlobalRepositioningTargets();
+    }
+
+    return true;
+}
     
 
