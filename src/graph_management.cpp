@@ -233,9 +233,9 @@ double GraphManager::computeVolumetricGain (ufo::math::Vector3 frontier, ufo::ma
 }
 
 
-void GraphManager::tunePlanningSpace(bool local_graph, float range, ufo::math::Vector3 root_node, ufo::map::OccupancyMapColor const &map)
+ufo::math::Vector3 GraphManager::tunePlanningSpace(float range, ufo::math::Vector3 root_node, ufo::map::OccupancyMapColor const &map)
 {
-
+  
   highest_x = -std::numeric_limits<float>::max();
   highest_y = -std::numeric_limits<float>::max();
   highest_z = -std::numeric_limits<float>::max();
@@ -275,9 +275,8 @@ void GraphManager::tunePlanningSpace(bool local_graph, float range, ufo::math::V
     }
   }
 
-  SCALER_X = highest_x - lowest_x;
-  SCALER_Y = highest_y - lowest_y;
-  SCALER_Z = highest_z - lowest_z;
+  ufo::math::Vector3 planning_space_scaler (highest_x - lowest_x, highest_y - lowest_y, highest_z - lowest_z);
+  return planning_space_scaler;
 }
 
 ufo::math::Vector3* GraphManager::node::getNodePointer() {
@@ -302,9 +301,12 @@ void GraphManager::node::readyForDeletion() {
     delete point;
 }
 
-std::vector<GraphManager::node *> GraphManager::extractNodes(bool require_local, bool build_reserved_tree, ufo::math::Vector3 root_node, int max_iterations)
+std::vector<GraphManager::node *> GraphManager::extractNodes(bool require_local, bool build_reserved_tree, 
+                                                                  ufo::math::Vector3 root_node, 
+                                                                      int max_iterations, ufo::math::Vector3 target, 
+                                                                        float range, ufo::map::OccupancyMapColor const &map)
 {
-  std::vector<node *> temporary_nodes;
+    std::vector<node *> temporary_nodes;
 
     for (std::vector<node *>::iterator it_clear_helper = temporary_nodes.begin(); it_clear_helper != --temporary_nodes.end(); it_clear_helper++)
     {
@@ -314,8 +316,11 @@ std::vector<GraphManager::node *> GraphManager::extractNodes(bool require_local,
 
     temporary_nodes.clear();
     node* current_pos = new node(root_node.x(), root_node.y(), root_node.z());
+    node* target_pos = new node(target.x(), target.y(), target.z());
     current_pos->addParent(nullptr);
+    target_pos->addParent(nullptr);
     temporary_nodes.push_back(current_pos);
+    temporary_nodes.push_back(target_pos);
 
     srand(time(0));
     int itterations = 0;
@@ -323,12 +328,16 @@ std::vector<GraphManager::node *> GraphManager::extractNodes(bool require_local,
     while (itterations < max_iterations)
     {
     // Generate a random point
-    float x = lowest_x + abs(1024 * rand() / (RAND_MAX + 1.0)) * SCALER_X;
-    float y = lowest_y + abs(1024 * rand() / (RAND_MAX + 1.0)) * SCALER_Y;
-    float z = lowest_z + abs(1024 * rand() / (RAND_MAX + 1.0)) * SCALER_Z;
+    
+    ufo::math::Vector3 box = tunePlanningSpace (range, root_node, map);
+
+    float x = lowest_x + abs(1024 * rand() / (RAND_MAX + 1.0)) * box.x();
+    float y = lowest_y + abs(1024 * rand() / (RAND_MAX + 1.0)) * box.y();
+    float z = lowest_z + abs(1024 * rand() / (RAND_MAX + 1.0)) * box.z();
     ufo::math::Vector3 random_point(x, y, z);
     ufo::geometry::Sphere point_sphere(random_point, OBB_RADIUS);
-    if (!isInCollision(m_ufoMAP, point_sphere, true, false, true, PLANNING_CHECK_DEPTH) and isInCollision(m_ufoMAP, point_sphere, false, true, false, PLANNING_CHECK_DEPTH))
+    if (!isInCollision(map, point_sphere, true, false, true, PLANNING_CHECK_DEPTH) 
+              and isInCollision(map, point_sphere, false, true, false, PLANNING_CHECK_DEPTH))
     {
       float distance = std::numeric_limits<float>::max();
       node *parent;
@@ -356,7 +365,7 @@ std::vector<GraphManager::node *> GraphManager::extractNodes(bool require_local,
       {
         min_dist = MIN_DIST_BW_NODES;
       }
-      if (!isInCollision(m_ufoMAP, myline, true, false, true, PLANNING_CHECK_DEPTH) 
+      if (!isInCollision(map, myline, true, false, true, PLANNING_CHECK_DEPTH) 
                     and calculateDistance(random_point, start_point) > min_dist)
 
       {
@@ -442,6 +451,63 @@ std::vector<GraphManager::Graph::Point> GraphManager::Graph::fetchPath(Point &st
   return (found_path);
 }
 
+ufo::math::Vector3 GraphManager::pointToUfo (geometry_msgs::Point p) {
+  ufo::math::Vector3 v (p.x, p.y, p.z);
+  return v;
+}
+
+std::vector<ufo::math::Vector3> GraphManager::pointsToUfo (std::vector<geometry_msgs::Point> points) {
+  
+  std::vector<ufo::math::Vector3> ufo_vec;
+
+  for (geometry_msgs::Point p : points) {
+    ufo_vec.push_back(ufo::math::Vector3 (p.x, p.y, p.z));
+  }
+
+  return ufo_vec;
+}
+
+void GraphManager::fetchExplorationTargets () {
+
+  stage_planner::frontierRequest frontier_srv;
+  
+  frontier_srv.request.local = true;
+
+  if (m_frontier_client.call(frontier_srv)) {
+
+    if (frontier_srv.response.local_nav) {
+    
+    m_local_exploration_target = pointToUfo(frontier_srv.response.best_local);    
+
+    } else if (frontier_srv.response.local_nav == false) {
+
+      m_global_repos_targets = pointsToUfo (frontier_srv.response.global_targets);
+    }
+
+  }
+
+}
+
+void GraphManager::constructLocalGraph () {
+
+  fetchExplorationTargets();
+
+  std::vector<GraphManager::node *> nodes = extractNodes(true, false, m_currentPosition, m_local_exploration_target, 
+                                                          MAX_ITERATIONS_LOCAL, LOCAL_SPACE, m_ufoMAP);
+
+  std::vector<Graph::vertex> local_graph_vertices;
+
+  for (auto insert_helper = nodes.begin(); insert_helper != nodes.end(), insert_helper++) {
+
+    local_graph_vertices.push_back( { Graph::vertex { ((((*insert_helper))->myParent)->point)->x(), 
+                                                          ((((*insert_helper))->myParent)->point)->y(),
+                                                                ((((*insert_helper))->myParent)->point)->z() } } );
 
 
 
+  }
+
+
+
+
+}

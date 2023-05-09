@@ -164,14 +164,18 @@ public:
     
     double computeVolumetricGain (ufo::math::Vector3 frontier, ufo::map::OccupancyMapColor const &map);
     
-    void tunePlanningSpace(bool local_graph, float range, ufo::math::Vector3 root_node, 
+    ufo::math::Vector3 tunePlanningSpace(float range, ufo::math::Vector3 root_node, 
                                     ufo::map::OccupancyMapColor const &map);
 
-    std::vector<node *> extractNodes(bool require_local, bool build_reserved_tree, ufo::math::Vector3 root_node, int max_iterations);
+    std::vector<node *> extractNodes(bool require_local, bool build_reserved_tree, ufo::math::Vector3 root_node,
+                                        ufo::math::Vector3 target, int max_iterations, 
+                                            float range, ufo::map::OccupancyMapColor const &map);
 
-    
+    ufo::math::Vector3 pointToUfo (geometry_msgs::Point p); 
 
+    std::vector<ufo::math::Vector3> pointsToUfo (std::vector<geometry_msgs::Point> points);
 
+    void fetchExplorationTargets ();
 
 
     //variables
@@ -190,6 +194,9 @@ public:
     float SCALER_X, SCALER_Y, SCALER_Z, highest_x, highest_y ,highest_z, lowest_x, lowest_y, lowest_z;
     std::vector<node *> reserved_nodes;
     double MIN_DIST_BW_NODES;
+    ufo::math::Vector3 m_local_exploration_target;
+    std::vector<ufo::math::Vector3> m_global_repos_targets;
+    int MAX_ITERATIONS_LOCAL;
     
 
 
