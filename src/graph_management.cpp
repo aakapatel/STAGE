@@ -53,7 +53,10 @@ GraphManager::GraphManager(ros::NodeHandle private_nh_)
 
     //Register publishers
     m_frontierPub = m_nh.advertise<visualization_msgs::MarkerArray>("/frontier_nodes_vis", 1, true);
+    
 
+    /* Ros services */
+    m_frontier_client = m_nh.serviceClient<stage_planner::frontierRequest> ("request_frontier_target");
 
 
 };

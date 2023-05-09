@@ -1,4 +1,6 @@
 bool local
+bool force_global
 ---
+bool local_nav
 geometry_msgs/Point best_local
 geometry_msgs/Point[] global_targets

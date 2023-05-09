@@ -68,6 +68,8 @@
 #include <memory>
 #include <fstream>
 #include <variant>
+#include "stage_planner/frontierRequest.h"
+
 
 class GraphManager {
 
@@ -197,6 +199,9 @@ public:
     std::string m_baseFrameId; // base of the robot for ground plane filtering
     nav_msgs::Odometry m_currentPose;
     nav_msgs::Odometry m_prevPose; //Holds the point where the direction changed.
+    ros::ServiceClient m_frontier_client;
+
+
 
     //Subscriber
     message_filters::Subscriber<nav_msgs::Odometry>* m_poseSubscriber;

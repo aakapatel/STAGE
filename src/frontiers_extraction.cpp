@@ -843,11 +843,17 @@ bool FrontierExtraction::exportFrontierTargets (stage_planner::frontierRequest::
 
     if (req.local) {
 
-        geometry_msgs::Point frontier_point = ufoToPoint(fetchInformativeFrontier());
-        res.best_local = frontier_point;
-
-    } else {
+        if (!fetchLocalFrontiers().empty()) {
+            geometry_msgs::Point frontier_point = ufoToPoint(fetchInformativeFrontier());
+            res.best_local = frontier_point;
+            res.local_nav = true;
+        } else {
+            res.local_nav = false;
+            res.global_targets = fetchGlobalRepositioningTargets();
+        }
        
+    } else if (req.force_global) {
+        res.local_nav = false;
         res.global_targets = fetchGlobalRepositioningTargets();
     }
 
