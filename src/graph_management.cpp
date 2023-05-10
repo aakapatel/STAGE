@@ -503,9 +503,8 @@ void GraphManager::constructLocalGraph () {
                                                           ((((*insert_helper))->myParent)->point)->y(),
                                                                 ((((*insert_helper))->myParent)->point)->z() } } );
 
-
-
   }
+       
 
 
 
