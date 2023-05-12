@@ -1,6 +1,7 @@
 #include "graph_management.h"
 #include <iterator>
 #include <utility>
+#include <vector>
 
 using namespace std;
 using namespace std::chrono;
@@ -499,4 +500,68 @@ void GraphManager::constructLocalGraph() {
       }
     }
   }
+  
+  std::vector<std::pair<ufo::math::Vector3, ufo::math::Vector3>> vec1, vec2, vec3, vec4, my_vec;
+
+  #pragma omp parallel 
+  {
+    #pragma omp single
+    {
+      #pragma omp task 
+      {
+        for (auto i = local_nodes_pairs.begin(); i != std::next(local_nodes_pairs.begin(), local_nodes_pairs.size()/4); i++) {
+             
+             ufo::geometry::OBB obb = makeOBB(i->first, i->second, m_obb_radius);
+
+             if(!isInCollision(m_ufoMAP, obb, true, false, true, m_planning_depth)) {
+              vec1.push_back(std::make_pair(i->first,i->second));
+             }
+        }
+      }
+      #pragma omp task 
+      {
+        for (auto i = std::next(local_nodes_pairs.begin(), local_nodes_pairs.size()/4); i != std::next(local_nodes_pairs.begin(), local_nodes_pairs.size()/2); i++) {
+             
+             ufo::geometry::OBB obb = makeOBB(i->first, i->second, m_obb_radius);
+
+             if (!isInCollision(m_ufoMAP, obb, true, false, true, m_planning_depth)) {
+              vec2.push_back(std::make_pair(i->first,i->second));
+             }
+        }
+      }
+      #pragma omp task 
+      {
+        for (auto i = std::next(local_nodes_pairs.begin(), local_nodes_pairs.size()/2); i != std::prev(local_nodes_pairs.end(), local_nodes_pairs.size()/4); i++) {
+             
+             ufo::geometry::OBB obb = makeOBB(i->first, i->second, m_obb_radius);
+
+             if (!isInCollision(m_ufoMAP, obb, true, false, true, m_planning_depth)) {
+              vec3.push_back(std::make_pair(i->first,i->second));
+             }
+        }
+      }
+      #pragma omp task 
+      {
+        for (auto i = std::prev(local_nodes_pairs.end(), local_nodes_pairs.size()/4); i != local_nodes_pairs.end(); i++) {
+             
+             ufo::geometry::OBB obb = makeOBB(i->first, i->second, m_obb_radius);
+
+             if (!isInCollision(m_ufoMAP, obb, true, false, true, m_planning_depth)) {
+              vec4.push_back(std::make_pair(i->first,i->second));
+             }
+        }
+      }
+    }
+  }
+
+  my_vec.insert(my_vec.begin(), vec1.begin(), vec1.end());
+
+  my_vec.insert(my_vec.begin(), vec2.begin(), vec2.end());
+
+  my_vec.insert(my_vec.begin(), vec3.begin(), vec3.end());
+
+  my_vec.insert(my_vec.begin(), vec4.begin(), vec4.end());
+
 }
+
+
