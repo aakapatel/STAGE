@@ -167,7 +167,7 @@ public:
     ufo::math::Vector3 tunePlanningSpace(float range, ufo::math::Vector3 root_node, 
                                     ufo::map::OccupancyMapColor const &map);
 
-    std::vector<node *> extractNodes(bool require_local, bool build_reserved_tree, ufo::math::Vector3 root_node,
+    std::vector<node *> extractNodes(bool build_reserved_tree, ufo::math::Vector3 root_node,
                                         ufo::math::Vector3 target, int max_iterations, 
                                             float range, ufo::map::OccupancyMapColor const &map);
 
@@ -177,7 +177,7 @@ public:
 
     void fetchExplorationTargets ();
 
-    void constructLocalGraph();
+    std::vector<Graph::vertex> constructGraph(int max_itr, float planning_range, bool reserved);
 
 
     //variables

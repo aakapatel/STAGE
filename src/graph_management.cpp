@@ -286,7 +286,7 @@ bool GraphManager::node::getTraversabilityStatus() {
 void GraphManager::node::readyForDeletion() { delete point; }
 
 std::vector<GraphManager::node *>
-GraphManager::extractNodes(bool require_local, bool build_reserved_tree,
+GraphManager::extractNodes(bool build_reserved_tree,
                            ufo::math::Vector3 root_node, ufo::math::Vector3 target, 
                            int max_iterations,
                            float range,
@@ -340,17 +340,10 @@ GraphManager::extractNodes(bool require_local, bool build_reserved_tree,
                                      parent->point->z());
       ufo::math::Vector3 direction = random_point - start_point;
       ufo::geometry::LineSegment myline(random_point, start_point);
-      // ufo::geometry::OBB obb = makeOBB (start_point, random_point,
-      // RAW_GRAPH_COLISSION_MARGIN);
-      double min_dist = m_min_dist_bw_nodes / 2;
-      if (require_local) {
-        min_dist = min_dist;
-      } else {
-        min_dist = m_min_dist_bw_nodes;
-      }
+
       if (!isInCollision(map, myline, true, false, true,
                          m_planning_depth) and
-          calculateDistance(random_point, start_point) > min_dist)
+          calculateDistance(random_point, start_point) > m_min_dist_bw_nodes)
 
       {
         node *new_node = new node(x, y, z);
@@ -476,13 +469,13 @@ void GraphManager::fetchExplorationTargets() {
   }
 }
 
-void GraphManager::constructLocalGraph() {
+std::vector<GraphManager::Graph::vertex> GraphManager::constructGraph(int max_itr, float planning_range, bool reserved) {
 
   fetchExplorationTargets();
 
   std::vector<GraphManager::node *> nodes =
-      extractNodes(true, false, m_currentPosition, m_local_exploration_target,
-                   m_max_iterations_local, m_local_space, m_ufoMAP);
+      extractNodes(reserved, m_currentPosition, m_local_exploration_target,
+                   max_itr, planning_range, m_ufoMAP);
 
   std::vector<std::pair<ufo::math::Vector3, ufo::math::Vector3>> local_nodes_pairs;
 
@@ -555,12 +548,26 @@ void GraphManager::constructLocalGraph() {
   }
 
   my_vec.insert(my_vec.begin(), vec1.begin(), vec1.end());
-
   my_vec.insert(my_vec.begin(), vec2.begin(), vec2.end());
-
   my_vec.insert(my_vec.begin(), vec3.begin(), vec3.end());
-
   my_vec.insert(my_vec.begin(), vec4.begin(), vec4.end());
+
+  std::vector<std::pair<Graph::vertex, Graph::vertex>> vertices;
+  std::vector<Graph::vertex> graph_container;
+
+  for (auto p : my_vec) {
+    vertices.push_back(std::make_pair(Graph::Point{p.first.x(), p.first.y(), p.first.z()},
+                                        Graph::Point{p.second.x(), p.second.y(), p.second.z()}));
+  }
+  
+  for (auto i : vertices) {
+    graph_container.push_back(i.first);
+    graph_container.push_back(i.first);
+    (i.first).createEdge(i.second);
+    (i.second).createEdge(i.first);
+  }
+
+  return graph_container;
 
 }
 
