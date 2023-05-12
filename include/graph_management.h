@@ -69,7 +69,7 @@
 #include <fstream>
 #include <variant>
 #include "stage_planner/frontierRequest.h"
-
+#include <omp.h>
 
 class GraphManager {
 
@@ -167,7 +167,7 @@ public:
     ufo::math::Vector3 tunePlanningSpace(float range, ufo::math::Vector3 root_node, 
                                     ufo::map::OccupancyMapColor const &map);
 
-    std::vector<node *> extractNodes(bool require_local, bool build_reserved_tree, ufo::math::Vector3 root_node,
+    std::vector<GraphManager::node *> extractNodes(bool require_local, bool build_reserved_tree, ufo::math::Vector3 root_node,
                                         ufo::math::Vector3 target, int max_iterations, 
                                             float range, ufo::map::OccupancyMapColor const &map);
 
@@ -177,26 +177,29 @@ public:
 
     void fetchExplorationTargets ();
 
+    void constructLocalGraph();
+
 
     //variables
     bool firstTime = true;
     ufo::math::Vector3 m_currentPosition;
     double m_currentHeading;
-    double LOCAL_SPACE;
-    double LOCAL_FOV;
+    double m_local_space;
+    double m_local_fov;
     bool map_received;
     std::string m_ufomap;
     bool m_max_allowed_Z;
-    double OBB_RADIUS;
-    int PLANNING_CHECK_DEPTH;
-    double VOLUMETRIC_GAIN_THREASHOLD;
+    double m_obb_radius;
+    int m_planning_depth;
+    double m_volumetric_gain_threashold;
     bool check = false;
     float SCALER_X, SCALER_Y, SCALER_Z, highest_x, highest_y ,highest_z, lowest_x, lowest_y, lowest_z;
     std::vector<node *> reserved_nodes;
-    double MIN_DIST_BW_NODES;
+    double m_min_dist_bw_nodes;
     ufo::math::Vector3 m_local_exploration_target;
     std::vector<ufo::math::Vector3> m_global_repos_targets;
-    int MAX_ITERATIONS_LOCAL;
+    int m_max_iterations_local;
+    double m_max_edge_length;
     
 
 
