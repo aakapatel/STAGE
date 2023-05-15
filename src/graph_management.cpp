@@ -286,8 +286,7 @@ bool GraphManager::node::getTraversabilityStatus() {
 void GraphManager::node::readyForDeletion() { delete point; }
 
 std::vector<GraphManager::node *>
-GraphManager::extractNodes(bool build_reserved_tree,
-                           ufo::math::Vector3 root_node, ufo::math::Vector3 target, 
+GraphManager::extractNodes(ufo::math::Vector3 root_node, 
                            int max_iterations,
                            float range,
                            ufo::map::OccupancyMapColor const &map) {
@@ -301,11 +300,11 @@ GraphManager::extractNodes(bool build_reserved_tree,
 
   temporary_nodes.clear();
   node *current_pos = new node(root_node.x(), root_node.y(), root_node.z());
-  node *target_pos = new node(target.x(), target.y(), target.z());
+  // node *target_pos = new node(target.x(), target.y(), target.z());
   current_pos->addParent(nullptr);
-  target_pos->addParent(nullptr);
+  // target_pos->addParent(nullptr);
   temporary_nodes.push_back(current_pos);
-  temporary_nodes.push_back(target_pos);
+  // temporary_nodes.push_back(target_pos);
 
   srand(time(0));
   int itterations = 0;
@@ -355,7 +354,7 @@ GraphManager::extractNodes(bool build_reserved_tree,
     itterations++;
   };
 
-  if (!build_reserved_tree) {
+  if (!m_reserved_graph) {
     ROS_INFO_STREAM("Planning space contains --> " << temporary_nodes.size()
                                                    << " nodes\n");
     return temporary_nodes;
@@ -365,11 +364,13 @@ GraphManager::extractNodes(bool build_reserved_tree,
     }
     return reserved_nodes;
   }
+  
+  m_reserved_graph = false;
+
 }
 
-std::vector<GraphManager::Graph::Point>
-GraphManager::Graph::fetchPath(Point &start_pos, Point &end_pos,
-                               std::vector<vertex> all_vertices) {
+std::vector<GraphManager::Graph::Point> GraphManager::Graph::fetchPath(Graph::Point &start_pos, Graph::Point &end_pos,
+                                                                            std::vector<Graph::vertex> all_vertices) {
   vertex start_vert;
   vertex end_vert;
 
@@ -469,13 +470,10 @@ void GraphManager::fetchExplorationTargets() {
   }
 }
 
-std::vector<GraphManager::Graph::vertex> GraphManager::constructGraph(int max_itr, float planning_range, bool reserved) {
-
-  fetchExplorationTargets();
+std::vector<GraphManager::Graph::vertex> GraphManager::constructGraph(int iterations, float planning_space) {
 
   std::vector<GraphManager::node *> nodes =
-      extractNodes(reserved, m_currentPosition, m_local_exploration_target,
-                   max_itr, planning_range, m_ufoMAP);
+      extractNodes(m_currentPosition, iterations, planning_space, m_ufoMAP);
 
   std::vector<std::pair<ufo::math::Vector3, ufo::math::Vector3>> local_nodes_pairs;
 
@@ -571,4 +569,105 @@ std::vector<GraphManager::Graph::vertex> GraphManager::constructGraph(int max_it
 
 }
 
+std::vector<GraphManager::Graph::Point> GraphManager::planPath() {
 
+  int iterations = m_iterations_local;
+  double planning_space = m_local_space;
+  std::vector<GraphManager::Graph::vertex> current_graph = constructGraph (iterations, planning_space);
+  
+  fetchExplorationTargets();
+
+  ufo::math::Vector3 goal_vec, source_vec;
+  double d_s, d_g;
+  double goal_distance, source_distance= std::numeric_limits<float>::max();
+
+  for (Graph::vertex v : current_graph) {
+
+    ufo::math::Vector3 vertex_vector (v.location.x, v.location.y, v.location.z);
+
+    double d_s = calculateDistance (vertex_vector, fetchCurrentPosition());
+    double d_g = calculateDistance (vertex_vector, m_local_exploration_target);
+    
+    if (d_s < source_distance) {
+      source_distance = d_s;
+      source_vec = vertex_vector;
+    }
+    if (d_g < goal_distance) {
+      goal_distance = d_g;
+      goal_vec = vertex_vector;
+    }
+  }
+
+  Graph::Point source{source_vec.x(), source_vec.y(), source_vec.z()};
+  Graph::Point goal{goal_vec.x(), goal_vec.y(), goal_vec.z()};
+  
+  Graph graph;
+  std::vector<Graph::Point> Astar_path = graph.fetchPath(source, goal, current_graph);
+  
+  return Astar_path;
+ 
+}
+
+nav_msgs::Path GraphManager::fetchImprovedPath () {
+
+  auto path = planPath();
+
+  std::vector<Graph::vertex> improvement_nodes;
+  std::vector<Graph::vertex> improvement_graph;
+
+    for (auto insert_helper = path.begin();
+         insert_helper != path.end(); insert_helper++) {
+      improvement_nodes.push_back(
+          Graph::Point{insert_helper->x, insert_helper->y, insert_helper->z});
+    }
+
+    for (auto i = improvement_nodes.begin(); i != --improvement_nodes.end();
+         i++) {
+
+      for (auto i2 = std::next(improvement_nodes.begin(), 1);
+           i2 != improvement_nodes.end(); i2++) {
+
+        ufo::math::Vector3 start(i->location.x, i->location.y,
+                                 i->location.z);
+        ufo::math::Vector3 goal(i2->location.x, i2->location.y,
+                                i2->location.z);
+
+        double dist = calculateDistance(start, goal);
+
+        ufo::geometry::OBB obb =
+            makeOBB(start, goal, m_obb_radius);
+        if (isInCollision(m_ufoMAP, obb, false, true, false,
+                          m_planning_depth) &&
+            !isInCollision(m_ufoMAP, obb, true, false, true,
+                           m_planning_depth)) {
+
+          improvement_graph.push_back(*i);
+          improvement_graph.push_back(*i2);
+          (*i).createEdge(*i2);
+          (*i2).createEdge(*i);
+        }
+      }
+    }
+
+  Graph::Point start{improvement_graph.front().location.x, improvement_graph.front().location.y, improvement_graph.front().location.z};
+
+  Graph::Point finish{improvement_graph.back().location.x, improvement_graph.back().location.y, improvement_graph.back().location.z};
+
+  Graph improved_graph;
+
+  std::vector<Graph::Point> improved_path = improved_graph.fetchPath(start, finish, improvement_graph);
+
+  nav_msgs::Path planned_path;
+  geometry_msgs::PoseStamped p;
+
+  for (auto i = improved_path.begin(); i != improved_path.end(); i++) {
+
+    p.pose.position.x = i->x;
+    p.pose.position.y = i->y;
+    p.pose.position.z = i->z;
+    planned_path.poses.push_back(p);
+  }
+
+  return planned_path;
+
+}
