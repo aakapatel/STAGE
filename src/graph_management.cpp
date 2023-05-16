@@ -12,7 +12,8 @@ GraphManager::GraphManager(ros::NodeHandle private_nh_)
       m_currentHeading(0), m_local_space(10), m_local_fov(40),
       m_ufomap("/ufomap_mapping_server_node/map"), m_max_allowed_Z(4),
       m_obb_radius(0.5), m_planning_depth(0), m_volumetric_gain_threashold(10),
-      m_min_dist_bw_nodes(0.8)
+      m_min_dist_bw_nodes(0.8), m_iterations_local(2000), m_iterations_global(6000),
+      m_max_edge_length(4)
 
 {
 
@@ -30,8 +31,11 @@ GraphManager::GraphManager(ros::NodeHandle private_nh_)
                    m_planning_depth);
   private_nh.param("volumetric_gain_threashold", m_volumetric_gain_threashold,
                    m_volumetric_gain_threashold);
-  private_nh.param("minimum_distance_between_nodes", m_min_dist_bw_nodes,
+  private_nh.param("graph_density_coefficient", m_min_dist_bw_nodes,
                    m_min_dist_bw_nodes);
+  private_nh.param("maximum_edge_length", m_max_edge_length, m_max_edge_length);
+  private_nh.param("maximum_iterations_local", m_iterations_local, m_iterations_local);
+  private_nh.param("maximum_iterations_global", m_iterations_global, m_iterations_global);
 
   // Register to the subscriber topic and register it to the callback function
 
@@ -450,19 +454,29 @@ GraphManager::pointsToUfo(std::vector<geometry_msgs::Point> points) {
   return ufo_vec;
 }
 
-void GraphManager::fetchExplorationTargets() {
+void GraphManager::fetchExplorationTargets(bool global_reposition) {
 
   stage_planner::frontierRequest frontier_srv;
-
-  frontier_srv.request.local = true;
-
+  
+  if (!global_reposition) {
+    frontier_srv.request.local = true;
+  } else {
+    frontier_srv.request.force_global = true;
+  }
+ 
   if (m_frontier_client.call(frontier_srv)) {
 
     if (frontier_srv.response.local_nav) {
 
+      local_exploration = true;
+      global_exploration = false;
+
       m_local_exploration_target = pointToUfo(frontier_srv.response.best_local);
 
     } else if (frontier_srv.response.local_nav == false) {
+
+      local_exploration = false;
+      global_exploration = true;
 
       m_global_repos_targets =
           pointsToUfo(frontier_srv.response.global_targets);
@@ -571,11 +585,36 @@ std::vector<GraphManager::Graph::vertex> GraphManager::constructGraph(int iterat
 
 std::vector<GraphManager::Graph::Point> GraphManager::planPath() {
 
-  int iterations = m_iterations_local;
-  double planning_space = m_local_space;
-  std::vector<GraphManager::Graph::vertex> current_graph = constructGraph (iterations, planning_space);
+  int iterations;
+  double planning_space;
+  ufo::math::Vector3 exploration_target;
+  double reposition_reward = -std::numeric_limits<float>::max();
+  double reward;
+  fetchExplorationTargets(false);
   
-  fetchExplorationTargets();
+  if (local_exploration) {
+    iterations = m_iterations_local;
+    planning_space = m_local_space;
+    exploration_target = m_local_exploration_target;
+  } else if (global_exploration) {
+    iterations = m_iterations_global;
+    planning_space = m_global_space;
+
+    for (ufo::math::Vector3 v : m_global_repos_targets) {
+
+      double volumetric_info_gain = computeVolumetricGain (v, m_ufoMAP);
+      double eucl_distance = calculateDistance(v, fetchCurrentPosition());
+      
+      reward = volumetric_info_gain/eucl_distance;
+
+      if (reward > reposition_reward) {
+        reposition_reward = reward;
+        exploration_target = v;
+      }
+    }
+  }
+
+  std::vector<GraphManager::Graph::vertex> current_graph = constructGraph (iterations, planning_space);
 
   ufo::math::Vector3 goal_vec, source_vec;
   double d_s, d_g;
@@ -586,7 +625,7 @@ std::vector<GraphManager::Graph::Point> GraphManager::planPath() {
     ufo::math::Vector3 vertex_vector (v.location.x, v.location.y, v.location.z);
 
     double d_s = calculateDistance (vertex_vector, fetchCurrentPosition());
-    double d_g = calculateDistance (vertex_vector, m_local_exploration_target);
+    double d_g = calculateDistance (vertex_vector, exploration_target);
     
     if (d_s < source_distance) {
       source_distance = d_s;
@@ -649,9 +688,11 @@ nav_msgs::Path GraphManager::fetchImprovedPath () {
       }
     }
 
-  Graph::Point start{improvement_graph.front().location.x, improvement_graph.front().location.y, improvement_graph.front().location.z};
+  Graph::Point start{improvement_graph.front().location.x, improvement_graph.front().location.y, 
+        improvement_graph.front().location.z};
 
-  Graph::Point finish{improvement_graph.back().location.x, improvement_graph.back().location.y, improvement_graph.back().location.z};
+  Graph::Point finish{improvement_graph.back().location.x, improvement_graph.back().location.y, 
+        improvement_graph.back().location.z};
 
   Graph improved_graph;
 
@@ -671,3 +712,5 @@ nav_msgs::Path GraphManager::fetchImprovedPath () {
   return planned_path;
 
 }
+
+

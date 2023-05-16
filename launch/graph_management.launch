@@ -1,0 +1,40 @@
+<?xml version="1.0" ?>
+<launch>
+
+  <node pkg="stage_planner" type="graph_management_node" name="graph_management_node" output="screen">
+
+		<param name="frame_id" type="string" value="world" />
+
+		<param name="odometry" value="/hummingbird/ground_truth/odometry" />
+
+		<param name="ufomap" value="/ufomap_mapping_server_node/map" />
+
+		<remap from="ufomap" to="/ufomap_mapping_server_node/map" />
+
+    <param name="local_sliding_space" value="10" />
+
+    <param name="max_global_planning_space" value="100" />
+    
+    <param name="local_field_of_view" value="40" />
+    
+    <param name="safety_height" value = "4" />
+    
+    <param name="traversability_radius" value="0.8" />
+    
+    <param name="planning_check_depth" value="0" />
+    
+    <param name="volumetric_gain_threashold" value="1" />
+
+    <param name="graph_density_coefficient" value="1" />
+
+    <param name="maximum_edge_length" value="4" /> 
+
+    <param name ="maximum_iterations_local" value="2000" />
+
+    <param name ="maximum_iterations_global" value="6000" />
+
+
+
+  </node>
+
+</launch>

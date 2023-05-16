@@ -174,7 +174,7 @@ public:
 
     std::vector<ufo::math::Vector3> pointsToUfo (std::vector<geometry_msgs::Point> points);
 
-    void fetchExplorationTargets ();
+    void fetchExplorationTargets (bool global_reposition);
 
     std::vector<Graph::vertex> constructGraph(int max_itr, float planning_range);
     
@@ -189,7 +189,7 @@ public:
     bool firstTime = true;
     ufo::math::Vector3 m_currentPosition;
     double m_currentHeading;
-    double m_local_space;
+    double m_local_space, m_global_space;
     double m_local_fov;
     bool map_received;
     std::string m_ufomap;
@@ -208,6 +208,8 @@ public:
     double m_max_edge_length;
     bool m_reserved_graph;
     bool local_exploration;
+    bool global_exploration;
+    bool go_to_global_waypoint;
     
 
 
