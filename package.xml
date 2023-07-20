@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>stage_planner</name>
-  <version>0.0.0</version>
+  <version>1.0.0</version>
   <description>Semantics and Traversability Aware Graph based Exploration Planner</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
@@ -16,11 +16,14 @@
   <buildtool_depend>catkin</buildtool_depend>
 
 
-<build_depend>ufomap</build_depend>
-<build_depend>ufomap_msgs</build_depend>
-<build_depend>ufomap_ros</build_depend>
-
+  <build_depend>ufomap</build_depend>
+  <build_depend>ufomap_msgs</build_depend>
+  <build_depend>ufomap_ros</build_depend>
   <build_depend>roscpp</build_depend>
+  <build_depend>roscpp_serialization</build_depend>
+  <build_depend>kdtree</build_depend>
+  <build_depend>tf2_ros</build_depend>
+  <build_depend>tf</build_depend>
   <build_depend>std_msgs</build_depend>
   <build_depend>std_srvs</build_depend>
   <build_depend>geometry_msgs</build_depend>
@@ -31,19 +34,24 @@
   <build_depend>eigen_catkin</build_depend>
   <build_depend>move_base_msgs</build_depend>
   <build_depend>actionlib</build_depend>
+  <build_depend>actionlib_msgs</build_depend>
   <build_depend>message_generation</build_depend>
-
+  <build_depend>catkin_simple</build_depend>
 
 <!-- <build_depend>exploration</build_depend> -->
-<exec_depend>ufomap</exec_depend>
-<exec_depend>ufomap_msgs</exec_depend>
-<exec_depend>ufomap_ros</exec_depend>
-
+  <exec_depend>ufomap</exec_depend>
+  <exec_depend>ufomap_msgs</exec_depend>
+  <exec_depend>ufomap_ros</exec_depend>
+  <exec_depend>roscpp_serialization</exec_depend>
+  <exec_depend>kdtree</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>tf</exec_depend>
   <exec_depend>mav_msgs</exec_depend>
   <exec_depend>mav_planning_msgs</exec_depend>
   <exec_depend>move_base_msgs</exec_depend>
   <exec_depend>visualization_msgs</exec_depend>
   <exec_depend>actionlib</exec_depend>
+  <exec_depend>actionlib_msgs</exec_depend>
   <exec_depend>eigen_catkin</exec_depend>
   <exec_depend>octomap_rviz_plugins</exec_depend>
   <exec_depend>octomap_ros</exec_depend>
