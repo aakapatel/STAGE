@@ -38,17 +38,8 @@ FrontierExtraction::FrontierExtraction(ros::NodeHandle private_nh_)
     OBB_RADIUS(0.5),
     PLANNING_CHECK_DEPTH(0),
     VOLUMETRIC_GAIN_THREASHOLD(10)
-
-
-
-
 {
-
-
-   
-
     double probHit, probMiss, thresMin, thresMax;
-
     ros::NodeHandle private_nh = private_nh_;
     //Set variables
     private_nh.param("frame_id", m_worldFrameId, m_worldFrameId);
@@ -64,9 +55,7 @@ FrontierExtraction::FrontierExtraction(ros::NodeHandle private_nh_)
     private_nh.param("cloud_in", cloud_in, cloud_in);
     private_nh.param("distance", m_distance_deletion, m_distance_deletion);
     private_nh.param("odometry", m_odometry, m_odometry);
-    
     private_nh.param("number_of_unknowns", numberOfUnknowns, numberOfUnknowns);
-
     private_nh.param("local_sliding_space", LOCAL_SPACE, LOCAL_SPACE);
     private_nh.param("local_field_of_view", LOCAL_FOV, LOCAL_SPACE);
     private_nh.param("ufomap", m_ufomap, m_ufomap);
@@ -74,18 +63,13 @@ FrontierExtraction::FrontierExtraction(ros::NodeHandle private_nh_)
     private_nh.param("traversability_radius", OBB_RADIUS, OBB_RADIUS);
     private_nh.param("planning_check_depth", PLANNING_CHECK_DEPTH, PLANNING_CHECK_DEPTH);
     private_nh.param("volumetric_gain_threashold", VOLUMETRIC_GAIN_THREASHOLD, VOLUMETRIC_GAIN_THREASHOLD);
-
-
-
-
-
-
-    //Filtering
+    
+    // Filtering parameters.
     private_nh.param("xFiltering", xFiltering, xFiltering);
     private_nh.param("yFiltering", yFiltering, yFiltering);
     private_nh.param("zFiltering", zFiltering, zFiltering);
 
-    //Setup octree
+    // Setting up octree 
     m_octree = new OcTreeT(m_res);
     m_octree->setProbHit(probHit);
     m_octree->setProbMiss(probMiss);
@@ -94,7 +78,8 @@ FrontierExtraction::FrontierExtraction(ros::NodeHandle private_nh_)
     m_octree->enableChangeDetection(true);
     m_treeDepth = m_octree->getTreeDepth();
     m_maxTreeDepth = m_treeDepth;
-
+    
+    // Visualization parameters. TODO Port alla visuzlization to a dediacted file. 
     double r, g, b, a;
     private_nh.param("color/r", r, 0.0);
     private_nh.param("color/g", g, 0.0);
@@ -104,7 +89,6 @@ FrontierExtraction::FrontierExtraction(ros::NodeHandle private_nh_)
     m_color.g = g;
     m_color.b = b;
     m_color.a = a;
-
     private_nh.param("color_free/r", r, 0.0);
     private_nh.param("color_free/g", g, 1.0);
     private_nh.param("color_free/b", b, 0.0);
@@ -135,7 +119,12 @@ FrontierExtraction::FrontierExtraction(ros::NodeHandle private_nh_)
 
 };
 
- ufo::map::OccupancyMapColor m_ufoMAP(0.2);
+
+// Instance of UFOMAP 
+
+ufo::map::OccupancyMapColor m_ufoMAP(0.2);
+
+// Callback for ufomap
 
 void FrontierExtraction::mapCallback(ufomap_msgs::UFOMapStamped::ConstPtr const &msg)
 {
@@ -151,6 +140,7 @@ void FrontierExtraction::mapCallback(ufomap_msgs::UFOMapStamped::ConstPtr const 
   }
 }
 
+// Insert LiDAR point cloud to generate octree
 
 void FrontierExtraction::insertPointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& cloud) {
     PCLPointCloud pc;
@@ -204,13 +194,10 @@ void FrontierExtraction::insertPointCloudCallback(const sensor_msgs::PointCloud2
 
 }
 
-/*
-This function distingguish between frontiers and what is not frontiers.
-If a point outside our manually set radius is hit, it is marked a frontier on the same distance as the radius.
-Use Rviz for visualization.
-** NOTICE **
-Frontier cells is marked as occupied in the octree.
-*/
+// This function distingguish between frontiers and what is not frontiers.
+// If a point outside our manually set radius is hit, it is marked a frontier on the same distance as the radius.
+// Frontier cells is marked as occupied in the octree.
+
 void FrontierExtraction::insertPointCloudScan(const tf::Point& sensorOriginTf, const PCLPointCloud& ground, const PCLPointCloud& nonground) {
     point3d sensorOrigin = octomap::pointTfToOctomap(sensorOriginTf);
     if (!m_octree->coordToKeyChecked(sensorOrigin, m_updateBBXMin) || !m_octree->coordToKeyChecked(sensorOrigin, m_updateBBXMax)) {
@@ -620,6 +607,8 @@ bool FrontierExtraction::isFrontier(float x, float y, float z, point3d sensorOri
 
 }
 
+// Distance between two points in 3D
+
 double FrontierExtraction::calculateDistance (ufo::math::Vector3 point1, ufo::math::Vector3 point2) {
 
     double d = sqrt(pow(point1.x() - point2.x(), 2) + pow(point1.y() - point2.y(), 2) + pow(point1.z() - point2.z(), 2));
@@ -627,6 +616,7 @@ double FrontierExtraction::calculateDistance (ufo::math::Vector3 point1, ufo::ma
 
 }
 
+// Collision check with ufomap
 bool FrontierExtraction::isInCollision(ufo::map::OccupancyMapColor const &map,
                    ufo::geometry::BoundingVar const &bounding_volume,
                    bool occupied_space, bool free_space,
@@ -641,6 +631,8 @@ bool FrontierExtraction::isInCollision(ufo::map::OccupancyMapColor const &map,
   }
   return false;
 }
+
+// Generate an Oriented Bounding Box (OBB) between twop points in 3D
 
 ufo::geometry::OBB FrontierExtraction::makeOBB(ufo::math::Vector3 source, ufo::math::Vector3 goal, float radius)
 {
@@ -657,6 +649,8 @@ ufo::geometry::OBB FrontierExtraction::makeOBB(ufo::math::Vector3 source, ufo::m
 
   return obb;
 }
+
+// Calculate relative Angle of a point wrt robot's current heading vector
 
 double FrontierExtraction::calculateAngle(ufo::math::Vector3 fpoint, ufo::math::Vector3 position,
                       double heading)
@@ -705,6 +699,8 @@ double FrontierExtraction::calculateAngle(ufo::math::Vector3 fpoint, ufo::math::
   return angle;
 }
 
+// if the point is in FOV and in local range, it is marked as local wrt the robot
+
 bool FrontierExtraction::isLocal (ufo::math::Vector3 point) {
 
     double angle =calculateAngle (point, m_currentPosition, m_currentHeading);
@@ -716,8 +712,9 @@ bool FrontierExtraction::isLocal (ufo::math::Vector3 point) {
 
 }
 
-std::vector<ufo::math::Vector3> FrontierExtraction::fetchLocalFrontiers () {
+// Extract frontiers that are in FOV and in local range
 
+std::vector<ufo::math::Vector3> FrontierExtraction::fetchLocalFrontiers () {
 
   std::vector<ufo::math::Vector3> local_frontiers;
   std::vector<ufo::math::Vector3> frontiers = fetchFrontiers();
@@ -737,6 +734,8 @@ std::vector<ufo::math::Vector3> FrontierExtraction::fetchLocalFrontiers () {
   return local_frontiers;
 }
 
+// Extract frontiers that are outside FOV and not in local range
+
 std::vector<ufo::math::Vector3> FrontierExtraction::fetchGlobalFrontiers () {
 
   std::vector<ufo::math::Vector3> global_frontiers;
@@ -755,6 +754,8 @@ std::vector<ufo::math::Vector3> FrontierExtraction::fetchGlobalFrontiers () {
   return global_frontiers;
 }
 
+// Filter local frontiers to which the robot can travel in nearly straight line with cylinderical collision check
+
 std::vector<ufo::math::Vector3> FrontierExtraction::fetchLocallyTraversableFrontiers () {
 
   std::vector<ufo::math::Vector3> locally_traversable_frontiers;
@@ -771,6 +772,8 @@ std::vector<ufo::math::Vector3> FrontierExtraction::fetchLocallyTraversableFront
   }
   return locally_traversable_frontiers;
 }
+
+// Volumetric gain for exploration target
 
 double FrontierExtraction::computeVolumetricGain (ufo::math::Vector3 frontier, ufo::map::OccupancyMapColor const &map) {
     
@@ -798,6 +801,8 @@ double FrontierExtraction::computeVolumetricGain (ufo::math::Vector3 frontier, u
     return volumetric_gain;
 }
 
+// Find the most informative frontier
+
 ufo::math::Vector3 FrontierExtraction::fetchInformativeFrontier () {
 
     ufo::math::Vector3 informative_frontier;
@@ -818,6 +823,8 @@ ufo::math::Vector3 FrontierExtraction::fetchInformativeFrontier () {
     return informative_frontier;
 }
 
+// conversion utility
+
 geometry_msgs::Point FrontierExtraction::ufoToPoint (ufo::math::Vector3 v) {
     geometry_msgs::Point p;
     p.x = v.x();
@@ -825,6 +832,8 @@ geometry_msgs::Point FrontierExtraction::ufoToPoint (ufo::math::Vector3 v) {
     p.z = v.z();
     return p;
 }
+
+// If no local frontiers, fetch re-positioning targets for global exploration
 
 std::vector< geometry_msgs::Point > FrontierExtraction::fetchGlobalRepositioningTargets() {
 
@@ -837,6 +846,8 @@ std::vector< geometry_msgs::Point > FrontierExtraction::fetchGlobalRepositioning
 
     return global_repos_targets;
 }
+
+// Export exploration target (local or global depending on request from graph management)
 
 bool FrontierExtraction::exportFrontierTargets (stage_planner::frontierRequest::Request &req, 
                                                     stage_planner::frontierRequest::Response &res) {
