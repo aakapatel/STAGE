@@ -7,7 +7,9 @@
 class GraphManager {
 
 public:
- 
+
+    GraphManager(ros::NodeHandle private_nh_ = ros::NodeHandle("~"));
+    
     class node {    
     
     public:
@@ -42,8 +44,10 @@ public:
         {
         Point(double x = 0, double y = 0, double z = 0) : x(x), y(y), z(z){};
         bool operator==(const Point &o) const { return o.x == x && o.y == y && o.z == z; }
-        double DistTo(Point &other) const { return (std::sqrt(std::pow(other.x - x, 2) + std::pow(other.y - y, 2) + std::pow(other.z - z, 2))); };
-        double Dist_HeuristicTo(Point &other) const { return (0.1 * (std::sqrt(std::pow(other.x - x, 2) + std::pow(other.y - y, 2) + std::pow(other.z - z, 2)))); };
+        double DistTo(Point &other) const { return (std::sqrt(std::pow(other.x - x, 2) + 
+                                                        std::pow(other.y - y, 2) + std::pow(other.z - z, 2))); };
+        double Dist_HeuristicTo(Point &other) const { return (0.1 * (std::sqrt(std::pow(other.x - x, 2) + 
+                                                        std::pow(other.y - y, 2) + std::pow(other.z - z, 2)))); };
         double x, y, z;
         };
         struct vertex
@@ -57,7 +61,8 @@ public:
 
         std::shared_ptr<vertex> parent;
         std::shared_ptr<std::vector<vertex>> edges{new std::vector<vertex>};
-        bool operator==(const vertex &o) const { return (o.location.x == location.x) && (o.location.y == location.y) && (o.location.z == location.z); }
+        bool operator==(const vertex &o) const { return (o.location.x == location.x) && 
+                                                  (o.location.y == location.y) && (o.location.z == location.z); }
         bool operator<(const vertex &o) const { return (total_dist < o.total_dist); }
 
         void createEdge(vertex subnode)
@@ -74,7 +79,6 @@ public:
     };
     
    
-    GraphManager(ros::NodeHandle private_nh_ = ros::NodeHandle("~"));
         
     virtual void updateCurrentPosition(const nav_msgs::Odometry::ConstPtr& pos);
     
@@ -116,8 +120,7 @@ public:
     nav_msgs::Path fetchExplorationPath();
 
 
-
-
+  private:
     //variables
     bool firstTime = true;
     ufo::math::Vector3 m_currentPosition;

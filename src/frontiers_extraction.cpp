@@ -699,7 +699,7 @@ double FrontierExtraction::calculateAngle(ufo::math::Vector3 fpoint, ufo::math::
   return angle;
 }
 
-// if the point is in FOV and in local range, it is marked as local wrt the robot
+// If the point is in FOV and in local range, it is marked as local wrt the robot
 
 bool FrontierExtraction::isLocal (ufo::math::Vector3 point) {
 

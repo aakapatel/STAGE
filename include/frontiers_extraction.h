@@ -85,7 +85,8 @@ class FrontierExtraction {
         
         virtual void insertPointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& cloud);
         
-        virtual void insertPointCloudScan(const tf::Point& sensorOrigin, const PCLPointCloud& ground, const PCLPointCloud& nonground);
+        virtual void insertPointCloudScan(const tf::Point& sensorOrigin, const PCLPointCloud& ground, 
+                                            const PCLPointCloud& nonground);
         
         virtual void extractFrontiers(const tf::Point& sensorOrigin, const ros::Time& rostime = ros::Time::now());
         
@@ -96,9 +97,9 @@ class FrontierExtraction {
         double calculateDistance(ufo::math::Vector3 point1, ufo::math::Vector3 point2);
         
         bool isInCollision(ufo::map::OccupancyMapColor const &map,
-               ufo::geometry::BoundingVar const &bounding_volume,
-               bool occupied_space, bool free_space,
-               bool unknown_space, ufo::map::DepthType min_depth);
+                            ufo::geometry::BoundingVar const &bounding_volume,
+                            bool occupied_space, bool free_space,
+                            bool unknown_space, ufo::map::DepthType min_depth);
         
         ufo::geometry::OBB makeOBB(ufo::math::Vector3 source, ufo::math::Vector3 goal, float radius); 
         
@@ -122,10 +123,12 @@ class FrontierExtraction {
 
         std::vector< geometry_msgs::Point> fetchGlobalRepositioningTargets ();
 
-        bool exportFrontierTargets (stage_planner::frontierRequest::Request &req, stage_planner::frontierRequest::Response &res);
+        bool exportFrontierTargets (stage_planner::frontierRequest::Request &req, 
+                                      stage_planner::frontierRequest::Response &res);
 
         geometry_msgs::Point ufoToPoint (ufo::math::Vector3 v);
 
+      private:
         //variables
         ufo::math::Vector3 m_currentPosition;
         double m_currentHeading;
@@ -138,8 +141,6 @@ class FrontierExtraction {
         int PLANNING_CHECK_DEPTH;
         double VOLUMETRIC_GAIN_THREASHOLD;
         bool check = false;
-
-
 
         ros::NodeHandle m_nh;
         ros::ServiceServer m_frontier_srv;
@@ -197,7 +198,6 @@ class FrontierExtraction {
         message_filters::Subscriber<nav_msgs::Odometry>* m_poseSubscriber;
         message_filters::Subscriber<ufomap_msgs::UFOMapStamped>* m_ufoMapSubscriber;
         
-
 
         //Publisher
         ros::Publisher m_frontierPub;
