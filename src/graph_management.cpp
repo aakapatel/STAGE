@@ -1,7 +1,4 @@
 #include "graph_management.h"
-#include <iterator>
-#include <utility>
-#include <vector>
 
 using namespace std;
 using namespace std::chrono;
