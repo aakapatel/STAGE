@@ -1,80 +1,15 @@
 #ifndef GRAPH_MANAGEMENT_H
 #define GRAPH_MANAGEMENT_H
 
-#include <ros/ros.h>
-#include <sensor_msgs/PointCloud2.h>
-#include <message_filters/subscriber.h>
-#include <std_msgs/ColorRGBA.h>
-#include <tf/transform_listener.h>
-#include <tf/message_filter.h>
-#include <nav_msgs/Odometry.h>
-#include <pcl/point_types.h>
-#include <pcl/conversions.h>
-#include <pcl_ros/transforms.h>
-#include <pcl/sample_consensus/method_types.h>
-#include <pcl/sample_consensus/model_types.h>
-#include <pcl/segmentation/sac_segmentation.h>
-#include <pcl/io/pcd_io.h>
-#include <pcl/filters/extract_indices.h>
-#include <pcl/filters/passthrough.h>
-#include <pcl_conversions/pcl_conversions.h>
-#include <octomap_msgs/Octomap.h>
-#include <octomap_msgs/GetOctomap.h>
-#include <octomap_msgs/BoundingBoxQuery.h>
-#include <octomap_msgs/conversions.h>
-#include <octomap_ros/conversions.h>
-#include <octomap/octomap.h>
-#include <octomap/OcTreeKey.h>
-#include <visualization_msgs/MarkerArray.h>
-#include <nav_msgs/OccupancyGrid.h>
-#include <std_msgs/String.h>
-#include <ufo/map/occupancy_map.h>
-#include <ufo/map/occupancy_map_color.h>
-#include <ufomap_msgs/conversions.h>
-#include <ufomap_msgs/UFOMapMetaData.h>
-#include <ufomap_msgs/UFOMapStamped.h>
-#include <ufomap_ros/conversions.h>
-#include <ufo/map/types.h>
-#include <ufo/math/vector3.h>
-#include <ros/ros.h>
-#include <list>
-#include <iostream>
-#include <chrono>
-#include <visualization_msgs/Marker.h>
-#include <geometry_msgs/PoseStamped.h>
-#include <nav_msgs/Path.h>
-#include <nav_msgs/Odometry.h>
-#include <math.h>
-#include <dlfcn.h>
-#include <stdlib.h>
-#include <tf/tf.h>
-#include <ros/package.h>
-#include <ros/console.h>
-#include <geometry_msgs/Pose.h>
-#include <geometry_msgs/PoseStamped.h>
-#include <geometry_msgs/Point.h>
-#include <geometry_msgs/Vector3Stamped.h>
-#include <limits>
-#include <set>
-#include <utility>
-#include <algorithm>
-#include <iterator>
-#include <iostream>
-#include <vector>
-#include <queue>
-#include <cmath>
-#include <string>
-#include <climits>
-#include <memory>
-#include <fstream>
-#include <variant>
-#include "stage_planner/frontierRequest.h"
+#include <frontiers_extraction.h>
 #include <omp.h>
 
 class GraphManager {
 
 public:
- 
+
+    GraphManager(ros::NodeHandle private_nh_ = ros::NodeHandle("~"));
+    
     class node {    
     
     public:
@@ -109,8 +44,10 @@ public:
         {
         Point(double x = 0, double y = 0, double z = 0) : x(x), y(y), z(z){};
         bool operator==(const Point &o) const { return o.x == x && o.y == y && o.z == z; }
-        double DistTo(Point &other) const { return (std::sqrt(std::pow(other.x - x, 2) + std::pow(other.y - y, 2) + std::pow(other.z - z, 2))); };
-        double Dist_HeuristicTo(Point &other) const { return (0.1 * (std::sqrt(std::pow(other.x - x, 2) + std::pow(other.y - y, 2) + std::pow(other.z - z, 2)))); };
+        double DistTo(Point &other) const { return (std::sqrt(std::pow(other.x - x, 2) + 
+                                                        std::pow(other.y - y, 2) + std::pow(other.z - z, 2))); };
+        double Dist_HeuristicTo(Point &other) const { return (0.1 * (std::sqrt(std::pow(other.x - x, 2) + 
+                                                        std::pow(other.y - y, 2) + std::pow(other.z - z, 2)))); };
         double x, y, z;
         };
         struct vertex
@@ -124,7 +61,8 @@ public:
 
         std::shared_ptr<vertex> parent;
         std::shared_ptr<std::vector<vertex>> edges{new std::vector<vertex>};
-        bool operator==(const vertex &o) const { return (o.location.x == location.x) && (o.location.y == location.y) && (o.location.z == location.z); }
+        bool operator==(const vertex &o) const { return (o.location.x == location.x) && 
+                                                  (o.location.y == location.y) && (o.location.z == location.z); }
         bool operator<(const vertex &o) const { return (total_dist < o.total_dist); }
 
         void createEdge(vertex subnode)
@@ -141,7 +79,6 @@ public:
     };
     
    
-    GraphManager(ros::NodeHandle private_nh_ = ros::NodeHandle("~"));
         
     virtual void updateCurrentPosition(const nav_msgs::Odometry::ConstPtr& pos);
     
@@ -167,24 +104,23 @@ public:
     ufo::math::Vector3 tunePlanningSpace(float range, ufo::math::Vector3 root_node, 
                                     ufo::map::OccupancyMapColor const &map);
 
-    std::vector<node *> extractNodes(ufo::math::Vector3 root_node, int max_iterations, 
+    std::vector<node *> sampleNodes(ufo::math::Vector3 root_node, int max_iterations, 
                                             float range, ufo::map::OccupancyMapColor const &map);
 
     ufo::math::Vector3 pointToUfo (geometry_msgs::Point p); 
 
     std::vector<ufo::math::Vector3> pointsToUfo (std::vector<geometry_msgs::Point> points);
 
-    void fetchExplorationTargets (bool global_reposition);
+    void fetchExplorationTargets ();
 
     std::vector<Graph::vertex> constructGraph(int max_itr, float planning_range);
     
     std::vector<Graph::Point> planPath();
 
-    nav_msgs::Path fetchImprovedPath();
+    nav_msgs::Path fetchExplorationPath();
 
 
-
-
+  private:
     //variables
     bool firstTime = true;
     ufo::math::Vector3 m_currentPosition;
@@ -209,7 +145,7 @@ public:
     bool m_reserved_graph;
     bool local_exploration;
     bool global_exploration;
-    bool go_to_global_waypoint;
+    bool go_to_global_waypoint = false;
     
 
 

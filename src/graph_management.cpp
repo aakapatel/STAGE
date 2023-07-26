@@ -188,8 +188,7 @@ bool GraphManager::isLocal(ufo::math::Vector3 point) {
   }
 }
 
-double
-GraphManager::computeVolumetricGain(ufo::math::Vector3 frontier,
+double GraphManager::computeVolumetricGain(ufo::math::Vector3 frontier,
                                     ufo::map::OccupancyMapColor const &map) {
 
   double r = 4;
@@ -289,11 +288,10 @@ bool GraphManager::node::getTraversabilityStatus() {
 }
 void GraphManager::node::readyForDeletion() { delete point; }
 
-std::vector<GraphManager::node *>
-GraphManager::extractNodes(ufo::math::Vector3 root_node, 
-                           int max_iterations,
-                           float range,
-                           ufo::map::OccupancyMapColor const &map) {
+std::vector<GraphManager::node *> GraphManager::sampleNodes(ufo::math::Vector3 root_node, 
+                                                              int max_iterations,
+                                                              float range,
+                                                              ufo::map::OccupancyMapColor const &map) {
   std::vector<node *> temporary_nodes;
 
   for (std::vector<node *>::iterator it_clear_helper = temporary_nodes.begin();
@@ -442,8 +440,7 @@ ufo::math::Vector3 GraphManager::pointToUfo(geometry_msgs::Point p) {
   return v;
 }
 
-std::vector<ufo::math::Vector3>
-GraphManager::pointsToUfo(std::vector<geometry_msgs::Point> points) {
+std::vector<ufo::math::Vector3> GraphManager::pointsToUfo(std::vector<geometry_msgs::Point> points) {
 
   std::vector<ufo::math::Vector3> ufo_vec;
 
@@ -454,16 +451,16 @@ GraphManager::pointsToUfo(std::vector<geometry_msgs::Point> points) {
   return ufo_vec;
 }
 
-void GraphManager::fetchExplorationTargets(bool global_reposition) {
+void GraphManager::fetchExplorationTargets() {
 
   stage_planner::frontierRequest frontier_srv;
-  
-  if (!global_reposition) {
+    
+  if (!go_to_global_waypoint) {
     frontier_srv.request.local = true;
   } else {
     frontier_srv.request.force_global = true;
   }
- 
+  
   if (m_frontier_client.call(frontier_srv)) {
 
     if (frontier_srv.response.local_nav) {
@@ -478,16 +475,14 @@ void GraphManager::fetchExplorationTargets(bool global_reposition) {
       local_exploration = false;
       global_exploration = true;
 
-      m_global_repos_targets =
-          pointsToUfo(frontier_srv.response.global_targets);
+      m_global_repos_targets = pointsToUfo(frontier_srv.response.global_targets);
     }
   }
 }
 
 std::vector<GraphManager::Graph::vertex> GraphManager::constructGraph(int iterations, float planning_space) {
 
-  std::vector<GraphManager::node *> nodes =
-      extractNodes(m_currentPosition, iterations, planning_space, m_ufoMAP);
+  std::vector<GraphManager::node *> nodes = sampleNodes(m_currentPosition, iterations, planning_space, m_ufoMAP);
 
   std::vector<std::pair<ufo::math::Vector3, ufo::math::Vector3>> local_nodes_pairs;
 
@@ -574,7 +569,7 @@ std::vector<GraphManager::Graph::vertex> GraphManager::constructGraph(int iterat
   
   for (auto i : vertices) {
     graph_container.push_back(i.first);
-    graph_container.push_back(i.first);
+    graph_container.push_back(i.second);
     (i.first).createEdge(i.second);
     (i.second).createEdge(i.first);
   }
@@ -590,7 +585,7 @@ std::vector<GraphManager::Graph::Point> GraphManager::planPath() {
   ufo::math::Vector3 exploration_target;
   double reposition_reward = -std::numeric_limits<float>::max();
   double reward;
-  fetchExplorationTargets(false);
+  fetchExplorationTargets();
   
   if (local_exploration) {
     iterations = m_iterations_local;
@@ -647,7 +642,7 @@ std::vector<GraphManager::Graph::Point> GraphManager::planPath() {
  
 }
 
-nav_msgs::Path GraphManager::fetchImprovedPath () {
+nav_msgs::Path GraphManager::fetchExplorationPath () {
 
   auto path = planPath();
 
