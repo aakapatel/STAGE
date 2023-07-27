@@ -59,32 +59,37 @@ GraphManager::GraphManager(ros::NodeHandle private_nh_)
 ufo::map::OccupancyMapColor m_ufoMAP(0.2);
 
 void GraphManager::mapCallback(
-    ufomap_msgs::UFOMapStamped::ConstPtr const &msg) {
+    ufomap_msgs::UFOMapStamped::ConstPtr const &msg)
+{
 
-  if (ufomap_msgs::msgToUfo(msg->map, m_ufoMAP)) {
+  if (ufomap_msgs::msgToUfo(msg->map, m_ufoMAP))
+  {
     // ROS_INFO("MAP RECEIVED");
     map_received = true;
-  } else {
+  }
+  else
+  {
     ROS_WARN("MAP NOT RECEIVED");
   }
 }
 
 void GraphManager::updateCurrentPosition(
-    const nav_msgs::Odometry::ConstPtr &pose) {
+    const nav_msgs::Odometry::ConstPtr &pose)
+{
 
-  PoseGraph poseGraph;
-
-  if (firstTime) {
+  if (firstTime)
+  {
     m_prevPose = *pose;
     firstTime = false;
-  } else {
+  }
+  else
+  {
     m_currentPose = *pose;
-  
-    
+
     ufo::math::Vector3 newPoint(pose->pose.pose.position.x, pose->pose.pose.position.y,
-                                  pose->pose.pose.position.z);
+                                pose->pose.pose.position.z);
     ufo::math::Vector3 oldPoint(m_prevPose.pose.pose.position.x, m_prevPose.pose.pose.position.y,
-                                  m_prevPose.pose.pose.position.z);
+                                m_prevPose.pose.pose.position.z);
     geometry_msgs::PoseWithCovariance old_pose = m_prevPose.pose;
     geometry_msgs::PoseWithCovariance new_pose = m_currentPose.pose;
     if (GraphManager::calculateDistance(newPoint, oldPoint) > 1)
@@ -92,12 +97,13 @@ void GraphManager::updateCurrentPosition(
       m_prevPose = *pose;
       PoseGraph::pg_node previous_node(old_pose);
       PoseGraph::pg_node new_node(new_pose);
+      // new_node.add_sensor_measurement(float current_measurement);
       poseGraph.add_pg_node(previous_node);
       poseGraph.add_pg_node(new_node);
       poseGraph.connectNodes(previous_node, new_node);
     }
   }
-  
+
   m_currentPosition.x() = m_currentPose.pose.pose.position.x;
   m_currentPosition.y() = m_currentPose.pose.pose.position.y;
   m_currentPosition.z() = m_currentPose.pose.pose.position.z;
@@ -109,21 +115,16 @@ void GraphManager::updateCurrentPosition(
   double roll, pitch, yaw;
   m.getRPY(roll, pitch, yaw);
   m_currentHeading = yaw * (180 / 3.14159);
-  
-  
-
-
-
-
-
 }
 
-ufo::math::Vector3 GraphManager::fetchCurrentPosition() {
+ufo::math::Vector3 GraphManager::fetchCurrentPosition()
+{
   return m_currentPosition;
 }
 
 double GraphManager::calculateDistance(ufo::math::Vector3 point1,
-                                       ufo::math::Vector3 point2) {
+                                       ufo::math::Vector3 point2)
+{
 
   double d =
       sqrt(pow(point1.x() - point2.x(), 2) + pow(point1.y() - point2.y(), 2) +
@@ -134,12 +135,14 @@ double GraphManager::calculateDistance(ufo::math::Vector3 point1,
 bool GraphManager::isInCollision(
     ufo::map::OccupancyMapColor const &map,
     ufo::geometry::BoundingVar const &bounding_volume, bool occupied_space,
-    bool free_space, bool unknown_space, ufo::map::DepthType min_depth) {
+    bool free_space, bool unknown_space, ufo::map::DepthType min_depth)
+{
 
   for (auto it = map.beginLeaves(bounding_volume, occupied_space, free_space,
                                  unknown_space, false, min_depth),
             it_end = map.endLeaves();
-       it != it_end; ++it) {
+       it != it_end; ++it)
+  {
     return true;
   }
   return false;
@@ -147,7 +150,8 @@ bool GraphManager::isInCollision(
 
 ufo::geometry::OBB GraphManager::makeOBB(ufo::math::Vector3 source,
                                          ufo::math::Vector3 goal,
-                                         float radius) {
+                                         float radius)
+{
 
   ufo::math::Vector3 direction = goal - source;
   ufo::math::Vector3 center = source + (direction / 2.0);
@@ -165,33 +169,47 @@ ufo::geometry::OBB GraphManager::makeOBB(ufo::math::Vector3 source,
 
 double GraphManager::calculateAngle(ufo::math::Vector3 fpoint,
                                     ufo::math::Vector3 position,
-                                    double heading) {
+                                    double heading)
+{
 
   double head =
       atan2((fpoint.y() - position.y()), (fpoint.x() - position.x())) *
       (180 / 3.14159);
   double angle = head - heading;
-  if (head > -180 && head < -90) {
-    if (heading > -180 && heading < -90) {
+  if (head > -180 && head < -90)
+  {
+    if (heading > -180 && heading < -90)
+    {
       angle = head - heading;
-      if (angle > 180) {
-        angle = angle - 360;
-      }
-    } else {
-      angle = angle + 360;
-      if (angle > 180) {
+      if (angle > 180)
+      {
         angle = angle - 360;
       }
     }
-  } else if (head > 0) {
-    if (heading > -180 && heading < -90) {
-      angle = angle - 360;
-      if (angle > 180) {
+    else
+    {
+      angle = angle + 360;
+      if (angle > 180)
+      {
         angle = angle - 360;
       }
-    } else {
+    }
+  }
+  else if (head > 0)
+  {
+    if (heading > -180 && heading < -90)
+    {
+      angle = angle - 360;
+      if (angle > 180)
+      {
+        angle = angle - 360;
+      }
+    }
+    else
+    {
       angle = angle;
-      if (angle > 180) {
+      if (angle > 180)
+      {
         angle = angle - 360;
       }
     }
@@ -199,21 +217,26 @@ double GraphManager::calculateAngle(ufo::math::Vector3 fpoint,
   return angle;
 }
 
-bool GraphManager::isLocal(ufo::math::Vector3 point) {
+bool GraphManager::isLocal(ufo::math::Vector3 point)
+{
 
   double angle =
       GraphManager::calculateAngle(point, m_currentPosition, m_currentHeading);
   double distance = GraphManager::calculateDistance(point, m_currentPosition);
 
-  if ((angle < m_local_fov && angle > m_local_fov) && distance < m_local_space) {
+  if ((angle < m_local_fov && angle > m_local_fov) && distance < m_local_space)
+  {
     return true;
-  } else {
+  }
+  else
+  {
     return false;
   }
 }
 
 double GraphManager::computeVolumetricGain(ufo::math::Vector3 frontier,
-                                    ufo::map::OccupancyMapColor const &map) {
+                                           ufo::map::OccupancyMapColor const &map)
+{
 
   double r = 4;
   int unknown_cells, free_cells, occupied_cells = 0;
@@ -222,7 +245,8 @@ double GraphManager::computeVolumetricGain(ufo::math::Vector3 frontier,
   for (auto it = map.beginLeaves(sphere, false, false, true, false,
                                  m_planning_depth),
             it_end = map.endLeaves();
-       it != it_end; ++it) {
+       it != it_end; ++it)
+  {
 
     unknown_cells++;
   }
@@ -230,7 +254,8 @@ double GraphManager::computeVolumetricGain(ufo::math::Vector3 frontier,
   for (auto it = map.beginLeaves(sphere, false, true, false, false,
                                  m_planning_depth),
             it_end = map.endLeaves();
-       it != it_end; ++it) {
+       it != it_end; ++it)
+  {
 
     free_cells++;
   }
@@ -238,7 +263,8 @@ double GraphManager::computeVolumetricGain(ufo::math::Vector3 frontier,
   for (auto it = map.beginLeaves(sphere, true, false, false, false,
                                  m_planning_depth),
             it_end = map.endLeaves();
-       it != it_end; ++it) {
+       it != it_end; ++it)
+  {
 
     occupied_cells++;
   }
@@ -251,7 +277,8 @@ double GraphManager::computeVolumetricGain(ufo::math::Vector3 frontier,
 
 ufo::math::Vector3
 GraphManager::tunePlanningSpace(float range, ufo::math::Vector3 root_node,
-                                ufo::map::OccupancyMapColor const &map) {
+                                ufo::map::OccupancyMapColor const &map)
+{
 
   highest_x = -std::numeric_limits<float>::max();
   highest_y = -std::numeric_limits<float>::max();
@@ -270,23 +297,30 @@ GraphManager::tunePlanningSpace(float range, ufo::math::Vector3 root_node,
 
   for (auto it = map.beginLeaves(aabb, false, true, false, false,
                                  m_planning_depth);
-       it != map.endLeaves(); ++it) {
-    if (it.getX() > highest_x) {
+       it != map.endLeaves(); ++it)
+  {
+    if (it.getX() > highest_x)
+    {
       highest_x = it.getX();
     }
-    if (it.getX() < lowest_x) {
+    if (it.getX() < lowest_x)
+    {
       lowest_x = it.getX();
     }
-    if (it.getY() > highest_y) {
+    if (it.getY() > highest_y)
+    {
       highest_y = it.getY();
     }
-    if (it.getY() < lowest_y) {
+    if (it.getY() < lowest_y)
+    {
       lowest_y = it.getY();
     }
-    if (it.getZ() > highest_z) {
+    if (it.getZ() > highest_z)
+    {
       highest_z = it.getZ();
     }
-    if (it.getZ() < lowest_z) {
+    if (it.getZ() < lowest_z)
+    {
       lowest_z = it.getZ();
     }
   }
@@ -298,28 +332,33 @@ GraphManager::tunePlanningSpace(float range, ufo::math::Vector3 root_node,
 
 ufo::math::Vector3 *GraphManager::node::getNodePointer() { return point; }
 
-void GraphManager::node::addChild(node *newChild) {
+void GraphManager::node::addChild(node *newChild)
+{
   myChilds.push_back(newChild);
 }
 
 void GraphManager::node::addParent(node *newParent) { myParent = newParent; }
 
-void GraphManager::node::setTraversabilityStatus(bool Traversable) {
+void GraphManager::node::setTraversabilityStatus(bool Traversable)
+{
   isTraversableByDrone = Traversable;
 }
-bool GraphManager::node::getTraversabilityStatus() {
+bool GraphManager::node::getTraversabilityStatus()
+{
   return isTraversableByDrone;
 }
 void GraphManager::node::readyForDeletion() { delete point; }
 
-std::vector<GraphManager::node *> GraphManager::sampleNodes(ufo::math::Vector3 root_node, 
-                                                              int max_iterations,
-                                                              float range,
-                                                              ufo::map::OccupancyMapColor const &map) {
+std::vector<GraphManager::node *> GraphManager::sampleNodes(ufo::math::Vector3 root_node,
+                                                            int max_iterations,
+                                                            float range,
+                                                            ufo::map::OccupancyMapColor const &map)
+{
   std::vector<node *> temporary_nodes;
 
   for (std::vector<node *>::iterator it_clear_helper = temporary_nodes.begin();
-       it_clear_helper != --temporary_nodes.end(); it_clear_helper++) {
+       it_clear_helper != --temporary_nodes.end(); it_clear_helper++)
+  {
     (*it_clear_helper)->readyForDeletion();
     delete (*it_clear_helper);
   }
@@ -332,7 +371,8 @@ std::vector<GraphManager::node *> GraphManager::sampleNodes(ufo::math::Vector3 r
   srand(time(0));
   int itterations = 0;
 
-  while (itterations < max_iterations) {
+  while (itterations < max_iterations)
+  {
     // Generate a random point
 
     ufo::math::Vector3 box = tunePlanningSpace(range, root_node, map);
@@ -345,15 +385,18 @@ std::vector<GraphManager::node *> GraphManager::sampleNodes(ufo::math::Vector3 r
     if (!isInCollision(map, point_sphere, true, false, true,
                        m_planning_depth) and
         isInCollision(map, point_sphere, false, true, false,
-                      m_planning_depth)) {
+                      m_planning_depth))
+    {
       float distance = std::numeric_limits<float>::max();
       node *parent;
       std::vector<node *>::iterator it_node;
       for (it_node = temporary_nodes.begin(); it_node != temporary_nodes.end();
-           it_node++) {
+           it_node++)
+      {
         ufo::math::Vector3 direction = random_point - *((*it_node)->point);
         double new_distance = abs(direction.norm());
-        if (new_distance < distance) {
+        if (new_distance < distance)
+        {
           distance = new_distance;
           parent = *it_node;
         }
@@ -377,27 +420,32 @@ std::vector<GraphManager::node *> GraphManager::sampleNodes(ufo::math::Vector3 r
     itterations++;
   };
 
-  if (!m_reserved_graph) {
+  if (!m_reserved_graph)
+  {
     ROS_INFO_STREAM("Planning space contains --> " << temporary_nodes.size()
                                                    << " nodes\n");
     return temporary_nodes;
-  } else {
-    for (auto it = temporary_nodes.begin(); it != temporary_nodes.end(); it++) {
+  }
+  else
+  {
+    for (auto it = temporary_nodes.begin(); it != temporary_nodes.end(); it++)
+    {
       reserved_nodes.push_back(*it);
     }
     return reserved_nodes;
   }
-  
-  m_reserved_graph = false;
 
+  m_reserved_graph = false;
 }
 
 std::vector<GraphManager::Graph::Point> GraphManager::Graph::fetchPath(Graph::Point &start_pos, Graph::Point &end_pos,
-                                                                            std::vector<Graph::vertex> all_vertices) {
+                                                                       std::vector<Graph::vertex> all_vertices)
+{
   vertex start_vert;
   vertex end_vert;
 
-  for (vertex &vert : all_vertices) {
+  for (vertex &vert : all_vertices)
+  {
     if (vert.location == end_pos)
       start_vert = vert;
     if (vert.location == start_pos)
@@ -410,28 +458,33 @@ std::vector<GraphManager::Graph::Point> GraphManager::Graph::fetchPath(Graph::Po
 
   open_list.emplace(start_vert);
 
-  while (!open_list.empty()) {
+  while (!open_list.empty())
+  {
     vertex current_vert = *open_list.begin();
 
     open_list.erase(open_list.begin());
     closed_list.push_back(current_vert.location);
 
-    if (current_vert.location == end_vert.location) {
+    if (current_vert.location == end_vert.location)
+    {
       vertex *parent = &current_vert;
 
-      while (parent != nullptr) {
+      while (parent != nullptr)
+      {
         found_path.push_back(parent->location);
         parent = parent->parent.get();
       }
       return (found_path);
     }
 
-    for (vertex &vert : *current_vert.edges) {
+    for (vertex &vert : *current_vert.edges)
+    {
       vertex child(vert);
       child.parent.reset(new vertex(current_vert));
 
       if (std::find_if(closed_list.begin(), closed_list.end(),
-                       [&child](Point &pt) {
+                       [&child](Point &pt)
+                       {
                          return (pt == child.location);
                        }) != closed_list.end())
         continue;
@@ -443,7 +496,8 @@ std::vector<GraphManager::Graph::Point> GraphManager::Graph::fetchPath(Graph::Po
                                 (child.location.DistTo(end_vert.location)));
 
       if (std::find_if(open_list.begin(), open_list.end(),
-                       [&child](const vertex &vert) {
+                       [&child](const vertex &vert)
+                       {
                          return ((vert == child) &&
                                  (child.dist_to_start > vert.dist_to_start));
                        }) != open_list.end())
@@ -456,42 +510,52 @@ std::vector<GraphManager::Graph::Point> GraphManager::Graph::fetchPath(Graph::Po
   return (found_path);
 }
 
-ufo::math::Vector3 GraphManager::pointToUfo(geometry_msgs::Point p) {
+ufo::math::Vector3 GraphManager::pointToUfo(geometry_msgs::Point p)
+{
   ufo::math::Vector3 v(p.x, p.y, p.z);
   return v;
 }
 
-std::vector<ufo::math::Vector3> GraphManager::pointsToUfo(std::vector<geometry_msgs::Point> points) {
+std::vector<ufo::math::Vector3> GraphManager::pointsToUfo(std::vector<geometry_msgs::Point> points)
+{
 
   std::vector<ufo::math::Vector3> ufo_vec;
 
-  for (geometry_msgs::Point p : points) {
+  for (geometry_msgs::Point p : points)
+  {
     ufo_vec.push_back(ufo::math::Vector3(p.x, p.y, p.z));
   }
 
   return ufo_vec;
 }
 
-void GraphManager::fetchExplorationTargets() {
+void GraphManager::fetchExplorationTargets()
+{
 
   stage_planner::frontierRequest frontier_srv;
-    
-  if (!run_global_planner) {
+
+  if (!run_global_planner)
+  {
     frontier_srv.request.local = true;
-  } else {
+  }
+  else
+  {
     frontier_srv.request.force_global = true;
   }
-  
-  if (m_frontier_client.call(frontier_srv)) {
 
-    if (frontier_srv.response.local_nav) {
+  if (m_frontier_client.call(frontier_srv))
+  {
+
+    if (frontier_srv.response.local_nav)
+    {
 
       local_exploration = true;
       global_exploration = false;
 
       m_local_exploration_target = pointToUfo(frontier_srv.response.best_local);
-
-    } else if (frontier_srv.response.local_nav == false) {
+    }
+    else if (frontier_srv.response.local_nav == false)
+    {
 
       local_exploration = false;
       global_exploration = true;
@@ -501,75 +565,87 @@ void GraphManager::fetchExplorationTargets() {
   }
 }
 
-std::vector<GraphManager::Graph::vertex> GraphManager::constructGraph(int iterations, float planning_space) {
+std::vector<GraphManager::Graph::vertex> GraphManager::constructGraph(int iterations, float planning_space)
+{
 
   std::vector<GraphManager::node *> nodes = sampleNodes(m_currentPosition, iterations, planning_space, m_ufoMAP);
 
   std::vector<std::pair<ufo::math::Vector3, ufo::math::Vector3>> local_nodes_pairs;
 
-  for (auto i = nodes.begin(); i != std::prev(nodes.end(),1); i++) {
-        
-    for (auto i2 = i; i2 != nodes.end(); i2++) {
+  for (auto i = nodes.begin(); i != std::prev(nodes.end(), 1); i++)
+  {
 
-      ufo::math::Vector3 v1 ((*i)->myParent->point->x(), (*i)->myParent->point->y(), (*i)->myParent->point->z());
-      ufo::math::Vector3 v2 ((*i2)->myParent->point->x(), (*i2)->myParent->point->y(), (*i2)->myParent->point->z());
-      
+    for (auto i2 = i; i2 != nodes.end(); i2++)
+    {
+
+      ufo::math::Vector3 v1((*i)->myParent->point->x(), (*i)->myParent->point->y(), (*i)->myParent->point->z());
+      ufo::math::Vector3 v2((*i2)->myParent->point->x(), (*i2)->myParent->point->y(), (*i2)->myParent->point->z());
+
       double distance = calculateDistance(v1, v2);
-      
-      if (distance < m_max_edge_length) {
-        local_nodes_pairs.push_back(std::make_pair(v1,v2));
+
+      if (distance < m_max_edge_length)
+      {
+        local_nodes_pairs.push_back(std::make_pair(v1, v2));
       }
     }
   }
-  
+
   std::vector<std::pair<ufo::math::Vector3, ufo::math::Vector3>> vec1, vec2, vec3, vec4, my_vec;
 
-  #pragma omp parallel 
+#pragma omp parallel
   {
-    #pragma omp single
+#pragma omp single
     {
-      #pragma omp task 
+#pragma omp task
       {
-        for (auto i = local_nodes_pairs.begin(); i != std::next(local_nodes_pairs.begin(), local_nodes_pairs.size()/4); i++) {
-             
-             ufo::geometry::OBB obb = makeOBB(i->first, i->second, m_obb_radius);
+        for (auto i = local_nodes_pairs.begin(); i != std::next(local_nodes_pairs.begin(), local_nodes_pairs.size() / 4); i++)
+        {
 
-             if(!isInCollision(m_ufoMAP, obb, true, false, true, m_planning_depth)) {
-              vec1.push_back(std::make_pair(i->first,i->second));
-             }
+          ufo::geometry::OBB obb = makeOBB(i->first, i->second, m_obb_radius);
+
+          if (!isInCollision(m_ufoMAP, obb, true, false, true, m_planning_depth))
+          {
+            vec1.push_back(std::make_pair(i->first, i->second));
+          }
         }
       }
-      #pragma omp task 
+#pragma omp task
       {
-        for (auto i = std::next(local_nodes_pairs.begin(), local_nodes_pairs.size()/4); i != std::next(local_nodes_pairs.begin(), local_nodes_pairs.size()/2); i++) {
-             
-             ufo::geometry::OBB obb = makeOBB(i->first, i->second, m_obb_radius);
+        for (auto i = std::next(local_nodes_pairs.begin(), local_nodes_pairs.size() / 4); i != std::next(local_nodes_pairs.begin(), local_nodes_pairs.size() / 2); i++)
+        {
 
-             if (!isInCollision(m_ufoMAP, obb, true, false, true, m_planning_depth)) {
-              vec2.push_back(std::make_pair(i->first,i->second));
-             }
+          ufo::geometry::OBB obb = makeOBB(i->first, i->second, m_obb_radius);
+
+          if (!isInCollision(m_ufoMAP, obb, true, false, true, m_planning_depth))
+          {
+            vec2.push_back(std::make_pair(i->first, i->second));
+          }
         }
       }
-      #pragma omp task 
+#pragma omp task
       {
-        for (auto i = std::next(local_nodes_pairs.begin(), local_nodes_pairs.size()/2); i != std::prev(local_nodes_pairs.end(), local_nodes_pairs.size()/4); i++) {
-             
-             ufo::geometry::OBB obb = makeOBB(i->first, i->second, m_obb_radius);
+        for (auto i = std::next(local_nodes_pairs.begin(), local_nodes_pairs.size() / 2); i != std::prev(local_nodes_pairs.end(), local_nodes_pairs.size() / 4); i++)
+        {
 
-             if (!isInCollision(m_ufoMAP, obb, true, false, true, m_planning_depth)) {
-              vec3.push_back(std::make_pair(i->first,i->second));
-             }
+          ufo::geometry::OBB obb = makeOBB(i->first, i->second, m_obb_radius);
+
+          if (!isInCollision(m_ufoMAP, obb, true, false, true, m_planning_depth))
+          {
+            vec3.push_back(std::make_pair(i->first, i->second));
+          }
         }
       }
-      #pragma omp task 
+#pragma omp task
       {
-        for (auto i = std::prev(local_nodes_pairs.end(), local_nodes_pairs.size()/4); i != local_nodes_pairs.end(); i++) {
-             
-             ufo::geometry::OBB obb = makeOBB(i->first, i->second, m_obb_radius);
+        for (auto i = std::prev(local_nodes_pairs.end(), local_nodes_pairs.size() / 4); i != local_nodes_pairs.end(); i++)
+        {
 
-             if (!isInCollision(m_ufoMAP, obb, true, false, true, m_planning_depth)) {
-              vec4.push_back(std::make_pair(i->first,i->second));
-             }
+          ufo::geometry::OBB obb = makeOBB(i->first, i->second, m_obb_radius);
+
+          if (!isInCollision(m_ufoMAP, obb, true, false, true, m_planning_depth))
+          {
+            vec4.push_back(std::make_pair(i->first, i->second));
+          }
         }
       }
     }
@@ -583,12 +659,14 @@ std::vector<GraphManager::Graph::vertex> GraphManager::constructGraph(int iterat
   std::vector<std::pair<Graph::vertex, Graph::vertex>> vertices;
   std::vector<Graph::vertex> graph_container;
 
-  for (auto p : my_vec) {
+  for (auto p : my_vec)
+  {
     vertices.push_back(std::make_pair(Graph::Point{p.first.x(), p.first.y(), p.first.z()},
-                                        Graph::Point{p.second.x(), p.second.y(), p.second.z()}));
+                                      Graph::Point{p.second.x(), p.second.y(), p.second.z()}));
   }
-  
-  for (auto i : vertices) {
+
+  for (auto i : vertices)
+  {
     graph_container.push_back(i.first);
     graph_container.push_back(i.second);
     (i.first).createEdge(i.second);
@@ -596,10 +674,10 @@ std::vector<GraphManager::Graph::vertex> GraphManager::constructGraph(int iterat
   }
 
   return graph_container;
-
 }
 
-std::vector<GraphManager::Graph::Point> GraphManager::planPath() {
+std::vector<GraphManager::Graph::Point> GraphManager::planPath()
+{
 
   int iterations;
   double planning_space;
@@ -607,47 +685,55 @@ std::vector<GraphManager::Graph::Point> GraphManager::planPath() {
   double reposition_reward = -std::numeric_limits<float>::max();
   double reward;
   fetchExplorationTargets();
-  
-  if (local_exploration) {
+
+  if (local_exploration)
+  {
     iterations = m_iterations_local;
     planning_space = m_local_space;
     exploration_target = m_local_exploration_target;
-  } else if (global_exploration) {
+  }
+  else if (global_exploration)
+  {
     iterations = m_iterations_global;
     planning_space = m_global_space;
 
-    for (ufo::math::Vector3 v : m_global_repos_targets) {
+    for (ufo::math::Vector3 v : m_global_repos_targets)
+    {
 
-      double volumetric_info_gain = computeVolumetricGain (v, m_ufoMAP);
+      double volumetric_info_gain = computeVolumetricGain(v, m_ufoMAP);
       double eucl_distance = calculateDistance(v, fetchCurrentPosition());
-      
-      reward = volumetric_info_gain/eucl_distance;
 
-      if (reward > reposition_reward) {
+      reward = volumetric_info_gain / eucl_distance;
+
+      if (reward > reposition_reward)
+      {
         reposition_reward = reward;
         exploration_target = v;
       }
     }
   }
 
-  std::vector<GraphManager::Graph::vertex> current_graph = constructGraph (iterations, planning_space);
+  std::vector<GraphManager::Graph::vertex> current_graph = constructGraph(iterations, planning_space);
 
   ufo::math::Vector3 goal_vec, source_vec;
   double d_s, d_g;
-  double goal_distance, source_distance= std::numeric_limits<float>::max();
+  double goal_distance, source_distance = std::numeric_limits<float>::max();
 
-  for (Graph::vertex v : current_graph) {
+  for (Graph::vertex v : current_graph)
+  {
 
-    ufo::math::Vector3 vertex_vector (v.location.x, v.location.y, v.location.z);
+    ufo::math::Vector3 vertex_vector(v.location.x, v.location.y, v.location.z);
 
-    double d_s = calculateDistance (vertex_vector, fetchCurrentPosition());
-    double d_g = calculateDistance (vertex_vector, exploration_target);
-    
-    if (d_s < source_distance) {
+    double d_s = calculateDistance(vertex_vector, fetchCurrentPosition());
+    double d_g = calculateDistance(vertex_vector, exploration_target);
+
+    if (d_s < source_distance)
+    {
       source_distance = d_s;
       source_vec = vertex_vector;
     }
-    if (d_g < goal_distance) {
+    if (d_g < goal_distance)
+    {
       goal_distance = d_g;
       goal_vec = vertex_vector;
     }
@@ -655,60 +741,64 @@ std::vector<GraphManager::Graph::Point> GraphManager::planPath() {
 
   Graph::Point source{source_vec.x(), source_vec.y(), source_vec.z()};
   Graph::Point goal{goal_vec.x(), goal_vec.y(), goal_vec.z()};
-  
+
   Graph graph;
   std::vector<Graph::Point> Astar_path = graph.fetchPath(source, goal, current_graph);
-  
+
   return Astar_path;
- 
 }
 
-nav_msgs::Path GraphManager::fetchExplorationPath () {
+nav_msgs::Path GraphManager::fetchExplorationPath()
+{
 
   auto path = planPath();
 
   std::vector<Graph::vertex> improvement_nodes;
   std::vector<Graph::vertex> improvement_graph;
 
-    for (auto insert_helper = path.begin();
-         insert_helper != path.end(); insert_helper++) {
-      improvement_nodes.push_back(
-          Graph::Point{insert_helper->x, insert_helper->y, insert_helper->z});
-    }
+  for (auto insert_helper = path.begin();
+       insert_helper != path.end(); insert_helper++)
+  {
+    improvement_nodes.push_back(
+        Graph::Point{insert_helper->x, insert_helper->y, insert_helper->z});
+  }
 
-    for (auto i = improvement_nodes.begin(); i != --improvement_nodes.end();
-         i++) {
+  for (auto i = improvement_nodes.begin(); i != --improvement_nodes.end();
+       i++)
+  {
 
-      for (auto i2 = std::next(improvement_nodes.begin(), 1);
-           i2 != improvement_nodes.end(); i2++) {
+    for (auto i2 = std::next(improvement_nodes.begin(), 1);
+         i2 != improvement_nodes.end(); i2++)
+    {
 
-        ufo::math::Vector3 start(i->location.x, i->location.y,
-                                 i->location.z);
-        ufo::math::Vector3 goal(i2->location.x, i2->location.y,
-                                i2->location.z);
+      ufo::math::Vector3 start(i->location.x, i->location.y,
+                               i->location.z);
+      ufo::math::Vector3 goal(i2->location.x, i2->location.y,
+                              i2->location.z);
 
-        double dist = calculateDistance(start, goal);
+      double dist = calculateDistance(start, goal);
 
-        ufo::geometry::OBB obb =
-            makeOBB(start, goal, m_obb_radius);
-        if (isInCollision(m_ufoMAP, obb, false, true, false,
-                          m_planning_depth) &&
-            !isInCollision(m_ufoMAP, obb, true, false, true,
-                           m_planning_depth)) {
+      ufo::geometry::OBB obb =
+          makeOBB(start, goal, m_obb_radius);
+      if (isInCollision(m_ufoMAP, obb, false, true, false,
+                        m_planning_depth) &&
+          !isInCollision(m_ufoMAP, obb, true, false, true,
+                         m_planning_depth))
+      {
 
-          improvement_graph.push_back(*i);
-          improvement_graph.push_back(*i2);
-          (*i).createEdge(*i2);
-          (*i2).createEdge(*i);
-        }
+        improvement_graph.push_back(*i);
+        improvement_graph.push_back(*i2);
+        (*i).createEdge(*i2);
+        (*i2).createEdge(*i);
       }
     }
+  }
 
-  Graph::Point start{improvement_graph.front().location.x, improvement_graph.front().location.y, 
-        improvement_graph.front().location.z};
+  Graph::Point start{improvement_graph.front().location.x, improvement_graph.front().location.y,
+                     improvement_graph.front().location.z};
 
-  Graph::Point finish{improvement_graph.back().location.x, improvement_graph.back().location.y, 
-        improvement_graph.back().location.z};
+  Graph::Point finish{improvement_graph.back().location.x, improvement_graph.back().location.y,
+                      improvement_graph.back().location.z};
 
   Graph improved_graph;
 
@@ -717,7 +807,8 @@ nav_msgs::Path GraphManager::fetchExplorationPath () {
   nav_msgs::Path planned_path;
   geometry_msgs::PoseStamped p;
 
-  for (auto i = improved_path.begin(); i != improved_path.end(); i++) {
+  for (auto i = improved_path.begin(); i != improved_path.end(); i++)
+  {
 
     p.pose.position.x = i->x;
     p.pose.position.y = i->y;
@@ -726,7 +817,4 @@ nav_msgs::Path GraphManager::fetchExplorationPath () {
   }
 
   return planned_path;
-
 }
-
-

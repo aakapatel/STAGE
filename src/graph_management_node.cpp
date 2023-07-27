@@ -4,18 +4,20 @@
 
 using namespace std;
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv)
+{
     ros::init(argc, argv, "Graph_Management_Node");
-    const ros::NodeHandle& private_nh = ros::NodeHandle("~");
+    const ros::NodeHandle &private_nh = ros::NodeHandle("~");
 
     GraphManager graphManager;
-    
-    ros::spinOnce();
-    try{
-        ros::spin();
-   
 
-    }catch(std::runtime_error& e){
+    ros::spinOnce();
+    try
+    {
+        ros::spin();
+    }
+    catch (std::runtime_error &e)
+    {
         ROS_ERROR("Graph Building Error: %s", e.what());
         return -1;
     }

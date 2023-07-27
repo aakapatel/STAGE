@@ -4,16 +4,20 @@
 
 using namespace std;
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv)
+{
     ros::init(argc, argv, "Stage_Interface_Node");
-    const ros::NodeHandle& private_nh = ros::NodeHandle("~");
+    const ros::NodeHandle &private_nh = ros::NodeHandle("~");
 
     StageInterface stageInterface;
     ros::spinOnce();
-    
-    try{
+
+    try
+    {
         ros::spin();
-    }catch(std::runtime_error& e){
+    }
+    catch (std::runtime_error &e)
+    {
         ROS_ERROR("Interface Error: %s", e.what());
         return -1;
     }
