@@ -72,12 +72,32 @@ void GraphManager::mapCallback(
 void GraphManager::updateCurrentPosition(
     const nav_msgs::Odometry::ConstPtr &pose) {
 
+  PoseGraph poseGraph;
+
   if (firstTime) {
     m_prevPose = *pose;
     firstTime = false;
   } else {
     m_currentPose = *pose;
+  
+    
+    ufo::math::Vector3 newPoint(pose->pose.pose.position.x, pose->pose.pose.position.y,
+                                  pose->pose.pose.position.z);
+    ufo::math::Vector3 oldPoint(m_prevPose.pose.pose.position.x, m_prevPose.pose.pose.position.y,
+                                  m_prevPose.pose.pose.position.z);
+    geometry_msgs::PoseWithCovariance old_pose = m_prevPose.pose;
+    geometry_msgs::PoseWithCovariance new_pose = m_currentPose.pose;
+    if (GraphManager::calculateDistance(newPoint, oldPoint) > 1)
+    {
+      m_prevPose = *pose;
+      PoseGraph::pg_node previous_node(old_pose);
+      PoseGraph::pg_node new_node(new_pose);
+      poseGraph.add_pg_node(previous_node);
+      poseGraph.add_pg_node(new_node);
+      poseGraph.connectNodes(previous_node, new_node);
+    }
   }
+  
   m_currentPosition.x() = m_currentPose.pose.pose.position.x;
   m_currentPosition.y() = m_currentPose.pose.pose.position.y;
   m_currentPosition.z() = m_currentPose.pose.pose.position.z;
@@ -89,6 +109,13 @@ void GraphManager::updateCurrentPosition(
   double roll, pitch, yaw;
   m.getRPY(roll, pitch, yaw);
   m_currentHeading = yaw * (180 / 3.14159);
+  
+  
+
+
+
+
+
 }
 
 ufo::math::Vector3 GraphManager::fetchCurrentPosition() {

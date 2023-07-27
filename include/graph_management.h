@@ -39,29 +39,29 @@ public:
     class PoseGraph
     {
       public:
-        struct pose_graph_node 
+        struct pg_node 
         {
-          geometry_msgs::Pose pose_;
+          geometry_msgs::PoseWithCovariance pose_;
           float associated_sensor_measurement_;
           void add_sensor_measurement (float sensor_measurement) {
             associated_sensor_measurement_ = sensor_measurement;
           }
-          pose_graph_node(geometry_msgs::Pose my_pose) {
+          pg_node(geometry_msgs::PoseWithCovariance my_pose) {
             pose_ = my_pose;
           }  
         };
         
-        std::vector<pose_graph_node> pose_graph_nodes_;
+        std::vector<pg_node> pg_nodes_;
         
-        void add_Pose_Graph_Node (pose_graph_node N) {
-          pose_graph_nodes_.push_back(N);
+        void add_pg_node (pg_node N) {
+          pg_nodes_.push_back(N);
         }
         
-        std::shared_ptr<std::vector<pose_graph_node>> pose_graph_edges_;
+        std::shared_ptr<std::vector<pg_node>> pg_edges_;
 
-        void connectNodes (pose_graph_node previous, pose_graph_node current) {
-          pose_graph_edges_->push_back(previous);
-          pose_graph_edges_->push_back(current);
+        void connectNodes (pg_node& previous_node, pg_node& new_node) {
+          pg_edges_->push_back(previous_node);
+          pg_edges_->push_back(new_node);
         }
         
 
