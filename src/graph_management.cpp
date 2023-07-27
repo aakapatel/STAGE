@@ -299,11 +299,8 @@ std::vector<GraphManager::node *> GraphManager::sampleNodes(ufo::math::Vector3 r
 
   temporary_nodes.clear();
   node *current_pos = new node(root_node.x(), root_node.y(), root_node.z());
-  // node *target_pos = new node(target.x(), target.y(), target.z());
   current_pos->addParent(nullptr);
-  // target_pos->addParent(nullptr);
   temporary_nodes.push_back(current_pos);
-  // temporary_nodes.push_back(target_pos);
 
   srand(time(0));
   int itterations = 0;
@@ -452,7 +449,7 @@ void GraphManager::fetchExplorationTargets() {
 
   stage_planner::frontierRequest frontier_srv;
     
-  if (!go_to_global_waypoint) {
+  if (!run_global_planner) {
     frontier_srv.request.local = true;
   } else {
     frontier_srv.request.force_global = true;

@@ -36,8 +36,40 @@ public:
         void readyForDeletion();
     };
 
-    class Graph
+    class PoseGraph
     {
+      public:
+        struct pose_graph_node 
+        {
+          geometry_msgs::Pose pose_;
+          float associated_sensor_measurement_;
+          void add_sensor_measurement (float sensor_measurement) {
+            associated_sensor_measurement_ = sensor_measurement;
+          }
+          pose_graph_node(geometry_msgs::Pose my_pose) {
+            pose_ = my_pose;
+          }  
+        };
+        
+        std::vector<pose_graph_node> pose_graph_nodes_;
+        
+        void add_Pose_Graph_Node (pose_graph_node N) {
+          pose_graph_nodes_.push_back(N);
+        }
+        
+        std::shared_ptr<std::vector<pose_graph_node>> pose_graph_edges_;
+
+        void connectNodes (pose_graph_node previous, pose_graph_node current) {
+          pose_graph_edges_->push_back(previous);
+          pose_graph_edges_->push_back(current);
+        }
+        
+
+    
+    };
+
+  class Graph
+  {
 
     public:
         struct Point
@@ -76,7 +108,7 @@ public:
         };
 
       std::vector<Point> fetchPath(Point &start_pos, Point &end_pos, std::vector<vertex> all_vertices);
-    };
+  };
     
    
         
@@ -145,7 +177,7 @@ public:
     bool m_reserved_graph;
     bool local_exploration;
     bool global_exploration;
-    bool go_to_global_waypoint = false;
+    bool run_global_planner = false;
     
 
 
