@@ -1,6 +1,0 @@
-# Add a rectangle to the geofence list.
-Header header
-
-stage_planner/RectangleShape[] rectangles
--------
-bool success

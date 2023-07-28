@@ -1,8 +1,0 @@
-Header header
-
-bool success
-stage_planner/TriggerMode trigger_mode
-stage_planner/BoundMode bound_mode
-stage_planner/PlanningMode planning_mode
-stage_planner/ExecutionPathMode exe_path_mode
-float32 max_vel
