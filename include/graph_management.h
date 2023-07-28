@@ -1,7 +1,7 @@
 #ifndef GRAPH_MANAGEMENT_H
 #define GRAPH_MANAGEMENT_H
 
-#include <frontiers_extraction.h>
+#include "frontiers_extraction.h"
 #include <omp.h>
 
 class GraphManager
@@ -147,10 +147,12 @@ public:
 
   void fetchExplorationTargets();
 
+  bool isLastTargetFrontier();
+
   std::vector<Graph::vertex> constructGraph(int max_itr, float planning_range);
 
   std::vector<Graph::Point> planPath();
-
+  
   nav_msgs::Path fetchExplorationPath();
 
 private:
@@ -179,6 +181,8 @@ private:
   bool local_exploration;
   bool global_exploration;
   bool run_global_planner = false;
+  ufo::math::Vector3 exploration_target;
+
 
   ros::NodeHandle m_nh;
   std::string m_worldFrameId; // the map frame
@@ -187,7 +191,11 @@ private:
   nav_msgs::Odometry m_currentPose;
   nav_msgs::Odometry m_prevPose; // Holds the point where the direction changed.
   ros::ServiceClient m_frontier_client;
+  ros::ServiceClient m_target_query_client;
 
+  std::vector<ufo::math::Vector3> visited_exploration_targets;
+  
+    
   // Subscriber
   message_filters::Subscriber<nav_msgs::Odometry> *m_poseSubscriber;
   message_filters::Subscriber<ufomap_msgs::UFOMapStamped> *m_ufoMapSubscriber;

@@ -1,0 +1,3 @@
+geometry_msgs/Point frontier_point
+---
+bool is_frontier

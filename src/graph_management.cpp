@@ -54,6 +54,10 @@ GraphManager::GraphManager(ros::NodeHandle private_nh_)
   /* Ros services */
   m_frontier_client = m_nh.serviceClient<stage_planner::frontierRequest>(
       "request_frontier_target");
+  
+  m_target_query_client = m_nh.serviceClient<stage_planner::isFrontier>(
+      "query_frontier_target");
+
 };
 
 ufo::map::OccupancyMapColor m_ufoMAP(0.2);
@@ -565,6 +569,27 @@ void GraphManager::fetchExplorationTargets()
   }
 }
 
+bool GraphManager::isLastTargetFrontier () {
+
+  stage_planner::isFrontier frontier_query_srv;
+  geometry_msgs::Point last_target_frontier;
+  
+  last_target_frontier.x = exploration_target.x();
+  last_target_frontier.y = exploration_target.y();
+  last_target_frontier.z = exploration_target.z();
+
+  frontier_query_srv.request.frontier_point = last_target_frontier;
+
+  if (m_target_query_client.call(frontier_query_srv)) {
+
+    if (frontier_query_srv.response.is_frontier) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+}
+
 std::vector<GraphManager::Graph::vertex> GraphManager::constructGraph(int iterations, float planning_space)
 {
 
@@ -681,7 +706,6 @@ std::vector<GraphManager::Graph::Point> GraphManager::planPath()
 
   int iterations;
   double planning_space;
-  ufo::math::Vector3 exploration_target;
   double reposition_reward = -std::numeric_limits<float>::max();
   double reward;
   fetchExplorationTargets();

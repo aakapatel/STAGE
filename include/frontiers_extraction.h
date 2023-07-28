@@ -69,6 +69,8 @@
 #include <fstream>
 #include <variant>
 #include "stage_planner/frontierRequest.h"
+#include "stage_planner/isFrontier.h"
+
 
 class FrontierExtraction
 {
@@ -92,7 +94,7 @@ public:
 
     virtual void mapCallback(ufomap_msgs::UFOMapStamped::ConstPtr const &map);
 
-    bool isFrontier(float x, float y, float z, point3d sensorOrigin);
+    bool verifyFrontier(float x, float y, float z, point3d sensorOrigin);
 
     double calculateDistance(ufo::math::Vector3 point1, ufo::math::Vector3 point2);
 
@@ -125,6 +127,9 @@ public:
 
     bool exportFrontierTargets(stage_planner::frontierRequest::Request &req,
                                stage_planner::frontierRequest::Response &res);
+    
+    bool queryFrontierTarget(stage_planner::isFrontier::Request &req,
+                             stage_planner::isFrontier::Response &res);
 
     geometry_msgs::Point ufoToPoint(ufo::math::Vector3 v);
 
@@ -144,6 +149,7 @@ private:
 
     ros::NodeHandle m_nh;
     ros::ServiceServer m_frontier_srv;
+    ros::ServiceServer m_target_query_srv;
     tf::TransformListener m_tfListener;
     std::string m_worldFrameId; // the map frame
     std::string m_odometry;

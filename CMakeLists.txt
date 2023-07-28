@@ -67,6 +67,7 @@ add_message_files(
 add_service_files(
   FILES
   frontierRequest.srv  
+  isFrontier.srv
 )
 
 

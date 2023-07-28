@@ -115,6 +115,10 @@ FrontierExtraction::FrontierExtraction(ros::NodeHandle private_nh_)
 
     /* Setup ros services */
     m_frontier_srv = m_nh.advertiseService("request_frontier_target", &FrontierExtraction::exportFrontierTargets, this);
+
+
+    m_target_query_srv = m_nh.advertiseService("query_frontier_target", &FrontierExtraction::queryFrontierTarget, this);
+
 };
 
 // Instance of UFOMAP
@@ -282,7 +286,7 @@ void FrontierExtraction::extractFrontiers(const tf::Point &sensorOriginTf, const
         float x = it->x();
         float y = it->y();
         float z = it->z();
-        if (!FrontierExtraction::isFrontier(x, y, z, sensorOrigin))
+        if (!FrontierExtraction::verifyFrontier(x, y, z, sensorOrigin))
         {
             it = frontierPointList.erase(it);
         }
@@ -315,7 +319,7 @@ void FrontierExtraction::extractFrontiers(const tf::Point &sensorOriginTf, const
                     if ((z_diff < m_max_allowed_Z))
                     {
 
-                        if (FrontierExtraction::isFrontier(x, y, z, sensorOrigin) && !(m_octree->isNodeOccupied(me)))
+                        if (FrontierExtraction::verifyFrontier(x, y, z, sensorOrigin) && !(m_octree->isNodeOccupied(me)))
                         {
                             frontierPointList.push_back(pt);
                         }
@@ -382,7 +386,7 @@ ufo::math::Vector3 FrontierExtraction::fetchCurrentPosition()
     return m_currentPosition;
 }
 
-bool FrontierExtraction::isFrontier(float x, float y, float z, point3d sensorOrigin)
+bool FrontierExtraction::verifyFrontier(float x, float y, float z, point3d sensorOrigin)
 {
 
     octomap::OcTreeNode *me;
@@ -1022,4 +1026,21 @@ bool FrontierExtraction::exportFrontierTargets(stage_planner::frontierRequest::R
     }
 
     return true;
+}
+
+bool FrontierExtraction::queryFrontierTarget(stage_planner::isFrontier::Request &req,
+                                             stage_planner::isFrontier::Response &res)
+{
+
+  octomap::point3d frontier_in_octree (req.frontier_point.x, req.frontier_point.y,
+                                       req.frontier_point.z);
+
+  if (std::find(frontierPointList.begin(), frontierPointList.end(),
+                frontier_in_octree) != frontierPointList.end()) {
+    res.is_frontier = true;
+  } else {
+    res.is_frontier = false;
+  }
+
+  return true;
 }
