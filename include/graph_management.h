@@ -174,6 +174,8 @@ public:
 
   void constructGlobalGraph ();
 
+  void planHomingPath ();
+
 private:
   // variables
   bool firstTime = true;
@@ -201,8 +203,9 @@ private:
   bool global_exploration;
   bool run_global_planner = false;
   ufo::math::Vector3 exploration_target;
-  std::vector<GraphManager::Graph::vertex> global_graph_container;
-    
+  std::vector<GraphManager::Graph::vertex> global_graph_container_;
+  nav_msgs::Path homing_path_;
+  ufo::math::Vector3 home_position;
 
   ros::NodeHandle m_nh;
   std::string m_worldFrameId; // the map frame

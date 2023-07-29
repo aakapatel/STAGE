@@ -83,6 +83,9 @@ void GraphManager::updateCurrentPosition(
 
   if (firstTime)
   {
+    home_position.x() = pose->pose.pose.position.x;
+    home_position.y() = pose->pose.pose.position.y;
+    home_position.z() = pose->pose.pose.position.z;
     m_prevPose = *pose;
     firstTime = false;
   }
@@ -105,6 +108,13 @@ void GraphManager::updateCurrentPosition(
       poseGraph.add_pg_node(previous_node);
       poseGraph.add_pg_node(new_node);
       poseGraph.connectNodes(previous_node, new_node);
+      
+      // Plan homing path in the background every few meters the robot moves to assure an updated homing path at all time. 
+
+      if (!global_graph_container_.empty()) {
+        planHomingPath ();
+      }
+      
     }
   }
 
@@ -435,6 +445,15 @@ std::vector<GraphManager::node *> GraphManager::sampleNodes(ufo::math::Vector3 r
 
     poseGraph.planning_instances.push_back(planning_inst);
 
+    // Start using reserved nodes to build and manage a global graph.
+
+    if (planning_iteration_ > 1) {
+      
+      ROS_INFO("Global graph construction");
+
+      GraphManager::constructGlobalGraph ();
+    }
+
   return temporary_nodes;
 }
 
@@ -707,13 +726,13 @@ void GraphManager::constructGlobalGraph () {
   for (auto i : vertices)
   {
     
-    if (std::find(global_graph_container.begin(), global_graph_container.end(),
-                i.first) != global_graph_container.end() 
-        && std::find(global_graph_container.begin(), global_graph_container.end(),
-                i.second) != global_graph_container.end()) {
+    if (std::find(global_graph_container_.begin(), global_graph_container_.end(),
+                i.first) != global_graph_container_.end() 
+        && std::find(global_graph_container_.begin(), global_graph_container_.end(),
+                i.second) != global_graph_container_.end()) {
 
-      global_graph_container.push_back(i.first);
-      global_graph_container.push_back(i.second);
+      global_graph_container_.push_back(i.first);
+      global_graph_container_.push_back(i.second);
 
     } 
 
@@ -726,9 +745,13 @@ void GraphManager::constructGlobalGraph () {
 
 std::vector<GraphManager::Graph::vertex> GraphManager::constructGraph(int iterations, float planning_space)
 {
-
-  std::vector<GraphManager::node *> nodes = sampleNodes(m_currentPosition, iterations, planning_space, m_ufoMAP);
-
+  std::vector<GraphManager::node *> nodes;
+  
+  if (!run_global_planner) 
+  {
+    nodes = sampleNodes(m_currentPosition, iterations, planning_space, m_ufoMAP);
+  }
+  
   std::vector<std::pair<ufo::math::Vector3, ufo::math::Vector3>> local_nodes_pairs;
 
   for (auto i = nodes.begin(); i != std::prev(nodes.end(), 1); i++)
@@ -877,7 +900,7 @@ std::vector<GraphManager::Graph::Point> GraphManager::planPath()
   std::vector<GraphManager::Graph::vertex> local_graph = constructGraph(iterations, planning_space);
   
   if (run_global_planner) {
-    planning_graph = global_graph_container;
+    planning_graph = global_graph_container_;
   } else {
     planning_graph = local_graph;
   }
@@ -984,4 +1007,109 @@ nav_msgs::Path GraphManager::fetchExplorationPath()
   }
 
   return planned_path;
+}
+
+
+void GraphManager::planHomingPath () {
+
+  ufo::math::Vector3 home_pose_vec, source_vec;
+  double d_s, d_g;
+  double home_pose_distance, source_distance = std::numeric_limits<float>::max();
+
+  for (Graph::vertex v : global_graph_container_)
+  {
+
+    ufo::math::Vector3 vertex_vector(v.location.x, v.location.y, v.location.z);
+
+    double d_s = calculateDistance(vertex_vector, fetchCurrentPosition());
+    double d_g = calculateDistance(vertex_vector, home_position);
+
+    if (d_s < source_distance)
+    {
+      source_distance = d_s;
+      source_vec = vertex_vector;
+    }
+    if (d_g < home_pose_distance)
+    {
+      home_pose_distance = d_g;
+      home_pose_vec = vertex_vector;
+    }
+  }
+
+  Graph::Point source{source_vec.x(), source_vec.y(), source_vec.z()};
+  Graph::Point goal{home_pose_vec.x(), home_pose_vec.y(), home_pose_vec.z()};
+
+  Graph homing_graph;
+  std::vector<Graph::Point> path = homing_graph.fetchPath(source, goal, global_graph_container_);
+
+ 
+  std::vector<Graph::vertex> improvement_nodes;
+  std::vector<Graph::vertex> improvement_graph;
+
+  for (auto insert_helper = path.begin();
+       insert_helper != path.end(); insert_helper++)
+  {
+    improvement_nodes.push_back(
+        Graph::Point{insert_helper->x, insert_helper->y, insert_helper->z});
+  }
+
+  for (auto i = improvement_nodes.begin(); i != --improvement_nodes.end();
+       i++)
+  {
+
+    for (auto i2 = std::next(improvement_nodes.begin(), 1);
+         i2 != improvement_nodes.end(); i2++)
+    {
+
+      ufo::math::Vector3 start(i->location.x, i->location.y,
+                               i->location.z);
+      ufo::math::Vector3 goal(i2->location.x, i2->location.y,
+                              i2->location.z);
+
+      double dist = calculateDistance(start, goal);
+
+      ufo::geometry::OBB obb =
+          makeOBB(start, goal, m_obb_radius);
+      if (isInCollision(m_ufoMAP, obb, false, true, false,
+                        m_planning_depth) &&
+          !isInCollision(m_ufoMAP, obb, true, false, true,
+                         m_planning_depth))
+      {
+
+        improvement_graph.push_back(*i);
+        improvement_graph.push_back(*i2);
+        (*i).createEdge(*i2);
+        (*i2).createEdge(*i);
+      }
+    }
+  }
+
+  Graph::Point start{improvement_graph.front().location.x, improvement_graph.front().location.y,
+                     improvement_graph.front().location.z};
+
+  Graph::Point finish{improvement_graph.back().location.x, improvement_graph.back().location.y,
+                      improvement_graph.back().location.z};
+
+  Graph improved_graph;
+
+  std::vector<Graph::Point> improved_path = improved_graph.fetchPath(start, finish, improvement_graph);
+
+  nav_msgs::Path planned_path;
+  geometry_msgs::PoseStamped p;
+
+  for (auto i = improved_path.begin(); i != improved_path.end(); i++)
+  {
+
+    p.pose.position.x = i->x;
+    p.pose.position.y = i->y;
+    p.pose.position.z = i->z;
+    planned_path.poses.push_back(p);
+  }
+  
+  if (planned_path.poses.size() > 1) {
+    homing_path_ = planned_path;
+  } else {
+    ROS_WARN("Homing path not valid");
+  }
+ 
 }
