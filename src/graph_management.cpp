@@ -360,14 +360,14 @@ std::vector<GraphManager::node *> GraphManager::sampleNodes(ufo::math::Vector3 r
 { 
   planning_iteration_++;
   std::vector<node *> temporary_nodes;
-
+/*
   for (std::vector<node *>::iterator it_clear_helper = temporary_nodes.begin();
        it_clear_helper != --temporary_nodes.end(); it_clear_helper++)
   {
     (*it_clear_helper)->readyForDeletion();
     delete (*it_clear_helper);
   }
-
+*/
   temporary_nodes.clear();
   node *current_pos = new node(root_node.x(), root_node.y(), root_node.z());
   current_pos->addParent(nullptr);
@@ -833,7 +833,8 @@ std::vector<GraphManager::Graph::vertex> GraphManager::constructGraph(int iterat
   }
 
   return graph_container;
-}
+
+} // constructGraph
 
 std::vector<GraphManager::Graph::Point> GraphManager::planPath()
 {
@@ -871,13 +872,21 @@ std::vector<GraphManager::Graph::Point> GraphManager::planPath()
     }
   }
 
-  std::vector<GraphManager::Graph::vertex> current_graph = constructGraph(iterations, planning_space);
+  std::vector<GraphManager::Graph::vertex> planning_graph;
+  
+  std::vector<GraphManager::Graph::vertex> local_graph = constructGraph(iterations, planning_space);
+  
+  if (run_global_planner) {
+    planning_graph = global_graph_container;
+  } else {
+    planning_graph = local_graph;
+  }
 
   ufo::math::Vector3 goal_vec, source_vec;
   double d_s, d_g;
   double goal_distance, source_distance = std::numeric_limits<float>::max();
 
-  for (Graph::vertex v : current_graph)
+  for (Graph::vertex v : planning_graph)
   {
 
     ufo::math::Vector3 vertex_vector(v.location.x, v.location.y, v.location.z);
@@ -901,7 +910,7 @@ std::vector<GraphManager::Graph::Point> GraphManager::planPath()
   Graph::Point goal{goal_vec.x(), goal_vec.y(), goal_vec.z()};
 
   Graph graph;
-  std::vector<Graph::Point> Astar_path = graph.fetchPath(source, goal, current_graph);
+  std::vector<Graph::Point> Astar_path = graph.fetchPath(source, goal, planning_graph);
 
   return Astar_path;
 }
