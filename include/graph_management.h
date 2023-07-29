@@ -68,9 +68,26 @@ public:
       pg_edges_->push_back(previous_node);
       pg_edges_->push_back(new_node);
     }
+    
+    struct planning_instance
+    {
+      bool retracing;
+      int planning_iteration;
+      std::vector<node *> reserved_samples;
+      planning_instance(int pi_) 
+      {
+        // retracing = retracing_;
+        planning_iteration = pi_;
+        // reserved_samples = rs;
+      }
+    };
+    
+    std::vector<planning_instance> planning_instances;
+   
   };
   
   PoseGraph poseGraph;
+  int planning_iteration_ = 0;
 
   class Graph
   {
@@ -155,6 +172,8 @@ public:
   
   nav_msgs::Path fetchExplorationPath();
 
+  void constructGlobalGraph ();
+
 private:
   // variables
   bool firstTime = true;
@@ -182,7 +201,8 @@ private:
   bool global_exploration;
   bool run_global_planner = false;
   ufo::math::Vector3 exploration_target;
-
+  std::vector<GraphManager::Graph::vertex> global_graph_container;
+    
 
   ros::NodeHandle m_nh;
   std::string m_worldFrameId; // the map frame

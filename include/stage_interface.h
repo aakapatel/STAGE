@@ -1,7 +1,7 @@
 #ifndef STAGE_INTERFACE_H
 #define STAGE_INTERFACE_H
 
-#include <graph_management.h>
+#include "graph_management.h"
 
 class StageInterface
 {

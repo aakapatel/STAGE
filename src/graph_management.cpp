@@ -357,7 +357,8 @@ std::vector<GraphManager::node *> GraphManager::sampleNodes(ufo::math::Vector3 r
                                                             int max_iterations,
                                                             float range,
                                                             ufo::map::OccupancyMapColor const &map)
-{
+{ 
+  planning_iteration_++;
   std::vector<node *> temporary_nodes;
 
   for (std::vector<node *>::iterator it_clear_helper = temporary_nodes.begin();
@@ -423,23 +424,18 @@ std::vector<GraphManager::node *> GraphManager::sampleNodes(ufo::math::Vector3 r
     };
     itterations++;
   };
-
-  if (!m_reserved_graph)
-  {
+    
     ROS_INFO_STREAM("Planning space contains --> " << temporary_nodes.size()
                                                    << " nodes\n");
-    return temporary_nodes;
-  }
-  else
-  {
-    for (auto it = temporary_nodes.begin(); it != temporary_nodes.end(); it++)
-    {
-      reserved_nodes.push_back(*it);
-    }
-    return reserved_nodes;
-  }
 
-  m_reserved_graph = false;
+    PoseGraph::planning_instance planning_inst(planning_iteration_);
+    planning_inst.retracing = false;
+    planning_inst.planning_iteration = planning_iteration_;
+    planning_inst.reserved_samples = temporary_nodes;
+
+    poseGraph.planning_instances.push_back(planning_inst);
+
+  return temporary_nodes;
 }
 
 std::vector<GraphManager::Graph::Point> GraphManager::Graph::fetchPath(Graph::Point &start_pos, Graph::Point &end_pos,
@@ -589,6 +585,144 @@ bool GraphManager::isLastTargetFrontier () {
     }
   }
 }
+
+// Maintain a global graph by re-using the nodes created at every planning iteration for local exploration. The global graph only connects nodes from the most recent planning iteration and the one before that. The globalGraph function is called at every planning iteration to maintain sparse graph used for global re-positioning as well as for homing purpose. 
+
+void GraphManager::constructGlobalGraph () {
+
+  // The first set of current and previous iteration nodes construct the base for the global graph. After that for each iteration the nodes are added to the graph and connected to the reserved graph. 
+
+  std::vector<GraphManager::node *> current_iteration_nodes_;
+  std::vector<GraphManager::node *> previous_iteration_nodes_;
+  std::vector<GraphManager::node *> nodes;
+
+  int temp_var = poseGraph.planning_instances.size();
+
+  current_iteration_nodes_ = poseGraph.planning_instances[temp_var].reserved_samples;
+
+  previous_iteration_nodes_ = poseGraph.planning_instances[temp_var-1].reserved_samples;
+
+  for (auto i : previous_iteration_nodes_) {
+    nodes.push_back(i);
+  }
+  
+  for (auto i : current_iteration_nodes_) {
+    nodes.push_back(i);
+  }
+
+  std::vector<std::pair<ufo::math::Vector3, ufo::math::Vector3>> global_nodes_pairs;
+
+  for (auto i = nodes.begin(); i != std::prev(nodes.end(), 1); i++)
+  {
+
+    for (auto i2 = i; i2 != nodes.end(); i2++)
+    {
+
+      ufo::math::Vector3 v1((*i)->myParent->point->x(), (*i)->myParent->point->y(), (*i)->myParent->point->z());
+      ufo::math::Vector3 v2((*i2)->myParent->point->x(), (*i2)->myParent->point->y(), (*i2)->myParent->point->z());
+
+      double distance = calculateDistance(v1, v2);
+
+      if (distance < m_max_edge_length)
+      {
+        global_nodes_pairs.push_back(std::make_pair(v1, v2));
+      }
+    }
+  }
+
+   std::vector<std::pair<ufo::math::Vector3, ufo::math::Vector3>> vec1, vec2, vec3, vec4, my_vec;
+
+#pragma omp parallel
+  {
+#pragma omp single
+    {
+#pragma omp task
+      {
+        for (auto i = global_nodes_pairs.begin(); i != std::next(global_nodes_pairs.begin(), global_nodes_pairs.size() / 4); i++)
+        {
+
+          ufo::geometry::OBB obb = makeOBB(i->first, i->second, m_obb_radius);
+
+          if (!isInCollision(m_ufoMAP, obb, true, false, true, m_planning_depth))
+          {
+            vec1.push_back(std::make_pair(i->first, i->second));
+          }
+        }
+      }
+#pragma omp task
+      {
+        for (auto i = std::next(global_nodes_pairs.begin(), global_nodes_pairs.size() / 4); i != std::next(global_nodes_pairs.begin(), global_nodes_pairs.size() / 2); i++)
+        {
+
+          ufo::geometry::OBB obb = makeOBB(i->first, i->second, m_obb_radius);
+
+          if (!isInCollision(m_ufoMAP, obb, true, false, true, m_planning_depth))
+          {
+            vec2.push_back(std::make_pair(i->first, i->second));
+          }
+        }
+      }
+#pragma omp task
+      {
+        for (auto i = std::next(global_nodes_pairs.begin(), global_nodes_pairs.size() / 2); i != std::prev(global_nodes_pairs.end(), global_nodes_pairs.size() / 4); i++)
+        {
+
+          ufo::geometry::OBB obb = makeOBB(i->first, i->second, m_obb_radius);
+
+          if (!isInCollision(m_ufoMAP, obb, true, false, true, m_planning_depth))
+          {
+            vec3.push_back(std::make_pair(i->first, i->second));
+          }
+        }
+      }
+#pragma omp task
+      {
+        for (auto i = std::prev(global_nodes_pairs.end(), global_nodes_pairs.size() / 4); i != global_nodes_pairs.end(); i++)
+        {
+
+          ufo::geometry::OBB obb = makeOBB(i->first, i->second, m_obb_radius);
+
+          if (!isInCollision(m_ufoMAP, obb, true, false, true, m_planning_depth))
+          {
+            vec4.push_back(std::make_pair(i->first, i->second));
+          }
+        }
+      }
+    }
+  }
+
+  my_vec.insert(my_vec.begin(), vec1.begin(), vec1.end());
+  my_vec.insert(my_vec.begin(), vec2.begin(), vec2.end());
+  my_vec.insert(my_vec.begin(), vec3.begin(), vec3.end());
+  my_vec.insert(my_vec.begin(), vec4.begin(), vec4.end());
+
+  std::vector<std::pair<Graph::vertex, Graph::vertex>> vertices;
+
+  for (auto p : my_vec)
+  {
+    vertices.push_back(std::make_pair(Graph::Point{p.first.x(), p.first.y(), p.first.z()},
+                                      Graph::Point{p.second.x(), p.second.y(), p.second.z()}));
+  }
+
+  for (auto i : vertices)
+  {
+    
+    if (std::find(global_graph_container.begin(), global_graph_container.end(),
+                i.first) != global_graph_container.end() 
+        && std::find(global_graph_container.begin(), global_graph_container.end(),
+                i.second) != global_graph_container.end()) {
+
+      global_graph_container.push_back(i.first);
+      global_graph_container.push_back(i.second);
+
+    } 
+
+    (i.first).createEdge(i.second);
+    (i.second).createEdge(i.first);
+  }
+
+
+} // constructGlobalGraph 
 
 std::vector<GraphManager::Graph::vertex> GraphManager::constructGraph(int iterations, float planning_space)
 {
