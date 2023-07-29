@@ -68,6 +68,7 @@ add_service_files(
   FILES
   frontierRequest.srv  
   isFrontier.srv
+  explorationPath.srv
 )
 
 
@@ -92,6 +93,8 @@ include_directories(
     ${Eigen_INCLUDE_DIRS}
 	  ${Boost_INCLUDE_DIRS}
 )
+
+
 
 
 add_executable(frontiers_extraction_node src/frontiers_extraction_node.cpp)

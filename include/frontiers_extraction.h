@@ -70,7 +70,7 @@
 #include <variant>
 #include "stage_planner/frontierRequest.h"
 #include "stage_planner/isFrontier.h"
-
+#include "stage_planner/explorationPath.h"
 
 class FrontierExtraction
 {

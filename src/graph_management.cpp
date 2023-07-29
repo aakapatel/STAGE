@@ -58,6 +58,10 @@ GraphManager::GraphManager(ros::NodeHandle private_nh_)
   m_target_query_client = m_nh.serviceClient<stage_planner::isFrontier>(
       "query_frontier_target");
 
+  
+  m_exploration_path_srv = m_nh.advertiseService("next_exploration_path", &GraphManager::nextExplorationPath, this);
+
+
 };
 
 ufo::map::OccupancyMapColor m_ufoMAP(0.2);
@@ -899,7 +903,7 @@ std::vector<GraphManager::Graph::Point> GraphManager::planPath()
   
   std::vector<GraphManager::Graph::vertex> local_graph = constructGraph(iterations, planning_space);
   
-  if (run_global_planner) {
+  if (run_global_planner or global_exploration) {
     planning_graph = global_graph_container_;
   } else {
     planning_graph = local_graph;
@@ -1113,3 +1117,41 @@ void GraphManager::planHomingPath () {
   }
  
 }
+
+
+
+bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &req,
+                                        stage_planner::explorationPath::Response &res)
+
+{
+  
+  nav_msgs::Path exploration_path = GraphManager::fetchExplorationPath ();
+
+  if (req.exploration) {
+    res.path = exploration_path;
+    if (local_exploration) { 
+      res.planning_status_local = true;
+      res.planning_status_global = false;
+    } else if (global_exploration ) {
+      res.planning_status_global = true;
+      res.planning_status_local = false;
+    }
+  } 
+
+  return true;
+
+}
+
+/*
+
+TODO:
+  
+  1. Homing planner to be running in the background 
+
+  2. Rosservice to fetch new exploration path 
+
+  3. Rosservice to fetch return to home path 
+
+  4. Rosnode health monitoring 
+
+*/

@@ -18,6 +18,18 @@ StageInterface::StageInterface(ros::NodeHandle private_nh_)
     m_poseSubscriber->registerCallback(boost::bind(&StageInterface::odomCallback, this, _1));
 
     // Register publishers
+
+
+
+    // Ros services 
+  
+    
+    m_exploration_path_client = m_nh.serviceClient<stage_planner::explorationPath>(
+      "next_exploration_path");
+
+
+
+
 };
 
 void StageInterface::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
@@ -25,4 +37,23 @@ void StageInterface::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
 
     m_currentPose = *pose;
     // std::cout << "current position X " << m_currentPose.pose.pose.position.x << std::endl;
+}
+
+bool StageInterface::fetchExplorationPath () {
+
+  stage_planner::explorationPath exploration_path_srv;
+  
+  exploration_path_srv.request.exploration = true;
+
+  if (m_exploration_path_client.call(exploration_path_srv)) {
+    
+    exploration_path_ = exploration_path_srv.response.path;
+
+    planning_status_local = exploration_path_srv.response.planning_status_local;
+    planning_status_global = exploration_path_srv.response.planning_status_global;    
+    
+    // TODO Add a ros_info_cond to log planning status 
+  
+  }
+
 }

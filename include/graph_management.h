@@ -176,6 +176,11 @@ public:
 
   void planHomingPath ();
 
+  
+  bool nextExplorationPath (stage_planner::explorationPath::Request &req,
+                             stage_planner::explorationPath::Response &res);
+
+
 private:
   // variables
   bool firstTime = true;
@@ -215,7 +220,9 @@ private:
   nav_msgs::Odometry m_prevPose; // Holds the point where the direction changed.
   ros::ServiceClient m_frontier_client;
   ros::ServiceClient m_target_query_client;
-
+  ros::ServiceServer m_exploration_path_srv;
+  
+    
   std::vector<ufo::math::Vector3> visited_exploration_targets;
   
     
