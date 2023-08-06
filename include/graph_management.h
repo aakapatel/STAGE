@@ -189,6 +189,7 @@ private:
   double m_local_space, m_global_space;
   double m_local_fov;
   bool map_received;
+  bool initialize_global_graph = true;
   std::string m_ufomap;
   bool m_max_allowed_Z;
   double m_obb_radius;
@@ -211,6 +212,10 @@ private:
   std::vector<GraphManager::Graph::vertex> global_graph_container_;
   nav_msgs::Path homing_path_;
   ufo::math::Vector3 home_position;
+  // std::unordered_map<Graph::vertex, Graph::vertex> graph_;
+  int vertex_id_ = 0;
+  std::vector<float> vert_vec;
+  std::unordered_map<int, GraphManager::Graph::vertex> graph_;
 
   ros::NodeHandle m_nh;
   std::string m_worldFrameId; // the map frame

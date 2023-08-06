@@ -2,6 +2,7 @@
 #define FRONTIERS_EXTRACTION_H
 
 #include <ros/ros.h>
+#include <bits/stdc++.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <message_filters/subscriber.h>
 #include <std_msgs/ColorRGBA.h>

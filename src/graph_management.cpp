@@ -727,22 +727,36 @@ void GraphManager::constructGlobalGraph () {
                                       Graph::Point{p.second.x(), p.second.y(), p.second.z()}));
   }
 
+
+
   for (auto i : vertices)
   {
     
-    if (std::find(global_graph_container_.begin(), global_graph_container_.end(),
-                i.first) != global_graph_container_.end() 
-        && std::find(global_graph_container_.begin(), global_graph_container_.end(),
-                i.second) != global_graph_container_.end()) {
+    if (!global_graph_container_.empty()) {
+
+      if (std::find(global_graph_container_.begin(), global_graph_container_.end(),
+                  i.first) != global_graph_container_.end() 
+          && std::find(global_graph_container_.begin(), global_graph_container_.end(),
+                  i.second) != global_graph_container_.end()) {
+
+        global_graph_container_.push_back(i.first);
+        global_graph_container_.push_back(i.second);
+
+      }
+  
+    } else {
 
       global_graph_container_.push_back(i.first);
       global_graph_container_.push_back(i.second);
 
-    } 
+    }
 
     (i.first).createEdge(i.second);
     (i.second).createEdge(i.first);
-  }
+    
+    vertex_id_ = vertex_id_ + 2;
+
+    }
 
 
 } // constructGlobalGraph 
@@ -1146,9 +1160,13 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
 TODO:
   
-  1. Homing planner to be running in the background 
+  1. Homing planner to be running in the background -- done 
 
-  2. Rosservice to fetch new exploration path 
+  2. Rosservice to fetch new exploration path
+
+  3. Convert path to trajectory in stage_interface.
+
+  4. Add initialization behaviour in stage_interface.
 
   3. Rosservice to fetch return to home path 
 
