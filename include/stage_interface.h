@@ -12,6 +12,9 @@ class StageInterface
     std::string m_odometry;
     virtual void odomCallback(const nav_msgs::Odometry::ConstPtr &pos);
     bool fetchExplorationPath ();
+    void segmentPath(const std::vector<geometry_msgs::Pose>& path,
+                     std::vector<geometry_msgs::Pose>& path_seg);
+    void executeCurrentPath ();
 
   private:
     ros::ServiceClient m_exploration_path_client;
@@ -19,7 +22,8 @@ class StageInterface
     nav_msgs::Path exploration_path_;
     bool planning_status_local = false;
     bool planning_status_global = false;
-
+    int n_seq_;
+    double dt_ = 0.5;
    
   };
 

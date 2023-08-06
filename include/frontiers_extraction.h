@@ -72,6 +72,14 @@
 #include "stage_planner/frontierRequest.h"
 #include "stage_planner/isFrontier.h"
 #include "stage_planner/explorationPath.h"
+#include <mav_msgs/Status.h>
+#include <mav_msgs/conversions.h>
+#include <mav_msgs/default_topics.h>
+
+#include <trajectory_msgs/MultiDOFJointTrajectory.h>
+#include <geometry_msgs/PoseArray.h>
+
+
 
 class FrontierExtraction
 {
