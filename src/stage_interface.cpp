@@ -15,9 +15,13 @@ StageInterface::StageInterface(ros::NodeHandle private_nh_)
     // Register to the subscriber topic and register it to the callback function
 
     m_poseSubscriber = new message_filters::Subscriber<nav_msgs::Odometry>(m_nh, m_odometry, 5);
-    m_poseSubscriber->registerCallback(boost::bind(&StageInterface::odomCallback, this, _1));
+    m_poseSubscriber->registerCallback(boost::bind(&StageInterface::updateCurrentPosition, this, _1));
 
     // Register publishers
+
+    m_trajectory_Publisher = m_nh.advertise<trajectory_msgs::MultiDOFJointTrajectory>("command_trajectory", 1, true);
+
+    m_command_Path_Publisher = m_nh.advertise<geometry_msgs::PoseArray>("command_pose_array", 1, true);
 
 
 
@@ -31,6 +35,21 @@ StageInterface::StageInterface(ros::NodeHandle private_nh_)
 
 
 };
+
+Eigen::Quaternion<float> StageInterface::Euler2Quaternion(ufo::math::Vector3 v)
+{
+  float roll = v.x();
+  float pitch = v.y();
+  float yaw = v.z();
+
+  Eigen::Quaternion<float> q;
+
+  q = Eigen::AngleAxisf(roll, Eigen::Vector3f::UnitX()) *
+      Eigen::AngleAxisf(pitch, Eigen::Vector3f::UnitY()) *
+      Eigen::AngleAxisf(yaw, Eigen::Vector3f::UnitZ());
+
+  return q;
+}
 
 void StageInterface::updateCurrentPosition (const nav_msgs::Odometry::ConstPtr &pose)
 {
@@ -57,7 +76,7 @@ void StageInterface::updateCurrentPosition (const nav_msgs::Odometry::ConstPtr &
     // {
     //   m_prevPose = *pose;
     // }
-  // }
+  }
 
   m_currentPosition.x() = m_currentPose.pose.pose.position.x;
   m_currentPosition.y() = m_currentPose.pose.pose.position.y;
@@ -72,7 +91,7 @@ void StageInterface::updateCurrentPosition (const nav_msgs::Odometry::ConstPtr &
   m_currentHeading = yaw * (180 / 3.14159);
 }
 
-ufo::math::Vector3 StageInterface::fetchCurrentPosition()
+ufo::math::Vector3 StageInterface::fetchCurrentPosition ()
 {
   return m_currentPosition;
 }
@@ -107,7 +126,8 @@ bool StageInterface::fetchExplorationPath () {
 }
 
 void StageInterface::segmentPath(const nav_msgs::Path& path,
-                                 nav_msgs::Path& path_seg.poses) {
+                                 nav_msgs::Path& path_seg) 
+{
   path_seg.poses.clear();
   double v_max_ = 0.5;
   double yaw_rate_max_ = 0.5;
@@ -116,13 +136,13 @@ void StageInterface::segmentPath(const nav_msgs::Path& path,
 
   for (int i = 0; i < (path.poses.size() - 1); ++i) {
     // Interpolate each segment.
-    Eigen::Vector3d start(path.poses[i].position.x, path.poses[i].position.y,
-                          path.poses[i].position.z);
-    Eigen::Vector3d end(path.poses[i + 1].position.x, path.poses[i + 1].position.y,
-                        path.poses[i + 1].position.z);
+    Eigen::Vector3d start(path.poses[i].pose.position.x, path.poses[i].pose.position.y,
+                          path.poses[i].pose.position.z);
+    Eigen::Vector3d end(path.poses[i + 1].pose.position.x, path.poses[i + 1].pose.position.y,
+                        path.poses[i + 1].pose.position.z);
     Eigen::Vector3d distance = end - start;
-    double yaw_start = tf::getYaw(path.poses[i].orientation);
-    double yaw_end = tf::getYaw(path.poses[i + 1].orientation);
+    double yaw_start = tf::getYaw(path.poses[i].pose.orientation);
+    double yaw_end = tf::getYaw(path.poses[i + 1].pose.orientation);
     double yaw_direction = yaw_end - yaw_start;
     if (yaw_direction > M_PI) {
       yaw_direction -= 2.0 * M_PI;
@@ -150,7 +170,10 @@ void StageInterface::segmentPath(const nav_msgs::Path& path,
         tf::Pose poseTF(quat, origin);
         geometry_msgs::Pose pose;
         tf::poseTFToMsg(poseTF, pose);
-        path_seg.poses.push_back(pose);
+        geometry_msgs::PoseStamped pose_stamped;
+        pose_stamped.pose.position = pose.position;
+        pose_stamped.pose.orientation = pose.orientation;
+        path_seg.poses.push_back(pose_stamped);
       }
     }
   }
@@ -164,7 +187,7 @@ void StageInterface::executeCurrentPath() {
 
     nav_msgs::Path new_path;
     new_path.poses.clear();
-    segmentCurrentPath(raw_path, new_path);
+    segmentPath(raw_path, new_path);
 
     n_seq_++;
     trajectory_msgs::MultiDOFJointTrajectory trajectory_array_;
@@ -174,47 +197,39 @@ void StageInterface::executeCurrentPath() {
     
     trajectory_array_.header.seq = n_seq_;
     trajectory_array_.header.stamp = ros::Time::now();
-    trajectory_array_.header.frame_id = ODOM_FRAME_ID;
+    trajectory_array_.header.frame_id = "world";
     trajectory_array_.points.clear();
     double time_sum = 0;
     geometry_msgs::PoseArray command_path;
-    command_path.header.frame_id = ODOM_FRAME_ID;
+    command_path.header.frame_id = "world";
 
     for (int i = 0; i < new_path.poses.size(); i++) {
       
       geometry_msgs::PoseStamped pose_ref;
 
-      double yaw = tf::getYaw(new_path.poses[i].orientation);
-      Eigen::Vector3d p(new_path.poses[i].position.x, new_path.poses[i].position.y,
-                        new_path.poses[i].position.z);
+      double yaw = tf::getYaw(new_path.poses[i].pose.orientation);
+      Eigen::Vector3d p(new_path.poses[i].pose.position.x, new_path.poses[i].pose.position.y,
+                        new_path.poses[i].pose.position.z);
       trajectory_point_.position_W.x() = p.x();
       trajectory_point_.position_W.y() = p.y();
       trajectory_point_.position_W.z() = p.z();
       trajectory_point_.setFromYaw(yaw);
-      pose_ref.pose.position.x = new_path.poses[i].position.x;
-      pose_ref.pose.position.y = new_path.poses[i].position.y;
-      pose_ref.pose.position.z = new_path.poses[i].position.z;
-      pose_ref.pose.orientation.x = new_path.poses[i].orientation.x;
-      pose_ref.pose.orientation.y = new_path.poses[i].orientation.y;
-      pose_ref.pose.orientation.z = new_path.poses[i].orientation.z;
-      pose_ref.pose.orientation.w = new_path.poses[i].orientation.w;
+      pose_ref = new_path.poses[i];
+      
       mav_msgs::msgMultiDofJointTrajectoryPointFromEigen(
           trajectory_point_, &trajectory_point_msg_);
       time_sum += 2*dt_;
       trajectory_point_msg_.time_from_start = ros::Duration(time_sum);
       // trajectory_array_.points.insert(trajectory_array_.points.begin(),trajectory_point_msg_);
       trajectory_array_.points.push_back(trajectory_point_msg_);
-      current.temppath.poses.push_back(pose_ref);
-      command_path.poses.push_back(new_path.poses[i]);
+      geometry_msgs::Pose command_pose;
+      command_pose.position = new_path.poses[i].pose.position;
+      command_pose.orientation = new_path.poses[i].pose.orientation;
+      command_path.poses.push_back(command_pose);
 
     }
-    pub.trajectory_pub.publish(trajectory_array_);
-    pub.posearray_pub.publish(command_path);
-
-    ufo::math::Vector3 lastpub(std::prev(exploration_path_.poses.end(), 1)->x,
-                               std::prev(exploration_path_.poses.end(), 1)->y,
-                               std::prev(exploration_path_.poses.end(), 1)->z);
-    published.reference = publish_goal(lastpub);
+    m_trajectory_Publisher.publish(trajectory_array_);
+    m_command_Path_Publisher.publish(command_path);
 
 } // executeCurrentPath
 

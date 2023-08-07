@@ -10,16 +10,19 @@ class StageInterface
     ros::NodeHandle m_nh;
     message_filters::Subscriber<nav_msgs::Odometry> *m_poseSubscriber;
     std::string m_odometry;
-    virtual void updateCurrentPosition(const nav_msgs::Odometry::ConstPtr &pos);
+    Eigen::Quaternion<float> Euler2Quaternion(ufo::math::Vector3 v);
+    void updateCurrentPosition(const nav_msgs::Odometry::ConstPtr &pos);
     ufo::math::Vector3 fetchCurrentPosition ();
-    double calculateDistance ();
+    double calculateDistance (ufo::math::Vector3 p1, ufo::math::Vector3 p2);
     bool fetchExplorationPath ();
     void segmentPath(const nav_msgs::Path& path,
-                                 nav_msgs::Path& path_seg.poses);
+                                 nav_msgs::Path& path_seg);
     void executeCurrentPath ();
 
   private:
     ros::ServiceClient m_exploration_path_client;
+    ros::Publisher m_trajectory_Publisher;
+    ros::Publisher m_command_Path_Publisher;
     nav_msgs::Odometry m_currentPose;
     nav_msgs::Odometry m_prevPose;
     ufo::math::Vector3 m_currentPosition;
@@ -30,6 +33,7 @@ class StageInterface
     bool planning_status_global = false;
     int n_seq_;
     double dt_ = 0.5;
+    bool firstTime;
    
   };
 

@@ -179,7 +179,8 @@ public:
   
   bool nextExplorationPath (stage_planner::explorationPath::Request &req,
                              stage_planner::explorationPath::Response &res);
-
+  
+  Eigen::Quaternion<float> Euler2Quaternion(ufo::math::Vector3 v);
 
 private:
   // variables

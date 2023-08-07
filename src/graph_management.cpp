@@ -81,6 +81,21 @@ void GraphManager::mapCallback(
   }
 }
 
+Eigen::Quaternion<float> GraphManager::Euler2Quaternion(ufo::math::Vector3 v)
+{
+  float roll = v.x();
+  float pitch = v.y();
+  float yaw = v.z();
+
+  Eigen::Quaternion<float> q;
+
+  q = Eigen::AngleAxisf(roll, Eigen::Vector3f::UnitX()) *
+      Eigen::AngleAxisf(pitch, Eigen::Vector3f::UnitY()) *
+      Eigen::AngleAxisf(yaw, Eigen::Vector3f::UnitZ());
+
+  return q;
+}
+
 void GraphManager::updateCurrentPosition(
     const nav_msgs::Odometry::ConstPtr &pose)
 {
