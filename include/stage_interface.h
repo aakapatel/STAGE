@@ -14,10 +14,11 @@ class StageInterface
     void updateCurrentPosition(const nav_msgs::Odometry::ConstPtr &pos);
     ufo::math::Vector3 fetchCurrentPosition ();
     double calculateDistance (ufo::math::Vector3 p1, ufo::math::Vector3 p2);
-    bool fetchExplorationPath ();
+    void fetchExplorationPath ();
     void segmentPath(const nav_msgs::Path& path,
                                  nav_msgs::Path& path_seg);
     void executeCurrentPath ();
+    bool reachedEndOfPath ();
 
   private:
     ros::ServiceClient m_exploration_path_client;
@@ -25,6 +26,7 @@ class StageInterface
     ros::Publisher m_command_Path_Publisher;
     nav_msgs::Odometry m_currentPose;
     nav_msgs::Odometry m_prevPose;
+    geometry_msgs::PoseArray command_path;
     ufo::math::Vector3 m_currentPosition;
     double m_currentHeading;
     ufo::math::Vector3 home_position;
@@ -35,7 +37,7 @@ class StageInterface
     int n_seq_;
     double dt_ = 0.5;
     bool firstTime;
-
+    bool initialization = false;
     bool explore = false;
     bool return_home = false;
    

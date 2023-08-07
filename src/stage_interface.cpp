@@ -106,7 +106,7 @@ double StageInterface::calculateDistance(ufo::math::Vector3 point1,
   return d;
 }
 
-bool StageInterface::fetchExplorationPath () {
+void StageInterface::fetchExplorationPath () {
 
   stage_planner::explorationPath exploration_path_srv;
   
@@ -194,9 +194,30 @@ void StageInterface::segmentPath(const nav_msgs::Path& path,
 
 void StageInterface::executeCurrentPath() {
 
-    nav_msgs::Path raw_path = exploration_path_;
-    
-    // TODO Insert current position at the begining of exploration path to get smooth start of next path following action.
+    nav_msgs::Path initialization_path;  
+    std::vector<geometry_msgs::PoseStamped> initialization_poses;  
+    geometry_msgs::PoseStamped init_pose;  
+    nav_msgs::Path raw_path;  
+
+    if (initialization) {
+
+    init_pose.pose.position.x = fetchCurrentPosition().x() + 2;
+    init_pose.pose.position.y = fetchCurrentPosition().y();
+    init_pose.pose.position.z = fetchCurrentPosition().z() + 1;
+    init_pose.pose.orientation.x = 0;
+    init_pose.pose.orientation.y = 0;
+    init_pose.pose.orientation.z = 0;
+    init_pose.pose.orientation.w = 1;
+    initialization_path.poses.push_back(init_pose);
+    raw_path = initialization_path;
+    initialization = false;
+  
+  } else {
+
+    raw_path = exploration_path_;
+  }
+  
+  // TODO Insert current position at the begining of exploration path to get smooth start of next path following action.
 
     nav_msgs::Path new_path;
     new_path.poses.clear();
@@ -213,7 +234,8 @@ void StageInterface::executeCurrentPath() {
     trajectory_array_.header.frame_id = "world";
     trajectory_array_.points.clear();
     double time_sum = 0;
-    geometry_msgs::PoseArray command_path;
+    
+    command_path.poses.clear();
     command_path.header.frame_id = "world";
 
     for (int i = 0; i < new_path.poses.size(); i++) {
@@ -245,4 +267,21 @@ void StageInterface::executeCurrentPath() {
     m_command_Path_Publisher.publish(command_path);
 
 } // executeCurrentPath
+
+bool StageInterface::reachedEndOfPath () {
+  
+  ufo::math::Vector3 end_of_path; 
+  end_of_path.x() = command_path.poses.back().position.x;
+  end_of_path.y() = command_path.poses.back().position.y;
+  end_of_path.z() = command_path.poses.back().position.z;
+  
+  double d = calculateDistance(fetchCurrentPosition(), end_of_path);
+
+  if (d < 1) {
+    return true;
+  } else {
+    return false;
+  }
+
+}
 
