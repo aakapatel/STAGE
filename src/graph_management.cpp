@@ -1015,17 +1015,39 @@ nav_msgs::Path GraphManager::fetchExplorationPath()
   nav_msgs::Path planned_path;
   geometry_msgs::PoseStamped p;
 
-  for (auto i = improved_path.begin(); i != improved_path.end(); i++)
+  for (int i = 0; i < improved_path.size(); ++i)
   {
+   
+    ufo::math::Vector3 prev (improved_path[i].x, improved_path[i].y, improved_path[i].z);
+    ufo::math::Vector3 next (improved_path[i+1].x, improved_path[i+1].y, improved_path[i+1].z);
+    ufo::math::Vector3 before_last (improved_path[i-1].x, improved_path[i-1].y, improved_path[i-1].z);
+  
+    float angle = atan2( next.y() - prev.y(), next.x() - prev.x());
+    float angle_last = atan2( prev.y() - before_last.y(), prev.x() - before_last.x());
+    ufo::math::Vector3 v(0, 0, angle);
+    ufo::math::Vector3 v_last(0, 0, angle_last);
+    Eigen::Quaternion<float> q = Euler2Quaternion(v);
+    Eigen::Quaternion<float> q_last = Euler2Quaternion(v_last);
 
-    p.pose.position.x = i->x;
-    p.pose.position.y = i->y;
-    p.pose.position.z = i->z;
+    if (i == improved_path.size()-1) {
+      q = q_last;
+    }
+    p.pose.position.x = improved_path[i].x;
+    p.pose.position.y = improved_path[i].y;
+    p.pose.position.z = improved_path[i].z;
+    p.pose.orientation.x = q.x();
+    p.pose.orientation.y = q.y();
+    p.pose.orientation.z = q.z();
+    p.pose.orientation.w = q.w();
     planned_path.poses.push_back(p);
+ 
   }
+  
+  // Final exploration path to be sent to stage interface for segmentation and execution.
 
   return planned_path;
-}
+
+} // fetchExplorationPath
 
 
 void GraphManager::planHomingPath () {
@@ -1115,15 +1137,35 @@ void GraphManager::planHomingPath () {
   nav_msgs::Path planned_path;
   geometry_msgs::PoseStamped p;
 
-  for (auto i = improved_path.begin(); i != improved_path.end(); i++)
+  for (int i = 0; i < improved_path.size(); ++i)
   {
-
-    p.pose.position.x = i->x;
-    p.pose.position.y = i->y;
-    p.pose.position.z = i->z;
-    planned_path.poses.push_back(p);
-  }
+   
+    ufo::math::Vector3 prev (improved_path[i].x, improved_path[i].y, improved_path[i].z);
+    ufo::math::Vector3 next (improved_path[i+1].x, improved_path[i+1].y, improved_path[i+1].z);
+    ufo::math::Vector3 before_last (improved_path[i-1].x, improved_path[i-1].y, improved_path[i-1].z);
   
+    float angle = atan2( next.y() - prev.y(), next.x() - prev.x());
+    float angle_last = atan2( prev.y() - before_last.y(), prev.x() - before_last.x());
+    ufo::math::Vector3 v(0, 0, angle);
+    ufo::math::Vector3 v_last(0, 0, angle_last);
+    Eigen::Quaternion<float> q = Euler2Quaternion(v);
+    Eigen::Quaternion<float> q_last = Euler2Quaternion(v_last);
+
+    if (i == improved_path.size()-1) {
+      q = q_last;
+    }
+    p.pose.position.x = improved_path[i].x;
+    p.pose.position.y = improved_path[i].y;
+    p.pose.position.z = improved_path[i].z;
+    p.pose.orientation.x = q.x();
+    p.pose.orientation.y = q.y();
+    p.pose.orientation.z = q.z();
+    p.pose.orientation.w = q.w();
+    planned_path.poses.push_back(p);
+ 
+  }
+
+
   if (planned_path.poses.size() > 1) {
     homing_path_ = planned_path;
   } else {
@@ -1140,6 +1182,8 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 {
   
   nav_msgs::Path exploration_path = GraphManager::fetchExplorationPath ();
+
+  // TODO Homing path to be included in this ros service 
 
   if (req.exploration) {
     res.path = exploration_path;
