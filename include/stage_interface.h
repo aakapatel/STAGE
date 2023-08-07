@@ -31,6 +31,7 @@ class StageInterface
     nav_msgs::Path exploration_path_;
     bool planning_status_local = false;
     bool planning_status_global = false;
+    bool planning_status_homing = false;
     int n_seq_;
     double dt_ = 0.5;
     bool firstTime;
