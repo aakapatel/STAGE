@@ -1,5 +1,7 @@
 bool exploration
+bool homing
 ---
 nav_msgs/Path path
 bool planning_status_local
 bool planning_status_global
+bool planning_status_homing

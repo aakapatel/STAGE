@@ -34,6 +34,9 @@ class StageInterface
     int n_seq_;
     double dt_ = 0.5;
     bool firstTime;
+
+    bool explore = false;
+    bool return_home = false;
    
   };
 

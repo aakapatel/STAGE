@@ -110,7 +110,19 @@ bool StageInterface::fetchExplorationPath () {
 
   stage_planner::explorationPath exploration_path_srv;
   
-  exploration_path_srv.request.exploration = true;
+  if (explore) {
+
+    exploration_path_srv.request.exploration = true;
+    exploration_path_srv.request.homing = false; 
+
+  } 
+  
+  if (return_home) {
+    
+    exploration_path_srv.request.exploration = false;
+    exploration_path_srv.request.homing = true;
+
+  }
 
   if (m_exploration_path_client.call(exploration_path_srv)) {
     
@@ -118,6 +130,7 @@ bool StageInterface::fetchExplorationPath () {
 
     planning_status_local = exploration_path_srv.response.planning_status_local;
     planning_status_global = exploration_path_srv.response.planning_status_global;    
+    planning_status_homing = exploration_path_srv.response.planning_status_homing; 
     
     // TODO Add a ros_info_cond to log planning status 
   

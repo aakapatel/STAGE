@@ -1211,6 +1211,13 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
     }
   } 
 
+  if (req.homing) {
+    res.path = homing_path_;
+      res.planning_status_local = false;
+      res.planning_status_global = false;
+      res.planning_status_homing = true;
+  }
+
   return true;
 
 }
