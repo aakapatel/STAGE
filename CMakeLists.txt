@@ -69,6 +69,9 @@ add_service_files(
   frontierRequest.srv  
   isFrontier.srv
   explorationPath.srv
+  initializePlanning.srv
+  stopPlanning.srv
+  homePlanning.srv
 )
 
 

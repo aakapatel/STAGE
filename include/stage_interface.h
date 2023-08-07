@@ -10,6 +10,17 @@ class StageInterface
     ros::NodeHandle m_nh;
     message_filters::Subscriber<nav_msgs::Odometry> *m_poseSubscriber;
     std::string m_odometry;
+
+    
+    bool initializePlanner (stage_planner::initializePlanning::Request &req,
+                                        stage_planner::initializePlanning::Response &res);
+    
+    bool stopPlanner (stage_planner::stopPlanning::Request &req,
+                                        stage_planner::stopPlanning::Response &res);
+
+    bool homingPlanner (stage_planner::homePlanning::Request &req,
+                                        stage_planner::homePlanning::Response &res);
+
     Eigen::Quaternion<float> Euler2Quaternion(ufo::math::Vector3 v);
     void updateCurrentPosition(const nav_msgs::Odometry::ConstPtr &pos);
     ufo::math::Vector3 fetchCurrentPosition ();
@@ -22,6 +33,10 @@ class StageInterface
 
   private:
     ros::ServiceClient m_exploration_path_client;
+    ros::ServiceServer m_planner_initialization_srv;
+    ros::ServiceServer m_planner_stop_srv;
+    ros::ServiceServer m_planner_homing_srv;
+
     ros::Publisher m_trajectory_Publisher;
     ros::Publisher m_command_Path_Publisher;
     nav_msgs::Odometry m_currentPose;
@@ -39,6 +54,7 @@ class StageInterface
     bool firstTime;
     bool initialization = false;
     bool explore = false;
+    bool stop_planning = false;
     bool return_home = false;
    
   };

@@ -72,6 +72,9 @@
 #include "stage_planner/frontierRequest.h"
 #include "stage_planner/isFrontier.h"
 #include "stage_planner/explorationPath.h"
+#include "stage_planner/initializePlanning.h"
+#include "stage_planner/stopPlanning.h"
+#include "stage_planner/homePlanning.h"
 #include <mav_msgs/Status.h>
 #include <mav_msgs/conversions.h>
 #include <mav_msgs/default_topics.h>

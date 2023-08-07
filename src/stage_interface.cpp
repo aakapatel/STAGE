@@ -31,10 +31,60 @@ StageInterface::StageInterface(ros::NodeHandle private_nh_)
     m_exploration_path_client = m_nh.serviceClient<stage_planner::explorationPath>(
       "next_exploration_path");
 
+    m_planner_initialization_srv = m_nh.advertiseService("initialize_planner", &StageInterface::initializePlanner, this);
 
+    m_planner_stop_srv = m_nh.advertiseService ("stop_planner", &StageInterface::stopPlanner, this);
+
+    m_planner_homing_srv = m_nh.advertiseService ("start_homing_planner", &StageInterface::homingPlanner, this);
 
 
 };
+
+
+bool StageInterface::initializePlanner (stage_planner::initializePlanning::Request &req,
+                                        stage_planner::initializePlanning::Response &res)
+
+{
+  
+  if (req.initialize) {
+    initialization = true;
+    explore = true;
+    res.success = true;
+  }
+
+  return true;
+
+}
+
+bool StageInterface::stopPlanner (stage_planner::stopPlanning::Request &req,
+                                        stage_planner::stopPlanning::Response &res)
+
+{
+  
+  if (req.stop) {
+    stop_planning = true;
+    explore = false;
+    res.success = true;
+  }
+
+  return true;
+
+}
+
+bool StageInterface::homingPlanner (stage_planner::homePlanning::Request &req,
+                                        stage_planner::homePlanning::Response &res)
+
+{
+  
+  if (req.homing) {
+    return_home = true;
+    explore = false;
+    res.success = true;
+  }
+
+  return true;
+
+}
 
 Eigen::Quaternion<float> StageInterface::Euler2Quaternion(ufo::math::Vector3 v)
 {
