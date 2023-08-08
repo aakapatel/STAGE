@@ -4,12 +4,14 @@ using namespace std;
 
 StageInterface::StageInterface(ros::NodeHandle private_nh_)
     : m_nh(),
-      m_odometry("/hummingbird/ground_truth/odometry")
+      m_odometry("/hummingbird/ground_truth/odometry"),
+      m_reference_topic("/hummingbird/command/pose")
 {
 
     ros::NodeHandle private_nh = private_nh_;
     // Set variables
     private_nh.param("odometry", m_odometry, m_odometry);
+    private_nh.param("reference_topic", m_reference_topic, m_reference_topic);
 
     // Register to the subscriber topic and register it to the callback function
 
@@ -21,6 +23,8 @@ StageInterface::StageInterface(ros::NodeHandle private_nh_)
     m_trajectory_Publisher = m_nh.advertise<trajectory_msgs::MultiDOFJointTrajectory>("command_trajectory", 1, true);
 
     m_command_Path_Publisher = m_nh.advertise<nav_msgs::Path>("command_path", 1, true);
+
+    m_reference_Publisher = m_nh.advertise<geometry_msgs::PoseStamped> (m_reference_topic ,1, true);
 
     // Ros services 
   
@@ -238,7 +242,7 @@ void StageInterface::segmentPath(const nav_msgs::Path& path,
   }
 } // segmentPath
 
-void StageInterface::executeCurrentPath() {
+void StageInterface::generateTrajectory() {
 
     nav_msgs::Path raw_path;  
 
@@ -317,6 +321,41 @@ void StageInterface::executeCurrentPath() {
     m_command_Path_Publisher.publish(command_path);
 
 } // executeCurrentPath
+
+// TODO Add path truncation function to assure safety in case of UAV. 
+
+void StageInterface::followPath () 
+{
+  
+  if (command_path.poses.empty()) {
+    ROS_WARN ("Command path is empty ");
+  }
+
+  for (int i = 0; i < command_path.poses.size(); ) {
+
+    ufo::math::Vector3 way_point;
+    way_point.x() = command_path.poses[i].pose.position.x;
+    way_point.y() = command_path.poses[i].pose.position.y; 
+    way_point.z() = command_path.poses[i].pose.position.z;
+
+    m_reference_Publisher.publish(command_path.poses[i]);
+    
+    ROS_INFO_STREAM ("Following reference : " << way_point.x() << " , " << way_point.y() << " , " << way_point.z() );
+    
+    bool next_wp = true;
+
+    while (next_wp) {
+      
+      double delta = calculateDistance (way_point, fetchCurrentPosition());
+      
+      if (delta < 0.5) {
+        next_wp = false;
+      }
+    }
+
+    i++;
+  }
+}
 
 bool StageInterface::reachedEndOfPath () {
   

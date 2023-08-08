@@ -10,6 +10,7 @@ class StageInterface
     ros::NodeHandle m_nh;
     message_filters::Subscriber<nav_msgs::Odometry> *m_poseSubscriber;
     std::string m_odometry;
+    std::string m_reference_topic;
 
     
     bool initializePlanner (stage_planner::initializePlanning::Request &req,
@@ -28,8 +29,9 @@ class StageInterface
     void fetchExplorationPath ();
     void segmentPath(const nav_msgs::Path& path,
                                  nav_msgs::Path& path_seg);
-    void executeCurrentPath ();
+    void generateTrajectory ();
     bool reachedEndOfPath ();
+    void followPath ();
     void run_planner ();
 
 
@@ -41,6 +43,7 @@ class StageInterface
 
     ros::Publisher m_trajectory_Publisher;
     ros::Publisher m_command_Path_Publisher;
+    ros::Publisher m_reference_Publisher;
     nav_msgs::Odometry m_currentPose;
     nav_msgs::Odometry m_prevPose;
     nav_msgs::Path command_path;
