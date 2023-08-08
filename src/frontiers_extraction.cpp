@@ -344,16 +344,19 @@ std::vector<ufo::math::Vector3> FrontierExtraction::fetchFrontiers()
 
         ufo::math::Vector3 frontier_pt(i->x(), i->y(), i->z());
 
-        ufo::geometry::Sphere sphere(frontier_pt, 0.5);
+        // ufo::geometry::Sphere sphere(frontier_pt, 0.5);
 
         double info_gain = computeVolumetricGain (frontier_pt,m_ufoMAP);
-        
+       
+        std::cout << "info " << info_gain << std::endl;
+
         // TODO FIX ME !!!!!!!!    
 
         // BUG unfiltered frontiers are zero when robot not initialized (UAV on ground)
 
-    if (!isInCollision(m_ufoMAP, sphere, true, false, true, PLANNING_CHECK_DEPTH) and info_gain > VOLUMETRIC_GAIN_THREASHOLD)
-        
+    // if (!isInCollision(m_ufoMAP, sphere, true, false, true, PLANNING_CHECK_DEPTH) and info_gain > VOLUMETRIC_GAIN_THREASHOLD)
+     if (info_gain > VOLUMETRIC_GAIN_THREASHOLD)
+
         {
 
             unfiltered_frontiers.push_back(frontier_pt);
@@ -930,30 +933,39 @@ std::vector<ufo::math::Vector3> FrontierExtraction::fetchLocallyTraversableFront
 double FrontierExtraction::computeVolumetricGain(ufo::math::Vector3 frontier, ufo::map::OccupancyMapColor const &map)
 {
 
-    double r = 4;
+    double r = 1;
     int unknown_cells, free_cells, occupied_cells = 0;
     ufo::geometry::Sphere sphere(frontier, r);
 
-    for (auto it = map.beginLeaves(sphere, false, false, true, false, PLANNING_CHECK_DEPTH), it_end = map.endLeaves(); it != it_end; ++it)
+    for (auto it = map.beginLeaves(sphere, true, true, true, false, 3), it_end = map.endLeaves(); it != it_end; ++it)
     {
-
+        if (it.isUnknown()) {
         unknown_cells++;
-    }
-
-    for (auto it = map.beginLeaves(sphere, false, true, false, false, PLANNING_CHECK_DEPTH), it_end = map.endLeaves(); it != it_end; ++it)
-    {
-
+        }
+        if (it.isFree()) {
         free_cells++;
-    }
-
-    for (auto it = map.beginLeaves(sphere, true, false, false, false, PLANNING_CHECK_DEPTH), it_end = map.endLeaves(); it != it_end; ++it)
-    {
-
+        }
+        if (it.isOccupied()) {
         occupied_cells++;
+        }
     }
+    //
+    // for (auto it = map.beginLeaves(sphere, false, true, false, false, 3), it_end = map.endLeaves(); it != it_end; ++it)
+    // {
+    //
+    //     free_cells++;
+    // }
+    //
+    // for (auto it = map.beginLeaves(sphere, true, false, false, false, 3), it_end = map.endLeaves(); it != it_end; ++it)
+    // {
+    //
+    //     occupied_cells++;
+    // }
+    //
+    double volumetric_gain = 10 * (log(unknown_cells / (occupied_cells + 1)));
 
-    double volumetric_gain = 10 * (log(unknown_cells + free_cells) / log(occupied_cells));
-
+    // double volumetric_gain = 10 * log(unknown_cells);
+    
     return volumetric_gain;
 }
 
