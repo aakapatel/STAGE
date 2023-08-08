@@ -21,8 +21,8 @@ FrontierExtraction::FrontierExtraction(ros::NodeHandle private_nh_)
       m_occupancyMaxZ(std::numeric_limits<double>::max()),
       numberOfUnknowns(18),
       m_worldFrameId("world"),
-      m_odometry("spot/ground_truth"),
-      cloud_in("/camera/depth/color/points"),
+      m_odometry("/hummingbird/ground_truth/odometry"),
+      cloud_in("/hummingbird/velodyne_points"),
       m_res(0.5),
       m_treeDepth(0),
       m_maxTreeDepth(0),
@@ -337,6 +337,8 @@ std::vector<ufo::math::Vector3> FrontierExtraction::fetchFrontiers()
 
     std::vector<ufo::math::Vector3> unfiltered_frontiers;
 
+    ROS_INFO_STREAM ("frontier points list size : " << frontierPointList.size());
+
     for (auto i = frontierPointList.begin(); i != frontierPointList.end(); i++)
     {
 
@@ -344,12 +346,21 @@ std::vector<ufo::math::Vector3> FrontierExtraction::fetchFrontiers()
 
         ufo::geometry::Sphere sphere(frontier_pt, 0.5);
 
-        if (!isInCollision(m_ufoMAP, sphere, true, false, true, PLANNING_CHECK_DEPTH) && computeVolumetricGain(frontier_pt, m_ufoMAP) > VOLUMETRIC_GAIN_THREASHOLD)
+        double info_gain = computeVolumetricGain (frontier_pt,m_ufoMAP);
+        
+        // TODO FIX ME !!!!!!!!    
+
+        // BUG unfiltered frontiers are zero when robot not initialized (UAV on ground)
+
+    if (!isInCollision(m_ufoMAP, sphere, true, false, true, PLANNING_CHECK_DEPTH) and info_gain > VOLUMETRIC_GAIN_THREASHOLD)
+        
         {
 
             unfiltered_frontiers.push_back(frontier_pt);
         }
     }
+
+    ROS_INFO_STREAM ("Unfiltered frontiers size : " << unfiltered_frontiers.size());
 
     return unfiltered_frontiers;
 }
@@ -867,7 +878,7 @@ std::vector<ufo::math::Vector3> FrontierExtraction::fetchLocalFrontiers()
         }
     }
 
-    // ROS_INFO_STREAM("local frontiers size " << local_frontiers.size());
+    ROS_INFO_STREAM("local frontiers size " << local_frontiers.size());
 
     return local_frontiers;
 }
@@ -967,7 +978,7 @@ ufo::math::Vector3 FrontierExtraction::fetchInformativeFrontier()
             informative_frontier = frontier;
         }
     }
-    // cout << "informative frontier : " << informative_frontier.x() << " " << informative_frontier.y() << " " << informative_frontier.z() << endl;
+    cout << "informative frontier : " << informative_frontier.x() << " " << informative_frontier.y() << " " << informative_frontier.z() << endl;
     return informative_frontier;
 }
 

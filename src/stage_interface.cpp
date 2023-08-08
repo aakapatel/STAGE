@@ -164,6 +164,8 @@ void StageInterface::fetchExplorationPath () {
 
   stage_planner::explorationPath exploration_path_srv;
   
+  // ROS_INFO ("fetching exploration path");
+
   if (explore) {
 
     exploration_path_srv.request.exploration = true;
@@ -389,7 +391,7 @@ void StageInterface::run_planner ()
   while (run) {
     
     if (!stop_planning and (start_planner_first_time or reachedEndOfPath() ) ) {
-      
+
       start_planner_first_time = false;
 
       fetchExplorationPath();

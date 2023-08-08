@@ -466,12 +466,12 @@ std::vector<GraphManager::node *> GraphManager::sampleNodes(ufo::math::Vector3 r
 
     // Start using reserved nodes to build and manage a global graph.
 
-    if (planning_iteration_ > 1) {
-      
-      ROS_INFO("Global graph construction");
-
-      GraphManager::constructGlobalGraph ();
-    }
+    // if (planning_iteration_ > 1) {
+    //   
+    //   ROS_INFO("Global graph construction");
+    //
+    //   GraphManager::constructGlobalGraph ();
+    // }
 
   return temporary_nodes;
 }
@@ -769,7 +769,7 @@ void GraphManager::constructGlobalGraph () {
     (i.first).createEdge(i.second);
     (i.second).createEdge(i.first);
     
-    vertex_id_ = vertex_id_ + 2;
+    // vertex_id_ = vertex_id_ + 2;
 
     }
 
@@ -785,6 +785,8 @@ std::vector<GraphManager::Graph::vertex> GraphManager::constructGraph(int iterat
     nodes = sampleNodes(m_currentPosition, iterations, planning_space, m_ufoMAP);
   }
   
+  ROS_INFO_STREAM ("nodes : " << nodes.size());
+
   std::vector<std::pair<ufo::math::Vector3, ufo::math::Vector3>> local_nodes_pairs;
 
   for (auto i = nodes.begin(); i != std::prev(nodes.end(), 1); i++)
@@ -880,6 +882,8 @@ std::vector<GraphManager::Graph::vertex> GraphManager::constructGraph(int iterat
                                       Graph::Point{p.second.x(), p.second.y(), p.second.z()}));
   }
 
+  ROS_INFO_STREAM ("Vertices in planing graph : " << vertices.size());
+
   for (auto i : vertices)
   {
     graph_container.push_back(i.first);
@@ -900,6 +904,8 @@ std::vector<GraphManager::Graph::Point> GraphManager::planPath()
   double reposition_reward = -std::numeric_limits<float>::max();
   double reward;
   fetchExplorationTargets();
+  
+  ROS_INFO_STREAM ("Exploration target X " << m_local_exploration_target.x() );
 
   if (local_exploration)
   {
@@ -932,11 +938,15 @@ std::vector<GraphManager::Graph::Point> GraphManager::planPath()
   
   std::vector<GraphManager::Graph::vertex> local_graph = constructGraph(iterations, planning_space);
   
+  ROS_INFO_STREAM ("local graph has " << local_graph.size() << " nodes");
+  
   if (run_global_planner or global_exploration) {
     planning_graph = global_graph_container_;
   } else {
     planning_graph = local_graph;
   }
+
+  ROS_INFO_STREAM ("planning graph has " << planning_graph.size() << " nodes");
 
   ufo::math::Vector3 goal_vec, source_vec;
   double d_s, d_g;
@@ -967,6 +977,8 @@ std::vector<GraphManager::Graph::Point> GraphManager::planPath()
 
   Graph graph;
   std::vector<Graph::Point> Astar_path = graph.fetchPath(source, goal, planning_graph);
+
+  ROS_INFO_STREAM ("A-star path size : " << Astar_path.size());
 
   return Astar_path;
 }
