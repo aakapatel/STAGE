@@ -5,7 +5,6 @@ using namespace std;
 StageInterface::StageInterface(ros::NodeHandle private_nh_)
     : m_nh(),
       m_odometry("/hummingbird/ground_truth/odometry")
-// cloud_in("/hummingbird/velodyne_points"),
 {
 
     ros::NodeHandle private_nh = private_nh_;
@@ -21,13 +20,10 @@ StageInterface::StageInterface(ros::NodeHandle private_nh_)
 
     m_trajectory_Publisher = m_nh.advertise<trajectory_msgs::MultiDOFJointTrajectory>("command_trajectory", 1, true);
 
-    m_command_Path_Publisher = m_nh.advertise<geometry_msgs::PoseArray>("command_pose_array", 1, true);
-
-
+    m_command_Path_Publisher = m_nh.advertise<nav_msgs::Path>("command_path", 1, true);
 
     // Ros services 
   
-    
     m_exploration_path_client = m_nh.serviceClient<stage_planner::explorationPath>(
       "next_exploration_path");
 
@@ -167,7 +163,7 @@ void StageInterface::fetchExplorationPath () {
 
   } 
   
-  if (return_home) {
+  if (return_home and !explore) {
     
     exploration_path_srv.request.exploration = false;
     exploration_path_srv.request.homing = true;
@@ -244,13 +240,14 @@ void StageInterface::segmentPath(const nav_msgs::Path& path,
 
 void StageInterface::executeCurrentPath() {
 
-    nav_msgs::Path initialization_path;  
-    std::vector<geometry_msgs::PoseStamped> initialization_poses;  
-    geometry_msgs::PoseStamped init_pose;  
     nav_msgs::Path raw_path;  
 
     if (initialization) {
 
+    nav_msgs::Path initialization_path;  
+    std::vector<geometry_msgs::PoseStamped> initialization_poses;  
+    geometry_msgs::PoseStamped init_pose;  
+    
     init_pose.pose.position.x = fetchCurrentPosition().x() + 2;
     init_pose.pose.position.y = fetchCurrentPosition().y();
     init_pose.pose.position.z = fetchCurrentPosition().z() + 1;
@@ -307,10 +304,13 @@ void StageInterface::executeCurrentPath() {
       trajectory_point_msg_.time_from_start = ros::Duration(time_sum);
       // trajectory_array_.points.insert(trajectory_array_.points.begin(),trajectory_point_msg_);
       trajectory_array_.points.push_back(trajectory_point_msg_);
-      geometry_msgs::Pose command_pose;
-      command_pose.position = new_path.poses[i].pose.position;
-      command_pose.orientation = new_path.poses[i].pose.orientation;
-      command_path.poses.push_back(command_pose);
+      // geometry_msgs::Pose command_pose;
+      // command_pose.position = new_path.poses[i].pose.position;
+      // command_pose.orientation = new_path.poses[i].pose.orientation;
+      
+      // TODO Need to optimize this insertion! may be assign new_path directly to command path?
+
+      command_path.poses.push_back(new_path.poses[i]);
 
     }
     m_trajectory_Publisher.publish(trajectory_array_);
@@ -321,9 +321,9 @@ void StageInterface::executeCurrentPath() {
 bool StageInterface::reachedEndOfPath () {
   
   ufo::math::Vector3 end_of_path; 
-  end_of_path.x() = command_path.poses.back().position.x;
-  end_of_path.y() = command_path.poses.back().position.y;
-  end_of_path.z() = command_path.poses.back().position.z;
+  end_of_path.x() = command_path.poses.back().pose.position.x;
+  end_of_path.y() = command_path.poses.back().pose.position.y;
+  end_of_path.z() = command_path.poses.back().pose.position.z;
   
   double d = calculateDistance(fetchCurrentPosition(), end_of_path);
 
@@ -332,6 +332,26 @@ bool StageInterface::reachedEndOfPath () {
   } else {
     return false;
   }
+
+}
+
+void StageInterface::run_planner () 
+{
+ 
+  ros::Rate rr(10);
+  bool run = true;
+  
+  while (run) {
+    
+    
+    
+    run = ros::ok();
+    ros::spinOnce();
+    rr.sleep();
+
+  }
+
+  ROS_WARN("Interrupted ....");
 
 }
 

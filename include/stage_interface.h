@@ -30,6 +30,8 @@ class StageInterface
                                  nav_msgs::Path& path_seg);
     void executeCurrentPath ();
     bool reachedEndOfPath ();
+    void run_planner ();
+
 
   private:
     ros::ServiceClient m_exploration_path_client;
@@ -41,7 +43,7 @@ class StageInterface
     ros::Publisher m_command_Path_Publisher;
     nav_msgs::Odometry m_currentPose;
     nav_msgs::Odometry m_prevPose;
-    geometry_msgs::PoseArray command_path;
+    nav_msgs::Path command_path;
     ufo::math::Vector3 m_currentPosition;
     double m_currentHeading;
     ufo::math::Vector3 home_position;

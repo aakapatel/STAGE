@@ -10,6 +10,9 @@ int main(int argc, char **argv)
     const ros::NodeHandle &private_nh = ros::NodeHandle("~");
 
     StageInterface stageInterface;
+    
+    stageInterface.run_planner();
+
     ros::spinOnce();
 
     try
