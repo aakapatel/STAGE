@@ -51,7 +51,8 @@ bool StageInterface::initializePlanner (stage_planner::initializePlanning::Reque
     explore = true;
     res.success = true;
   }
-
+  
+  ROS_INFO ("Initialization Successful : Ready ");
   return true;
 
 }
@@ -66,7 +67,7 @@ bool StageInterface::stopPlanner (stage_planner::stopPlanning::Request &req,
     explore = false;
     res.success = true;
   }
-
+  ROS_INFO ("Stop Success ^_^");
   return true;
 
 }
@@ -81,7 +82,7 @@ bool StageInterface::homingPlanner (stage_planner::homePlanning::Request &req,
     explore = false;
     res.success = true;
   }
-
+  ROS_INFO ("Return to home requested ");
   return true;
 
 }
@@ -115,6 +116,9 @@ void StageInterface::updateCurrentPosition (const nav_msgs::Odometry::ConstPtr &
   else
   {
     m_currentPose = *pose;
+    
+    // ROS_INFO ("Odometry received ");
+
     //
     // ufo::math::Vector3 newPoint(pose->pose.pose.position.x, pose->pose.pose.position.y,
     //                             pose->pose.pose.position.z);
@@ -177,6 +181,8 @@ void StageInterface::fetchExplorationPath () {
   if (m_exploration_path_client.call(exploration_path_srv)) {
     
     exploration_path_ = exploration_path_srv.response.path;
+    
+    ROS_INFO_COND (exploration_path_.poses.size() > 1, "Exploration Path Received :) ");
 
     planning_status_local = exploration_path_srv.response.planning_status_local;
     planning_status_global = exploration_path_srv.response.planning_status_global;    
@@ -382,7 +388,17 @@ void StageInterface::run_planner ()
   
   while (run) {
     
-    
+    if (!stop_planning and (start_planner_first_time or reachedEndOfPath() ) ) {
+      
+      start_planner_first_time = false;
+
+      fetchExplorationPath();
+      
+      generateTrajectory ();
+
+      followPath ();
+
+    } 
     
     run = ros::ok();
     ros::spinOnce();

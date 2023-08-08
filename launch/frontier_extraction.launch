@@ -1,13 +1,14 @@
 <?xml version="1.0" ?>
 <launch>
 
+  <env name="ROSCONSOLE_FORMAT" value="[${severity}] : ${message}"/>
+  
 <!-- UFOMAP SERVER -->
-	<!--
+	
 		<arg name="resolution" default="0.2" />
 		<arg name="depth_levels" default="16" />
 		<arg name="num_workers" default="1" />
 		<arg name="color" default="true" />
-
 
     <node pkg="ufomap_mapping" type="ufomap_mapping_server_node" name="ufomap_mapping_server_node" output="screen" required="true">
 		
@@ -30,7 +31,7 @@
 		  <param name="depth_levels" value="$(arg depth_levels)" />
 		  <param name="color_map" value="$(arg color)"/>
     </node> 
-    -->
+    
     
   <node pkg="stage_planner" type="frontiers_extraction_node" name="frontiers_extraction_node" output="screen">
 

@@ -61,7 +61,9 @@ class StageInterface
     bool explore = false;
     bool stop_planning = false;
     bool return_home = false;
-   
+    bool start_planner_first_time = true;
+
+
   };
 
 #endif
