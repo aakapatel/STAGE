@@ -348,12 +348,6 @@ std::vector<ufo::math::Vector3> FrontierExtraction::fetchFrontiers()
 
         double info_gain = computeVolumetricGain (frontier_pt,m_ufoMAP);
        
-        std::cout << "info " << info_gain << std::endl;
-
-        // TODO FIX ME !!!!!!!!    
-
-        // BUG unfiltered frontiers are zero when robot not initialized (UAV on ground)
-
     // if (!isInCollision(m_ufoMAP, sphere, true, false, true, PLANNING_CHECK_DEPTH) and info_gain > VOLUMETRIC_GAIN_THREASHOLD)
      if (info_gain > VOLUMETRIC_GAIN_THREASHOLD)
 
@@ -949,23 +943,9 @@ double FrontierExtraction::computeVolumetricGain(ufo::math::Vector3 frontier, uf
         occupied_cells++;
         }
     }
-    //
-    // for (auto it = map.beginLeaves(sphere, false, true, false, false, 3), it_end = map.endLeaves(); it != it_end; ++it)
-    // {
-    //
-    //     free_cells++;
-    // }
-    //
-    // for (auto it = map.beginLeaves(sphere, true, false, false, false, 3), it_end = map.endLeaves(); it != it_end; ++it)
-    // {
-    //
-    //     occupied_cells++;
-    // }
-    //
+    
     double volumetric_gain = 10 * (log(unknown_cells / (occupied_cells + 1)));
 
-    // double volumetric_gain = 10 * log(unknown_cells);
-    
     return volumetric_gain;
 }
 

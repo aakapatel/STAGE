@@ -9,7 +9,7 @@
 
 		<param name="odometry" value="/hummingbird/ground_truth/odometry" />
 
-		<param name="ufomap" value="/ufomap_mapping_server_node/map" />
+		<!-- <param name="ufomap" value="/ufomap_mapping_server_node/map" /> -->
 
 		<remap from="ufomap" to="/ufomap_mapping_server_node/map" />
 
@@ -21,21 +21,19 @@
     
     <param name="safety_height" value = "4" />
     
-    <param name="traversability_radius" value="0.8" />
+    <param name="traversability_radius" value="0.5" />
     
     <param name="planning_check_depth" value="0" />
     
     <param name="volumetric_gain_threashold" value="1" />
 
-    <param name="graph_density_coefficient" value="1" />
+    <param name="graph_density_coefficient" value="0.6" />
 
     <param name="maximum_edge_length" value="4" /> 
 
     <param name ="maximum_iterations_local" value="2000" />
 
-    <param name ="maximum_iterations_global" value="6000" />
-
-
+    <param name ="maximum_iterations_global" value="4000" />
 
   </node>
 

@@ -130,9 +130,9 @@ void GraphManager::updateCurrentPosition(
       
       // Plan homing path in the background every few meters the robot moves to assure an updated homing path at all time. 
 
-      if (!global_graph_container_.empty()) {
-        planHomingPath ();
-      }
+      // if (!global_graph_container_.empty()) {
+      //   planHomingPath ();
+      // }
       
     }
   }
@@ -271,41 +271,26 @@ double GraphManager::computeVolumetricGain(ufo::math::Vector3 frontier,
                                            ufo::map::OccupancyMapColor const &map)
 {
 
-  double r = 4;
-  int unknown_cells, free_cells, occupied_cells = 0;
-  ufo::geometry::Sphere sphere(frontier, r);
+    double r = 1;
+    int unknown_cells, free_cells, occupied_cells = 0;
+    ufo::geometry::Sphere sphere(frontier, r);
 
-  for (auto it = map.beginLeaves(sphere, false, false, true, false,
-                                 m_planning_depth),
-            it_end = map.endLeaves();
-       it != it_end; ++it)
-  {
+    for (auto it = map.beginLeaves(sphere, true, true, true, false, 3), it_end = map.endLeaves(); it != it_end; ++it)
+    {
+        if (it.isUnknown()) {
+        unknown_cells++;
+        }
+        if (it.isFree()) {
+        free_cells++;
+        }
+        if (it.isOccupied()) {
+        occupied_cells++;
+        }
+    }
+    
+    double volumetric_gain = 10 * (log(unknown_cells / (occupied_cells + 1)));
 
-    unknown_cells++;
-  }
-
-  for (auto it = map.beginLeaves(sphere, false, true, false, false,
-                                 m_planning_depth),
-            it_end = map.endLeaves();
-       it != it_end; ++it)
-  {
-
-    free_cells++;
-  }
-
-  for (auto it = map.beginLeaves(sphere, true, false, false, false,
-                                 m_planning_depth),
-            it_end = map.endLeaves();
-       it != it_end; ++it)
-  {
-
-    occupied_cells++;
-  }
-
-  double volumetric_gain =
-      10 * (log(unknown_cells + free_cells) / log(occupied_cells));
-
-  return volumetric_gain;
+    return volumetric_gain;
 }
 
 ufo::math::Vector3
@@ -514,6 +499,8 @@ std::vector<GraphManager::Graph::Point> GraphManager::Graph::fetchPath(Graph::Po
       }
       return (found_path);
     }
+    
+    cout << "current vert edges : " << (*current_vert.edges).size() << endl;  
 
     for (vertex &vert : *current_vert.edges)
     {
@@ -656,8 +643,8 @@ void GraphManager::constructGlobalGraph () {
     for (auto i2 = i; i2 != nodes.end(); i2++)
     {
 
-      ufo::math::Vector3 v1((*i)->myParent->point->x(), (*i)->myParent->point->y(), (*i)->myParent->point->z());
-      ufo::math::Vector3 v2((*i2)->myParent->point->x(), (*i2)->myParent->point->y(), (*i2)->myParent->point->z());
+      ufo::math::Vector3 v1((*i)->point->x(), (*i)->point->y(), (*i)->point->z());
+      ufo::math::Vector3 v2((*i2)->point->x(), (*i2)->point->y(), (*i2)->point->z());
 
       double distance = calculateDistance(v1, v2);
 
@@ -786,28 +773,43 @@ std::vector<GraphManager::Graph::vertex> GraphManager::constructGraph(int iterat
   }
   
   ROS_INFO_STREAM ("nodes : " << nodes.size());
+  
+  std::vector<Graph::vertex> local_nodes;
 
-  std::vector<std::pair<ufo::math::Vector3, ufo::math::Vector3>> local_nodes_pairs;
+  std::vector<std::pair<std::vector<Graph::vertex>::iterator,
+                        std::vector<Graph::vertex>::iterator>> local_nodes_pairs;
 
-  for (auto i = nodes.begin(); i != std::prev(nodes.end(), 1); i++)
+  for (auto i = nodes.begin(); i != nodes.end(); i++) {
+
+    local_nodes.push_back( Graph::Point{(*i)->point->x(), (*i)->point->y(), (*i)->point->z()} );
+
+  }
+
+  // TODO FIX ME ASAP ! Use same data structure for nodes and edges using reference to original ufo vec. 
+
+  for (auto i = local_nodes.begin(); i != std::prev(local_nodes.end(), 1); i++)
   {
 
-    for (auto i2 = i; i2 != nodes.end(); i2++)
+    ufo::math::Vector3 v1((*i).location.x, (*i).location.y, (*i).location.z);
+    
+    for (auto i2 = i; i2 != local_nodes.end(); i2++)
     {
 
-      ufo::math::Vector3 v1((*i)->myParent->point->x(), (*i)->myParent->point->y(), (*i)->myParent->point->z());
-      ufo::math::Vector3 v2((*i2)->myParent->point->x(), (*i2)->myParent->point->y(), (*i2)->myParent->point->z());
-
+      ufo::math::Vector3 v2((*i2).location.x, (*i2).location.y, (*i2).location.z);
+      
       double distance = calculateDistance(v1, v2);
 
       if (distance < m_max_edge_length)
       {
-        local_nodes_pairs.push_back(std::make_pair(v1, v2));
+
+        local_nodes_pairs.push_back(std::make_pair(i, i2));
       }
     }
   }
 
-  std::vector<std::pair<ufo::math::Vector3, ufo::math::Vector3>> vec1, vec2, vec3, vec4, my_vec;
+  ROS_INFO_STREAM ("Local nodes pairs : " << local_nodes_pairs.size());
+
+  std::vector<std::pair<Graph::vertex, Graph::vertex>> vec1, vec2, vec3, vec4, my_vec;
 
 #pragma omp parallel
   {
@@ -815,14 +817,22 @@ std::vector<GraphManager::Graph::vertex> GraphManager::constructGraph(int iterat
     {
 #pragma omp task
       {
+
         for (auto i = local_nodes_pairs.begin(); i != std::next(local_nodes_pairs.begin(), local_nodes_pairs.size() / 4); i++)
         {
+          ufo::math::Vector3 n1(((*i).first)->location.x,
+                                  ((*i).first)->location.y,
+                                  ((*i).first)->location.z);
+          ufo::math::Vector3 n2(((*i).second)->location.x,
+                                  ((*i).second)->location.y,
+                                  ((*i).second)->location.z);
 
-          ufo::geometry::OBB obb = makeOBB(i->first, i->second, m_obb_radius);
+
+          ufo::geometry::OBB obb = makeOBB(n1, n2, m_obb_radius);
 
           if (!isInCollision(m_ufoMAP, obb, true, false, true, m_planning_depth))
           {
-            vec1.push_back(std::make_pair(i->first, i->second));
+            vec1.push_back(std::make_pair(*i->first, *i->second));
           }
         }
       }
@@ -830,12 +840,19 @@ std::vector<GraphManager::Graph::vertex> GraphManager::constructGraph(int iterat
       {
         for (auto i = std::next(local_nodes_pairs.begin(), local_nodes_pairs.size() / 4); i != std::next(local_nodes_pairs.begin(), local_nodes_pairs.size() / 2); i++)
         {
+          ufo::math::Vector3 n1(((*i).first)->location.x,
+                                  ((*i).first)->location.y,
+                                  ((*i).first)->location.z);
+          ufo::math::Vector3 n2(((*i).second)->location.x,
+                                  ((*i).second)->location.y,
+                                  ((*i).second)->location.z);
 
-          ufo::geometry::OBB obb = makeOBB(i->first, i->second, m_obb_radius);
+
+          ufo::geometry::OBB obb = makeOBB(n1, n2, m_obb_radius);
 
           if (!isInCollision(m_ufoMAP, obb, true, false, true, m_planning_depth))
           {
-            vec2.push_back(std::make_pair(i->first, i->second));
+            vec2.push_back(std::make_pair(*i->first, *i->second));
           }
         }
       }
@@ -843,12 +860,19 @@ std::vector<GraphManager::Graph::vertex> GraphManager::constructGraph(int iterat
       {
         for (auto i = std::next(local_nodes_pairs.begin(), local_nodes_pairs.size() / 2); i != std::prev(local_nodes_pairs.end(), local_nodes_pairs.size() / 4); i++)
         {
+          ufo::math::Vector3 n1(((*i).first)->location.x,
+                                  ((*i).first)->location.y,
+                                  ((*i).first)->location.z);
+          ufo::math::Vector3 n2(((*i).second)->location.x,
+                                  ((*i).second)->location.y,
+                                  ((*i).second)->location.z);
 
-          ufo::geometry::OBB obb = makeOBB(i->first, i->second, m_obb_radius);
+
+          ufo::geometry::OBB obb = makeOBB(n1, n2, m_obb_radius);
 
           if (!isInCollision(m_ufoMAP, obb, true, false, true, m_planning_depth))
           {
-            vec3.push_back(std::make_pair(i->first, i->second));
+            vec3.push_back(std::make_pair(*i->first, *i->second));
           }
         }
       }
@@ -856,41 +880,130 @@ std::vector<GraphManager::Graph::vertex> GraphManager::constructGraph(int iterat
       {
         for (auto i = std::prev(local_nodes_pairs.end(), local_nodes_pairs.size() / 4); i != local_nodes_pairs.end(); i++)
         {
+          ufo::math::Vector3 n1(((*i).first)->location.x,
+                                  ((*i).first)->location.y,
+                                  ((*i).first)->location.z);
+          ufo::math::Vector3 n2(((*i).second)->location.x,
+                                  ((*i).second)->location.y,
+                                  ((*i).second)->location.z);
 
-          ufo::geometry::OBB obb = makeOBB(i->first, i->second, m_obb_radius);
+
+          ufo::geometry::OBB obb = makeOBB(n1, n2, m_obb_radius);
 
           if (!isInCollision(m_ufoMAP, obb, true, false, true, m_planning_depth))
           {
-            vec4.push_back(std::make_pair(i->first, i->second));
+            vec4.push_back(std::make_pair(*i->first, *i->second));
           }
         }
       }
     }
   }
+  
+    std::vector<Graph::vertex> graph_container;
 
-  my_vec.insert(my_vec.begin(), vec1.begin(), vec1.end());
-  my_vec.insert(my_vec.begin(), vec2.begin(), vec2.end());
-  my_vec.insert(my_vec.begin(), vec3.begin(), vec3.end());
-  my_vec.insert(my_vec.begin(), vec4.begin(), vec4.end());
 
-  std::vector<std::pair<Graph::vertex, Graph::vertex>> vertices;
-  std::vector<Graph::vertex> graph_container;
+    for (auto i = vec1.begin(); i != vec1.end(); i++)
+    {
 
-  for (auto p : my_vec)
-  {
-    vertices.push_back(std::make_pair(Graph::Point{p.first.x(), p.first.y(), p.first.z()},
-                                      Graph::Point{p.second.x(), p.second.y(), p.second.z()}));
+      // if ((i->first).edges() < 8 and (i->second).edges() < 8) {
+      graph_container.push_back((i)->first);
+      graph_container.push_back((i)->second);
+      ((i)->first).createEdge((i)->second);
+      ((i)->second).createEdge((i)->first);
+    
+      // TODO FOR VISUALIZATION OF GRAPH ! FIX ME
+
+      // node *parent_node =
+      //     new node(((*i).first).location.x, ((*i).first).location.y,
+      //              ((*i).first).location.z);
+      // node *child_node =
+      //     new node(((*i).second).location.x, ((*i).second).location.y,
+      //              ((*i).second).location.z);
+      // child_node->addParent(parent_node);
+      // parent_node->addChild(child_node);
+      // Local_Planning_Graph.push_back(child_node);
+    // }
+
   }
 
-  ROS_INFO_STREAM ("Vertices in planing graph : " << vertices.size());
+     for (auto i = vec2.begin(); i != vec2.end(); i++)
+    {
 
-  for (auto i : vertices)
-  {
-    graph_container.push_back(i.first);
-    graph_container.push_back(i.second);
-    (i.first).createEdge(i.second);
-    (i.second).createEdge(i.first);
+      // if ((i->first).edges() < 8 and (i->second).edges() < 8) {
+      graph_container.push_back((i)->first);
+      graph_container.push_back((i)->second);
+      ((i)->first).createEdge((i)->second);
+      ((i)->second).createEdge((i)->first);
+    
+      // TODO FOR VISUALIZATION OF GRAPH ! FIX ME
+
+      // node *parent_node =
+      //     new node(((*i).first).location.x, ((*i).first).location.y,
+      //              ((*i).first).location.z);
+      // node *child_node =
+      //     new node(((*i).second).location.x, ((*i).second).location.y,
+      //              ((*i).second).location.z);
+      // child_node->addParent(parent_node);
+      // parent_node->addChild(child_node);
+      // Local_Planning_Graph.push_back(child_node);
+    // }
+
+  } 
+
+    for (auto i = vec3.begin(); i != vec3.end(); i++)
+    {
+
+      // if ((i->first).edges() < 8 and (i->second).edges() < 8) {
+      graph_container.push_back((i)->first);
+      graph_container.push_back((i)->second);
+      ((i)->first).createEdge((i)->second);
+      ((i)->second).createEdge((i)->first);
+    
+      // TODO FOR VISUALIZATION OF GRAPH ! FIX ME
+
+      // node *parent_node =
+      //     new node(((*i).first).location.x, ((*i).first).location.y,
+      //              ((*i).first).location.z);
+      // node *child_node =
+      //     new node(((*i).second).location.x, ((*i).second).location.y,
+      //              ((*i).second).location.z);
+      // child_node->addParent(parent_node);
+      // parent_node->addChild(child_node);
+      // Local_Planning_Graph.push_back(child_node);
+    // }
+
   }
+
+    for (auto i = vec4.begin(); i != vec4.end(); i++)
+    {
+
+      // if ((i->first).edges() < 8 and (i->second).edges() < 8) {
+      graph_container.push_back((i)->first);
+      graph_container.push_back((i)->second);
+      ((i)->first).createEdge((i)->second);
+      ((i)->second).createEdge((i)->first);
+    
+      // TODO FOR VISUALIZATION OF GRAPH ! FIX ME
+
+      // node *parent_node =
+      //     new node(((*i).first).location.x, ((*i).first).location.y,
+      //              ((*i).first).location.z);
+      // node *child_node =
+      //     new node(((*i).second).location.x, ((*i).second).location.y,
+      //              ((*i).second).location.z);
+      // child_node->addParent(parent_node);
+      // parent_node->addChild(child_node);
+      // Local_Planning_Graph.push_back(child_node);
+    // }
+
+  }
+
+  // for (auto i = graph_container.begin(); i != graph_container.end(); i++) {
+  //
+  //   cout << "edges of first : " << (*i).getEdges() << endl;
+  // 
+  //   cout << "edges of second : " << (*i).getEdges() << endl;
+  // }
 
   return graph_container;
 
@@ -901,7 +1014,7 @@ std::vector<GraphManager::Graph::Point> GraphManager::planPath()
 
   int iterations;
   double planning_space;
-  double reposition_reward = -std::numeric_limits<float>::max();
+  double reposition_reward = -std::numeric_limits<double>::max();
   double reward;
   fetchExplorationTargets();
   
@@ -948,35 +1061,56 @@ std::vector<GraphManager::Graph::Point> GraphManager::planPath()
 
   ROS_INFO_STREAM ("planning graph has " << planning_graph.size() << " nodes");
 
-  ufo::math::Vector3 goal_vec, source_vec;
-  double d_s, d_g;
-  double goal_distance, source_distance = std::numeric_limits<float>::max();
+  double start_x, start_y, start_z, end_x, end_y, end_z;
 
-  for (Graph::vertex v : planning_graph)
+    double close_dis = std::numeric_limits<double>::max();
+    double end_dis = std::numeric_limits<double>::max();
+    double my_end_dis = std::numeric_limits<double>::max();
+    double my_close_dis = std::numeric_limits<double>::max();
+
+  for (auto v = planning_graph.begin(); v != planning_graph.end(); v++)
   {
 
-    ufo::math::Vector3 vertex_vector(v.location.x, v.location.y, v.location.z);
+      close_dis = std::sqrt(
+          std::pow((*v).location.x - fetchCurrentPosition().x(), 2) +
+          std::pow((*v).location.y - fetchCurrentPosition().y(), 2) +
+          std::pow((*v).location.z - fetchCurrentPosition().z(), 2));
 
-    double d_s = calculateDistance(vertex_vector, fetchCurrentPosition());
-    double d_g = calculateDistance(vertex_vector, exploration_target);
+      end_dis = std::sqrt(std::pow((*v).location.x -
+                                       exploration_target.x(),
+                                   2) +
+                          std::pow((*v).location.y -
+                                       exploration_target.y(),
+                                   2) +
+                          std::pow((*v).location.z -
+                                       exploration_target.z(),
+                                   2));
 
-    if (d_s < source_distance)
-    {
-      source_distance = d_s;
-      source_vec = vertex_vector;
-    }
-    if (d_g < goal_distance)
-    {
-      goal_distance = d_g;
-      goal_vec = vertex_vector;
-    }
+      if (close_dis < my_close_dis)
+      {
+        my_close_dis = close_dis;
+        start_x = ((*v).location.x);
+        start_y = ((*v).location.y);
+        start_z = ((*v).location.z);
+      }
+
+      if (end_dis < my_end_dis)
+      {
+        my_end_dis = end_dis;
+        end_x = ((*v).location.x);
+        end_y = ((*v).location.y);
+        end_z = ((*v).location.z);
+      }
   }
 
-  Graph::Point source{source_vec.x(), source_vec.y(), source_vec.z()};
-  Graph::Point goal{goal_vec.x(), goal_vec.y(), goal_vec.z()};
+  // cout << "source vec " << source_vec.x() << " " << source_vec.y() << " " << source_vec.z() << endl;
+
+  Graph::Point start_pos {start_x, start_y, start_z};
+  Graph::Point end_pos {end_x, end_y, end_z};
 
   Graph graph;
-  std::vector<Graph::Point> Astar_path = graph.fetchPath(source, goal, planning_graph);
+  
+  std::vector<Graph::Point> Astar_path = graph.fetchPath(start_pos, end_pos, planning_graph);
 
   ROS_INFO_STREAM ("A-star path size : " << Astar_path.size());
 
