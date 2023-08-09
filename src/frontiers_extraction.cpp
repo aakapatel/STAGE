@@ -337,8 +337,6 @@ std::vector<ufo::math::Vector3> FrontierExtraction::fetchFrontiers()
 
     std::vector<ufo::math::Vector3> unfiltered_frontiers;
 
-    // ROS_INFO_STREAM ("frontier points list size : " << frontierPointList.size());
-
     for (auto i = frontierPointList.begin(); i != frontierPointList.end(); i++)
     {
 
@@ -356,8 +354,6 @@ std::vector<ufo::math::Vector3> FrontierExtraction::fetchFrontiers()
             unfiltered_frontiers.push_back(frontier_pt);
         }
     }
-
-    // ROS_INFO_STREAM ("Unfiltered frontiers size : " << unfiltered_frontiers.size());
 
     return unfiltered_frontiers;
 }
@@ -970,7 +966,7 @@ ufo::math::Vector3 FrontierExtraction::fetchInformativeFrontier()
             informative_frontier = frontier;
         }
     }
-    cout << "Informative frontier : " << informative_frontier.x() << " , " << informative_frontier.y() << " , " << informative_frontier.z() << endl;
+    // ROS_INFO_STREAM ( "Informative frontier : " << informative_frontier.x() << " , " << informative_frontier.y() << " , " << informative_frontier.z()  << "\n");
     return informative_frontier;
 }
 
@@ -1015,17 +1011,26 @@ bool FrontierExtraction::exportFrontierTargets(stage_planner::frontierRequest::R
             geometry_msgs::Point frontier_point = ufoToPoint(fetchInformativeFrontier());
             res.best_local = frontier_point;
             res.local_nav = true;
+            
+            ROS_INFO_STREAM ("Fetched local exploration target .. ready to plan \n ");
+            
         }
         else
         {
             res.local_nav = false;
             res.global_targets = fetchGlobalRepositioningTargets();
+        
+            ROS_INFO_STREAM ("Global repositioning candidates exist .. ready to plan \n ");
+
         }
     }
     else if (req.force_global)
     {
         res.local_nav = false;
         res.global_targets = fetchGlobalRepositioningTargets();
+        
+        ROS_INFO_STREAM ("Global repositioning candidates exist .. ready to plan \n ");
+        
     }
 
     return true;

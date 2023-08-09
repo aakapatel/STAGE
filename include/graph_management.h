@@ -218,9 +218,11 @@ private:
   std::vector<float> vert_vec;
   std::unordered_map<int, GraphManager::Graph::vertex> graph_;
   
-   std::vector<Graph::Point> Astar_path; 
-
-
+  std::vector<Graph::Point> Astar_path;
+  std::vector<Graph::Point> improved_path;
+  std::vector<Graph::Point> Astar_homing_path;
+  std::vector<Graph::Point> improved_homing_path;
+  
   ros::NodeHandle m_nh;
   std::string m_worldFrameId; // the map frame
   std::string m_odometry;

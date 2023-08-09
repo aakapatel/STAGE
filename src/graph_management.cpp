@@ -673,7 +673,7 @@ void GraphManager::constructGlobalGraph () {
     }
   }
 
-  ROS_INFO_STREAM ("Global nodes pairs : " << global_nodes_pairs.size());
+  // ROS_INFO_STREAM ("Global nodes pairs : " << global_nodes_pairs.size() << "\n" );
 
   std::vector<std::pair<Graph::vertex, Graph::vertex>> vec1, vec2, vec3, vec4;
 
@@ -896,8 +896,6 @@ std::vector<GraphManager::Graph::vertex> GraphManager::constructGraph(int iterat
     nodes = sampleNodes(m_currentPosition, iterations, planning_space, m_ufoMAP);
   }
   
-  // ROS_INFO_STREAM ("nodes : " << nodes.size());
-  
   std::vector<Graph::vertex> local_nodes;
 
   std::vector<std::pair<std::vector<Graph::vertex>::iterator,
@@ -929,7 +927,7 @@ std::vector<GraphManager::Graph::vertex> GraphManager::constructGraph(int iterat
     }
   }
 
-  ROS_INFO_STREAM ("Local nodes pairs : " << local_nodes_pairs.size());
+  // ROS_INFO_STREAM ("Local nodes pairs : " << local_nodes_pairs.size());
 
   std::vector<std::pair<Graph::vertex, Graph::vertex>> vec1, vec2, vec3, vec4, my_vec;
 
@@ -1096,8 +1094,6 @@ std::vector<GraphManager::Graph::Point> GraphManager::planPath()
   double reward;
   fetchExplorationTargets();
   
-  // ROS_INFO_STREAM ("Exploration target X " << m_local_exploration_target.x() );
-
   if (local_exploration)
   {
     iterations = m_iterations_local;
@@ -1137,7 +1133,7 @@ std::vector<GraphManager::Graph::Point> GraphManager::planPath()
     planning_graph = local_graph;
   }
 
-  ROS_INFO_STREAM ("planning graph has " << planning_graph.size() << " nodes");
+  // ROS_INFO_STREAM ("planning graph has " << planning_graph.size() << " nodes");
 
   double start_x, start_y, start_z, end_x, end_y, end_z;
 
@@ -1181,9 +1177,6 @@ std::vector<GraphManager::Graph::Point> GraphManager::planPath()
       }
   }
   
-  ROS_INFO_STREAM ("start " << start_x << " " << start_y << " " << start_z );
-  ROS_INFO_STREAM ("end   " << end_x << " " << end_y << " " << end_z );
-
   Graph::Point start_pos {start_x, start_y, start_z};
   Graph::Point end_pos {end_x, end_y, end_z};
 
@@ -1197,7 +1190,7 @@ std::vector<GraphManager::Graph::Point> GraphManager::planPath()
 
   }
 
-  ROS_INFO_STREAM ("A-star path size : " << Astar_path.size());
+  // ROS_INFO_STREAM ("A-star path size : " << Astar_path.size());
   
   return Astar_path;
 }
@@ -1258,7 +1251,7 @@ nav_msgs::Path GraphManager::fetchExplorationPath()
 
   std::vector<Graph::Point> improved_path = improved_graph.fetchPath(start_pos, end_pos, improvement_graph);
 
-  ROS_INFO_STREAM ("Improved Path length is " << improved_path.size());
+  ROS_INFO_STREAM ("Improved Path length is " << improved_path.size() << "\n");
 
   nav_msgs::Path planned_path;
   geometry_msgs::PoseStamped p;
@@ -1297,7 +1290,7 @@ nav_msgs::Path GraphManager::fetchExplorationPath()
 
   }
 
-  ROS_INFO_STREAM ("Planned path length : " << planned_path.poses.size());
+  // ROS_INFO_STREAM ("Planned path length : " << planned_path.poses.size());
   
   // Final exploration path to be sent to stage interface for segmentation and execution.
 
@@ -1308,42 +1301,63 @@ nav_msgs::Path GraphManager::fetchExplorationPath()
 
 void GraphManager::planHomingPath () {
 
-  ufo::math::Vector3 home_pose_vec, source_vec;
-  double d_s, d_g;
-  double home_pose_distance, source_distance = std::numeric_limits<float>::max();
+  double start_x, start_y, start_z, end_x, end_y, end_z;
 
-  for (Graph::vertex v : global_graph_container_)
+  double close_dis = std::numeric_limits<double>::max();
+  double end_dis = std::numeric_limits<double>::max();
+  double my_end_dis = std::numeric_limits<double>::max();
+  double my_close_dis = std::numeric_limits<double>::max();
+
+  for (auto v = global_graph_container_.begin(); v != global_graph_container_.end(); v++)
   {
 
-    ufo::math::Vector3 vertex_vector(v.location.x, v.location.y, v.location.z);
+      close_dis = std::sqrt(
+          std::pow((*v).location.x - fetchCurrentPosition().x(), 2) +
+          std::pow((*v).location.y - fetchCurrentPosition().y(), 2) +
+          std::pow((*v).location.z - fetchCurrentPosition().z(), 2));
 
-    double d_s = calculateDistance(vertex_vector, fetchCurrentPosition());
-    double d_g = calculateDistance(vertex_vector, home_position);
+      end_dis = std::sqrt(std::pow((*v).location.x -
+                                       home_position.x(),
+                                   2) +
+                          std::pow((*v).location.y -
+                                       home_position.y(),
+                                   2) +
+                          std::pow((*v).location.z -
+                                       home_position.z(),
+                                   2));
 
-    if (d_s < source_distance)
-    {
-      source_distance = d_s;
-      source_vec = vertex_vector;
-    }
-    if (d_g < home_pose_distance)
-    {
-      home_pose_distance = d_g;
-      home_pose_vec = vertex_vector;
-    }
+      if (close_dis < my_close_dis)
+      {
+        my_close_dis = close_dis;
+        start_x = ((*v).location.x);
+        start_y = ((*v).location.y);
+        start_z = ((*v).location.z);
+      }
+
+      if (end_dis < my_end_dis)
+      {
+        my_end_dis = end_dis;
+        end_x = ((*v).location.x);
+        end_y = ((*v).location.y);
+        end_z = ((*v).location.z);
+      }
   }
-
-  Graph::Point source{source_vec.x(), source_vec.y(), source_vec.z()};
-  Graph::Point goal{home_pose_vec.x(), home_pose_vec.y(), home_pose_vec.z()};
+  
+  Graph::Point start_pos {start_x, start_y, start_z};
+  Graph::Point end_pos {end_x, end_y, end_z};
 
   Graph homing_graph;
-  std::vector<Graph::Point> path = homing_graph.fetchPath(source, goal, global_graph_container_);
+  Astar_homing_path = homing_graph.fetchPath(start_pos, end_pos, global_graph_container_);
 
- 
+  if (Astar_homing_path.size() < 2) {
+    planHomingPath();
+  }
+
   std::vector<Graph::vertex> improvement_nodes;
   std::vector<Graph::vertex> improvement_graph;
 
-  for (auto insert_helper = path.begin();
-       insert_helper != path.end(); insert_helper++)
+  for (auto insert_helper = Astar_homing_path.begin();
+       insert_helper != Astar_homing_path.end(); insert_helper++)
   {
     improvement_nodes.push_back(
         Graph::Point{insert_helper->x, insert_helper->y, insert_helper->z});
@@ -1388,17 +1402,17 @@ void GraphManager::planHomingPath () {
 
   Graph improved_graph;
 
-  std::vector<Graph::Point> improved_path = improved_graph.fetchPath(start, finish, improvement_graph);
+  improved_homing_path = improved_graph.fetchPath(start, finish, improvement_graph);
 
   nav_msgs::Path planned_path;
   geometry_msgs::PoseStamped p;
 
-  for (int i = 0; i < improved_path.size(); ++i)
+  for (int i = 0; i < improved_homing_path.size(); ++i)
   {
    
-    ufo::math::Vector3 prev (improved_path[i].x, improved_path[i].y, improved_path[i].z);
-    ufo::math::Vector3 next (improved_path[i+1].x, improved_path[i+1].y, improved_path[i+1].z);
-    ufo::math::Vector3 before_last (improved_path[i-1].x, improved_path[i-1].y, improved_path[i-1].z);
+    ufo::math::Vector3 prev (improved_homing_path[i].x, improved_homing_path[i].y, improved_homing_path[i].z);
+    ufo::math::Vector3 next (improved_homing_path[i+1].x, improved_homing_path[i+1].y, improved_homing_path[i+1].z);
+    ufo::math::Vector3 before_last (improved_homing_path[i-1].x, improved_homing_path[i-1].y, improved_homing_path[i-1].z);
   
     float angle = atan2( next.y() - prev.y(), next.x() - prev.x());
     float angle_last = atan2( prev.y() - before_last.y(), prev.x() - before_last.x());
@@ -1410,9 +1424,9 @@ void GraphManager::planHomingPath () {
     if (i == improved_path.size()-1) {
       q = q_last;
     }
-    p.pose.position.x = improved_path[i].x;
-    p.pose.position.y = improved_path[i].y;
-    p.pose.position.z = improved_path[i].z;
+    p.pose.position.x = improved_homing_path[i].x;
+    p.pose.position.y = improved_homing_path[i].y;
+    p.pose.position.z = improved_homing_path[i].z;
     p.pose.orientation.x = q.x();
     p.pose.orientation.y = q.y();
     p.pose.orientation.z = q.z();
@@ -1421,7 +1435,6 @@ void GraphManager::planHomingPath () {
  
   }
 
-
   if (planned_path.poses.size() > 1) {
     homing_path_ = planned_path;
   } else {
@@ -1429,7 +1442,6 @@ void GraphManager::planHomingPath () {
   }
  
 }
-
 
 
 bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &req,
