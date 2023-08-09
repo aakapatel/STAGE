@@ -5,7 +5,7 @@
   
 <!-- UFOMAP SERVER -->
 	
-		<arg name="resolution" default="0.2" />
+		<arg name="resolution" default="0.3" />
 		<arg name="depth_levels" default="16" />
 		<arg name="num_workers" default="1" />
 		<arg name="color" default="true" />
@@ -52,7 +52,7 @@
 		<param name="local_field_of_view" value="40" />
 		<param name="safety_height" value = "4" />
 		<param name="traversability_radius" value="0.5" />
-		<param name="planning_check_depth" value="0" />
+		<param name="planning_check_depth" value="1" />
 		<param name="volumetric_gain_threashold" value="1" />
 
 		<remap from="ufomap" to="/ufomap_mapping_server_node/map" />

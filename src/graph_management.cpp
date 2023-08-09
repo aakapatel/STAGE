@@ -382,7 +382,7 @@ std::vector<GraphManager::node *> GraphManager::sampleNodes(ufo::math::Vector3 r
     delete (*it_clear_helper);
   }
 */
-  temporary_nodes.clear();
+  // temporary_nodes.clear();
   node *current_pos = new node(root_node.x(), root_node.y(), root_node.z());
   current_pos->addParent(nullptr);
   temporary_nodes.push_back(current_pos);
@@ -497,10 +497,13 @@ std::vector<GraphManager::Graph::Point> GraphManager::Graph::fetchPath(Graph::Po
         found_path.push_back(parent->location);
         parent = parent->parent.get();
       }
+
+      // ROS_INFO_STREAM(" found path length in astar function " << found_path.size());
+      
       return (found_path);
     }
     
-    cout << "current vert edges : " << (*current_vert.edges).size() << endl;  
+    // cout << "current vert edges : " << (*current_vert.edges).size() << endl;  
 
     for (vertex &vert : *current_vert.edges)
     {
@@ -517,7 +520,7 @@ std::vector<GraphManager::Graph::Point> GraphManager::Graph::fetchPath(Graph::Po
       child.dist_to_start = current_vert.dist_to_start +
                             child.location.DistTo(current_vert.location);
 
-      child.total_dist = 0.1 * (child.dist_to_start +
+      child.total_dist = (child.dist_to_start +
                                 (child.location.DistTo(end_vert.location)));
 
       if (std::find_if(open_list.begin(), open_list.end(),
@@ -531,6 +534,8 @@ std::vector<GraphManager::Graph::Point> GraphManager::Graph::fetchPath(Graph::Po
       open_list.emplace(child);
     }
   }
+
+  // ROS_INFO_STREAM(" found path length in astar function " << found_path.size());
 
   return (found_path);
 }
@@ -760,13 +765,10 @@ void GraphManager::constructGlobalGraph () {
     }
   }
   
-    // std::vector<Graph::vertex> global_graph_container_;
-
-
     for (auto i = vec1.begin(); i != vec1.end(); i++)
     {
 
-      // if ((i->first).edges() < 8 and (i->second).edges() < 8) {
+      // if ((i->first).getEdges() < 8 and (i->second).getEdges() < 8) {
       if (!global_graph_container_.empty()) {
 
       if (std::find(global_graph_container_.begin(), global_graph_container_.end(),
@@ -789,25 +791,13 @@ void GraphManager::constructGlobalGraph () {
     (i->first).createEdge(i->second);
     (i->second).createEdge(i->first);
  
-      // TODO FOR VISUALIZATION OF GRAPH ! FIX ME
-
-      // node *parent_node =
-      //     new node(((*i).first).location.x, ((*i).first).location.y,
-      //              ((*i).first).location.z);
-      // node *child_node =
-      //     new node(((*i).second).location.x, ((*i).second).location.y,
-      //              ((*i).second).location.z);
-      // child_node->addParent(parent_node);
-      // parent_node->addChild(child_node);
-      // Local_Planning_Graph.push_back(child_node);
-    // }
 
   }
 
      for (auto i = vec2.begin(); i != vec2.end(); i++)
     {
 
-      // if ((i->first).edges() < 8 and (i->second).edges() < 8) {
+      // if ((i->first).getEdges() < 8 and (i->second).getEdges() < 8) {
       if (!global_graph_container_.empty()) {
 
       if (std::find(global_graph_container_.begin(), global_graph_container_.end(),
@@ -830,25 +820,13 @@ void GraphManager::constructGlobalGraph () {
     (i->first).createEdge(i->second);
     (i->second).createEdge(i->first);
  
-      // TODO FOR VISUALIZATION OF GRAPH ! FIX ME
-
-      // node *parent_node =
-      //     new node(((*i).first).location.x, ((*i).first).location.y,
-      //              ((*i).first).location.z);
-      // node *child_node =
-      //     new node(((*i).second).location.x, ((*i).second).location.y,
-      //              ((*i).second).location.z);
-      // child_node->addParent(parent_node);
-      // parent_node->addChild(child_node);
-      // Local_Planning_Graph.push_back(child_node);
-    // }
 
   } 
 
     for (auto i = vec3.begin(); i != vec3.end(); i++)
     {
 
-      // if ((i->first).edges() < 8 and (i->second).edges() < 8) {
+      // if ((i->first).getEdges() < 8 and (i->second).getEdges() < 8) {
       if (!global_graph_container_.empty()) {
 
       if (std::find(global_graph_container_.begin(), global_graph_container_.end(),
@@ -871,25 +849,13 @@ void GraphManager::constructGlobalGraph () {
     (i->first).createEdge(i->second);
     (i->second).createEdge(i->first);
   
-      // TODO FOR VISUALIZATION OF GRAPH ! FIX ME
-
-      // node *parent_node =
-      //     new node(((*i).first).location.x, ((*i).first).location.y,
-      //              ((*i).first).location.z);
-      // node *child_node =
-      //     new node(((*i).second).location.x, ((*i).second).location.y,
-      //              ((*i).second).location.z);
-      // child_node->addParent(parent_node);
-      // parent_node->addChild(child_node);
-      // Local_Planning_Graph.push_back(child_node);
-    // }
 
   }
 
     for (auto i = vec4.begin(); i != vec4.end(); i++)
     {
 
-      // if ((i->first).edges() < 8 and (i->second).edges() < 8) {
+      // if ((i->first).getEdges() < 8 and (i->second).getEdges() < 8) {
      if (!global_graph_container_.empty()) {
 
       if (std::find(global_graph_container_.begin(), global_graph_container_.end(),
@@ -912,18 +878,6 @@ void GraphManager::constructGlobalGraph () {
     (i->first).createEdge(i->second);
     (i->second).createEdge(i->first);
    
-      // TODO FOR VISUALIZATION OF GRAPH ! FIX ME
-
-      // node *parent_node =
-      //     new node(((*i).first).location.x, ((*i).first).location.y,
-      //              ((*i).first).location.z);
-      // node *child_node =
-      //     new node(((*i).second).location.x, ((*i).second).location.y,
-      //              ((*i).second).location.z);
-      // child_node->addParent(parent_node);
-      // parent_node->addChild(child_node);
-      // Local_Planning_Graph.push_back(child_node);
-    // }
 
   }
 
@@ -931,6 +885,10 @@ void GraphManager::constructGlobalGraph () {
 
 std::vector<GraphManager::Graph::vertex> GraphManager::constructGraph(int iterations, float planning_space)
 {
+
+
+  high_resolution_clock::time_point start_total = high_resolution_clock::now();
+
   std::vector<GraphManager::node *> nodes;
   
   if (!run_global_planner) 
@@ -963,7 +921,7 @@ std::vector<GraphManager::Graph::vertex> GraphManager::constructGraph(int iterat
       
       double distance = calculateDistance(v1, v2);
 
-      if (distance < m_max_edge_length)
+      if (distance < m_max_edge_length and distance > 2)
       {
 
         local_nodes_pairs.push_back(std::make_pair(i, i2));
@@ -1062,105 +1020,68 @@ std::vector<GraphManager::Graph::vertex> GraphManager::constructGraph(int iterat
       }
     }
   }
-  
-    std::vector<Graph::vertex> graph_container;
 
+
+  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+  auto duration_total =
+      duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+  ROS_INFO_STREAM ( "\033[;34m Graph building takes... \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n ");
+
+    std::vector<Graph::vertex> graph_container;
 
     for (auto i = vec1.begin(); i != vec1.end(); i++)
     {
 
-      // if ((i->first).edges() < 8 and (i->second).edges() < 8) {
+      if ((i->first).getEdges() < 8 and (i->second).getEdges() < 8) {
       graph_container.push_back((i)->first);
       graph_container.push_back((i)->second);
       ((i)->first).createEdge((i)->second);
       ((i)->second).createEdge((i)->first);
     
-      // TODO FOR VISUALIZATION OF GRAPH ! FIX ME
 
-      // node *parent_node =
-      //     new node(((*i).first).location.x, ((*i).first).location.y,
-      //              ((*i).first).location.z);
-      // node *child_node =
-      //     new node(((*i).second).location.x, ((*i).second).location.y,
-      //              ((*i).second).location.z);
-      // child_node->addParent(parent_node);
-      // parent_node->addChild(child_node);
-      // Local_Planning_Graph.push_back(child_node);
-    // }
+    }
 
   }
 
      for (auto i = vec2.begin(); i != vec2.end(); i++)
     {
 
-      // if ((i->first).edges() < 8 and (i->second).edges() < 8) {
+      if ((i->first).getEdges() < 8 and (i->second).getEdges() < 8) {
       graph_container.push_back((i)->first);
       graph_container.push_back((i)->second);
       ((i)->first).createEdge((i)->second);
       ((i)->second).createEdge((i)->first);
     
-      // TODO FOR VISUALIZATION OF GRAPH ! FIX ME
-
-      // node *parent_node =
-      //     new node(((*i).first).location.x, ((*i).first).location.y,
-      //              ((*i).first).location.z);
-      // node *child_node =
-      //     new node(((*i).second).location.x, ((*i).second).location.y,
-      //              ((*i).second).location.z);
-      // child_node->addParent(parent_node);
-      // parent_node->addChild(child_node);
-      // Local_Planning_Graph.push_back(child_node);
-    // }
+    }
 
   } 
 
     for (auto i = vec3.begin(); i != vec3.end(); i++)
     {
 
-      // if ((i->first).edges() < 8 and (i->second).edges() < 8) {
+      if ((i->first).getEdges() < 8 and (i->second).getEdges() < 8) {
       graph_container.push_back((i)->first);
       graph_container.push_back((i)->second);
       ((i)->first).createEdge((i)->second);
       ((i)->second).createEdge((i)->first);
     
-      // TODO FOR VISUALIZATION OF GRAPH ! FIX ME
-
-      // node *parent_node =
-      //     new node(((*i).first).location.x, ((*i).first).location.y,
-      //              ((*i).first).location.z);
-      // node *child_node =
-      //     new node(((*i).second).location.x, ((*i).second).location.y,
-      //              ((*i).second).location.z);
-      // child_node->addParent(parent_node);
-      // parent_node->addChild(child_node);
-      // Local_Planning_Graph.push_back(child_node);
-    // }
+    }
 
   }
 
     for (auto i = vec4.begin(); i != vec4.end(); i++)
     {
 
-      // if ((i->first).edges() < 8 and (i->second).edges() < 8) {
+      if ((i->first).getEdges() < 8 and (i->second).getEdges() < 8) {
       graph_container.push_back((i)->first);
       graph_container.push_back((i)->second);
       ((i)->first).createEdge((i)->second);
       ((i)->second).createEdge((i)->first);
     
-      // TODO FOR VISUALIZATION OF GRAPH ! FIX ME
-
-      // node *parent_node =
-      //     new node(((*i).first).location.x, ((*i).first).location.y,
-      //              ((*i).first).location.z);
-      // node *child_node =
-      //     new node(((*i).second).location.x, ((*i).second).location.y,
-      //              ((*i).second).location.z);
-      // child_node->addParent(parent_node);
-      // parent_node->addChild(child_node);
-      // Local_Planning_Graph.push_back(child_node);
-    // }
+    }
 
   }
+
 
   return graph_container;
 
@@ -1175,7 +1096,7 @@ std::vector<GraphManager::Graph::Point> GraphManager::planPath()
   double reward;
   fetchExplorationTargets();
   
-  ROS_INFO_STREAM ("Exploration target X " << m_local_exploration_target.x() );
+  // ROS_INFO_STREAM ("Exploration target X " << m_local_exploration_target.x() );
 
   if (local_exploration)
   {
@@ -1208,7 +1129,7 @@ std::vector<GraphManager::Graph::Point> GraphManager::planPath()
   
   std::vector<GraphManager::Graph::vertex> local_graph = constructGraph(iterations, planning_space);
   
-  ROS_INFO_STREAM ("local graph has " << local_graph.size() << " nodes");
+  // ROS_INFO_STREAM ("local graph has " << local_graph.size() << " nodes");
   
   if (run_global_planner or global_exploration) {
     planning_graph = global_graph_container_;
@@ -1259,18 +1180,25 @@ std::vector<GraphManager::Graph::Point> GraphManager::planPath()
         end_z = ((*v).location.z);
       }
   }
-
-  // cout << "source vec " << source_vec.x() << " " << source_vec.y() << " " << source_vec.z() << endl;
+  
+  ROS_INFO_STREAM ("start " << start_x << " " << start_y << " " << start_z );
+  ROS_INFO_STREAM ("end   " << end_x << " " << end_y << " " << end_z );
 
   Graph::Point start_pos {start_x, start_y, start_z};
   Graph::Point end_pos {end_x, end_y, end_z};
 
   Graph graph;
   
-  std::vector<Graph::Point> Astar_path = graph.fetchPath(start_pos, end_pos, planning_graph);
+  Astar_path = graph.fetchPath(start_pos, end_pos, planning_graph);
+
+  if (Astar_path.size() < 2) {
+
+  planPath();
+
+  }
 
   ROS_INFO_STREAM ("A-star path size : " << Astar_path.size());
-
+  
   return Astar_path;
 }
 
@@ -1320,15 +1248,17 @@ nav_msgs::Path GraphManager::fetchExplorationPath()
     }
   }
 
-  Graph::Point start{improvement_graph.front().location.x, improvement_graph.front().location.y,
+  Graph::Point start_pos{improvement_graph.front().location.x, improvement_graph.front().location.y,
                      improvement_graph.front().location.z};
 
-  Graph::Point finish{improvement_graph.back().location.x, improvement_graph.back().location.y,
+  Graph::Point end_pos{improvement_graph.back().location.x, improvement_graph.back().location.y,
                       improvement_graph.back().location.z};
 
   Graph improved_graph;
 
-  std::vector<Graph::Point> improved_path = improved_graph.fetchPath(start, finish, improvement_graph);
+  std::vector<Graph::Point> improved_path = improved_graph.fetchPath(start_pos, end_pos, improvement_graph);
+
+  ROS_INFO_STREAM ("Improved Path length is " << improved_path.size());
 
   nav_msgs::Path planned_path;
   geometry_msgs::PoseStamped p;
@@ -1360,6 +1290,14 @@ nav_msgs::Path GraphManager::fetchExplorationPath()
     planned_path.poses.push_back(p);
  
   }
+
+  if (planned_path.poses.size() < 2) {
+
+    fetchExplorationPath();
+
+  }
+
+  ROS_INFO_STREAM ("Planned path length : " << planned_path.poses.size());
   
   // Final exploration path to be sent to stage interface for segmentation and execution.
 

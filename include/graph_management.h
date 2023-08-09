@@ -217,6 +217,9 @@ private:
   int vertex_id_ = 0;
   std::vector<float> vert_vec;
   std::unordered_map<int, GraphManager::Graph::vertex> graph_;
+  
+   std::vector<Graph::Point> Astar_path; 
+
 
   ros::NodeHandle m_nh;
   std::string m_worldFrameId; // the map frame
