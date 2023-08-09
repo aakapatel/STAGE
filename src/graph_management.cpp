@@ -594,7 +594,8 @@ bool GraphManager::isLastTargetFrontier () {
 
   stage_planner::isFrontier frontier_query_srv;
   geometry_msgs::Point last_target_frontier;
-  
+  bool is_last_target_frontier;
+
   last_target_frontier.x = exploration_target.x();
   last_target_frontier.y = exploration_target.y();
   last_target_frontier.z = exploration_target.z();
@@ -604,11 +605,12 @@ bool GraphManager::isLastTargetFrontier () {
   if (m_target_query_client.call(frontier_query_srv)) {
 
     if (frontier_query_srv.response.is_frontier) {
-      return true;
+      is_last_target_frontier = true;
     } else {
-      return false;
+      is_last_target_frontier = false;
     }
   }
+  return is_last_target_frontier;
 }
 
 // Maintain a global graph by re-using the nodes created at every planning iteration for local exploration. The global graph only connects nodes from the most recent planning iteration and the one before that. The globalGraph function is called at every planning iteration to maintain sparse graph used for global re-positioning as well as for homing purpose. 
@@ -635,27 +637,40 @@ void GraphManager::constructGlobalGraph () {
     nodes.push_back(i);
   }
 
-  std::vector<std::pair<ufo::math::Vector3, ufo::math::Vector3>> global_nodes_pairs;
+  std::vector<Graph::vertex> global_nodes;
 
-  for (auto i = nodes.begin(); i != std::prev(nodes.end(), 1); i++)
+  std::vector<std::pair<std::vector<Graph::vertex>::iterator,
+                        std::vector<Graph::vertex>::iterator>> global_nodes_pairs;
+
+  for (auto i = nodes.begin(); i != nodes.end(); i++) {
+
+    global_nodes.push_back( Graph::Point{(*i)->point->x(), (*i)->point->y(), (*i)->point->z()} );
+
+  }
+
+  for (auto i = global_nodes.begin(); i != std::prev(global_nodes.end(), 1); i++)
   {
 
-    for (auto i2 = i; i2 != nodes.end(); i2++)
+    ufo::math::Vector3 v1((*i).location.x, (*i).location.y, (*i).location.z);
+    
+    for (auto i2 = i; i2 != global_nodes.end(); i2++)
     {
 
-      ufo::math::Vector3 v1((*i)->point->x(), (*i)->point->y(), (*i)->point->z());
-      ufo::math::Vector3 v2((*i2)->point->x(), (*i2)->point->y(), (*i2)->point->z());
-
+      ufo::math::Vector3 v2((*i2).location.x, (*i2).location.y, (*i2).location.z);
+      
       double distance = calculateDistance(v1, v2);
 
       if (distance < m_max_edge_length)
       {
-        global_nodes_pairs.push_back(std::make_pair(v1, v2));
+
+        global_nodes_pairs.push_back(std::make_pair(i, i2));
       }
     }
   }
 
-   std::vector<std::pair<ufo::math::Vector3, ufo::math::Vector3>> vec1, vec2, vec3, vec4, my_vec;
+  ROS_INFO_STREAM ("Global nodes pairs : " << global_nodes_pairs.size());
+
+  std::vector<std::pair<Graph::vertex, Graph::vertex>> vec1, vec2, vec3, vec4;
 
 #pragma omp parallel
   {
@@ -663,14 +678,22 @@ void GraphManager::constructGlobalGraph () {
     {
 #pragma omp task
       {
+
         for (auto i = global_nodes_pairs.begin(); i != std::next(global_nodes_pairs.begin(), global_nodes_pairs.size() / 4); i++)
         {
+          ufo::math::Vector3 n1(((*i).first)->location.x,
+                                  ((*i).first)->location.y,
+                                  ((*i).first)->location.z);
+          ufo::math::Vector3 n2(((*i).second)->location.x,
+                                  ((*i).second)->location.y,
+                                  ((*i).second)->location.z);
 
-          ufo::geometry::OBB obb = makeOBB(i->first, i->second, m_obb_radius);
+
+          ufo::geometry::OBB obb = makeOBB(n1, n2, m_obb_radius);
 
           if (!isInCollision(m_ufoMAP, obb, true, false, true, m_planning_depth))
           {
-            vec1.push_back(std::make_pair(i->first, i->second));
+            vec1.push_back(std::make_pair(*i->first, *i->second));
           }
         }
       }
@@ -678,12 +701,19 @@ void GraphManager::constructGlobalGraph () {
       {
         for (auto i = std::next(global_nodes_pairs.begin(), global_nodes_pairs.size() / 4); i != std::next(global_nodes_pairs.begin(), global_nodes_pairs.size() / 2); i++)
         {
+          ufo::math::Vector3 n1(((*i).first)->location.x,
+                                  ((*i).first)->location.y,
+                                  ((*i).first)->location.z);
+          ufo::math::Vector3 n2(((*i).second)->location.x,
+                                  ((*i).second)->location.y,
+                                  ((*i).second)->location.z);
 
-          ufo::geometry::OBB obb = makeOBB(i->first, i->second, m_obb_radius);
+
+          ufo::geometry::OBB obb = makeOBB(n1, n2, m_obb_radius);
 
           if (!isInCollision(m_ufoMAP, obb, true, false, true, m_planning_depth))
           {
-            vec2.push_back(std::make_pair(i->first, i->second));
+            vec2.push_back(std::make_pair(*i->first, *i->second));
           }
         }
       }
@@ -691,12 +721,19 @@ void GraphManager::constructGlobalGraph () {
       {
         for (auto i = std::next(global_nodes_pairs.begin(), global_nodes_pairs.size() / 2); i != std::prev(global_nodes_pairs.end(), global_nodes_pairs.size() / 4); i++)
         {
+          ufo::math::Vector3 n1(((*i).first)->location.x,
+                                  ((*i).first)->location.y,
+                                  ((*i).first)->location.z);
+          ufo::math::Vector3 n2(((*i).second)->location.x,
+                                  ((*i).second)->location.y,
+                                  ((*i).second)->location.z);
 
-          ufo::geometry::OBB obb = makeOBB(i->first, i->second, m_obb_radius);
+
+          ufo::geometry::OBB obb = makeOBB(n1, n2, m_obb_radius);
 
           if (!isInCollision(m_ufoMAP, obb, true, false, true, m_planning_depth))
           {
-            vec3.push_back(std::make_pair(i->first, i->second));
+            vec3.push_back(std::make_pair(*i->first, *i->second));
           }
         }
       }
@@ -704,62 +741,191 @@ void GraphManager::constructGlobalGraph () {
       {
         for (auto i = std::prev(global_nodes_pairs.end(), global_nodes_pairs.size() / 4); i != global_nodes_pairs.end(); i++)
         {
+          ufo::math::Vector3 n1(((*i).first)->location.x,
+                                  ((*i).first)->location.y,
+                                  ((*i).first)->location.z);
+          ufo::math::Vector3 n2(((*i).second)->location.x,
+                                  ((*i).second)->location.y,
+                                  ((*i).second)->location.z);
 
-          ufo::geometry::OBB obb = makeOBB(i->first, i->second, m_obb_radius);
+
+          ufo::geometry::OBB obb = makeOBB(n1, n2, m_obb_radius);
 
           if (!isInCollision(m_ufoMAP, obb, true, false, true, m_planning_depth))
           {
-            vec4.push_back(std::make_pair(i->first, i->second));
+            vec4.push_back(std::make_pair(*i->first, *i->second));
           }
         }
       }
     }
   }
-
-  my_vec.insert(my_vec.begin(), vec1.begin(), vec1.end());
-  my_vec.insert(my_vec.begin(), vec2.begin(), vec2.end());
-  my_vec.insert(my_vec.begin(), vec3.begin(), vec3.end());
-  my_vec.insert(my_vec.begin(), vec4.begin(), vec4.end());
-
-  std::vector<std::pair<Graph::vertex, Graph::vertex>> vertices;
-
-  for (auto p : my_vec)
-  {
-    vertices.push_back(std::make_pair(Graph::Point{p.first.x(), p.first.y(), p.first.z()},
-                                      Graph::Point{p.second.x(), p.second.y(), p.second.z()}));
-  }
+  
+    // std::vector<Graph::vertex> global_graph_container_;
 
 
+    for (auto i = vec1.begin(); i != vec1.end(); i++)
+    {
 
-  for (auto i : vertices)
-  {
-    
-    if (!global_graph_container_.empty()) {
+      // if ((i->first).edges() < 8 and (i->second).edges() < 8) {
+      if (!global_graph_container_.empty()) {
 
       if (std::find(global_graph_container_.begin(), global_graph_container_.end(),
-                  i.first) != global_graph_container_.end() 
+                  i->first) != global_graph_container_.end() 
           && std::find(global_graph_container_.begin(), global_graph_container_.end(),
-                  i.second) != global_graph_container_.end()) {
+                  i->second) != global_graph_container_.end()) {
 
-        global_graph_container_.push_back(i.first);
-        global_graph_container_.push_back(i.second);
+        global_graph_container_.push_back(i->first);
+        global_graph_container_.push_back(i->second);
 
       }
   
     } else {
 
-      global_graph_container_.push_back(i.first);
-      global_graph_container_.push_back(i.second);
+      global_graph_container_.push_back(i->first);
+      global_graph_container_.push_back(i->second);
 
     }
 
-    (i.first).createEdge(i.second);
-    (i.second).createEdge(i.first);
-    
-    // vertex_id_ = vertex_id_ + 2;
+    (i->first).createEdge(i->second);
+    (i->second).createEdge(i->first);
+ 
+      // TODO FOR VISUALIZATION OF GRAPH ! FIX ME
+
+      // node *parent_node =
+      //     new node(((*i).first).location.x, ((*i).first).location.y,
+      //              ((*i).first).location.z);
+      // node *child_node =
+      //     new node(((*i).second).location.x, ((*i).second).location.y,
+      //              ((*i).second).location.z);
+      // child_node->addParent(parent_node);
+      // parent_node->addChild(child_node);
+      // Local_Planning_Graph.push_back(child_node);
+    // }
+
+  }
+
+     for (auto i = vec2.begin(); i != vec2.end(); i++)
+    {
+
+      // if ((i->first).edges() < 8 and (i->second).edges() < 8) {
+      if (!global_graph_container_.empty()) {
+
+      if (std::find(global_graph_container_.begin(), global_graph_container_.end(),
+                  i->first) != global_graph_container_.end() 
+          && std::find(global_graph_container_.begin(), global_graph_container_.end(),
+                  i->second) != global_graph_container_.end()) {
+
+        global_graph_container_.push_back(i->first);
+        global_graph_container_.push_back(i->second);
+
+      }
+  
+    } else {
+
+      global_graph_container_.push_back(i->first);
+      global_graph_container_.push_back(i->second);
 
     }
 
+    (i->first).createEdge(i->second);
+    (i->second).createEdge(i->first);
+ 
+      // TODO FOR VISUALIZATION OF GRAPH ! FIX ME
+
+      // node *parent_node =
+      //     new node(((*i).first).location.x, ((*i).first).location.y,
+      //              ((*i).first).location.z);
+      // node *child_node =
+      //     new node(((*i).second).location.x, ((*i).second).location.y,
+      //              ((*i).second).location.z);
+      // child_node->addParent(parent_node);
+      // parent_node->addChild(child_node);
+      // Local_Planning_Graph.push_back(child_node);
+    // }
+
+  } 
+
+    for (auto i = vec3.begin(); i != vec3.end(); i++)
+    {
+
+      // if ((i->first).edges() < 8 and (i->second).edges() < 8) {
+      if (!global_graph_container_.empty()) {
+
+      if (std::find(global_graph_container_.begin(), global_graph_container_.end(),
+                  i->first) != global_graph_container_.end() 
+          && std::find(global_graph_container_.begin(), global_graph_container_.end(),
+                  i->second) != global_graph_container_.end()) {
+
+        global_graph_container_.push_back(i->first);
+        global_graph_container_.push_back(i->second);
+
+      }
+  
+    } else {
+
+      global_graph_container_.push_back(i->first);
+      global_graph_container_.push_back(i->second);
+
+    }
+
+    (i->first).createEdge(i->second);
+    (i->second).createEdge(i->first);
+  
+      // TODO FOR VISUALIZATION OF GRAPH ! FIX ME
+
+      // node *parent_node =
+      //     new node(((*i).first).location.x, ((*i).first).location.y,
+      //              ((*i).first).location.z);
+      // node *child_node =
+      //     new node(((*i).second).location.x, ((*i).second).location.y,
+      //              ((*i).second).location.z);
+      // child_node->addParent(parent_node);
+      // parent_node->addChild(child_node);
+      // Local_Planning_Graph.push_back(child_node);
+    // }
+
+  }
+
+    for (auto i = vec4.begin(); i != vec4.end(); i++)
+    {
+
+      // if ((i->first).edges() < 8 and (i->second).edges() < 8) {
+     if (!global_graph_container_.empty()) {
+
+      if (std::find(global_graph_container_.begin(), global_graph_container_.end(),
+                  i->first) != global_graph_container_.end() 
+          && std::find(global_graph_container_.begin(), global_graph_container_.end(),
+                  i->second) != global_graph_container_.end()) {
+
+        global_graph_container_.push_back(i->first);
+        global_graph_container_.push_back(i->second);
+
+      }
+  
+    } else {
+
+      global_graph_container_.push_back(i->first);
+      global_graph_container_.push_back(i->second);
+
+    }
+
+    (i->first).createEdge(i->second);
+    (i->second).createEdge(i->first);
+   
+      // TODO FOR VISUALIZATION OF GRAPH ! FIX ME
+
+      // node *parent_node =
+      //     new node(((*i).first).location.x, ((*i).first).location.y,
+      //              ((*i).first).location.z);
+      // node *child_node =
+      //     new node(((*i).second).location.x, ((*i).second).location.y,
+      //              ((*i).second).location.z);
+      // child_node->addParent(parent_node);
+      // parent_node->addChild(child_node);
+      // Local_Planning_Graph.push_back(child_node);
+    // }
+
+  }
 
 } // constructGlobalGraph 
 
@@ -772,7 +938,7 @@ std::vector<GraphManager::Graph::vertex> GraphManager::constructGraph(int iterat
     nodes = sampleNodes(m_currentPosition, iterations, planning_space, m_ufoMAP);
   }
   
-  ROS_INFO_STREAM ("nodes : " << nodes.size());
+  // ROS_INFO_STREAM ("nodes : " << nodes.size());
   
   std::vector<Graph::vertex> local_nodes;
 
@@ -784,8 +950,6 @@ std::vector<GraphManager::Graph::vertex> GraphManager::constructGraph(int iterat
     local_nodes.push_back( Graph::Point{(*i)->point->x(), (*i)->point->y(), (*i)->point->z()} );
 
   }
-
-  // TODO FIX ME ASAP ! Use same data structure for nodes and edges using reference to original ufo vec. 
 
   for (auto i = local_nodes.begin(); i != std::prev(local_nodes.end(), 1); i++)
   {
@@ -997,13 +1161,6 @@ std::vector<GraphManager::Graph::vertex> GraphManager::constructGraph(int iterat
     // }
 
   }
-
-  // for (auto i = graph_container.begin(); i != graph_container.end(); i++) {
-  //
-  //   cout << "edges of first : " << (*i).getEdges() << endl;
-  // 
-  //   cout << "edges of second : " << (*i).getEdges() << endl;
-  // }
 
   return graph_container;
 
