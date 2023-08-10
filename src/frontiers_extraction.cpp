@@ -6,8 +6,9 @@ using namespace std;
 using namespace std::chrono;
 using namespace std::this_thread;
 
-FrontierExtraction::FrontierExtraction(ros::NodeHandle private_nh_)
-    : m_nh(),
+FrontierExtraction::FrontierExtraction(const ros::NodeHandle& nh, const ros::NodeHandle& nh_private)
+    : nh_(nh), 
+      nh_private_(nh_private),
       m_maxRange(10.0),
       m_filterGroundPlane(false),
       m_colorFactor(0.8),
@@ -40,34 +41,33 @@ FrontierExtraction::FrontierExtraction(ros::NodeHandle private_nh_)
       VOLUMETRIC_GAIN_THREASHOLD(10)
 {
     double probHit, probMiss, thresMin, thresMax;
-    ros::NodeHandle private_nh = private_nh_;
     // Set variables
-    private_nh.param("frame_id", m_worldFrameId, m_worldFrameId);
-    private_nh.param("resolution", m_res, m_res);
-    private_nh.param("sensor_model/hit", probHit, 0.7);
-    private_nh.param("sensor_model/miss", probMiss, 0.4);
-    private_nh.param("sensor_model/min", thresMin, 0.12);
-    private_nh.param("sensor_model/max", thresMax, 0.97);
-    private_nh.param("sensor_model/max_range", m_maxRange, m_maxRange);
-    private_nh.param("occupancy_min_z", m_occupancyMinZ, m_occupancyMinZ);
-    private_nh.param("occupancy_max_z", m_occupancyMaxZ, m_occupancyMaxZ);
-    private_nh.param("color_factor", m_colorFactor, m_colorFactor);
-    private_nh.param("cloud_in", cloud_in, cloud_in);
-    private_nh.param("distance", m_distance_deletion, m_distance_deletion);
-    private_nh.param("odometry", m_odometry, m_odometry);
-    private_nh.param("number_of_unknowns", numberOfUnknowns, numberOfUnknowns);
-    private_nh.param("local_sliding_space", LOCAL_SPACE, LOCAL_SPACE);
-    private_nh.param("local_field_of_view", LOCAL_FOV, LOCAL_SPACE);
-    private_nh.param("ufomap", m_ufomap, m_ufomap);
-    private_nh.param("safety_height", m_max_allowed_Z, m_max_allowed_Z);
-    private_nh.param("traversability_radius", OBB_RADIUS, OBB_RADIUS);
-    private_nh.param("planning_check_depth", PLANNING_CHECK_DEPTH, PLANNING_CHECK_DEPTH);
-    private_nh.param("volumetric_gain_threashold", VOLUMETRIC_GAIN_THREASHOLD, VOLUMETRIC_GAIN_THREASHOLD);
+    nh_private_.param("frame_id", m_worldFrameId, m_worldFrameId);
+    nh_private_.param("resolution", m_res, m_res);
+    nh_private_.param("sensor_model/hit", probHit, 0.7);
+    nh_private_.param("sensor_model/miss", probMiss, 0.4);
+    nh_private_.param("sensor_model/min", thresMin, 0.12);
+    nh_private_.param("sensor_model/max", thresMax, 0.97);
+    nh_private_.param("sensor_model/max_range", m_maxRange, m_maxRange);
+    nh_private_.param("occupancy_min_z", m_occupancyMinZ, m_occupancyMinZ);
+    nh_private_.param("occupancy_max_z", m_occupancyMaxZ, m_occupancyMaxZ);
+    nh_private_.param("color_factor", m_colorFactor, m_colorFactor);
+    nh_private_.param("cloud_in", cloud_in, cloud_in);
+    nh_private_.param("distance", m_distance_deletion, m_distance_deletion);
+    nh_private_.param("odometry", m_odometry, m_odometry);
+    nh_private_.param("number_of_unknowns", numberOfUnknowns, numberOfUnknowns);
+    nh_private_.param("local_sliding_space", LOCAL_SPACE, LOCAL_SPACE);
+    nh_private_.param("local_field_of_view", LOCAL_FOV, LOCAL_SPACE);
+    nh_private_.param("ufomap", m_ufomap, m_ufomap);
+    nh_private_.param("safety_height", m_max_allowed_Z, m_max_allowed_Z);
+    nh_private_.param("traversability_radius", OBB_RADIUS, OBB_RADIUS);
+    nh_private_.param("planning_check_depth", PLANNING_CHECK_DEPTH, PLANNING_CHECK_DEPTH);
+    nh_private_.param("volumetric_gain_threashold", VOLUMETRIC_GAIN_THREASHOLD, VOLUMETRIC_GAIN_THREASHOLD);
 
     // Filtering parameters.
-    private_nh.param("xFiltering", xFiltering, xFiltering);
-    private_nh.param("yFiltering", yFiltering, yFiltering);
-    private_nh.param("zFiltering", zFiltering, zFiltering);
+    nh_private_.param("xFiltering", xFiltering, xFiltering);
+    nh_private_.param("yFiltering", yFiltering, yFiltering);
+    nh_private_.param("zFiltering", zFiltering, zFiltering);
 
     // Setting up octree
     m_octree = new OcTreeT(m_res);
@@ -81,43 +81,51 @@ FrontierExtraction::FrontierExtraction(ros::NodeHandle private_nh_)
 
     // Visualization parameters. TODO Port alla visuzlization to a dediacted file.
     double r, g, b, a;
-    private_nh.param("color/r", r, 0.0);
-    private_nh.param("color/g", g, 0.0);
-    private_nh.param("color/b", b, 1.0);
-    private_nh.param("color/a", a, 1.0);
+    nh_private_.param("color/r", r, 0.0);
+    nh_private_.param("color/g", g, 0.0);
+    nh_private_.param("color/b", b, 1.0);
+    nh_private_.param("color/a", a, 1.0);
     m_color.r = r;
     m_color.g = g;
     m_color.b = b;
     m_color.a = a;
-    private_nh.param("color_free/r", r, 0.0);
-    private_nh.param("color_free/g", g, 1.0);
-    private_nh.param("color_free/b", b, 0.0);
-    private_nh.param("color_free/a", a, 1.0);
+    nh_private_.param("color_free/r", r, 0.0);
+    nh_private_.param("color_free/g", g, 1.0);
+    nh_private_.param("color_free/b", b, 0.0);
+    nh_private_.param("color_free/a", a, 1.0);
     m_colorFree.r = r;
     m_colorFree.g = g;
     m_colorFree.b = b;
     m_colorFree.a = a;
 
-    // Register to the subscriber topic and register it to the callback function
-    m_pointCloudSubscriber = new message_filters::Subscriber<sensor_msgs::PointCloud2>(m_nh, cloud_in, 5);
+    // Subscribers
+    
+    // m_pointCloudSubscriber = nh_.subscribe(cloud_in, 5, &FrontierExtraction::insertPointCloudCallback, this);
+
+    // m_tfPointCloudSubscriber = nh_.subscribe(m_tfListener, 5, &FrontierExtraction::insertPointCloudScan, this);
+
+    m_pointCloudSubscriber = new message_filters::Subscriber<sensor_msgs::PointCloud2>(nh_, cloud_in, 5);
+   
     m_tfPointCloudSubscriber = new tf::MessageFilter<sensor_msgs::PointCloud2>(*m_pointCloudSubscriber, m_tfListener, m_worldFrameId, 5);
     m_tfPointCloudSubscriber->registerCallback(boost::bind(&FrontierExtraction::insertPointCloudCallback, this, _1));
 
-    m_poseSubscriber = new message_filters::Subscriber<nav_msgs::Odometry>(m_nh, m_odometry, 5);
-    m_poseSubscriber->registerCallback(boost::bind(&FrontierExtraction::updateCurrentPosition, this, _1));
-
-    m_ufoMapSubscriber = new message_filters::Subscriber<ufomap_msgs::UFOMapStamped>(m_nh, m_ufomap, 1);
-    m_ufoMapSubscriber->registerCallback(boost::bind(&FrontierExtraction::mapCallback, this, _1));
-
-    // Register publishers
-    m_frontierPub = m_nh.advertise<visualization_msgs::MarkerArray>("/frontier_nodes_vis", 1, true);
-    // m_frontierSelectionPub = m_nh.advertise<Frontiers>("frontiers_nodes", 1, true);
-
-    /* Setup ros services */
-    m_frontier_srv = m_nh.advertiseService("request_frontier_target", &FrontierExtraction::exportFrontierTargets, this);
 
 
-    m_target_query_srv = m_nh.advertiseService("query_frontier_target", &FrontierExtraction::queryFrontierTarget, this);
+    m_poseSubscriber = nh_.subscribe(m_odometry, 10, &FrontierExtraction::updateCurrentPosition, this);
+
+    m_ufoMapSubscriber = nh_.subscribe(m_ufomap, 5, &FrontierExtraction::mapCallback, this);
+
+    // Publishers  
+
+    m_frontierPub = nh_.advertise<visualization_msgs::MarkerArray>("/frontier_nodes_vis", 10);
+
+
+    // Services
+
+     m_frontier_srv = nh_.advertiseService("request_frontier_target", &FrontierExtraction::exportFrontierTargets, this);
+
+
+    m_target_query_srv = nh_.advertiseService("query_frontier_target", &FrontierExtraction::queryFrontierTarget, this);
 
 };
 
@@ -335,6 +343,8 @@ void FrontierExtraction::extractFrontiers(const tf::Point &sensorOriginTf, const
 std::vector<ufo::math::Vector3> FrontierExtraction::fetchFrontiers()
 {
 
+  // ROS_INFO_STREAM ("raw frontiers : " << frontierPointList.size() << "\n");
+
     std::vector<ufo::math::Vector3> unfiltered_frontiers;
 
     for (auto i = frontierPointList.begin(); i != frontierPointList.end(); i++)
@@ -354,6 +364,8 @@ std::vector<ufo::math::Vector3> FrontierExtraction::fetchFrontiers()
             unfiltered_frontiers.push_back(frontier_pt);
         }
     }
+
+    // ROS_INFO_STREAM ("Unfiltered frontiers size : " << unfiltered_frontiers.size() << "\n");
 
     return unfiltered_frontiers;
 }

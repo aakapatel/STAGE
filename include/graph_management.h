@@ -8,7 +8,7 @@ class GraphManager
 {
 
 public:
-  GraphManager(ros::NodeHandle private_nh_ = ros::NodeHandle("~"));
+  GraphManager(const ros::NodeHandle& nh, const ros::NodeHandle& nh_private);
 
   class node
   {
@@ -183,6 +183,12 @@ public:
   Eigen::Quaternion<float> Euler2Quaternion(ufo::math::Vector3 v);
 
 private:
+
+
+  ros::NodeHandle nh_;
+  ros::NodeHandle nh_private_;
+
+
   // variables
   bool firstTime = true;
   ufo::math::Vector3 m_currentPosition;
@@ -223,28 +229,32 @@ private:
   std::vector<Graph::Point> Astar_homing_path;
   std::vector<Graph::Point> improved_homing_path;
   
-  ros::NodeHandle m_nh;
+  // ros::NodeHandle m_nh;
   std::string m_worldFrameId; // the map frame
   std::string m_odometry;
   std::string m_baseFrameId; // base of the robot for ground plane filtering
   nav_msgs::Odometry m_currentPose;
   nav_msgs::Odometry m_prevPose; // Holds the point where the direction changed.
-  ros::ServiceClient m_frontier_client;
-  ros::ServiceClient m_target_query_client;
-  ros::ServiceServer m_exploration_path_srv;
-  
-    
   std::vector<ufo::math::Vector3> visited_exploration_targets;
   
     
   // Subscriber
-  message_filters::Subscriber<nav_msgs::Odometry> *m_poseSubscriber;
-  message_filters::Subscriber<ufomap_msgs::UFOMapStamped> *m_ufoMapSubscriber;
+  ros::Subscriber m_poseSubscriber;
+  ros::Subscriber m_ufoMapSubscriber;
 
+  // message_filters::Subscriber<nav_msgs::Odometry> *m_poseSubscriber;
+  // message_filters::Subscriber<ufomap_msgs::UFOMapStamped> *m_ufoMapSubscriber;
+ 
   // Publisher
   ros::Publisher m_frontierPub;
   ros::Publisher m_frontierSelectionPub;
   ros::Publisher command_pub;
-};
+
+  //Services 
+  ros::ServiceClient m_frontier_client;
+  ros::ServiceClient m_target_query_client;
+  ros::ServiceServer m_exploration_path_srv;
+
+  };
 
 #endif

@@ -74,7 +74,6 @@ add_service_files(
   homePlanning.srv
 )
 
-
 generate_messages(
   DEPENDENCIES
   geometry_msgs
@@ -89,6 +88,7 @@ catkin_package(
  message_runtime
  actionlib_msgs
 )
+
 include_directories(
     ${catkin_INCLUDE_DIRS}
     $(OCTOMAP_INCLUDE_DIRS)
@@ -97,8 +97,9 @@ include_directories(
 	  ${Boost_INCLUDE_DIRS}
 )
 
-
-
+add_library(${PROJECT_NAME}_lib
+  src/test.cpp
+)
 
 add_executable(frontiers_extraction_node src/frontiers_extraction_node.cpp)
 ## Specify libraries to link a library or executable target against
@@ -127,6 +128,18 @@ add_executable(stage_interface_node src/stage_interface_node.cpp)
 ## Specify libraries to link a library or executable target against
  target_link_libraries(
    stage_interface_node
+   ${catkin_LIBRARIES}
+   ${OCTOMAP_LIBRARIES}
+   ${PCL_LIBRARIES}
+  ${CMAKE_DL_LIBS}
+  UFO::Map
+)
+
+add_executable(test_node src/test_node.cpp src/test.cpp)
+## Specify libraries to link a library or executable target against
+ target_link_libraries(
+   test_node
+   stage_planner_lib
    ${catkin_LIBRARIES}
    ${OCTOMAP_LIBRARIES}
    ${PCL_LIBRARIES}

@@ -93,7 +93,9 @@ public:
     typedef octomap::OcTree OcTreeT;
     typedef octomap::KeySet KeySet;
 
-    FrontierExtraction(ros::NodeHandle private_nh_ = ros::NodeHandle("~"));
+    // FrontierExtraction(ros::NodeHandle private_nh_ = ros::NodeHandle("~"));
+
+    FrontierExtraction(const ros::NodeHandle& nh, const ros::NodeHandle& nh_private);
 
     virtual void updateCurrentPosition(const nav_msgs::Odometry::ConstPtr &pos);
 
@@ -146,6 +148,10 @@ public:
     geometry_msgs::Point ufoToPoint(ufo::math::Vector3 v);
 
 private:
+
+    ros::NodeHandle nh_;
+    ros::NodeHandle nh_private_;
+
     // variables
     ufo::math::Vector3 m_currentPosition;
     double m_currentHeading;
@@ -159,7 +165,7 @@ private:
     double VOLUMETRIC_GAIN_THREASHOLD;
     bool check = false;
 
-    ros::NodeHandle m_nh;
+    // ros::NodeHandle m_nh;
     ros::ServiceServer m_frontier_srv;
     ros::ServiceServer m_target_query_srv;
     tf::TransformListener m_tfListener;
@@ -213,8 +219,11 @@ private:
     // Subscriber
     message_filters::Subscriber<sensor_msgs::PointCloud2> *m_pointCloudSubscriber;
     tf::MessageFilter<sensor_msgs::PointCloud2> *m_tfPointCloudSubscriber;
-    message_filters::Subscriber<nav_msgs::Odometry> *m_poseSubscriber;
-    message_filters::Subscriber<ufomap_msgs::UFOMapStamped> *m_ufoMapSubscriber;
+    // message_filters::Subscriber<nav_msgs::Odometry> *m_poseSubscriber;
+    // message_filters::Subscriber<ufomap_msgs::UFOMapStamped> *m_ufoMapSubscriber;
+
+    ros::Subscriber m_poseSubscriber;
+    ros::Subscriber m_ufoMapSubscriber;
 
     // Publisher
     ros::Publisher m_frontierPub;

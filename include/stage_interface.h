@@ -6,12 +6,7 @@
 class StageInterface
 {
   public:
-    StageInterface(ros::NodeHandle private_nh_ = ros::NodeHandle("~"));
-    ros::NodeHandle m_nh;
-    message_filters::Subscriber<nav_msgs::Odometry> *m_poseSubscriber;
-    std::string m_odometry;
-    std::string m_reference_topic;
-
+    StageInterface(const ros::NodeHandle& nh, const ros::NodeHandle& nh_private);
     
     bool initializePlanner (stage_planner::initializePlanning::Request &req,
                                         stage_planner::initializePlanning::Response &res);
@@ -36,10 +31,24 @@ class StageInterface
 
 
   private:
+    
+    ros::NodeHandle nh_;
+    ros::NodeHandle nh_private_;
+    
+    // Subscribers 
+    ros::Subscriber new_poseSubscriber;
+    ros::Subscriber m_poseSubscriber;
+
+    // Services
     ros::ServiceClient m_exploration_path_client;
     ros::ServiceServer m_planner_initialization_srv;
     ros::ServiceServer m_planner_stop_srv;
     ros::ServiceServer m_planner_homing_srv;
+
+
+    std::string m_odometry;
+    std::string m_reference_topic;
+    ros::Timer m_runTimer;
 
     ros::Publisher m_trajectory_Publisher;
     ros::Publisher m_command_Path_Publisher;
@@ -58,7 +67,7 @@ class StageInterface
     double dt_ = 0.5;
     bool firstTime;
     bool initialization = false;
-    bool explore = false;
+    bool explore = true; // For debug only! normally should be false.
     bool stop_planning = false;
     bool return_home = false;
     bool start_planner_first_time = true;

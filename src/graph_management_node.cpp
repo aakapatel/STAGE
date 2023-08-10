@@ -7,20 +7,22 @@ using namespace std;
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "Graph_Management_Node");
-    const ros::NodeHandle &private_nh = ros::NodeHandle("~");
+    
+    ros::NodeHandle nh;
+    ros::NodeHandle nh_private("~");
+    
+    GraphManager graphManager(nh, nh_private);
 
-    GraphManager graphManager;
-
-    ros::spinOnce();
-    try
-    {
-        ros::spin();
-    }
-    catch (std::runtime_error &e)
-    {
-        ROS_ERROR("Graph Building Error: %s", e.what());
-        return -1;
-    }
+    ros::spin();
+    // try
+    // {
+    //     ros::spin();
+    // }
+    // catch (std::runtime_error &e)
+    // {
+    //     ROS_ERROR("Graph Building Error: %s", e.what());
+    //     return -1;
+    // }
 
     return 0;
 }

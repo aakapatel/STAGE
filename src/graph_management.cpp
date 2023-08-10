@@ -4,63 +4,69 @@ using namespace std;
 using namespace std::chrono;
 using namespace std::this_thread;
 
-GraphManager::GraphManager(ros::NodeHandle private_nh_)
-    : m_nh(), m_worldFrameId("world"), m_odometry("spot/ground_truth"),
-      m_currentHeading(0), m_local_space(10), m_local_fov(40),
-      m_ufomap("/ufomap_mapping_server_node/map"), m_max_allowed_Z(4),
-      m_obb_radius(0.5), m_planning_depth(0), m_volumetric_gain_threashold(10),
-      m_min_dist_bw_nodes(0.8), m_iterations_local(2000), m_iterations_global(6000),
+GraphManager::GraphManager(const ros::NodeHandle& nh, const ros::NodeHandle& nh_private)
+    : nh_(nh), 
+      nh_private_(nh_private), 
+      m_worldFrameId("world"), 
+      m_odometry("/hummingbird/ground_truth/odometry"),
+      m_currentHeading(0), 
+      m_local_space(12), 
+      m_local_fov(40),
+      m_ufomap("/ufomap_mapping_server_node/map"), 
+      m_max_allowed_Z(4),
+      m_obb_radius(0.5), 
+      m_planning_depth(1), 
+      m_volumetric_gain_threashold(1),
+      m_min_dist_bw_nodes(0.3), 
+      m_iterations_local(2000), 
+      m_iterations_global(6000),
       m_max_edge_length(4)
 
 {
 
-  ros::NodeHandle private_nh = private_nh_;
   // Set variables
-  private_nh.param("frame_id", m_worldFrameId, m_worldFrameId);
-  private_nh.param("odometry", m_odometry, m_odometry);
+  nh_private_.param("frame_id", m_worldFrameId, m_worldFrameId);
+  nh_private_.param("odometry", m_odometry, m_odometry);
 
-  private_nh.param("local_sliding_space", m_local_space, m_local_space);
-  private_nh.param("local_field_of_view", m_local_fov, m_local_space);
-  private_nh.param("ufomap", m_ufomap, m_ufomap);
-  private_nh.param("safety_height", m_max_allowed_Z, m_max_allowed_Z);
-  private_nh.param("traversability_radius", m_obb_radius, m_obb_radius);
-  private_nh.param("planning_check_depth", m_planning_depth,
+  nh_private_.param("local_sliding_space", m_local_space, m_local_space);
+  nh_private_.param("local_field_of_view", m_local_fov, m_local_space);
+  nh_private_.param("ufomap", m_ufomap, m_ufomap);
+  nh_private_.param("safety_height", m_max_allowed_Z, m_max_allowed_Z);
+  nh_private_.param("traversability_radius", m_obb_radius, m_obb_radius);
+  nh_private_.param("planning_check_depth", m_planning_depth,
                    m_planning_depth);
-  private_nh.param("volumetric_gain_threashold", m_volumetric_gain_threashold,
+  nh_private_.param("volumetric_gain_threashold", m_volumetric_gain_threashold,
                    m_volumetric_gain_threashold);
-  private_nh.param("graph_density_coefficient", m_min_dist_bw_nodes,
+  nh_private_.param("graph_density_coefficient", m_min_dist_bw_nodes,
                    m_min_dist_bw_nodes);
-  private_nh.param("maximum_edge_length", m_max_edge_length, m_max_edge_length);
-  private_nh.param("maximum_iterations_local", m_iterations_local, m_iterations_local);
-  private_nh.param("maximum_iterations_global", m_iterations_global, m_iterations_global);
+  nh_private_.param("maximum_edge_length", m_max_edge_length, m_max_edge_length);
+  nh_private_.param("maximum_iterations_local", m_iterations_local, m_iterations_local);
+  nh_private_.param("maximum_iterations_global", m_iterations_global, m_iterations_global);
 
-  // Register to the subscriber topic and register it to the callback function
+  // Subscribers
 
-  m_poseSubscriber =
-      new message_filters::Subscriber<nav_msgs::Odometry>(m_nh, m_odometry, 5);
-  m_poseSubscriber->registerCallback(
-      boost::bind(&GraphManager::updateCurrentPosition, this, _1));
+    m_poseSubscriber = nh_.subscribe(m_odometry, 1, &GraphManager::updateCurrentPosition, this);
 
-  m_ufoMapSubscriber =
-      new message_filters::Subscriber<ufomap_msgs::UFOMapStamped>(m_nh,
-                                                                  m_ufomap, 1);
-  m_ufoMapSubscriber->registerCallback(
-      boost::bind(&GraphManager::mapCallback, this, _1));
+    m_ufoMapSubscriber = nh_.subscribe(m_ufomap, 1, &GraphManager::mapCallback, this);
 
-  // Register publishers
-  m_frontierPub = m_nh.advertise<visualization_msgs::MarkerArray>(
-      "/frontier_nodes_vis", 1, true);
+    // m_poseSubscriber = new message_filters::Subscriber<nav_msgs::Odometry>(nh_, m_odometry, 5);
+    // m_poseSubscriber->registerCallback(boost::bind(&GraphManager::updateCurrentPosition, this, _1));
+    //
+    // m_ufoMapSubscriber = new message_filters::Subscriber<ufomap_msgs::UFOMapStamped>(nh_, m_ufomap, 1);
+    // m_ufoMapSubscriber->registerCallback(boost::bind(&GraphManager::mapCallback, this, _1));
 
-  /* Ros services */
-  m_frontier_client = m_nh.serviceClient<stage_planner::frontierRequest>(
-      "request_frontier_target");
+    // publishers  
+
+    m_frontierPub = nh_.advertise<visualization_msgs::MarkerArray>("/frontier_nodes_vis", 10);
+
+
+  // Services 
+  m_frontier_client = nh_.serviceClient<stage_planner::frontierRequest>("request_frontier_target");
   
-  m_target_query_client = m_nh.serviceClient<stage_planner::isFrontier>(
-      "query_frontier_target");
+  m_target_query_client = nh_.serviceClient<stage_planner::isFrontier>("query_frontier_target");
 
   
-  m_exploration_path_srv = m_nh.advertiseService("next_exploration_path", &GraphManager::nextExplorationPath, this);
-
+  m_exploration_path_srv = nh_.advertiseService("next_exploration_path", &GraphManager::nextExplorationPath, this);
 
 };
 

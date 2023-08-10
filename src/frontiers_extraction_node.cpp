@@ -1,15 +1,17 @@
 #include <ros/ros.h>
 #include "frontiers_extraction.h"
-#include "frontiers_extraction.cpp"
+#include "frontiers_extraction.cpp" 
 
 using namespace std;
 
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "Frontier_Extraction_Node");
-    const ros::NodeHandle &private_nh = ros::NodeHandle("~");
+    
+    ros::NodeHandle nh;
+    ros::NodeHandle nh_private("~");
 
-    FrontierExtraction frontierExtraction;
+    FrontierExtraction frontierExtraction(nh, nh_private);
 
     ros::spinOnce();
     try

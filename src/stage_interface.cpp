@@ -2,40 +2,44 @@
 
 using namespace std;
 
-StageInterface::StageInterface(ros::NodeHandle private_nh_)
-    : m_nh(),
+StageInterface::StageInterface(const ros::NodeHandle& nh, const ros::NodeHandle& nh_private)
+    : nh_(nh),
+      nh_private_(nh_private),
       m_odometry("/hummingbird/ground_truth/odometry"),
       m_reference_topic("/hummingbird/command/pose")
 {
 
-    ros::NodeHandle private_nh = private_nh_;
     // Set variables
-    private_nh.param("odometry", m_odometry, m_odometry);
-    private_nh.param("reference_topic", m_reference_topic, m_reference_topic);
+    nh_private_.param("odometry", m_odometry, m_odometry);
+    nh_private_.param("reference_topic", m_reference_topic, m_reference_topic);
 
     // Register to the subscriber topic and register it to the callback function
 
-    m_poseSubscriber = new message_filters::Subscriber<nav_msgs::Odometry>(m_nh, m_odometry, 5);
-    m_poseSubscriber->registerCallback(boost::bind(&StageInterface::updateCurrentPosition, this, _1));
+    m_poseSubscriber = nh_.subscribe(m_odometry, 10, &StageInterface::updateCurrentPosition, this);
+    // Timers 
+
+    // ros::Timer m_runTimer =
+        // m_nh.createTimer(ros::Duration(1.0 / 10.0),
+                        // std::bind(&StageInterface::run_planner, this));
 
     // Register publishers
 
-    m_trajectory_Publisher = m_nh.advertise<trajectory_msgs::MultiDOFJointTrajectory>("command_trajectory", 1, true);
+    m_trajectory_Publisher = nh_.advertise<trajectory_msgs::MultiDOFJointTrajectory>("command_trajectory", 1, true);
 
-    m_command_Path_Publisher = m_nh.advertise<nav_msgs::Path>("command_path", 1, true);
+    m_command_Path_Publisher = nh_.advertise<nav_msgs::Path>("command_path", 1, true);
 
-    m_reference_Publisher = m_nh.advertise<geometry_msgs::PoseStamped> (m_reference_topic ,1, true);
+    m_reference_Publisher = nh_.advertise<geometry_msgs::PoseStamped> (m_reference_topic ,1, true);
 
     // Ros services 
   
-    m_exploration_path_client = m_nh.serviceClient<stage_planner::explorationPath>(
+    m_exploration_path_client = nh_.serviceClient<stage_planner::explorationPath>(
       "next_exploration_path");
 
-    m_planner_initialization_srv = m_nh.advertiseService("initialize_planner", &StageInterface::initializePlanner, this);
+    m_planner_initialization_srv = nh_.advertiseService("initialize_planner", &StageInterface::initializePlanner, this);
 
-    m_planner_stop_srv = m_nh.advertiseService ("stop_planner", &StageInterface::stopPlanner, this);
+    m_planner_stop_srv = nh_.advertiseService ("stop_planner", &StageInterface::stopPlanner, this);
 
-    m_planner_homing_srv = m_nh.advertiseService ("start_homing_planner", &StageInterface::homingPlanner, this);
+    m_planner_homing_srv = nh_.advertiseService ("start_homing_planner", &StageInterface::homingPlanner, this);
 
 
 };
@@ -117,7 +121,7 @@ void StageInterface::updateCurrentPosition (const nav_msgs::Odometry::ConstPtr &
   {
     m_currentPose = *pose;
     
-    // ROS_INFO ("Odometry received ");
+    ROS_INFO ("Odometry received ");
 
     //
     // ufo::math::Vector3 newPoint(pose->pose.pose.position.x, pose->pose.pose.position.y,
@@ -135,6 +139,8 @@ void StageInterface::updateCurrentPosition (const nav_msgs::Odometry::ConstPtr &
   m_currentPosition.x() = m_currentPose.pose.pose.position.x;
   m_currentPosition.y() = m_currentPose.pose.pose.position.y;
   m_currentPosition.z() = m_currentPose.pose.pose.position.z;
+ 
+  cout << "original current position x is " << m_currentPosition.x() << endl;
 
   tf::Quaternion q(pose->pose.pose.orientation.x, pose->pose.pose.orientation.y,
                    pose->pose.pose.orientation.z,
@@ -148,6 +154,8 @@ void StageInterface::updateCurrentPosition (const nav_msgs::Odometry::ConstPtr &
 ufo::math::Vector3 StageInterface::fetchCurrentPosition ()
 {
   return m_currentPosition;
+
+  // ROS_INFO_STREAM ("current position X is " << m_currentPosition.x()  << " \n");
 }
 
 double StageInterface::calculateDistance(ufo::math::Vector3 point1,
@@ -282,6 +290,8 @@ void StageInterface::generateTrajectory() {
     new_path.poses.clear();
     segmentPath(raw_path, new_path);
 
+    ROS_INFO_STREAM ("segmented patn length is " << new_path.poses.size() << "\n");
+
     n_seq_++;
     trajectory_msgs::MultiDOFJointTrajectory trajectory_array_;
     mav_msgs::EigenTrajectoryPoint trajectory_point_;
@@ -348,20 +358,26 @@ void StageInterface::followPath ()
 
     m_reference_Publisher.publish(command_path.poses[i]);
     
-    ROS_INFO_STREAM ("Following reference : " << way_point.x() << " , " << way_point.y() << " , " << way_point.z() );
+    // ROS_INFO_STREAM ("current position " << fetchCurrentPosition().z() << " way_point " << way_point.x() << "\n");
+    // ROS_INFO_STREAM ("Following reference : " << way_point.x() << " , " << way_point.y() << " , " << way_point.z() );
     
     bool next_wp = true;
 
-    while (next_wp) {
-      
-      double delta = calculateDistance (way_point, fetchCurrentPosition());
-      
-      if (delta < 0.5) {
-        next_wp = false;
-      }
-    }
+    // while (next_wp) {
+    //   
+    //   double delta = calculateDistance (way_point, fetchCurrentPosition());
+    //   
+    //     ROS_INFO_STREAM ("current position " << fetchCurrentPosition().x() << " way_point " << way_point.x() << "\n");
+    //     ROS_INFO_STREAM ("delta " << delta << "\n");
+    //   if (delta < 0.5) {
+    //
+    //     next_wp = false;
+    //     i = i+1;
+    //   }
+    // }
 
-    i++;
+    // ROS_INFO ("I am out of while loop \n");
+
   }
 }
 
@@ -385,30 +401,34 @@ bool StageInterface::reachedEndOfPath () {
 void StageInterface::run_planner () 
 {
  
-  ros::Rate rr(10);
-  bool run = true;
+  // ros::Rate rr(10);
+  // bool run = true;
   
-  while (run) {
+  // while (run) {
     
     if (!stop_planning and (start_planner_first_time or reachedEndOfPath() ) ) {
 
       start_planner_first_time = false;
 
+      cout << "member current position X is " << m_currentPosition.x()  << " \n";
+      
+      cout << "function current position X is " << fetchCurrentPosition().x()  << " \n";
+      
       fetchExplorationPath();
       
       generateTrajectory ();
 
       followPath ();
 
-    } 
+    // } 
     
-    run = ros::ok();
-    ros::spinOnce();
-    rr.sleep();
+    // run = ros::ok();
+    // ros::spinOnce();
+    // rr.sleep();
 
   }
 
-  ROS_WARN("Interrupted ....");
+  // ROS_WARN("Interrupted ....");
 
 }
 
