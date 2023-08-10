@@ -18,6 +18,8 @@ StageInterface::StageInterface(const ros::NodeHandle& nh, const ros::NodeHandle&
     m_poseSubscriber = nh_.subscribe(m_odometry, 10, &StageInterface::updateCurrentPosition, this);
     // Timers 
 
+    run_loop_timer_ = nh_.createTimer(ros::Duration(1), &StageInterface::mainLoopTimer, this);
+
     // ros::Timer m_runTimer =
         // m_nh.createTimer(ros::Duration(1.0 / 10.0),
                         // std::bind(&StageInterface::run_planner, this));
@@ -121,7 +123,7 @@ void StageInterface::updateCurrentPosition (const nav_msgs::Odometry::ConstPtr &
   {
     m_currentPose = *pose;
     
-    ROS_INFO ("Odometry received ");
+    // ROS_INFO ("Odometry received ");
 
     //
     // ufo::math::Vector3 newPoint(pose->pose.pose.position.x, pose->pose.pose.position.y,
@@ -140,7 +142,7 @@ void StageInterface::updateCurrentPosition (const nav_msgs::Odometry::ConstPtr &
   m_currentPosition.y() = m_currentPose.pose.pose.position.y;
   m_currentPosition.z() = m_currentPose.pose.pose.position.z;
  
-  cout << "original current position x is " << m_currentPosition.x() << endl;
+  // cout << "original current position x is " << m_currentPosition.x() << endl;
 
   tf::Quaternion q(pose->pose.pose.orientation.x, pose->pose.pose.orientation.y,
                    pose->pose.pose.orientation.z,
@@ -350,35 +352,35 @@ void StageInterface::followPath ()
   }
 
   for (int i = 0; i < command_path.poses.size(); ) {
-
+    
     ufo::math::Vector3 way_point;
     way_point.x() = command_path.poses[i].pose.position.x;
     way_point.y() = command_path.poses[i].pose.position.y; 
     way_point.z() = command_path.poses[i].pose.position.z;
 
     m_reference_Publisher.publish(command_path.poses[i]);
-    
-    // ROS_INFO_STREAM ("current position " << fetchCurrentPosition().z() << " way_point " << way_point.x() << "\n");
-    // ROS_INFO_STREAM ("Following reference : " << way_point.x() << " , " << way_point.y() << " , " << way_point.z() );
-    
-    bool next_wp = true;
-
-    // while (next_wp) {
-    //   
-    //   double delta = calculateDistance (way_point, fetchCurrentPosition());
-    //   
-    //     ROS_INFO_STREAM ("current position " << fetchCurrentPosition().x() << " way_point " << way_point.x() << "\n");
-    //     ROS_INFO_STREAM ("delta " << delta << "\n");
-    //   if (delta < 0.5) {
-    //
-    //     next_wp = false;
-    //     i = i+1;
-    //   }
-    // }
-
-    // ROS_INFO ("I am out of while loop \n");
+   
+    if (advanceWayPoint(way_point)) {
+      i=i+1;
+    }
 
   }
+}
+
+bool StageInterface::advanceWayPoint (ufo::math::Vector3 waypoint) {
+
+  bool advance;
+
+  double delta = calculateDistance (waypoint, m_currentPosition);
+
+  if (delta < 1) {
+    advance = true;
+  } else {
+    advance = false;
+  }
+  
+  return advance;
+
 }
 
 bool StageInterface::reachedEndOfPath () {
@@ -408,6 +410,8 @@ void StageInterface::run_planner ()
     
     if (!stop_planning and (start_planner_first_time or reachedEndOfPath() ) ) {
 
+      ROS_INFO ("running main loop");
+      
       start_planner_first_time = false;
 
       cout << "member current position X is " << m_currentPosition.x()  << " \n";
@@ -427,8 +431,14 @@ void StageInterface::run_planner ()
     // rr.sleep();
 
   }
-
   // ROS_WARN("Interrupted ....");
+
+}
+
+void StageInterface::mainLoopTimer (const ros::TimerEvent &event) 
+{
+
+  run_planner();
 
 }
 

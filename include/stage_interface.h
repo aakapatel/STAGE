@@ -28,13 +28,17 @@ class StageInterface
     bool reachedEndOfPath ();
     void followPath ();
     void run_planner ();
-
+    
+    void mainLoopTimer(const ros::TimerEvent& event);
+    bool advanceWayPoint(ufo::math::Vector3 waypoint);
 
   private:
     
     ros::NodeHandle nh_;
     ros::NodeHandle nh_private_;
-    
+   
+    ros::Timer run_loop_timer_;
+
     // Subscribers 
     ros::Subscriber new_poseSubscriber;
     ros::Subscriber m_poseSubscriber;
