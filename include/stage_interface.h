@@ -26,11 +26,9 @@ class StageInterface
                                  nav_msgs::Path& path_seg);
     void generateTrajectory ();
     bool reachedEndOfPath ();
-    void followPath ();
-    void run_planner ();
     
-    void mainLoopTimer(const ros::TimerEvent& event);
-    bool advanceWayPoint(ufo::math::Vector3 waypoint);
+    void mainLoop(const ros::TimerEvent& event);
+
 
   private:
     
@@ -76,6 +74,9 @@ class StageInterface
     bool return_home = false;
     bool start_planner_first_time = true;
 
+    bool fetch_new_path_ = true;
+    
+    //reference tracking utilities
 
   };
 

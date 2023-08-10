@@ -12,7 +12,7 @@ int main(int argc, char **argv)
     ros::NodeHandle nh_private("~");
 
     StageInterface stageInterface(nh, nh_private);
-
+    
     ros::spin();
 
     // try

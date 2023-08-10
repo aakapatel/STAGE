@@ -18,15 +18,11 @@ StageInterface::StageInterface(const ros::NodeHandle& nh, const ros::NodeHandle&
     m_poseSubscriber = nh_.subscribe(m_odometry, 10, &StageInterface::updateCurrentPosition, this);
     // Timers 
 
-    run_loop_timer_ = nh_.createTimer(ros::Duration(1), &StageInterface::mainLoopTimer, this);
-
-    // ros::Timer m_runTimer =
-        // m_nh.createTimer(ros::Duration(1.0 / 10.0),
-                        // std::bind(&StageInterface::run_planner, this));
+    run_loop_timer_ = nh_.createTimer(ros::Duration(1), &StageInterface::mainLoop, this);
 
     // Register publishers
 
-    m_trajectory_Publisher = nh_.advertise<trajectory_msgs::MultiDOFJointTrajectory>("command_trajectory", 1, true);
+    m_trajectory_Publisher = nh_.advertise<trajectory_msgs::MultiDOFJointTrajectory>("/hummingbird/command_trajectory", 1, true);
 
     m_command_Path_Publisher = nh_.advertise<nav_msgs::Path>("command_path", 1, true);
 
@@ -204,6 +200,7 @@ void StageInterface::fetchExplorationPath () {
   
   }
 
+
 }
 
 void StageInterface::segmentPath(const nav_msgs::Path& path,
@@ -328,9 +325,6 @@ void StageInterface::generateTrajectory() {
       trajectory_point_msg_.time_from_start = ros::Duration(time_sum);
       // trajectory_array_.points.insert(trajectory_array_.points.begin(),trajectory_point_msg_);
       trajectory_array_.points.push_back(trajectory_point_msg_);
-      // geometry_msgs::Pose command_pose;
-      // command_pose.position = new_path.poses[i].pose.position;
-      // command_pose.orientation = new_path.poses[i].pose.orientation;
       
       // TODO Need to optimize this insertion! may be assign new_path directly to command path?
 
@@ -344,44 +338,6 @@ void StageInterface::generateTrajectory() {
 
 // TODO Add path truncation function to assure safety in case of UAV. 
 
-void StageInterface::followPath () 
-{
-  
-  if (command_path.poses.empty()) {
-    ROS_WARN ("Command path is empty ");
-  }
-
-  for (int i = 0; i < command_path.poses.size(); ) {
-    
-    ufo::math::Vector3 way_point;
-    way_point.x() = command_path.poses[i].pose.position.x;
-    way_point.y() = command_path.poses[i].pose.position.y; 
-    way_point.z() = command_path.poses[i].pose.position.z;
-
-    m_reference_Publisher.publish(command_path.poses[i]);
-   
-    if (advanceWayPoint(way_point)) {
-      i=i+1;
-    }
-
-  }
-}
-
-bool StageInterface::advanceWayPoint (ufo::math::Vector3 waypoint) {
-
-  bool advance;
-
-  double delta = calculateDistance (waypoint, m_currentPosition);
-
-  if (delta < 1) {
-    advance = true;
-  } else {
-    advance = false;
-  }
-  
-  return advance;
-
-}
 
 bool StageInterface::reachedEndOfPath () {
   
@@ -393,52 +349,19 @@ bool StageInterface::reachedEndOfPath () {
   double d = calculateDistance(fetchCurrentPosition(), end_of_path);
 
   if (d < 1) {
+    fetch_new_path_ = true;
     return true;
   } else {
+    fetch_new_path_ = false;
     return false;
   }
 
 }
 
-void StageInterface::run_planner () 
+void StageInterface::mainLoop (const ros::TimerEvent &event) 
 {
- 
-  // ros::Rate rr(10);
-  // bool run = true;
   
-  // while (run) {
-    
-    if (!stop_planning and (start_planner_first_time or reachedEndOfPath() ) ) {
-
-      ROS_INFO ("running main loop");
-      
-      start_planner_first_time = false;
-
-      cout << "member current position X is " << m_currentPosition.x()  << " \n";
-      
-      cout << "function current position X is " << fetchCurrentPosition().x()  << " \n";
-      
-      fetchExplorationPath();
-      
-      generateTrajectory ();
-
-      followPath ();
-
-    // } 
-    
-    // run = ros::ok();
-    // ros::spinOnce();
-    // rr.sleep();
-
-  }
-  // ROS_WARN("Interrupted ....");
-
-}
-
-void StageInterface::mainLoopTimer (const ros::TimerEvent &event) 
-{
-
-  run_planner();
+  // ROS_INFO_STREAM ("odometry position : " << m_currentPosition.x() << " " << m_currentPosition.y() << " " << m_currentPosition.z() << "\n" );
 
 }
 
