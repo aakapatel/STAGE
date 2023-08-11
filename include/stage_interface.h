@@ -21,7 +21,7 @@ class StageInterface
     void updateCurrentPosition(const nav_msgs::Odometry::ConstPtr &pos);
     ufo::math::Vector3 fetchCurrentPosition ();
     double calculateDistance (ufo::math::Vector3 p1, ufo::math::Vector3 p2);
-    void fetchExplorationPath ();
+    bool fetchExplorationPath ();
     void segmentPath(const nav_msgs::Path& path,
                                  nav_msgs::Path& path_seg);
     void generateTrajectory ();

@@ -49,12 +49,6 @@ GraphManager::GraphManager(const ros::NodeHandle& nh, const ros::NodeHandle& nh_
 
     m_ufoMapSubscriber = nh_.subscribe(m_ufomap, 1, &GraphManager::mapCallback, this);
 
-    // m_poseSubscriber = new message_filters::Subscriber<nav_msgs::Odometry>(nh_, m_odometry, 5);
-    // m_poseSubscriber->registerCallback(boost::bind(&GraphManager::updateCurrentPosition, this, _1));
-    //
-    // m_ufoMapSubscriber = new message_filters::Subscriber<ufomap_msgs::UFOMapStamped>(nh_, m_ufomap, 1);
-    // m_ufoMapSubscriber->registerCallback(boost::bind(&GraphManager::mapCallback, this, _1));
-
     // publishers  
 
     m_frontierPub = nh_.advertise<visualization_msgs::MarkerArray>("/frontier_nodes_vis", 10);
@@ -1041,10 +1035,7 @@ std::vector<GraphManager::Graph::vertex> GraphManager::constructGraph(int iterat
       graph_container.push_back((i)->second);
       ((i)->first).createEdge((i)->second);
       ((i)->second).createEdge((i)->first);
-    
-
     }
-
   }
 
      for (auto i = vec2.begin(); i != vec2.end(); i++)
@@ -1055,9 +1046,7 @@ std::vector<GraphManager::Graph::vertex> GraphManager::constructGraph(int iterat
       graph_container.push_back((i)->second);
       ((i)->first).createEdge((i)->second);
       ((i)->second).createEdge((i)->first);
-    
     }
-
   } 
 
     for (auto i = vec3.begin(); i != vec3.end(); i++)
@@ -1068,9 +1057,7 @@ std::vector<GraphManager::Graph::vertex> GraphManager::constructGraph(int iterat
       graph_container.push_back((i)->second);
       ((i)->first).createEdge((i)->second);
       ((i)->second).createEdge((i)->first);
-    
     }
-
   }
 
     for (auto i = vec4.begin(); i != vec4.end(); i++)
@@ -1081,9 +1068,7 @@ std::vector<GraphManager::Graph::vertex> GraphManager::constructGraph(int iterat
       graph_container.push_back((i)->second);
       ((i)->first).createEdge((i)->second);
       ((i)->second).createEdge((i)->first);
-    
     }
-
   }
 
 
@@ -1136,17 +1121,17 @@ std::vector<GraphManager::Graph::Point> GraphManager::planPath()
   if (run_global_planner or global_exploration) {
     planning_graph = global_graph_container_;
   } else {
-    planning_graph = local_graph;
+    planning_graph = constructGraph(iterations, planning_space);
   }
 
   // ROS_INFO_STREAM ("planning graph has " << planning_graph.size() << " nodes");
 
   double start_x, start_y, start_z, end_x, end_y, end_z;
 
-    double close_dis = std::numeric_limits<double>::max();
-    double end_dis = std::numeric_limits<double>::max();
-    double my_end_dis = std::numeric_limits<double>::max();
-    double my_close_dis = std::numeric_limits<double>::max();
+  double close_dis = std::numeric_limits<double>::max();
+  double end_dis = std::numeric_limits<double>::max();
+  double my_end_dis = std::numeric_limits<double>::max();
+  double my_close_dis = std::numeric_limits<double>::max();
 
   for (auto v = planning_graph.begin(); v != planning_graph.end(); v++)
   {
@@ -1195,7 +1180,6 @@ std::vector<GraphManager::Graph::Point> GraphManager::planPath()
   planPath();
 
   }
-
   // ROS_INFO_STREAM ("A-star path size : " << Astar_path.size());
   
   return Astar_path;
@@ -1206,8 +1190,12 @@ nav_msgs::Path GraphManager::fetchExplorationPath()
 
   auto path = planPath();
 
+  nav_msgs::Path planned_path;
+  
   std::vector<Graph::vertex> improvement_nodes;
   std::vector<Graph::vertex> improvement_graph;
+  
+  if (!path.size() < 2) {
 
   for (auto insert_helper = path.begin();
        insert_helper != path.end(); insert_helper++)
@@ -1259,7 +1247,6 @@ nav_msgs::Path GraphManager::fetchExplorationPath()
 
   ROS_INFO_STREAM ("Improved Path length is " << improved_path.size() << "\n");
 
-  nav_msgs::Path planned_path;
   geometry_msgs::PoseStamped p;
 
   for (int i = 0; i < improved_path.size(); ++i)
@@ -1289,6 +1276,8 @@ nav_msgs::Path GraphManager::fetchExplorationPath()
     planned_path.poses.push_back(p);
  
   }
+
+}
 
   if (planned_path.poses.size() < 2) {
 
@@ -1449,18 +1438,24 @@ void GraphManager::planHomingPath () {
  
 }
 
-
 bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &req,
                                         stage_planner::explorationPath::Response &res)
 
 {
-  
-  nav_msgs::Path exploration_path = GraphManager::fetchExplorationPath ();
+  exploration_path_to_publish_.poses.clear(); 
+
+  exploration_path_to_publish_ = GraphManager::fetchExplorationPath ();
+
+  if (exploration_path_to_publish_.poses.size() < 2) {
+    return false;
+  } else {
+
+  GraphManager::fetchExplorationPath ();
 
   // TODO Homing path to be included in this ros service 
 
   if (req.exploration) {
-    res.path = exploration_path;
+    res.path = exploration_path_to_publish_;
     if (local_exploration) { 
       res.planning_status_local = true;
       res.planning_status_global = false;
@@ -1478,7 +1473,8 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
   }
 
   return true;
-
+  
+  }
 }
 
 /*

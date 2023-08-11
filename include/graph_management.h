@@ -224,6 +224,8 @@ private:
   std::vector<float> vert_vec;
   std::unordered_map<int, GraphManager::Graph::vertex> graph_;
   
+  nav_msgs::Path exploration_path_to_publish_;
+
   std::vector<Graph::Point> Astar_path;
   std::vector<Graph::Point> improved_path;
   std::vector<Graph::Point> Astar_homing_path;

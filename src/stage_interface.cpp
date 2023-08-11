@@ -149,11 +149,13 @@ double StageInterface::calculateDistance(ufo::math::Vector3 point1,
   return d;
 }
 
-void StageInterface::fetchExplorationPath () {
+bool StageInterface::fetchExplorationPath () {
+  
+  bool got_new_path = false; 
 
   stage_planner::explorationPath exploration_path_srv;
   
-  ROS_INFO ("fetching exploration path \n");
+  // ROS_INFO ("fetching exploration path \n");
 
   if (explore) {
 
@@ -171,7 +173,13 @@ void StageInterface::fetchExplorationPath () {
 
   if (m_exploration_path_client.call(exploration_path_srv)) {
     
-    exploration_path_ = exploration_path_srv.response.path;
+    if (exploration_path_srv.response.path.poses.size() >= 2) {
+      got_new_path = true;
+      exploration_path_ = exploration_path_srv.response.path;
+    } else {
+      got_new_path = false;
+    }
+
     
     ROS_INFO_COND (exploration_path_.poses.size() > 1, "Exploration Path Received :) ");
 
@@ -182,7 +190,8 @@ void StageInterface::fetchExplorationPath () {
     // TODO Add a ros_info_cond to log planning status 
   
   }
-
+  
+  return got_new_path;
 
 }
 
@@ -272,7 +281,6 @@ void StageInterface::generateTrajectory() {
     new_path.poses.clear();
     segmentPath(raw_path, new_path);
 
-    ROS_INFO_STREAM ("segmented patn length is " << new_path.poses.size() << "\n");
 
     n_seq_++;
     trajectory_msgs::MultiDOFJointTrajectory trajectory_array_;
@@ -286,12 +294,13 @@ void StageInterface::generateTrajectory() {
     trajectory_array_.points.clear();
     double time_sum = 0;
     
+    geometry_msgs::PoseStamped pose_ref;
     command_path.poses.clear();
+    pose_ref.header.frame_id = "world";
     command_path.header.frame_id = "world";
 
     for (int i = 0; i < new_path.poses.size(); i++) {
       
-      geometry_msgs::PoseStamped pose_ref;
 
       double yaw = tf::getYaw(new_path.poses[i].pose.orientation);
       Eigen::Vector3d p(new_path.poses[i].pose.position.x, new_path.poses[i].pose.position.y,
@@ -311,7 +320,7 @@ void StageInterface::generateTrajectory() {
       
       // TODO Need to optimize this insertion! may be assign new_path directly to command path?
 
-      command_path.poses.push_back(new_path.poses[i]);
+      command_path.poses.push_back(pose_ref);
 
     }
     m_trajectory_Publisher.publish(trajectory_array_);
@@ -346,17 +355,19 @@ void StageInterface::mainLoop (const ros::TimerEvent &event)
 
   if ((start_planner_first_time or reachedEndOfPath()) and !stop_planning ) {
 
-    fetchExplorationPath ();
+    if (fetchExplorationPath ()) {
 
-    generateTrajectory ();
+      generateTrajectory ();
+    
+      ROS_INFO_STREAM ("command path length is " << command_path.poses.size() << "\n");
+    
+      m_command_Path_Publisher.publish(command_path);
+    
+    }
     
     start_planner_first_time = false;
 
   }
-
-    m_command_Path_Publisher.publish(command_path);
-
-  // ROS_INFO_STREAM ("odometry position : " << m_currentPosition.x() << " " << m_currentPosition.y() << " " << m_currentPosition.z() << "\n" );
 
 }
 
