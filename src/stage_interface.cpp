@@ -24,7 +24,7 @@ StageInterface::StageInterface(const ros::NodeHandle& nh, const ros::NodeHandle&
 
     m_trajectory_Publisher = nh_.advertise<trajectory_msgs::MultiDOFJointTrajectory>("/hummingbird/command_trajectory", 1, true);
 
-    m_command_Path_Publisher = nh_.advertise<nav_msgs::Path>("command_path", 1, true);
+    m_command_Path_Publisher = nh_.advertise<nav_msgs::Path>("/command_path", 1, true);
 
     m_reference_Publisher = nh_.advertise<geometry_msgs::PoseStamped> (m_reference_topic ,1, true);
 
@@ -119,27 +119,12 @@ void StageInterface::updateCurrentPosition (const nav_msgs::Odometry::ConstPtr &
   {
     m_currentPose = *pose;
     
-    // ROS_INFO ("Odometry received ");
-
-    //
-    // ufo::math::Vector3 newPoint(pose->pose.pose.position.x, pose->pose.pose.position.y,
-    //                             pose->pose.pose.position.z);
-    // ufo::math::Vector3 oldPoint(m_prevPose.pose.pose.position.x, m_prevPose.pose.pose.position.y,
-    //                             m_prevPose.pose.pose.position.z);
-    // geometry_msgs::PoseWithCovariance old_pose = m_prevPose.pose;
-    // geometry_msgs::PoseWithCovariance new_pose = m_currentPose.pose;
-    // if (StageInterface::calculateDistance(newPoint, oldPoint) > 1)
-    // {
-    //   m_prevPose = *pose;
-    // }
   }
 
   m_currentPosition.x() = m_currentPose.pose.pose.position.x;
   m_currentPosition.y() = m_currentPose.pose.pose.position.y;
   m_currentPosition.z() = m_currentPose.pose.pose.position.z;
  
-  // cout << "original current position x is " << m_currentPosition.x() << endl;
-
   tf::Quaternion q(pose->pose.pose.orientation.x, pose->pose.pose.orientation.y,
                    pose->pose.pose.orientation.z,
                    pose->pose.pose.orientation.w);
@@ -152,8 +137,6 @@ void StageInterface::updateCurrentPosition (const nav_msgs::Odometry::ConstPtr &
 ufo::math::Vector3 StageInterface::fetchCurrentPosition ()
 {
   return m_currentPosition;
-
-  // ROS_INFO_STREAM ("current position X is " << m_currentPosition.x()  << " \n");
 }
 
 double StageInterface::calculateDistance(ufo::math::Vector3 point1,
@@ -170,7 +153,7 @@ void StageInterface::fetchExplorationPath () {
 
   stage_planner::explorationPath exploration_path_srv;
   
-  // ROS_INFO ("fetching exploration path");
+  ROS_INFO ("fetching exploration path \n");
 
   if (explore) {
 
@@ -332,9 +315,9 @@ void StageInterface::generateTrajectory() {
 
     }
     m_trajectory_Publisher.publish(trajectory_array_);
-    m_command_Path_Publisher.publish(command_path);
+    // m_command_Path_Publisher.publish(command_path);
 
-} // executeCurrentPath
+} // generateTrajectory
 
 // TODO Add path truncation function to assure safety in case of UAV. 
 
@@ -360,7 +343,19 @@ bool StageInterface::reachedEndOfPath () {
 
 void StageInterface::mainLoop (const ros::TimerEvent &event) 
 {
-  
+
+  if ((start_planner_first_time or reachedEndOfPath()) and !stop_planning ) {
+
+    fetchExplorationPath ();
+
+    generateTrajectory ();
+    
+    start_planner_first_time = false;
+
+  }
+
+    m_command_Path_Publisher.publish(command_path);
+
   // ROS_INFO_STREAM ("odometry position : " << m_currentPosition.x() << " " << m_currentPosition.y() << " " << m_currentPosition.z() << "\n" );
 
 }

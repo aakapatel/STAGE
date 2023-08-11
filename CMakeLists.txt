@@ -134,7 +134,15 @@ add_executable(stage_interface_node src/stage_interface_node.cpp)
   ${CMAKE_DL_LIBS}
   UFO::Map
 )
-
+add_executable(control_interface src/control_interface.cpp)
+## Specify libraries to link a library or executable target against
+ target_link_libraries(
+   control_interface
+   ${catkin_LIBRARIES}
+   ${OCTOMAP_LIBRARIES}
+   ${PCL_LIBRARIES}
+  ${CMAKE_DL_LIBS}
+)
 add_executable(test_node src/test_node.cpp src/test.cpp)
 ## Specify libraries to link a library or executable target against
  target_link_libraries(
