@@ -1,6 +1,16 @@
 #ifndef FRONTIERS_EXTRACTION_H
 #define FRONTIERS_EXTRACTION_H
 
+#include <geometry_msgs/Point.h>
+#include <ros/message_traits.h>
+#include <ros/serialization.h>
+#include <stdio.h>
+#include <iostream>
+#include <unordered_map>
+#include <vector>
+#include <eigen3/Eigen/Dense>
+#include <geometry_msgs/PoseWithCovarianceStamped.h>
+#include <nav_msgs/Odometry.h>
 #include <ros/ros.h>
 #include <bits/stdc++.h>
 #include <sensor_msgs/PointCloud2.h>
@@ -39,7 +49,6 @@
 #include <ufo/math/vector3.h>
 #include <ros/ros.h>
 #include <list>
-#include <iostream>
 #include <chrono>
 #include <visualization_msgs/Marker.h>
 #include <geometry_msgs/PoseStamped.h>
@@ -69,32 +78,73 @@
 #include <memory>
 #include <fstream>
 #include <variant>
+#include <mav_msgs/Status.h>
+#include <mav_msgs/conversions.h>
+#include <mav_msgs/default_topics.h>
+#include <trajectory_msgs/MultiDOFJointTrajectory.h>
+#include <geometry_msgs/PoseArray.h>
+
 #include "stage_planner/frontierRequest.h"
 #include "stage_planner/isFrontier.h"
 #include "stage_planner/explorationPath.h"
 #include "stage_planner/initializePlanning.h"
 #include "stage_planner/stopPlanning.h"
 #include "stage_planner/homePlanning.h"
-#include <mav_msgs/Status.h>
-#include <mav_msgs/conversions.h>
-#include <mav_msgs/default_topics.h>
 
-#include <trajectory_msgs/MultiDOFJointTrajectory.h>
-#include <geometry_msgs/PoseArray.h>
+// Track computation time for different processes
+
+typedef ros::Time TIMER;
+#define START_TIMER(x) (x = ros::Time::now())
+#define GET_ELAPSED_TIME(x) (float)((ros::Time::now() - x).toSec())
 
 
-#include <boost/config.hpp>
-#include <iostream>
-#include <fstream>
-#include <boost/graph/graph_traits.hpp>
-#include <boost/graph/adjacency_list.hpp>
-#include <boost/graph/dijkstra_shortest_paths.hpp>
-#include <boost/property_map/property_map.hpp>
- 
+
+
+// struct Vertex {
+//   Vertex(int v_id, StateVec v_state) {
+//     id = v_id;
+//     state << v_state[0], v_state[1], v_state[2], v_state[3];
+//     vol_gain.reset();
+//     parent = NULL;
+//     distance = 0;
+//     is_leaf_vertex = true;
+//     is_hanging = false;
+//     type = VertexType::kUnvisited;
+//     cluster_id = 0;
+//     dm = 0;
+//     semantic_class.value = stage_planner::SemanticClass::kNone;
+//   }
+//
+//   // Unique id for each vertex (root: 0, others: positive number).
+//   int id;
+//   // State of the vertex: x, y, z, yaw.
+//   StateVec state;
+//   // Volumetric gain for exploration.
+//   VolumetricGain vol_gain;
+//   // NBVP legacy, keeping for now if wants to build a tree to compare.
+//   Vertex* parent;
+//   std::vector<Vertex*> children;
+//   // Distance to root.
+//   double distance;
+//   // Set true if this is a leaf in the simplified tree from the graph.
+//   bool is_leaf_vertex;
+//   // If there is ground plane below the vertex (only for legged robots)
+//   bool is_hanging;
+//   // Type of vertex, used for global graph.
+//   VertexType type;
+//   // Cluster id: used for clustering.
+//   int cluster_id;
+//   // Distance to closest obstacle in the map
+//   double dm;
+//   // Semantic
+//   stage_planner::SemanticClass semantic_class;
+// };
 
 class FrontierExtraction
 {
 public:
+    
+    typedef Eigen::Vector3d State; // x, y, z
     typedef pcl::PointCloud<pcl::PointXYZ> PCLPointCloud;
     typedef pcl::PointXYZ PCLPoint;
     typedef octomap::point3d point3d;
@@ -103,7 +153,13 @@ public:
 
     FrontierExtraction(const ros::NodeHandle& nh, const ros::NodeHandle& nh_private);
 
-    virtual void updateCurrentPosition(const nav_msgs::Odometry::ConstPtr &pos);
+    Eigen::Vector3d quaternion_to_rpy(Eigen::Quaterniond q);
+    
+    virtual void odomCallback(const nav_msgs::Odometry::ConstPtr &pos);
+    
+    void wrt_Body (Eigen::Vector3d frontier_W, Eigen::Vector3d& frontier_B);
+    
+    double findAngle (ufo::math::Vector3 fpoint);
 
     virtual void insertPointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr &cloud);
 
@@ -125,11 +181,9 @@ public:
 
     ufo::geometry::OBB makeOBB(ufo::math::Vector3 source, ufo::math::Vector3 goal, float radius);
 
-    double calculateAngle(ufo::math::Vector3 fpoint, ufo::math::Vector3 position, double heading);
+    double calculateAngle(ufo::math::Vector3 fpoint);
 
     bool isLocal(ufo::math::Vector3 point);
-
-    ufo::math::Vector3 fetchCurrentPosition();
 
     std::vector<ufo::math::Vector3> fetchFrontiers();
 
@@ -152,20 +206,26 @@ public:
                              stage_planner::isFrontier::Response &res);
 
     geometry_msgs::Point ufoToPoint(ufo::math::Vector3 v);
+    
+    void visualize();
 
 private:
 
     ros::NodeHandle nh_;
     ros::NodeHandle nh_private_;
+    
+
 
     // variables
+    
+    State robotState_;
+    Eigen::Quaterniond quat_;
     ufo::math::Vector3 m_currentPosition;
-    double m_currentHeading;
     double LOCAL_SPACE;
     double LOCAL_FOV;
     bool map_received;
     std::string m_ufomap;
-    bool m_max_allowed_Z;
+    bool max_allowed_height_;
     double OBB_RADIUS;
     int PLANNING_CHECK_DEPTH;
     double VOLUMETRIC_GAIN_THREASHOLD;
@@ -235,6 +295,9 @@ private:
     ros::Publisher m_frontierPub;
     ros::Publisher m_frontierSelectionPub;
     ros::Publisher command_pub;
+    ros::Publisher frontiersVisPub_;
+    ros::Publisher anglesVisPub_;
+
 
 protected:
     inline static void updateMinKey(const octomap::OcTreeKey &in, octomap::OcTreeKey &min)

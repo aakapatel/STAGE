@@ -45,13 +45,13 @@ GraphManager::GraphManager(const ros::NodeHandle& nh, const ros::NodeHandle& nh_
 
   // Subscribers
 
-    m_poseSubscriber = nh_.subscribe(m_odometry, 1, &GraphManager::updateCurrentPosition, this);
+  m_poseSubscriber = nh_.subscribe(m_odometry, 1, &GraphManager::odomCallback, this);
 
-    m_ufoMapSubscriber = nh_.subscribe(m_ufomap, 1, &GraphManager::mapCallback, this);
+  m_ufoMapSubscriber = nh_.subscribe(m_ufomap, 1, &GraphManager::mapCallback, this);
 
-    // publishers  
+  // publishers  
 
-    m_frontierPub = nh_.advertise<visualization_msgs::MarkerArray>("/frontier_nodes_vis", 10);
+  m_frontierPub = nh_.advertise<visualization_msgs::MarkerArray>("/frontier_nodes_vis", 10);
 
 
   // Services 
@@ -96,7 +96,7 @@ Eigen::Quaternion<float> GraphManager::Euler2Quaternion(ufo::math::Vector3 v)
   return q;
 }
 
-void GraphManager::updateCurrentPosition(
+void GraphManager::odomCallback(
     const nav_msgs::Odometry::ConstPtr &pose)
 {
 
@@ -136,11 +136,6 @@ void GraphManager::updateCurrentPosition(
   double roll, pitch, yaw;
   m.getRPY(roll, pitch, yaw);
   m_currentHeading = yaw * (180 / 3.14159);
-}
-
-ufo::math::Vector3 GraphManager::fetchCurrentPosition()
-{
-  return m_currentPosition;
 }
 
 double GraphManager::calculateDistance(ufo::math::Vector3 point1,
@@ -188,72 +183,6 @@ ufo::geometry::OBB GraphManager::makeOBB(ufo::math::Vector3 source,
   return obb;
 }
 
-double GraphManager::calculateAngle(ufo::math::Vector3 fpoint,
-                                    ufo::math::Vector3 position,
-                                    double heading)
-{
-
-  double head =
-      atan2((fpoint.y() - position.y()), (fpoint.x() - position.x())) *
-      (180 / 3.14159);
-  double angle = head - heading;
-  if (head > -180 && head < -90)
-  {
-    if (heading > -180 && heading < -90)
-    {
-      angle = head - heading;
-      if (angle > 180)
-      {
-        angle = angle - 360;
-      }
-    }
-    else
-    {
-      angle = angle + 360;
-      if (angle > 180)
-      {
-        angle = angle - 360;
-      }
-    }
-  }
-  else if (head > 0)
-  {
-    if (heading > -180 && heading < -90)
-    {
-      angle = angle - 360;
-      if (angle > 180)
-      {
-        angle = angle - 360;
-      }
-    }
-    else
-    {
-      angle = angle;
-      if (angle > 180)
-      {
-        angle = angle - 360;
-      }
-    }
-  }
-  return angle;
-}
-
-bool GraphManager::isLocal(ufo::math::Vector3 point)
-{
-
-  double angle =
-      GraphManager::calculateAngle(point, m_currentPosition, m_currentHeading);
-  double distance = GraphManager::calculateDistance(point, m_currentPosition);
-
-  if ((angle < m_local_fov && angle > m_local_fov) && distance < m_local_space)
-  {
-    return true;
-  }
-  else
-  {
-    return false;
-  }
-}
 
 double GraphManager::computeVolumetricGain(ufo::math::Vector3 frontier,
                                            ufo::map::OccupancyMapColor const &map)

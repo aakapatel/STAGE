@@ -2,7 +2,6 @@
 
 using namespace octomap;
 using namespace std;
-
 using namespace std::chrono;
 using namespace std::this_thread;
 
@@ -31,14 +30,15 @@ FrontierExtraction::FrontierExtraction(const ros::NodeHandle& nh, const ros::Nod
       yFiltering(false),
       zFiltering(false),
       m_distance_deletion(8.0),
-      m_currentHeading(0),
       LOCAL_SPACE(10),
       LOCAL_FOV(40),
       m_ufomap("/ufomap_mapping_server_node/map"),
-      m_max_allowed_Z(4),
+      max_allowed_height_(4),
       OBB_RADIUS(0.5),
       PLANNING_CHECK_DEPTH(0),
       VOLUMETRIC_GAIN_THREASHOLD(10)
+      
+
 {
     double probHit, probMiss, thresMin, thresMax;
     // Set variables
@@ -59,7 +59,7 @@ FrontierExtraction::FrontierExtraction(const ros::NodeHandle& nh, const ros::Nod
     nh_private_.param("local_sliding_space", LOCAL_SPACE, LOCAL_SPACE);
     nh_private_.param("local_field_of_view", LOCAL_FOV, LOCAL_SPACE);
     nh_private_.param("ufomap", m_ufomap, m_ufomap);
-    nh_private_.param("safety_height", m_max_allowed_Z, m_max_allowed_Z);
+    nh_private_.param("safety_height", max_allowed_height_, max_allowed_height_);
     nh_private_.param("traversability_radius", OBB_RADIUS, OBB_RADIUS);
     nh_private_.param("planning_check_depth", PLANNING_CHECK_DEPTH, PLANNING_CHECK_DEPTH);
     nh_private_.param("volumetric_gain_threashold", VOLUMETRIC_GAIN_THREASHOLD, VOLUMETRIC_GAIN_THREASHOLD);
@@ -111,7 +111,7 @@ FrontierExtraction::FrontierExtraction(const ros::NodeHandle& nh, const ros::Nod
 
 
 
-    m_poseSubscriber = nh_.subscribe(m_odometry, 10, &FrontierExtraction::updateCurrentPosition, this);
+    m_poseSubscriber = nh_.subscribe(m_odometry, 10, &FrontierExtraction::odomCallback, this);
 
     m_ufoMapSubscriber = nh_.subscribe(m_ufomap, 5, &FrontierExtraction::mapCallback, this);
 
@@ -119,6 +119,10 @@ FrontierExtraction::FrontierExtraction(const ros::NodeHandle& nh, const ros::Nod
 
     m_frontierPub = nh_.advertise<visualization_msgs::MarkerArray>("/frontier_nodes_vis", 10);
 
+    frontiersVisPub_ = nh_.advertise<visualization_msgs::MarkerArray>("/frontiers", 10);  
+    
+    anglesVisPub_ = nh_.advertise<visualization_msgs::Marker>("/angles", 10);  
+  
 
     // Services
 
@@ -131,21 +135,21 @@ FrontierExtraction::FrontierExtraction(const ros::NodeHandle& nh, const ros::Nod
 
 // Instance of UFOMAP
 
-ufo::map::OccupancyMapColor m_ufoMAP(0.2);
+ufo::map::OccupancyMapColor ufoMAP_(0.2);
 
 // Callback for ufomap
 
 void FrontierExtraction::mapCallback(ufomap_msgs::UFOMapStamped::ConstPtr const &msg)
 {
 
-    if (ufomap_msgs::msgToUfo(msg->map, m_ufoMAP))
+    if (ufomap_msgs::msgToUfo(msg->map, ufoMAP_))
     {
         // ROS_INFO("MAP RECEIVED");
         map_received = true;
     }
     else
     {
-        ROS_WARN("MAP NOT RECEIVED");
+        ROS_WARN("Failed to fetch ufomap \n");
     }
 }
 
@@ -324,7 +328,7 @@ void FrontierExtraction::extractFrontiers(const tf::Point &sensorOriginTf, const
 
                     double z_diff = abs(m_currentPose.pose.pose.position.z - pt.z());
 
-                    if ((z_diff < m_max_allowed_Z))
+                    if ((z_diff < max_allowed_height_))
                     {
 
                         if (FrontierExtraction::verifyFrontier(x, y, z, sensorOrigin) && !(m_octree->isNodeOccupied(me)))
@@ -354,9 +358,9 @@ std::vector<ufo::math::Vector3> FrontierExtraction::fetchFrontiers()
 
         // ufo::geometry::Sphere sphere(frontier_pt, 0.5);
 
-        double info_gain = computeVolumetricGain (frontier_pt,m_ufoMAP);
+        double info_gain = computeVolumetricGain (frontier_pt,ufoMAP_);
        
-    // if (!isInCollision(m_ufoMAP, sphere, true, false, true, PLANNING_CHECK_DEPTH) and info_gain > VOLUMETRIC_GAIN_THREASHOLD)
+    // if (!isInCollision(ufoMAP_, sphere, true, false, true, PLANNING_CHECK_DEPTH) and info_gain > VOLUMETRIC_GAIN_THREASHOLD)
      if (info_gain > VOLUMETRIC_GAIN_THREASHOLD)
 
         {
@@ -370,7 +374,18 @@ std::vector<ufo::math::Vector3> FrontierExtraction::fetchFrontiers()
     return unfiltered_frontiers;
 }
 
-void FrontierExtraction::updateCurrentPosition(const nav_msgs::Odometry::ConstPtr &pose)
+Eigen::Vector3d FrontierExtraction::quaternion_to_rpy(Eigen::Quaterniond q)
+{
+  const double roll = atan2(2.0 * (q.w() * q.x() + q.y() * q.z()),
+                            1.0 - 2.0 * (q.x() * q.x() + q.y() * q.y()));
+  const double pitch = asin(2.0 * (q.w() * q.y() - q.z() * q.x()));
+  const double yaw = atan2(2.0 * (q.w() * q.z() + q.x() * q.y()),
+                           1.0 - 2.0 * (q.y() * q.y() + q.z() * q.z()));
+
+  return Eigen::Vector3d{roll, pitch, yaw};
+}
+
+void FrontierExtraction::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
 {
 
     if (firstTime)
@@ -386,6 +401,15 @@ void FrontierExtraction::updateCurrentPosition(const nav_msgs::Odometry::ConstPt
     m_currentPosition.y() = m_currentPose.pose.pose.position.y;
     m_currentPosition.z() = m_currentPose.pose.pose.position.z;
 
+    Eigen::Quaterniond attitude{pose->pose.pose.orientation.w, pose->pose.pose.orientation.x,
+                                pose->pose.pose.orientation.y, pose->pose.pose.orientation.z};
+
+    Eigen::Vector3d euler = quaternion_to_rpy(attitude);
+
+    Eigen::Quaterniond Q (Eigen::AngleAxisd(euler.z(), Eigen::Vector3d::UnitZ()));
+
+    quat_ = Q;  
+
     tf::Quaternion q(
         pose->pose.pose.orientation.x,
         pose->pose.pose.orientation.y,
@@ -394,13 +418,18 @@ void FrontierExtraction::updateCurrentPosition(const nav_msgs::Odometry::ConstPt
     tf::Matrix3x3 m(q);
     double roll, pitch, yaw;
     m.getRPY(roll, pitch, yaw);
-    m_currentHeading = yaw * (180 / 3.14159);
+
+    robotState_[0] = pose->pose.pose.position.x;
+    robotState_[1] = pose->pose.pose.position.y;
+    robotState_[2] = pose->pose.pose.position.z;
+    robotState_[3] = yaw * (180 / M_PI);
 }
 
-ufo::math::Vector3 FrontierExtraction::fetchCurrentPosition()
-{
-    return m_currentPosition;
-}
+void FrontierExtraction::wrt_Body (Eigen::Vector3d frontier_W, Eigen::Vector3d& frontier_B) {
+  
+  frontier_B = quat_.toRotationMatrix().transpose() * frontier_W;
+
+} 
 
 bool FrontierExtraction::verifyFrontier(float x, float y, float z, point3d sensorOrigin)
 {
@@ -800,51 +829,84 @@ ufo::geometry::OBB FrontierExtraction::makeOBB(ufo::math::Vector3 source, ufo::m
 
 // Calculate relative Angle of a point wrt robot's current heading vector
 
-double FrontierExtraction::calculateAngle(ufo::math::Vector3 fpoint, ufo::math::Vector3 position,
-                                          double heading)
+double FrontierExtraction::calculateAngle(ufo::math::Vector3 fpoint)
 {
+  return atan2((fpoint.y() - robotState_[1]), (fpoint.x() - robotState_[0])) * (180 / M_PI) - robotState_[3];
+}
 
-    double head = atan2((fpoint.y() - position.y()), (fpoint.x() - position.x())) * (180 / 3.14159);
-    double angle = head - heading;
-    if (head > -180 && head < -90)
-    {
-        if (heading > -180 && heading < -90)
-        {
-            angle = head - heading;
-            if (angle > 180)
-            {
-                angle = angle - 360;
-            }
-        }
-        else
-        {
-            angle = angle + 360;
-            if (angle > 180)
-            {
-                angle = angle - 360;
-            }
-        }
-    }
-    else if (head > 0)
-    {
-        if (heading > -180 && heading < -90)
-        {
-            angle = angle - 360;
-            if (angle > 180)
-            {
-                angle = angle - 360;
-            }
-        }
-        else
-        {
-            angle = angle;
-            if (angle > 180)
-            {
-                angle = angle - 360;
-            }
-        }
-    }
-    return angle;
+
+void FrontierExtraction::visualize () {
+  
+  visualization_msgs::MarkerArray marker_array;
+  visualization_msgs::Marker frontiers_marker;
+  visualization_msgs::Marker angle_marker;
+  
+  int marker_id = 0;
+  
+  for (auto i : fetchFrontiers()) {
+
+  frontiers_marker.header.frame_id = "world";
+  frontiers_marker.header.stamp = ros::Time::now();
+  frontiers_marker.ns = "frontier";
+  frontiers_marker.id = 0;
+  frontiers_marker.type = visualization_msgs::Marker::SPHERE_LIST;
+  frontiers_marker.action = visualization_msgs::Marker::ADD;
+  frontiers_marker.pose.orientation.w = 1;
+  frontiers_marker.scale.x = 0.3;
+  frontiers_marker.scale.y = 0.3;
+  frontiers_marker.scale.z = 0.3;
+  frontiers_marker.color.a = 1.0;
+  frontiers_marker.color.r = 0.0;
+  frontiers_marker.color.g = 0.8;
+  frontiers_marker.color.b = 0.0;
+
+  angle_marker.header.frame_id = "world";
+  angle_marker.header.stamp = ros::Time::now();
+  angle_marker.ns = "angles";
+  angle_marker.id = marker_id++;
+  angle_marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
+  angle_marker.action = visualization_msgs::Marker::ADD;
+  angle_marker.pose.position.x = i.x();
+  angle_marker.pose.position.y = i.y();
+  angle_marker.pose.position.z = i.z();
+  angle_marker.pose.orientation.w = 1;
+  angle_marker.scale.y = 0.3;
+  angle_marker.scale.x = 0.3;
+  angle_marker.scale.z = 0.6;
+  angle_marker.color.a = 1.0;
+  angle_marker.color.r = 0.0;
+  angle_marker.color.g = 0.8;
+  angle_marker.color.b = 0.0;
+  angle_marker.text = std::to_string(calculateAngle(i));
+  geometry_msgs::Point p;
+  p.x = i.x();
+  p.y = i.y();
+  p.z = i.z();
+  frontiers_marker.points.push_back(p);
+  marker_array.markers.push_back(angle_marker);
+  marker_array.markers.push_back(frontiers_marker);
+  }
+  
+  frontiersVisPub_.publish(marker_array);
+
+}
+
+double FrontierExtraction::findAngle (ufo::math::Vector3 fpoint) {
+
+  Eigen::Vector3d frontier_W;
+  frontier_W[0] = fpoint.x();
+  frontier_W[1] = fpoint.y();
+  frontier_W[2] = fpoint.z();
+  
+  Eigen::Vector3d frontier_B_;
+
+  wrt_Body(frontier_W, frontier_B_);
+
+  double angle = atan2(frontier_B_[1] - robotState_[1], frontier_B_[0] - robotState_[0]) * 180 / M_PI;
+  
+  return angle;
+  // cout << "Eigen angle : " << angle << "\n";
+
 }
 
 // If the point is in FOV and in local range, it is marked as local wrt the robot
@@ -852,7 +914,7 @@ double FrontierExtraction::calculateAngle(ufo::math::Vector3 fpoint, ufo::math::
 bool FrontierExtraction::isLocal(ufo::math::Vector3 point)
 {
 
-    double angle = calculateAngle(point, m_currentPosition, m_currentHeading);
+    double angle = calculateAngle(point);
     double distance = calculateDistance(point, m_currentPosition);
 
     if (((angle < LOCAL_FOV) && (angle > -LOCAL_FOV)) && distance < LOCAL_SPACE)
@@ -919,9 +981,9 @@ std::vector<ufo::math::Vector3> FrontierExtraction::fetchLocallyTraversableFront
     for (ufo::math::Vector3 local_frontier : fetchLocalFrontiers())
     {
 
-        ufo::geometry::OBB obb = makeOBB(fetchCurrentPosition(), local_frontier, OBB_RADIUS);
+        ufo::geometry::OBB obb = makeOBB(m_currentPosition, local_frontier, OBB_RADIUS);
 
-        if (!isInCollision(m_ufoMAP, obb, true, false, true, PLANNING_CHECK_DEPTH))
+        if (!isInCollision(ufoMAP_, obb, true, false, true, PLANNING_CHECK_DEPTH))
         {
 
             locally_traversable_frontiers.push_back(local_frontier);
@@ -970,7 +1032,7 @@ ufo::math::Vector3 FrontierExtraction::fetchInformativeFrontier()
     for (ufo::math::Vector3 frontier : fetchLocalFrontiers())
     {
 
-        cost = calculateAngle(frontier, fetchCurrentPosition(), m_currentHeading) + (1 / computeVolumetricGain(frontier, m_ufoMAP));
+        cost = calculateAngle(frontier) + (1 / computeVolumetricGain(frontier, ufoMAP_));
 
         if (cost < total_cost)
         {
@@ -1014,6 +1076,8 @@ std::vector<geometry_msgs::Point> FrontierExtraction::fetchGlobalRepositioningTa
 bool FrontierExtraction::exportFrontierTargets(stage_planner::frontierRequest::Request &req,
                                                stage_planner::frontierRequest::Response &res)
 {
+
+   visualize(); 
 
     if (req.local)
     {

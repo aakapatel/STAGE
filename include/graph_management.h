@@ -2,6 +2,7 @@
 #define GRAPH_MANAGEMENT_H
 
 #include "frontiers_extraction.h"
+
 #include <omp.h>
 
 class GraphManager
@@ -11,8 +12,7 @@ public:
   GraphManager(const ros::NodeHandle& nh, const ros::NodeHandle& nh_private);
 
 
-
-  virtual void updateCurrentPosition(const nav_msgs::Odometry::ConstPtr &pos);
+  virtual void odomCallback(const nav_msgs::Odometry::ConstPtr &pos);
 
   virtual void mapCallback(ufomap_msgs::UFOMapStamped::ConstPtr const &map);
 
@@ -24,12 +24,6 @@ public:
                      bool unknown_space, ufo::map::DepthType min_depth);
 
   ufo::geometry::OBB makeOBB(ufo::math::Vector3 source, ufo::math::Vector3 goal, float radius);
-
-  double calculateAngle(ufo::math::Vector3 fpoint, ufo::math::Vector3 position, double heading);
-
-  bool isLocal(ufo::math::Vector3 point);
-
-  ufo::math::Vector3 fetchCurrentPosition();
 
   double computeVolumetricGain(ufo::math::Vector3 frontier, ufo::map::OccupancyMapColor const &map);
 
