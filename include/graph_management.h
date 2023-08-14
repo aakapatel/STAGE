@@ -63,6 +63,8 @@ public:
   
   // Initialize a fresh graph.
   void reset();
+  
+  double distanceBetweenVertices (Vertex* v, Vertex* u);
 
   // Could change an index to break down the graph into sug-graphs.
   int generateSubgraphIndex();

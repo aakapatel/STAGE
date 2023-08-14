@@ -305,7 +305,7 @@ void GraphManager::sampleNodes (std::vector<ufo::math::Vector3>& nodes) {
       itterations++;
   }
   
-  ROS_INFO_STREAM ("temporary_nodes : " << nodes.size() << "\n ");
+  // ROS_INFO_STREAM ("Sampled : " << nodes.size() << " nodes" << "\n ");
 
 } // sampleNodes
 
@@ -323,8 +323,6 @@ void GraphManager::buildGraph () {
     vertex_state.y() = nodes[i].y();
     vertex_state.z() = nodes[i].z();
     Vertex* v = new Vertex(vertex_id_count_, vertex_state);
-    // v->id = vertex_id_count_;
-    // v->state = vertex_state;
     GraphManager::addVertex(v);
     vertex_id_count_++;
   }
@@ -358,6 +356,14 @@ void GraphManager::reset() {
   // Other params.
   subgraph_ind_ = -1;
   id_count_ = -1;
+}
+
+double GraphManager::distanceBetweenVertices (Vertex*v, Vertex*u) {
+  
+  return sqrt(pow(v->state.x() - u->state.x(), 2 ) 
+              +pow(v->state.y() - u->state.y(), 2 )
+                +pow(v->state.z() - u->state.z(), 2 ));
+
 }
 
 void GraphManager::addVertex(Vertex* v) {
