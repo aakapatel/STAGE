@@ -2,6 +2,8 @@
 #define GRAPH_MANAGEMENT_H
 
 #include "frontiers_extraction.h"
+#include "graph.h"
+#include <kdtree/kdtree.h>
 
 struct Vertex {
   Vertex(int v_id, State v_state) {
@@ -32,47 +34,98 @@ class GraphManager
 public:
   GraphManager(const ros::NodeHandle& nh, const ros::NodeHandle& nh_private);
 
-
   virtual void odomCallback(const nav_msgs::Odometry::ConstPtr &pos);
-
   Eigen::Vector3d quaternion_to_rpy(Eigen::Quaterniond q);
-  
   virtual void mapCallback(ufomap_msgs::UFOMapStamped::ConstPtr const &map);
-
   double calculateDistance(ufo::math::Vector3 point1, ufo::math::Vector3 point2);
-
   bool isInCollision(ufo::map::OccupancyMapColor const &map,
                      ufo::geometry::BoundingVar const &bounding_volume,
                      bool occupied_space, bool free_space,
                      bool unknown_space, ufo::map::DepthType min_depth);
-
   ufo::geometry::OBB makeOBB(ufo::math::Vector3 source, ufo::math::Vector3 goal, float radius);
-
   double computeVolumetricGain(ufo::math::Vector3 frontier, ufo::map::OccupancyMapColor const &map);
-
   ufo::math::Vector3 tunePlanningSpace ();
-  
-  void sampleNodes (); 
-
+  void sampleNodes (std::vector<ufo::math::Vector3>& nodes); 
   ufo::math::Vector3 pointToUfo(geometry_msgs::Point p);
-
   std::vector<ufo::math::Vector3> pointsToUfo(std::vector<geometry_msgs::Point> points);
-
   void fetchExplorationTargets();
-
   bool isLastTargetFrontier();
-
   bool nextExplorationPath (stage_planner::explorationPath::Request &req,
                              stage_planner::explorationPath::Response &res);
-  
   Eigen::Quaternion<float> Euler2Quaternion(ufo::math::Vector3 v);
 
-private:
+  // GRAPH UTILS
+  
+  // Initialize a fresh graph.
+  void reset();
 
+  // Could change an index to break down the graph into sug-graphs.
+  int generateSubgraphIndex();
+  // Generate ID for new vertex.
+  int generateVertexID();
+
+  // Basic functions on graph including add new vertex and edge.
+  void addVertex(Vertex* v);
+  void addEdge(Vertex* v, Vertex* u, double weight);
+  void removeEdge(Vertex* v, Vertex* u);
+
+  int getNumVertices() { return graph_->getNumVertices(); }
+  int getNumEdges() { return graph_->getNumEdges(); }
+
+  Vertex* getVertex(int id) { return vertices_map_[id]; }
+
+  bool findShortestPaths(ShortestPathsReport& rep);
+  bool findShortestPaths(int source_id, ShortestPathsReport& rep);
+
+  void getShortestPath(int target_id, const ShortestPathsReport& rep,
+                       bool source_to_target_order, std::vector<int>& path);
+  void getShortestPath(int target_id, const ShortestPathsReport& rep,
+                       bool source_to_target_order, std::vector<Vertex*>& path);
+  void getShortestPath(int target_id, const ShortestPathsReport& rep,
+                       bool source_to_target_order,
+                       std::vector<Eigen::Vector3d>& path);
+  void getShortestPath(int target_id, const ShortestPathsReport& rep,
+                       bool source_to_target_order,
+                       std::vector<State>& path);
+  double getShortestDistance(int target_id, const ShortestPathsReport& rep);
+  int getParentIDFromShortestPath(int target_id,
+                                  const ShortestPathsReport& rep);
+
+  // Nearest neigbor lookup.
+  bool getNearestVertex(const State* state, Vertex** v_res);
+  bool getNearestVertexInRange(const State* state, double range,
+                               Vertex** v_res);
+  bool getNearestVertices(const State* state, double range,
+                          std::vector<Vertex*>* v_res);
+
+
+
+  // variables
+  
+  // Boost graph 
+  std::shared_ptr<Graph> graph_;
+  // Mapping from vertex id to vertex property.
+  std::unordered_map<int, Vertex*> vertices_map_;
+  // id:  <neighbor id, edge cost>
+  std::map<int, std::vector<std::pair<int, double>>> edge_map_;  
+
+private:
 
   ros::NodeHandle nh_;
   ros::NodeHandle nh_private_;
 
+
+  // IDs are non-negative integer from 0 (root node)
+  // and increased as adding new sub-graph or new vertices.
+  int subgraph_ind_;
+  int id_count_;
+  
+  // Kd-tree for nearest neigbor lookup, also keep all vertices.
+  kdtree* kd_tree_;
+
+  // Map from local id for Boost Graph Lib to global ID including
+  // <sub-graph-id,vertex-id>. This is mainly for debug purpose.
+  std::unordered_map<int, std::pair<int, int>> local_id_map_;
 
   // variables
   State robotState_;

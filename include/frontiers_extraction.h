@@ -98,7 +98,7 @@ typedef ros::Time TIMER;
 #define START_TIMER(x) (x = ros::Time::now())
 #define GET_ELAPSED_TIME(x) (float)((ros::Time::now() - x).toSec())
 
-typedef Eigen::Vector3d State; // x, y, z
+typedef Eigen::Vector4d State; // x, y, z, yaw
 
 
 class FrontierExtraction

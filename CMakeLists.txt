@@ -164,6 +164,7 @@ add_executable(graph_management_node src/graph_management_node.cpp)
 ## Specify libraries to link a library or executable target against
  target_link_libraries(
    graph_management_node
+   stage_planner
    ${catkin_LIBRARIES}
    ${OCTOMAP_LIBRARIES}
    ${PCL_LIBRARIES}
