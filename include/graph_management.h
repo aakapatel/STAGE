@@ -54,6 +54,11 @@ public:
                              stage_planner::explorationPath::Response &res);
   Eigen::Quaternion<float> Euler2Quaternion(ufo::math::Vector3 v);
 
+
+  // GRAPH AND PLANNING 
+  
+  void buildGraph ();
+
   // GRAPH UTILS
   
   // Initialize a fresh graph.
@@ -114,7 +119,7 @@ private:
   ros::NodeHandle nh_;
   ros::NodeHandle nh_private_;
 
-
+  int vertex_id_count_ = 0;
   // IDs are non-negative integer from 0 (root node)
   // and increased as adding new sub-graph or new vertices.
   int subgraph_ind_;

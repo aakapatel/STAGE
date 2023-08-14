@@ -309,6 +309,30 @@ void GraphManager::sampleNodes (std::vector<ufo::math::Vector3>& nodes) {
 
 } // sampleNodes
 
+void GraphManager::buildGraph () {
+
+  GraphManager::reset();
+
+  std::vector<ufo::math::Vector3> nodes;
+  GraphManager::sampleNodes(nodes);
+  
+  State vertex_state;
+  for (int i = 0; i < nodes.size(); i++) {
+    
+    vertex_state.x() = nodes[i].x();
+    vertex_state.y() = nodes[i].y();
+    vertex_state.z() = nodes[i].z();
+    Vertex* v = new Vertex(vertex_id_count_, vertex_state);
+    // v->id = vertex_id_count_;
+    // v->state = vertex_state;
+    GraphManager::addVertex(v);
+    vertex_id_count_++;
+  }
+
+  ROS_INFO_STREAM ("Built graph with " << getNumVertices() << " nodes" << "\n"); 
+
+}
+
 
 // GRAPH UTILS
 
@@ -551,6 +575,8 @@ std::vector<ufo::math::Vector3> GraphManager::pointsToUfo(std::vector<geometry_m
 
 void GraphManager::fetchExplorationTargets()
 {
+  
+  GraphManager::buildGraph ();
 
   stage_planner::frontierRequest frontier_srv;
 
