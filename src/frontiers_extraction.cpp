@@ -35,7 +35,7 @@ FrontierExtraction::FrontierExtraction(const ros::NodeHandle& nh, const ros::Nod
       m_ufomap("/ufomap_mapping_server_node/map"),
       max_allowed_height_(4),
       OBB_RADIUS(0.5),
-      PLANNING_CHECK_DEPTH(0),
+      mapDepth_(0),
       VOLUMETRIC_GAIN_THREASHOLD(10)
       
 
@@ -61,7 +61,7 @@ FrontierExtraction::FrontierExtraction(const ros::NodeHandle& nh, const ros::Nod
     nh_private_.param("ufomap", m_ufomap, m_ufomap);
     nh_private_.param("safety_height", max_allowed_height_, max_allowed_height_);
     nh_private_.param("traversability_radius", OBB_RADIUS, OBB_RADIUS);
-    nh_private_.param("planning_check_depth", PLANNING_CHECK_DEPTH, PLANNING_CHECK_DEPTH);
+    nh_private_.param("planning_check_depth", mapDepth_, mapDepth_);
     nh_private_.param("volumetric_gain_threashold", VOLUMETRIC_GAIN_THREASHOLD, VOLUMETRIC_GAIN_THREASHOLD);
 
     // Filtering parameters.
@@ -360,7 +360,7 @@ std::vector<ufo::math::Vector3> FrontierExtraction::fetchFrontiers()
 
         double info_gain = computeVolumetricGain (frontier_pt,ufoMAP_);
        
-    // if (!isInCollision(ufoMAP_, sphere, true, false, true, PLANNING_CHECK_DEPTH) and info_gain > VOLUMETRIC_GAIN_THREASHOLD)
+    // if (!isInCollision(ufoMAP_, sphere, true, false, true, mapDepth_) and info_gain > VOLUMETRIC_GAIN_THREASHOLD)
      if (info_gain > VOLUMETRIC_GAIN_THREASHOLD)
 
         {
@@ -983,7 +983,7 @@ std::vector<ufo::math::Vector3> FrontierExtraction::fetchLocallyTraversableFront
 
         ufo::geometry::OBB obb = makeOBB(m_currentPosition, local_frontier, OBB_RADIUS);
 
-        if (!isInCollision(ufoMAP_, obb, true, false, true, PLANNING_CHECK_DEPTH))
+        if (!isInCollision(ufoMAP_, obb, true, false, true, mapDepth_))
         {
 
             locally_traversable_frontiers.push_back(local_frontier);

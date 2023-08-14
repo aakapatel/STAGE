@@ -3,7 +3,28 @@
 
 #include "frontiers_extraction.h"
 
-#include <omp.h>
+struct Vertex {
+  Vertex(int v_id, State v_state) {
+    id = v_id;
+    state << v_state[0], v_state[1], v_state[2], v_state[3];
+    parent = NULL;
+    distance = 0;
+    gain = 0;
+  }
+
+  // Unique id for each vertex (root: 0, others: positive number).
+  int id;
+  // State of the vertex: x, y, z, yaw.
+  State state;
+  // NBVP legacy, keeping for now if wants to build a tree to compare.
+  Vertex* parent;
+  std::vector<Vertex*> children;
+  // Distance to root.
+  double distance;
+  // volumetric gain 
+  double gain;
+
+};
 
 class GraphManager
 {
@@ -14,6 +35,8 @@ public:
 
   virtual void odomCallback(const nav_msgs::Odometry::ConstPtr &pos);
 
+  Eigen::Vector3d quaternion_to_rpy(Eigen::Quaterniond q);
+  
   virtual void mapCallback(ufomap_msgs::UFOMapStamped::ConstPtr const &map);
 
   double calculateDistance(ufo::math::Vector3 point1, ufo::math::Vector3 point2);
@@ -27,8 +50,9 @@ public:
 
   double computeVolumetricGain(ufo::math::Vector3 frontier, ufo::map::OccupancyMapColor const &map);
 
-  ufo::math::Vector3 tunePlanningSpace(float range, ufo::math::Vector3 root_node,
-                                       ufo::map::OccupancyMapColor const &map);
+  ufo::math::Vector3 tunePlanningSpace ();
+  
+  void sampleNodes (); 
 
   ufo::math::Vector3 pointToUfo(geometry_msgs::Point p);
 
@@ -51,25 +75,27 @@ private:
 
 
   // variables
+  State robotState_;
+  Eigen::Quaterniond quat_;
   bool firstTime = true;
   ufo::math::Vector3 m_currentPosition;
   double m_currentHeading;
-  double m_local_space, m_global_space;
+  double bounding_box_size_, m_global_space;
   double m_local_fov;
   bool map_received;
   bool initialize_global_graph = true;
   std::string m_ufomap;
   bool m_max_allowed_Z;
   double m_obb_radius;
-  int m_planning_depth;
+  int mapDepth_;
   double m_volumetric_gain_threashold;
   bool check = false;
   float SCALER_X, SCALER_Y, SCALER_Z, highest_x, highest_y, highest_z, lowest_x, lowest_y, lowest_z;
   double m_min_dist_bw_nodes;
   ufo::math::Vector3 m_local_exploration_target;
   std::vector<ufo::math::Vector3> m_global_repos_targets;
-  int m_iterations_local;
-  int m_iterations_global;
+  int iterations_local_;
+  int iterations_global_;
   double m_max_edge_length;
   bool m_reserved_graph;
   bool local_exploration;

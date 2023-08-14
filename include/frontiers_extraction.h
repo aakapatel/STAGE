@@ -83,6 +83,7 @@
 #include <mav_msgs/default_topics.h>
 #include <trajectory_msgs/MultiDOFJointTrajectory.h>
 #include <geometry_msgs/PoseArray.h>
+#include <omp.h>
 
 #include "stage_planner/frontierRequest.h"
 #include "stage_planner/isFrontier.h"
@@ -97,54 +98,13 @@ typedef ros::Time TIMER;
 #define START_TIMER(x) (x = ros::Time::now())
 #define GET_ELAPSED_TIME(x) (float)((ros::Time::now() - x).toSec())
 
+typedef Eigen::Vector3d State; // x, y, z
 
-
-
-// struct Vertex {
-//   Vertex(int v_id, StateVec v_state) {
-//     id = v_id;
-//     state << v_state[0], v_state[1], v_state[2], v_state[3];
-//     vol_gain.reset();
-//     parent = NULL;
-//     distance = 0;
-//     is_leaf_vertex = true;
-//     is_hanging = false;
-//     type = VertexType::kUnvisited;
-//     cluster_id = 0;
-//     dm = 0;
-//     semantic_class.value = stage_planner::SemanticClass::kNone;
-//   }
-//
-//   // Unique id for each vertex (root: 0, others: positive number).
-//   int id;
-//   // State of the vertex: x, y, z, yaw.
-//   StateVec state;
-//   // Volumetric gain for exploration.
-//   VolumetricGain vol_gain;
-//   // NBVP legacy, keeping for now if wants to build a tree to compare.
-//   Vertex* parent;
-//   std::vector<Vertex*> children;
-//   // Distance to root.
-//   double distance;
-//   // Set true if this is a leaf in the simplified tree from the graph.
-//   bool is_leaf_vertex;
-//   // If there is ground plane below the vertex (only for legged robots)
-//   bool is_hanging;
-//   // Type of vertex, used for global graph.
-//   VertexType type;
-//   // Cluster id: used for clustering.
-//   int cluster_id;
-//   // Distance to closest obstacle in the map
-//   double dm;
-//   // Semantic
-//   stage_planner::SemanticClass semantic_class;
-// };
 
 class FrontierExtraction
 {
 public:
     
-    typedef Eigen::Vector3d State; // x, y, z
     typedef pcl::PointCloud<pcl::PointXYZ> PCLPointCloud;
     typedef pcl::PointXYZ PCLPoint;
     typedef octomap::point3d point3d;
@@ -227,7 +187,7 @@ private:
     std::string m_ufomap;
     bool max_allowed_height_;
     double OBB_RADIUS;
-    int PLANNING_CHECK_DEPTH;
+    int mapDepth_;
     double VOLUMETRIC_GAIN_THREASHOLD;
     bool check = false;
 

@@ -10,16 +10,16 @@ GraphManager::GraphManager(const ros::NodeHandle& nh, const ros::NodeHandle& nh_
       m_worldFrameId("world"), 
       m_odometry("/hummingbird/ground_truth/odometry"),
       m_currentHeading(0), 
-      m_local_space(12), 
+      bounding_box_size_(12), 
       m_local_fov(40),
       m_ufomap("/ufomap_mapping_server_node/map"), 
       m_max_allowed_Z(4),
       m_obb_radius(0.5), 
-      m_planning_depth(1), 
+      mapDepth_(1), 
       m_volumetric_gain_threashold(1),
       m_min_dist_bw_nodes(0.3), 
-      m_iterations_local(2000), 
-      m_iterations_global(6000),
+      iterations_local_(2000), 
+      iterations_global_(6000),
       m_max_edge_length(4)
 
 {
@@ -28,20 +28,20 @@ GraphManager::GraphManager(const ros::NodeHandle& nh, const ros::NodeHandle& nh_
   nh_private_.param("frame_id", m_worldFrameId, m_worldFrameId);
   nh_private_.param("odometry", m_odometry, m_odometry);
 
-  nh_private_.param("local_sliding_space", m_local_space, m_local_space);
-  nh_private_.param("local_field_of_view", m_local_fov, m_local_space);
+  nh_private_.param("local_sliding_space", bounding_box_size_);
+  nh_private_.param("local_field_of_view", m_local_fov, m_local_fov);
   nh_private_.param("ufomap", m_ufomap, m_ufomap);
   nh_private_.param("safety_height", m_max_allowed_Z, m_max_allowed_Z);
   nh_private_.param("traversability_radius", m_obb_radius, m_obb_radius);
-  nh_private_.param("planning_check_depth", m_planning_depth,
-                   m_planning_depth);
+  nh_private_.param("planning_check_depth", mapDepth_,
+                   mapDepth_);
   nh_private_.param("volumetric_gain_threashold", m_volumetric_gain_threashold,
                    m_volumetric_gain_threashold);
   nh_private_.param("graph_density_coefficient", m_min_dist_bw_nodes,
                    m_min_dist_bw_nodes);
   nh_private_.param("maximum_edge_length", m_max_edge_length, m_max_edge_length);
-  nh_private_.param("maximum_iterations_local", m_iterations_local, m_iterations_local);
-  nh_private_.param("maximum_iterations_global", m_iterations_global, m_iterations_global);
+  nh_private_.param("maximum_iterations_local", iterations_local_);
+  nh_private_.param("maximum_iterations_global", iterations_global_);
 
   // Subscribers
 
@@ -64,13 +64,13 @@ GraphManager::GraphManager(const ros::NodeHandle& nh, const ros::NodeHandle& nh_
 
 };
 
-ufo::map::OccupancyMapColor m_ufoMAP(0.2);
+// Define an ufoMAP object
+ufo::map::OccupancyMapColor ufoMAP_(0.2);
 
-void GraphManager::mapCallback(
-    ufomap_msgs::UFOMapStamped::ConstPtr const &msg)
+void GraphManager::mapCallback(ufomap_msgs::UFOMapStamped::ConstPtr const &msg)
 {
 
-  if (ufomap_msgs::msgToUfo(msg->map, m_ufoMAP))
+  if (ufomap_msgs::msgToUfo(msg->map, ufoMAP_))
   {
     // ROS_INFO("MAP RECEIVED");
     map_received = true;
@@ -79,6 +79,17 @@ void GraphManager::mapCallback(
   {
     ROS_WARN("MAP NOT RECEIVED");
   }
+}
+
+Eigen::Vector3d GraphManager::quaternion_to_rpy(Eigen::Quaterniond q)
+{
+  const double roll = atan2(2.0 * (q.w() * q.x() + q.y() * q.z()),
+                            1.0 - 2.0 * (q.x() * q.x() + q.y() * q.y()));
+  const double pitch = asin(2.0 * (q.w() * q.y() - q.z() * q.x()));
+  const double yaw = atan2(2.0 * (q.w() * q.z() + q.x() * q.y()),
+                           1.0 - 2.0 * (q.y() * q.y() + q.z() * q.z()));
+
+  return Eigen::Vector3d{roll, pitch, yaw};
 }
 
 Eigen::Quaternion<float> GraphManager::Euler2Quaternion(ufo::math::Vector3 v)
@@ -99,43 +110,41 @@ Eigen::Quaternion<float> GraphManager::Euler2Quaternion(ufo::math::Vector3 v)
 void GraphManager::odomCallback(
     const nav_msgs::Odometry::ConstPtr &pose)
 {
-
-  if (firstTime)
-  {
-    home_position.x() = pose->pose.pose.position.x;
-    home_position.y() = pose->pose.pose.position.y;
-    home_position.z() = pose->pose.pose.position.z;
-    m_prevPose = *pose;
-    firstTime = false;
-  }
-  else
-  {
-    m_currentPose = *pose;
-
-    ufo::math::Vector3 newPoint(pose->pose.pose.position.x, pose->pose.pose.position.y,
-                                pose->pose.pose.position.z);
-    ufo::math::Vector3 oldPoint(m_prevPose.pose.pose.position.x, m_prevPose.pose.pose.position.y,
-                                m_prevPose.pose.pose.position.z);
-    geometry_msgs::PoseWithCovariance old_pose = m_prevPose.pose;
-    geometry_msgs::PoseWithCovariance new_pose = m_currentPose.pose;
-    if (GraphManager::calculateDistance(newPoint, oldPoint) > 1)
+    if (firstTime)
     {
-      m_prevPose = *pose;
-      
+        m_prevPose = *pose;
+        firstTime = false;
     }
-  }
+    else
+    {
+        m_currentPose = *pose;
+    }
+    m_currentPosition.x() = m_currentPose.pose.pose.position.x;
+    m_currentPosition.y() = m_currentPose.pose.pose.position.y;
+    m_currentPosition.z() = m_currentPose.pose.pose.position.z;
 
-  m_currentPosition.x() = m_currentPose.pose.pose.position.x;
-  m_currentPosition.y() = m_currentPose.pose.pose.position.y;
-  m_currentPosition.z() = m_currentPose.pose.pose.position.z;
+    Eigen::Quaterniond attitude{pose->pose.pose.orientation.w, pose->pose.pose.orientation.x,
+                                pose->pose.pose.orientation.y, pose->pose.pose.orientation.z};
 
-  tf::Quaternion q(pose->pose.pose.orientation.x, pose->pose.pose.orientation.y,
-                   pose->pose.pose.orientation.z,
-                   pose->pose.pose.orientation.w);
-  tf::Matrix3x3 m(q);
-  double roll, pitch, yaw;
-  m.getRPY(roll, pitch, yaw);
-  m_currentHeading = yaw * (180 / 3.14159);
+    Eigen::Vector3d euler = quaternion_to_rpy(attitude);
+
+    Eigen::Quaterniond Q (Eigen::AngleAxisd(euler.z(), Eigen::Vector3d::UnitZ()));
+
+    quat_ = Q;  
+
+    tf::Quaternion q(
+        pose->pose.pose.orientation.x,
+        pose->pose.pose.orientation.y,
+        pose->pose.pose.orientation.z,
+        pose->pose.pose.orientation.w);
+    tf::Matrix3x3 m(q);
+    double roll, pitch, yaw;
+    m.getRPY(roll, pitch, yaw);
+
+    robotState_[0] = pose->pose.pose.position.x;
+    robotState_[1] = pose->pose.pose.position.y;
+    robotState_[2] = pose->pose.pose.position.z;
+    robotState_[3] = yaw * (180 / M_PI);
 }
 
 double GraphManager::calculateDistance(ufo::math::Vector3 point1,
@@ -211,8 +220,7 @@ double GraphManager::computeVolumetricGain(ufo::math::Vector3 frontier,
 }
 
 ufo::math::Vector3
-GraphManager::tunePlanningSpace(float range, ufo::math::Vector3 root_node,
-                                ufo::map::OccupancyMapColor const &map)
+GraphManager::tunePlanningSpace()
 {
 
   highest_x = -std::numeric_limits<float>::max();
@@ -222,17 +230,17 @@ GraphManager::tunePlanningSpace(float range, ufo::math::Vector3 root_node,
   lowest_y = std::numeric_limits<float>::max();
   lowest_z = std::numeric_limits<float>::max();
 
-  ufo::math::Vector3 minPoint(root_node.x() - 1 * range,
-                              root_node.y() - 1 * range,
-                              root_node.z() - 1 * range);
-  ufo::math::Vector3 maxPoint(root_node.x() + 1 * range,
-                              root_node.y() + 1 * range,
-                              root_node.z() + 1 * range);
+  ufo::math::Vector3 minPoint(robotState_[0] - 1 * bounding_box_size_,
+                              robotState_[1] - 1 * bounding_box_size_,
+                              robotState_[2] - 1 * bounding_box_size_);
+  ufo::math::Vector3 maxPoint(robotState_[0] + 1 * bounding_box_size_,
+                              robotState_[1] + 1 * bounding_box_size_,
+                              robotState_[2] + 1 * bounding_box_size_);
   ufo::geometry::AABB aabb(minPoint, maxPoint);
 
-  for (auto it = map.beginLeaves(aabb, false, true, false, false,
-                                 m_planning_depth);
-       it != map.endLeaves(); ++it)
+  for (auto it = ufoMAP_.beginLeaves(aabb, false, true, false, false,
+                                 mapDepth_);
+       it != ufoMAP_.endLeaves(); ++it)
   {
     if (it.getX() > highest_x)
     {
@@ -265,7 +273,42 @@ GraphManager::tunePlanningSpace(float range, ufo::math::Vector3 root_node,
   return planning_space_scaler;
 }
 
+void GraphManager::sampleNodes () {
 
+  std::vector<ufo::math::Vector3> temporary_nodes;
+
+  temporary_nodes.clear();
+
+  temporary_nodes.push_back(m_currentPosition);
+
+  srand(time(0));
+  int itterations = 0;
+
+  while (itterations < iterations_local_) {
+  
+    // Generate a random point
+
+    ufo::math::Vector3 box = tunePlanningSpace();
+
+    float x = lowest_x + abs(1024 * rand() / (RAND_MAX + 1.0)) * box.x();
+    float y = lowest_y + abs(1024 * rand() / (RAND_MAX + 1.0)) * box.y();
+    float z = lowest_z + abs(1024 * rand() / (RAND_MAX + 1.0)) * box.z();
+    ufo::math::Vector3 random_point(x, y, z);
+    
+    ufo::geometry::Sphere point_sphere(random_point, m_obb_radius);
+    if (!isInCollision(ufoMAP_, point_sphere, true, false, true,
+                       mapDepth_) and
+        isInCollision(ufoMAP_, point_sphere, false, true, false,
+                      mapDepth_)) 
+    {
+      temporary_nodes.push_back(random_point);  
+    }
+      itterations++;
+  }
+  
+  cout << "temporary_nodes : " << temporary_nodes.size() << "\n " << endl;
+
+} // sampleNodes
 
 ufo::math::Vector3 GraphManager::pointToUfo(geometry_msgs::Point p)
 {
@@ -288,6 +331,8 @@ std::vector<ufo::math::Vector3> GraphManager::pointsToUfo(std::vector<geometry_m
 
 void GraphManager::fetchExplorationTargets()
 {
+  
+  sampleNodes();
 
   stage_planner::frontierRequest frontier_srv;
 
@@ -350,6 +395,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
 {
 
+  fetchExplorationTargets ();
 
   // TODO Homing path to be included in this ros service 
 
