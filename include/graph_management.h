@@ -106,6 +106,10 @@ public:
                           std::vector<Vertex*>* v_res);
 
 
+  void visualizeGraph ();
+  
+  bool isInGraph (State stat);
+
 
   // variables
   
@@ -187,6 +191,8 @@ private:
   ros::Publisher m_frontierPub;
   ros::Publisher m_frontierSelectionPub;
   ros::Publisher command_pub;
+
+  ros::Publisher localGraphVisPub;
 
   //Services 
   ros::ServiceClient m_frontier_client;

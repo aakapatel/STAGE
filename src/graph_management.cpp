@@ -29,20 +29,19 @@ GraphManager::GraphManager(const ros::NodeHandle& nh, const ros::NodeHandle& nh_
   nh_private_.param("frame_id", m_worldFrameId, m_worldFrameId);
   nh_private_.param("odometry", m_odometry, m_odometry);
 
-  nh_private_.param("local_sliding_space", bounding_box_size_);
+  nh_private_.param("local_sliding_space", bounding_box_size_, bounding_box_size_);
   nh_private_.param("local_field_of_view", m_local_fov, m_local_fov);
   nh_private_.param("ufomap", m_ufomap, m_ufomap);
   nh_private_.param("safety_height", m_max_allowed_Z, m_max_allowed_Z);
-  nh_private_.param("traversability_radius", obb_radius_);
-  nh_private_.param("planning_check_depth", mapDepth_,
-                   mapDepth_);
+  nh_private_.param("traversability_radius", obb_radius_, obb_radius_);
+  nh_private_.param("planning_check_depth", mapDepth_,mapDepth_);
   nh_private_.param("volumetric_gain_threashold", m_volumetric_gain_threashold,
                    m_volumetric_gain_threashold);
   nh_private_.param("graph_density_coefficient", m_min_dist_bw_nodes,
                    m_min_dist_bw_nodes);
-  nh_private_.param("maximum_edge_length", max_edge_length_);
-  nh_private_.param("maximum_iterations_local", iterations_local_);
-  nh_private_.param("maximum_iterations_global", iterations_global_);
+  nh_private_.param("maximum_edge_length", max_edge_length_, max_edge_length_);
+  nh_private_.param("maximum_iterations_local", iterations_local_, iterations_local_);
+  nh_private_.param("maximum_iterations_global", iterations_global_, iterations_global_);
 
   // Subscribers
 
@@ -54,6 +53,7 @@ GraphManager::GraphManager(const ros::NodeHandle& nh, const ros::NodeHandle& nh_
 
   m_frontierPub = nh_.advertise<visualization_msgs::MarkerArray>("/frontier_nodes_vis", 10);
 
+  localGraphVisPub = nh_.advertise<visualization_msgs::MarkerArray>("/local_planning_graph", 10);
 
   // Services 
   m_frontier_client = nh_.serviceClient<stage_planner::frontierRequest>("request_frontier_target");
@@ -309,28 +309,59 @@ void GraphManager::sampleNodes (std::vector<ufo::math::Vector3>& nodes) {
 
 } // sampleNodes
 
+bool GraphManager::isInGraph (State stat) {
+  
+  
+  bool exist_in_graph = false;
+
+  std::pair<Graph::GraphType::vertex_iterator,
+            Graph::GraphType::vertex_iterator> vi;
+  graph_->getVertexIterator(vi);
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
+    int id = graph_->getVertexProperty(it);
+    if (stat == vertices_map_[id]->state) {
+      exist_in_graph = true;
+    } else {
+      exist_in_graph = false;
+    }
+  }
+
+  return exist_in_graph;
+}
+
 void GraphManager::buildGraph () {
 
-  GraphManager::reset();
+  // GraphManager::reset();
 
   std::vector<ufo::math::Vector3> nodes;
   GraphManager::sampleNodes(nodes);
   
-  // State vertex_state;
-  // for (int i = 0; i < nodes.size(); i++) {
-  //   
-  //   vertex_state.x() = nodes[i].x();
-  //   vertex_state.y() = nodes[i].y();
-  //   vertex_state.z() = nodes[i].z();
-  //   Vertex* v = new Vertex(generateVertexID(), vertex_state);
-  //   GraphManager::addVertex(v);
-  //   // vertex_id_count_++;
-  // }
+  for (int i = 0; i < (nodes.size() - 1); i++) {
 
-  for (int i = 0; i < nodes.size()-1; i++) {
+  State s1, s2;
+  s1.x() = nodes[i].x();
+  s1.y() = nodes[i].y();
+  s1.z() = nodes[i].z();
+  
+  Vertex* u;
+
+  if (!isInGraph(s1)) {
+    u = new Vertex(generateVertexID(), s1);
+    GraphManager::addVertex(u);
+  }
 
     for (int i2 = i; i2 < nodes.size(); i2++) {
       
+      s2.x() = nodes[i2].x(); 
+      s2.y() = nodes[i2].y(); 
+      s2.z() = nodes[i2].z();
+      
+      Vertex* v;
+      if (!isInGraph(s2)) {
+        v = new Vertex(generateVertexID(), s2);
+        GraphManager::addVertex(v);
+      }
+
       double distance_between_nodes = calculateDistance(nodes[i], nodes[i2]);
 
       if (distance_between_nodes < max_edge_length_) {
@@ -339,17 +370,6 @@ void GraphManager::buildGraph () {
 
         if (!isInCollision(ufoMAP_, obb, true, false, true, mapDepth_)) {
           
-          State s1, s2;
-          s1.x() = nodes[i2].x(); 
-          s1.y() = nodes[i2].y(); 
-          s1.z() = nodes[i2].z(); 
-          s2.x() = nodes[i].x(); 
-          s2.y() = nodes[i].y(); 
-          s2.z() = nodes[i].z();
-          Vertex* u = new Vertex(generateVertexID(), s1);
-          Vertex* v = new Vertex(generateVertexID(), s2);
-          GraphManager::addVertex(u);
-          GraphManager::addVertex(v);
           GraphManager::addEdge(u, v, distance_between_nodes);
 
         }
@@ -615,6 +635,8 @@ void GraphManager::fetchExplorationTargets()
 {
   
   GraphManager::buildGraph ();
+  
+  GraphManager::visualizeGraph ();
 
   stage_planner::frontierRequest frontier_srv;
 
@@ -703,6 +725,89 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
   
 }
 
+
+
+void GraphManager::visualizeGraph() {
+  std::shared_ptr<Graph> g = graph_;
+  std::unordered_map<int, Vertex*>& v_map = vertices_map_;
+
+  if (getNumVertices() == 0) return;
+
+  visualization_msgs::MarkerArray marker_array;
+
+  // Plot all edges
+  visualization_msgs::Marker edge_marker;
+  edge_marker.header.stamp = ros::Time::now();
+  edge_marker.header.seq = 0;
+  edge_marker.header.frame_id = "world";
+  edge_marker.id = 0;
+  edge_marker.ns = "edges";
+  edge_marker.action = visualization_msgs::Marker::ADD;
+  edge_marker.type = visualization_msgs::Marker::LINE_LIST;
+  edge_marker.scale.x = 0.04;
+  edge_marker.color.r = 200.0 / 255.0;
+  edge_marker.color.g = 100.0 / 255.0;
+  edge_marker.color.b = 0.0;
+  edge_marker.color.a = 1.0;
+  // edge_marker.lifetime = ros::Duration(graph_lifetime);
+  edge_marker.frame_locked = false;
+
+  std::pair<Graph::GraphType::edge_iterator, Graph::GraphType::edge_iterator>
+      ei;
+  g->getEdgeIterator(ei);
+  for (Graph::GraphType::edge_iterator it = ei.first; it != ei.second; ++it) {
+    int src_id, tgt_id;
+    double weight;
+    std::tie(src_id, tgt_id, weight) = g->getEdgeProperty(it);
+    geometry_msgs::Point p1;
+    p1.x = v_map[src_id]->state[0];
+    p1.y = v_map[src_id]->state[1];
+    p1.z = v_map[src_id]->state[2];
+    geometry_msgs::Point p2;
+    p2.x = v_map[tgt_id]->state[0];
+    p2.y = v_map[tgt_id]->state[1];
+    p2.z = v_map[tgt_id]->state[2];
+    edge_marker.points.push_back(p1);
+    edge_marker.points.push_back(p2);
+  }
+  marker_array.markers.push_back(edge_marker);
+
+  // Plot all vertices
+  visualization_msgs::Marker vertex_marker;
+  vertex_marker.header.stamp = ros::Time::now();
+  vertex_marker.header.seq = 0;
+  vertex_marker.header.frame_id = "world";
+  vertex_marker.id = 0;
+  vertex_marker.ns = "vertices";
+  vertex_marker.action = visualization_msgs::Marker::ADD;
+  vertex_marker.type = visualization_msgs::Marker::SPHERE_LIST;
+  vertex_marker.scale.x = 0.3;
+  vertex_marker.scale.y = 0.3;
+  vertex_marker.scale.z = 0.3;
+  vertex_marker.color.r = 125.0 / 255.0;
+  vertex_marker.color.g = 42.0 / 255.0;
+  vertex_marker.color.b = 104.0 / 255.0;
+  vertex_marker.color.a = 1.0;
+  // vertex_marker.lifetime = ros::Duration(graph_lifetime);
+  vertex_marker.frame_locked = false;
+
+  std::pair<Graph::GraphType::vertex_iterator,
+            Graph::GraphType::vertex_iterator>
+      vi;
+  g->getVertexIterator(vi);
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
+    int id = g->getVertexProperty(it);
+    geometry_msgs::Point p1;
+    p1.x = v_map[id]->state[0];
+    p1.y = v_map[id]->state[1];
+    p1.z = v_map[id]->state[2];
+    vertex_marker.points.push_back(p1);
+  }
+  marker_array.markers.push_back(vertex_marker);
+
+  localGraphVisPub.publish(marker_array);
+
+}
 /*
 
 TODO:

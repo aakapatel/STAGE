@@ -14,6 +14,7 @@ Panels:
         - /PointCloud21
         - /Path1
         - /MarkerArray1
+        - /MarkerArray2
       Splitter Ratio: 0.5
     Tree Height: 1187
   - Class: rviz/Selection
@@ -53,10 +54,10 @@ Visualization Manager:
     - Class: UFOMap
       Enabled: true
       Information:
-        "# Inner Nodes": 11 369
-        "# Leaf Nodes": 34 624
+        "# Inner Nodes": 7 345
+        "# Leaf Nodes": 17 728
         Resolution: 30 cm
-        Size: 536,96 KiB
+        Size: 310,65 KiB
       Min. Depth: 0
       Name: UFOMap
       Occupancy Thresholds:
@@ -87,14 +88,14 @@ Visualization Manager:
           Style: Flat Squares
           Value: false
         Occupied:
-          Alpha: 0.03999999910593033
+          Alpha: 0.05000000074505806
           Coloring:
             Color: 114; 159; 207
-            Factor: 0.800000011920929
+            Factor: 1
             Value: X-Axis
           Scale: 1
           Style: Boxes
-          Value: false
+          Value: true
         Unknown:
           Alpha: 0.029999999329447746
           Coloring:
@@ -107,8 +108,8 @@ Visualization Manager:
     - Alpha: 0.10000000149011612
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 12.894699096679688
-        Min Value: -0.8620750904083252
+        Max Value: 12.871820449829102
+        Min Value: -0.8209295272827148
         Value: true
       Axis: Z
       Channel Name: intensity
@@ -116,7 +117,7 @@ Visualization Manager:
       Color: 62; 176; 236
       Color Transformer: AxisColor
       Decay Time: 0
-      Enabled: true
+      Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Min Color: 0; 0; 0
@@ -131,7 +132,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: true
+      Value: false
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
@@ -164,6 +165,15 @@ Visualization Manager:
         {}
       Queue Size: 100
       Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /local_planning_graph
+      Name: MarkerArray
+      Namespaces:
+        edges: true
+        vertices: true
+      Queue Size: 100
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 0; 0; 0
@@ -192,7 +202,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 32.90962219238281
+      Distance: 21.296939849853516
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -200,9 +210,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 2.8973238468170166
-        Y: -1.5497862100601196
-        Z: -7.859555721282959
+        X: -0.9117087125778198
+        Y: -2.2971057891845703
+        Z: 0.6486621499061584
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -210,7 +220,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: hummingbird/base_link
-      Yaw: 3.140470027923584
+      Yaw: 1.5836256742477417
     Saved: ~
 Window Geometry:
   Displays:

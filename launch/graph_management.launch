@@ -15,7 +15,7 @@
 
     <param name="local_sliding_space" value="10" />
 
-    <param name="max_global_planning_space" value="100" />
+    <param name="max_global_planning_space" value="20" />
     
     <param name="local_field_of_view" value="40" />
     
@@ -31,7 +31,7 @@
 
     <param name="maximum_edge_length" value="4" /> 
 
-    <param name ="maximum_iterations_local" value="6000" />
+    <param name ="maximum_iterations_local" value="1000" />
 
     <param name ="maximum_iterations_global" value="4000" />
 
