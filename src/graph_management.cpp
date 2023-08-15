@@ -14,13 +14,13 @@ GraphManager::GraphManager(const ros::NodeHandle& nh, const ros::NodeHandle& nh_
       m_local_fov(40),
       m_ufomap("/ufomap_mapping_server_node/map"), 
       m_max_allowed_Z(4),
-      m_obb_radius(0.5), 
+      obb_radius_(0.5), 
       mapDepth_(1), 
       m_volumetric_gain_threashold(1),
       m_min_dist_bw_nodes(0.3), 
       iterations_local_(2000), 
       iterations_global_(6000),
-      m_max_edge_length(4)
+      max_edge_length_(4)
 
 {
   
@@ -33,14 +33,14 @@ GraphManager::GraphManager(const ros::NodeHandle& nh, const ros::NodeHandle& nh_
   nh_private_.param("local_field_of_view", m_local_fov, m_local_fov);
   nh_private_.param("ufomap", m_ufomap, m_ufomap);
   nh_private_.param("safety_height", m_max_allowed_Z, m_max_allowed_Z);
-  nh_private_.param("traversability_radius", m_obb_radius, m_obb_radius);
+  nh_private_.param("traversability_radius", obb_radius_);
   nh_private_.param("planning_check_depth", mapDepth_,
                    mapDepth_);
   nh_private_.param("volumetric_gain_threashold", m_volumetric_gain_threashold,
                    m_volumetric_gain_threashold);
   nh_private_.param("graph_density_coefficient", m_min_dist_bw_nodes,
                    m_min_dist_bw_nodes);
-  nh_private_.param("maximum_edge_length", m_max_edge_length, m_max_edge_length);
+  nh_private_.param("maximum_edge_length", max_edge_length_);
   nh_private_.param("maximum_iterations_local", iterations_local_);
   nh_private_.param("maximum_iterations_global", iterations_global_);
 
@@ -294,7 +294,7 @@ void GraphManager::sampleNodes (std::vector<ufo::math::Vector3>& nodes) {
     float z = lowest_z + abs(1024 * rand() / (RAND_MAX + 1.0)) * box.z();
     ufo::math::Vector3 random_point(x, y, z);
     
-    ufo::geometry::Sphere point_sphere(random_point, m_obb_radius);
+    ufo::geometry::Sphere point_sphere(random_point, obb_radius_);
     if (!isInCollision(ufoMAP_, point_sphere, true, false, true,
                        mapDepth_) and
         isInCollision(ufoMAP_, point_sphere, false, true, false,
@@ -316,18 +316,48 @@ void GraphManager::buildGraph () {
   std::vector<ufo::math::Vector3> nodes;
   GraphManager::sampleNodes(nodes);
   
-  State vertex_state;
-  for (int i = 0; i < nodes.size(); i++) {
-    
-    vertex_state.x() = nodes[i].x();
-    vertex_state.y() = nodes[i].y();
-    vertex_state.z() = nodes[i].z();
-    Vertex* v = new Vertex(vertex_id_count_, vertex_state);
-    GraphManager::addVertex(v);
-    vertex_id_count_++;
+  // State vertex_state;
+  // for (int i = 0; i < nodes.size(); i++) {
+  //   
+  //   vertex_state.x() = nodes[i].x();
+  //   vertex_state.y() = nodes[i].y();
+  //   vertex_state.z() = nodes[i].z();
+  //   Vertex* v = new Vertex(generateVertexID(), vertex_state);
+  //   GraphManager::addVertex(v);
+  //   // vertex_id_count_++;
+  // }
+
+  for (int i = 0; i < nodes.size()-1; i++) {
+
+    for (int i2 = i; i2 < nodes.size(); i2++) {
+      
+      double distance_between_nodes = calculateDistance(nodes[i], nodes[i2]);
+
+      if (distance_between_nodes < max_edge_length_) {
+        
+        ufo::geometry::OBB obb = makeOBB(nodes[i], nodes[i2], obb_radius_);
+
+        if (!isInCollision(ufoMAP_, obb, true, false, true, mapDepth_)) {
+          
+          State s1, s2;
+          s1.x() = nodes[i2].x(); 
+          s1.y() = nodes[i2].y(); 
+          s1.z() = nodes[i2].z(); 
+          s2.x() = nodes[i].x(); 
+          s2.y() = nodes[i].y(); 
+          s2.z() = nodes[i].z();
+          Vertex* u = new Vertex(generateVertexID(), s1);
+          Vertex* v = new Vertex(generateVertexID(), s2);
+          GraphManager::addVertex(u);
+          GraphManager::addVertex(v);
+          GraphManager::addEdge(u, v, distance_between_nodes);
+
+        }
+      }
+    }
   }
 
-  ROS_INFO_STREAM ("Built graph with " << getNumVertices() << " nodes" << "\n"); 
+  ROS_INFO_STREAM ("Built graph with " << getNumVertices() << " nodes & " << getNumEdges() << " edges" << "\n"); 
 
 }
 
@@ -556,7 +586,9 @@ int GraphManager::getParentIDFromShortestPath(int target_id,
 
 int GraphManager::generateSubgraphIndex() { return ++subgraph_ind_; }
 
-int GraphManager::generateVertexID() { return ++id_count_; }
+int GraphManager::generateVertexID() { 
+  return id_count_++;
+}
 
 
 

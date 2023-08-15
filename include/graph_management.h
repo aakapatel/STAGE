@@ -121,11 +121,10 @@ private:
   ros::NodeHandle nh_;
   ros::NodeHandle nh_private_;
 
-  int vertex_id_count_ = 0;
   // IDs are non-negative integer from 0 (root node)
   // and increased as adding new sub-graph or new vertices.
   int subgraph_ind_;
-  int id_count_;
+  int id_count_ = 0;
   
   // Kd-tree for nearest neigbor lookup, also keep all vertices.
   kdtree* kd_tree_;
@@ -146,7 +145,7 @@ private:
   bool initialize_global_graph = true;
   std::string m_ufomap;
   bool m_max_allowed_Z;
-  double m_obb_radius;
+  double obb_radius_;
   int mapDepth_;
   double m_volumetric_gain_threashold;
   bool check = false;
@@ -156,7 +155,7 @@ private:
   std::vector<ufo::math::Vector3> m_global_repos_targets;
   int iterations_local_;
   int iterations_global_;
-  double m_max_edge_length;
+  double max_edge_length_;
   bool m_reserved_graph;
   bool local_exploration;
   bool global_exploration;
