@@ -278,7 +278,7 @@ void GraphManager::sampleNodes (std::vector<ufo::math::Vector3>& nodes) {
 
   nodes.clear();
 
-  nodes.push_back(m_currentPosition);
+  // nodes.push_back(m_currentPosition);
 
   srand(time(0));
   int itterations = 0;
@@ -334,47 +334,49 @@ void GraphManager::buildGraph () {
   // GraphManager::reset();
 
   std::vector<ufo::math::Vector3> nodes;
+  nodes.clear();
   GraphManager::sampleNodes(nodes);
   
-  for (int i = 0; i < (nodes.size() - 1); i++) {
+  State state;
+  Vertex* source_vertex = new Vertex(generateVertexID(), robotState_);
+  GraphManager::addVertex(source_vertex);
 
-  State s1, s2;
-  s1.x() = nodes[i].x();
-  s1.y() = nodes[i].y();
-  s1.z() = nodes[i].z();
-  
-  Vertex* u;
+  for (int i = 0; i < nodes.size(); i++) {
 
-  if (!isInGraph(s1)) {
-    u = new Vertex(generateVertexID(), s1);
-    GraphManager::addVertex(u);
+    state.x() = nodes[i].x();
+    state.y() = nodes[i].y();
+    state.z() = nodes[i].z();
+    Vertex* vertex = new Vertex(generateVertexID(), state); 
+    GraphManager::addVertex(vertex);
   }
+  
+  std::pair<Graph::GraphType::vertex_iterator,
+            Graph::GraphType::vertex_iterator> vi;
+  graph_->getVertexIterator(vi);
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
 
-    for (int i2 = i; i2 < nodes.size(); i2++) {
+    int id = graph_->getVertexProperty(it);
+    std::vector<Vertex*> nearby_vertices;
+    getNearestVertices(&vertices_map_[id]->state, 4, &nearby_vertices);
+
+    for (int i = 0; i < nearby_vertices.size(); i++) {
+
+      ufo::math::Vector3 v2 (nearby_vertices[i]->state[0], 
+                              nearby_vertices[i]->state[1],
+                                nearby_vertices[i]->state[2]);
+      ufo::math::Vector3 v1 (vertices_map_[id]->state[0],
+                              vertices_map_[id]->state[1],
+                                vertices_map_[id]->state[2]);
       
-      s2.x() = nodes[i2].x(); 
-      s2.y() = nodes[i2].y(); 
-      s2.z() = nodes[i2].z();
-      
-      Vertex* v;
-      if (!isInGraph(s2)) {
-        v = new Vertex(generateVertexID(), s2);
-        GraphManager::addVertex(v);
-      }
+      ufo::geometry::OBB obb = makeOBB (v1, v2, obb_radius_);
 
-      double distance_between_nodes = calculateDistance(nodes[i], nodes[i2]);
-
-      if (distance_between_nodes < max_edge_length_) {
+      if (!isInCollision(ufoMAP_, obb, true, false, true, mapDepth_)) {
         
-        ufo::geometry::OBB obb = makeOBB(nodes[i], nodes[i2], obb_radius_);
-
-        if (!isInCollision(ufoMAP_, obb, true, false, true, mapDepth_)) {
-          
-          GraphManager::addEdge(u, v, distance_between_nodes);
-
-        }
+        GraphManager::addEdge(vertices_map_[id], nearby_vertices[i], 
+                                distanceBetweenVertices(vertices_map_[id], nearby_vertices[i]));
       }
     }
+
   }
 
   ROS_INFO_STREAM ("Built graph with " << getNumVertices() << " nodes & " << getNumEdges() << " edges" << "\n"); 

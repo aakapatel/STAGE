@@ -877,13 +877,13 @@ void FrontierExtraction::visualize () {
   angle_marker.color.r = 0.0;
   angle_marker.color.g = 0.8;
   angle_marker.color.b = 0.0;
-  angle_marker.text = std::to_string(calculateAngle(i));
+  // angle_marker.text = std::to_string(calculateAngle(i));
   geometry_msgs::Point p;
   p.x = i.x();
   p.y = i.y();
   p.z = i.z();
   frontiers_marker.points.push_back(p);
-  marker_array.markers.push_back(angle_marker);
+  // marker_array.markers.push_back(angle_marker);
   marker_array.markers.push_back(frontiers_marker);
   }
   
