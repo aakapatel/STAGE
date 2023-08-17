@@ -277,8 +277,6 @@ void GraphManager::sampleNodes (std::vector<ufo::math::Vector3>& nodes) {
 
   nodes.clear();
 
-  // nodes.push_back(m_currentPosition);
-
   srand(time(0));
   int itterations = 0;
 
@@ -310,106 +308,107 @@ void GraphManager::sampleNodes (std::vector<ufo::math::Vector3>& nodes) {
 
 void GraphManager::buildGraph () {
 
-  // GraphManager::reset();
-
-  // if (graph_ != NULL) graph_.reset();
-  // graph_.reset(new Graph());
-  // subgraph_rep_.reset();
+  sub_graph_.reset(new GraphUtils());
   
-  // std::vector<ufo::math::Vector3> nodes;
-  // 
-  // nodes.clear();
-  // 
-  // GraphManager::sampleNodes(nodes);
-  // 
-  // State state;
-  // Vertex* source_vertex = new Vertex(generateVertexID(), robotState_);
-  // sub_sub_graph_->addVertex(source_vertex);
-  //
-  // for (int i = 0; i < nodes.size(); i++) {
-  //
-  //   state.x() = nodes[i].x();
-  //   state.y() = nodes[i].y();
-  //   state.z() = nodes[i].z();
-  //   Vertex* vertex = new Vertex(generateVertexID(), state); 
-  //   GraphManager::addVertex(vertex);
-  // }
-  // 
-  // std::pair<Graph::GraphType::vertex_iterator,
-  //           Graph::GraphType::vertex_iterator> vi;
-  // sub_graph_->getVertexIterator(vi);
-  // for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
-  //
-  //   int id = sub_graph_->getVertexProperty(it);
-  //
-  //   ufo::math::Vector3 v1 (sub_graph_->vertices_map_[id]->state[0],
-  //                           sub_graph_->vertices_map_[id]->state[1],
-  //                             sub_graph_->vertices_map_[id]->state[2]);
-  //   ufo::math::Vector3 vs (source_vertex->state[0],
-  //                           source_vertex->state[1],
-  //                             source_vertex->state[2]);      
-  //   ufo::geometry::OBB obb_s = makeOBB (vs, v1, obb_radius_);
-  //
-  //   if (!isInCollision(ufoMAP_, obb_s, true, false, true, mapDepth_) 
-  //           and sub_graph_->vertices_map_[id]->edges < 4) {
-  //       
-  //     GraphManager::addEdge(sub_graph_->vertices_map_[id], source_vertex, 
-  //                               distanceBetweenVertices(sub_graph_->vertices_map_[id], source_vertex));
-  //     sub_graph_->vertices_map_[id]->edges++;
-  //   }
-  //
-  //   std::vector<Vertex*> nearby_vertices;
-  //   getNearestVertices(&sub_graph_->vertices_map_[id]->state, 10, &nearby_vertices);
-  //
-  //   for (int i = 0; i < nearby_vertices.size(); i++) {
-  //
-  //     ufo::math::Vector3 v2 (nearby_vertices[i]->state[0], 
-  //                             nearby_vertices[i]->state[1],
-  //                               nearby_vertices[i]->state[2]);
-  //     
-  //     ufo::geometry::OBB obb = makeOBB (v1, v2, obb_radius_);
-  //
-  //     if (!isInCollision(ufoMAP_, obb, true, false, true, mapDepth_) 
-  //           and sub_graph_->vertices_map_[id]->edges < 4 ) {
-  //       
-  //       GraphManager::addEdge(sub_graph_->vertices_map_[id], nearby_vertices[i], 
-  //                               distanceBetweenVertices(sub_graph_->vertices_map_[id], nearby_vertices[i]));
-  //       sub_graph_->vertices_map_[id]->edges++;
-  //     }
-  //   }
-  // }
-  //
-  // 
-  //
-  // ROS_INFO_STREAM ("Built graph with " << getNumVertices() << " nodes & " << getNumEdges() << " edges" << "\n"); 
-  // 
-  // high_resolution_clock::time_point start_total = high_resolution_clock::now();
-  // 
-  // //Fetch shortest path report from specific source vertex to all vertices in the graph
-  // GraphManager::findShortestPaths(2, subgraph_rep_);
-  // 
-  // for (int i = 0; i < getNumVertices(); i++) {
-  //
-  //   std::vector<Vertex*> path;
-  //   
-  //   // Get shortest paths to the target vertex 
-  //   GraphManager::getShortestPath(i, subgraph_rep_, true, path);
-  //   
-  //   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
-  //
-  //   auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-  //
-  //   ROS_INFO_STREAM ("Target vertex : " << sub_graph_->vertices_map_[i]->state[0] << " " << 
-  //                       sub_graph_->vertices_map_[i]->state[1] << " " << sub_graph_->vertices_map_[i]->state[2] << "\n");
-  //
-  //   for (auto i = path.begin(); i != path.end(); i++) {
-  //
-  //     ROS_INFO_STREAM ("Vertex in path : " << (*i)->state[0] << " " << (*i)->state[1] << " " << (*i)->state[2] << "\n");
-  //   }
-  //
-  //   ROS_INFO_STREAM("\033[;34m Dijkstra Shortest paths takes ... \033[0m "
-  //                   << duration_total.count() << " \033[;34m ms \033[0m\n ");
-  // }
+  if (sub_graph_ != NULL) sub_graph_->reset();
+  sub_graph_.reset(new GraphUtils());
+  sub_graph_rep_.reset();
+  
+
+  std::vector<ufo::math::Vector3> nodes;
+
+  nodes.clear();
+
+  GraphManager::sampleNodes(nodes);
+
+  State state;
+  Vertex* source_vertex = new Vertex(sub_graph_->generateVertexID(), robotState_);
+  sub_graph_->addVertex(source_vertex);
+
+  for (int i = 0; i < nodes.size(); i++) {
+
+    state.x() = nodes[i].x();
+    state.y() = nodes[i].y();
+    state.z() = nodes[i].z();
+    Vertex* vertex = new Vertex(sub_graph_->generateVertexID(), state); 
+    sub_graph_->addVertex(vertex);
+  }
+
+  std::pair<Graph::GraphType::vertex_iterator,
+            Graph::GraphType::vertex_iterator> vi;
+  sub_graph_->graph_->getVertexIterator(vi);
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
+
+    int id = sub_graph_->graph_->getVertexProperty(it);
+
+    ufo::math::Vector3 v1 (sub_graph_->vertices_map_[id]->state[0],
+                            sub_graph_->vertices_map_[id]->state[1],
+                              sub_graph_->vertices_map_[id]->state[2]);
+    ufo::math::Vector3 vs (source_vertex->state[0],
+                            source_vertex->state[1],
+                              source_vertex->state[2]);      
+    ufo::geometry::OBB obb_s = makeOBB (vs, v1, obb_radius_);
+
+    if (!isInCollision(ufoMAP_, obb_s, true, false, true, mapDepth_) 
+            and sub_graph_->vertices_map_[id]->edges < 4) {
+        
+      sub_graph_->addEdge(sub_graph_->vertices_map_[id], source_vertex, 
+                            sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], source_vertex));
+      sub_graph_->vertices_map_[id]->edges++;
+    }
+
+    std::vector<Vertex*> nearby_vertices;
+    sub_graph_->getNearestVertices(&sub_graph_->vertices_map_[id]->state, 10, &nearby_vertices);
+
+    for (int i = 0; i < nearby_vertices.size(); i++) {
+
+      ufo::math::Vector3 v2 (nearby_vertices[i]->state[0], 
+                              nearby_vertices[i]->state[1],
+                                nearby_vertices[i]->state[2]);
+      
+      ufo::geometry::OBB obb = makeOBB (v1, v2, obb_radius_);
+
+      if (!isInCollision(ufoMAP_, obb, true, false, true, mapDepth_) 
+            and sub_graph_->vertices_map_[id]->edges < 4 ) {
+        
+        sub_graph_->addEdge(sub_graph_->vertices_map_[id], nearby_vertices[i], 
+                              sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], nearby_vertices[i]));
+        sub_graph_->vertices_map_[id]->edges++;
+      }
+    }
+  }
+
+
+
+  ROS_INFO_STREAM ("Built graph with " << sub_graph_->getNumVertices() << " nodes & " << sub_graph_->getNumEdges() << " edges" << "\n"); 
+
+  high_resolution_clock::time_point start_total = high_resolution_clock::now();
+
+  //Fetch shortest path report from specific source vertex to all vertices in the graph
+  sub_graph_->findShortestPaths(2, sub_graph_rep_);
+
+  for (int i = 0; i < sub_graph_->getNumVertices(); i++) {
+
+    std::vector<Vertex*> path;
+    
+    // Get shortest paths to the target vertex 
+    sub_graph_->getShortestPath(i, sub_graph_rep_, true, path);
+    
+    high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+
+    auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+
+    ROS_INFO_STREAM ("Target vertex : " << sub_graph_->vertices_map_[i]->state[0] << " " << 
+                        sub_graph_->vertices_map_[i]->state[1] << " " << sub_graph_->vertices_map_[i]->state[2] << "\n");
+
+    for (auto i = path.begin(); i != path.end(); i++) {
+
+      ROS_INFO_STREAM ("Vertex in path : " << (*i)->state[0] << " " << (*i)->state[1] << " " << (*i)->state[2] << "\n");
+    }
+
+    ROS_INFO_STREAM("\033[;34m Dijkstra Shortest paths takes ... \033[0m "
+                    << duration_total.count() << " \033[;34m ms \033[0m\n ");
+  }
 }
 
 
@@ -437,7 +436,7 @@ std::vector<ufo::math::Vector3> GraphManager::pointsToUfo(std::vector<geometry_m
 void GraphManager::fetchExplorationTargets()
 {
   
-  // GraphManager::buildGraph ();
+  GraphManager::buildGraph ();
   
   GraphManager::visualizeGraph ();
 
