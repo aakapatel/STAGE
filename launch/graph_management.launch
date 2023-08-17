@@ -31,7 +31,7 @@
 
     <param name="maximum_edge_length" value="4" /> 
 
-    <param name ="maximum_iterations_local" value="1000" />
+    <param name ="maximum_iterations_local" value="400" />
 
     <param name ="maximum_iterations_global" value="4000" />
 

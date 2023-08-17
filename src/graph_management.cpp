@@ -346,15 +346,6 @@ void GraphManager::buildGraph () {
   State state;
   Vertex* source_vertex = new Vertex(generateVertexID(), robotState_);
   GraphManager::addVertex(source_vertex);
-  // State state_2;
-  // state_2.x() = m_currentPosition.x() + 4;
-  // state_2.y() = m_currentPosition.y() - 1;
-  // state_2.z() = m_currentPosition.z();
-  // Vertex* vertex_2 = new Vertex(generateVertexID(), state_2);
-  // GraphManager::addVertex(vertex_2);
-  // GraphManager::addEdge(source_vertex, vertex_2, distanceBetweenVertices(source_vertex, vertex_2));
-  
-
 
   for (int i = 0; i < nodes.size(); i++) {
 
@@ -386,7 +377,6 @@ void GraphManager::buildGraph () {
       GraphManager::addEdge(vertices_map_[id], source_vertex, 
                                 distanceBetweenVertices(vertices_map_[id], source_vertex));
       vertices_map_[id]->edges++;
-      source_vertex->edges++;
     }
 
     std::vector<Vertex*> nearby_vertices;
@@ -415,15 +405,16 @@ void GraphManager::buildGraph () {
   
 
   ROS_INFO_STREAM ("Built graph with " << getNumVertices() << " nodes & " << getNumEdges() << " edges" << "\n"); 
-
+  
+  rep.reset();
+  GraphManager::findShortestPaths(rep);
+  
   for (int i = 0; i < getNumVertices(); i++) {
 
     high_resolution_clock::time_point start_total = high_resolution_clock::now();
-    rep.reset();
-
+  
     //  TODO FIX THIS Invalid pointer bug /// 
     
-    GraphManager::findShortestPaths(rep);
     std::vector<Vertex*> path;
 
     GraphManager::getShortestPath(i, rep, true, path);
@@ -431,7 +422,13 @@ void GraphManager::buildGraph () {
 
     auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
 
-    ROS_INFO_STREAM ("Dijkstra path list size : " << path.size() << "\n");
+    ROS_INFO_STREAM ("Target vertex : " << vertices_map_[i]->state[0] << " " << 
+                        vertices_map_[i]->state[1] << " " << vertices_map_[i]->state[2] << "\n");
+
+    for (auto i = path.begin(); i != path.end(); i++) {
+
+      ROS_INFO_STREAM ("Vertex in path : " << (*i)->state[0] << " " << (*i)->state[1] << " " << (*i)->state[2] << "\n");
+    }
 
     ROS_INFO_STREAM("\033[;34m Dijkstra Shortest paths takes ... \033[0m "
                     << duration_total.count() << " \033[;34m ms \033[0m\n ");
