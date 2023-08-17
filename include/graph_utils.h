@@ -42,6 +42,7 @@ struct Vertex {
     distance = 0;
     gain = 0;
     edges = 0;
+    is_root = false;
   }
 
   // Unique id for each vertex (root: 0, others: positive number).
@@ -57,6 +58,8 @@ struct Vertex {
   double gain;
   // number of edges 
   int edges;
+  // If it is root vertex 
+  bool is_root;
 };
 
 class GraphUtils {

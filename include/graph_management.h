@@ -31,10 +31,14 @@ public:
                              stage_planner::explorationPath::Response &res);
   Eigen::Quaternion<float> Euler2Quaternion(ufo::math::Vector3 v);
 
+  State ufoToState (ufo::math::Vector3 v);
+  ufo::math::Vector3 stateToUfo (State s);
+
+
 
   // GRAPH AND PLANNING 
   
-  void buildGraph ();
+  void buildLocalGraph ();
   
   void visualizeGraph ();
 
@@ -69,8 +73,8 @@ private:
   bool check = false;
   float SCALER_X, SCALER_Y, SCALER_Z, highest_x, highest_y, highest_z, lowest_x, lowest_y, lowest_z;
   double m_min_dist_bw_nodes;
-  ufo::math::Vector3 m_local_exploration_target;
-  std::vector<ufo::math::Vector3> m_global_repos_targets;
+  ufo::math::Vector3 local_exploration_target_;
+  std::vector<ufo::math::Vector3> global_repos_targets_;
   int iterations_local_;
   int iterations_global_;
   double max_edge_length_;

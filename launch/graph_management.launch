@@ -21,7 +21,7 @@
     
     <param name="safety_height" value = "4" />
     
-    <param name="traversability_radius" value="0.5" />
+    <param name="traversability_radius" value="0.2" />
     
     <param name="planning_check_depth" value="1" />
     
