@@ -142,9 +142,10 @@ include_directories(
 
 add_library(${PROJECT_NAME}
   src/test.cpp
-  src/graph_manager.cpp
   src/graph.cpp
+  src/graph_utils.cpp
   src/params.cpp
+  src/graph_manager.cpp
 )
 
 
