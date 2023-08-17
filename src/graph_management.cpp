@@ -333,13 +333,28 @@ void GraphManager::buildGraph () {
 
   // GraphManager::reset();
 
+  // if (graph_ != NULL) graph_.reset();
+  // graph_.reset(new Graph());
+  // rep.reset();
+  
   std::vector<ufo::math::Vector3> nodes;
+  
   nodes.clear();
+  
   GraphManager::sampleNodes(nodes);
   
   State state;
   Vertex* source_vertex = new Vertex(generateVertexID(), robotState_);
   GraphManager::addVertex(source_vertex);
+  // State state_2;
+  // state_2.x() = m_currentPosition.x() + 4;
+  // state_2.y() = m_currentPosition.y() - 1;
+  // state_2.z() = m_currentPosition.z();
+  // Vertex* vertex_2 = new Vertex(generateVertexID(), state_2);
+  // GraphManager::addVertex(vertex_2);
+  // GraphManager::addEdge(source_vertex, vertex_2, distanceBetweenVertices(source_vertex, vertex_2));
+  
+
 
   for (int i = 0; i < nodes.size(); i++) {
 
@@ -356,31 +371,71 @@ void GraphManager::buildGraph () {
   for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
 
     int id = graph_->getVertexProperty(it);
+
+    ufo::math::Vector3 v1 (vertices_map_[id]->state[0],
+                            vertices_map_[id]->state[1],
+                              vertices_map_[id]->state[2]);
+    ufo::math::Vector3 vs (source_vertex->state[0],
+                            source_vertex->state[1],
+                              source_vertex->state[2]);      
+    ufo::geometry::OBB obb_s = makeOBB (vs, v1, obb_radius_);
+
+    if (!isInCollision(ufoMAP_, obb_s, true, false, true, mapDepth_) 
+            and vertices_map_[id]->edges < 4) {
+        
+      GraphManager::addEdge(vertices_map_[id], source_vertex, 
+                                distanceBetweenVertices(vertices_map_[id], source_vertex));
+      vertices_map_[id]->edges++;
+      source_vertex->edges++;
+    }
+
     std::vector<Vertex*> nearby_vertices;
-    getNearestVertices(&vertices_map_[id]->state, 4, &nearby_vertices);
+    getNearestVertices(&vertices_map_[id]->state, 10, &nearby_vertices);
 
     for (int i = 0; i < nearby_vertices.size(); i++) {
 
       ufo::math::Vector3 v2 (nearby_vertices[i]->state[0], 
                               nearby_vertices[i]->state[1],
                                 nearby_vertices[i]->state[2]);
-      ufo::math::Vector3 v1 (vertices_map_[id]->state[0],
-                              vertices_map_[id]->state[1],
-                                vertices_map_[id]->state[2]);
       
       ufo::geometry::OBB obb = makeOBB (v1, v2, obb_radius_);
 
-      if (!isInCollision(ufoMAP_, obb, true, false, true, mapDepth_)) {
+      if (!isInCollision(ufoMAP_, obb, true, false, true, mapDepth_) 
+            and vertices_map_[id]->edges < 4 ) {
         
         GraphManager::addEdge(vertices_map_[id], nearby_vertices[i], 
                                 distanceBetweenVertices(vertices_map_[id], nearby_vertices[i]));
+        vertices_map_[id]->edges++;
       }
     }
-
+  
+    // ROS_INFO_STREAM ("Vertex has " << vertices_map_[id]->edges << " edges" << "\n");
   }
+
+  
 
   ROS_INFO_STREAM ("Built graph with " << getNumVertices() << " nodes & " << getNumEdges() << " edges" << "\n"); 
 
+  for (int i = 0; i < getNumVertices(); i++) {
+
+    high_resolution_clock::time_point start_total = high_resolution_clock::now();
+    rep.reset();
+
+    //  TODO FIX THIS Invalid pointer bug /// 
+    
+    GraphManager::findShortestPaths(rep);
+    std::vector<Vertex*> path;
+
+    GraphManager::getShortestPath(i, rep, true, path);
+    high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+
+    auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+
+    ROS_INFO_STREAM ("Dijkstra path list size : " << path.size() << "\n");
+
+    ROS_INFO_STREAM("\033[;34m Dijkstra Shortest paths takes ... \033[0m "
+                    << duration_total.count() << " \033[;34m ms \033[0m\n ");
+  }
 }
 
 
@@ -437,18 +492,6 @@ void GraphManager::removeEdge(Vertex* v, Vertex* u) {
   graph_->removeEdge(v->id, u->id);
 }
 
-// int GraphManager::getNumVertices() { 
-//   return graph_->getNumVertices(); 
-// }
-//
-// int GraphManager::getNumEdges() { 
-//   return graph_->getNumEdges(); 
-// }
-//
-// Vertex* GraphManager::getVertex(int id) { 
-//   return vertices_map_[id]; 
-// }
-
 bool GraphManager::getNearestVertex(const State* state, Vertex** v_res) {
   if (getNumVertices() <= 0) return false;
   kdres* nearest = kd_nearest3(kd_tree_, state->x(), state->y(), state->z());
@@ -498,7 +541,9 @@ bool GraphManager::getNearestVertices(const State* state, double range,
 }
 
 bool GraphManager::findShortestPaths(ShortestPathsReport& rep) {
+  // cout << "status before " << rep.status << "\n" << endl;
   return graph_->findDijkstraShortestPaths(0, rep);
+  // cout << "status after " << rep.status << "\n" << endl;
 }
 
 bool GraphManager::findShortestPaths(int source_id, ShortestPathsReport& rep) {
@@ -609,7 +654,7 @@ int GraphManager::getParentIDFromShortestPath(int target_id,
 int GraphManager::generateSubgraphIndex() { return ++subgraph_ind_; }
 
 int GraphManager::generateVertexID() { 
-  return id_count_++;
+  return ++id_count_;
 }
 
 
@@ -640,6 +685,8 @@ void GraphManager::fetchExplorationTargets()
   
   GraphManager::visualizeGraph ();
 
+  cout << "status after main " << rep.status << "\n" << endl;
+  
   stage_planner::frontierRequest frontier_srv;
 
   if (!run_global_planner)

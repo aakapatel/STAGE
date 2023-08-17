@@ -12,6 +12,7 @@ struct Vertex {
     parent = NULL;
     distance = 0;
     gain = 0;
+    edges = 0;
   }
 
   // Unique id for each vertex (root: 0, others: positive number).
@@ -25,7 +26,8 @@ struct Vertex {
   double distance;
   // volumetric gain 
   double gain;
-
+  // number of edges 
+  int edges;
 };
 
 class GraphManager
@@ -110,11 +112,11 @@ public:
   
   bool isInGraph (State stat);
 
-
   // variables
   
   // Boost graph 
   std::shared_ptr<Graph> graph_;
+  // std::shared_ptr<Graph> sub_graph_;
   // Mapping from vertex id to vertex property.
   std::unordered_map<int, Vertex*> vertices_map_;
   // id:  <neighbor id, edge cost>
@@ -136,6 +138,7 @@ private:
   // Map from local id for Boost Graph Lib to global ID including
   // <sub-graph-id,vertex-id>. This is mainly for debug purpose.
   std::unordered_map<int, std::pair<int, int>> local_id_map_;
+  ShortestPathsReport rep;
 
   // variables
   State robotState_;

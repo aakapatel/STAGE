@@ -64,6 +64,7 @@ bool Graph::findDijkstraShortestPaths(int src_id, ShortestPathsReport& rep) {
     }
   }
 
+ // std::cout << "shortest path size main " << shortest_paths.size() << std::endl;
   return rep.status;
 }
 
@@ -87,6 +88,9 @@ bool Graph::findDijkstraShortestPaths(
                                             get(boost::vertex_index, graph_)))
           .distance_map(boost::make_iterator_property_map(
               shortest_distances.begin(), get(boost::vertex_index, graph_))));
+  
+ // std::cout << "shortest path size raw " << shortest_paths.size() << std::endl;
+
   return true;
 }
 

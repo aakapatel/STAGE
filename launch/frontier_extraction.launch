@@ -60,4 +60,5 @@
 
   </node>
 
+  <node type="rviz" name="rviz" pkg="rviz" args="-d $(find stage_planner)/rviz/ufo.rviz" />
 </launch>
