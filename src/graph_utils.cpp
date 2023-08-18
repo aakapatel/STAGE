@@ -34,6 +34,22 @@ void GraphUtils::reset() {
 
 }
 
+Vertex* GraphUtils::getVertexBySubId (int s_id) {
+  
+  if (graph_->getNumVertices() == 0) {
+    return NULL;
+  }
+  std::pair<Graph::GraphType::vertex_iterator,
+            Graph::GraphType::vertex_iterator> vi;
+  graph_->getVertexIterator(vi);
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
+    int id = graph_->getVertexProperty(it);
+    if (id == vertices_map_[id]->sub_id) {
+      return vertices_map_[id]; 
+    }
+  }
+}
+
 double GraphUtils::distanceBetweenVertices (Vertex*v, Vertex*u) {
   
   return sqrt(pow(v->state.x() - u->state.x(), 2 ) 

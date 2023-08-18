@@ -35,11 +35,17 @@ public:
   ufo::math::Vector3 stateToUfo (State s);
 
 
+  void segmentPath (std::vector<Vertex*> path, 
+                      nav_msgs::Path& path_seg);
 
   // GRAPH AND PLANNING 
   
+  void initializeGraphs ();
+
   void buildLocalGraph ();
   
+  void buildGlobalGraph ();
+
   void planLocalPath ();
 
   void visualizeGraph ();
@@ -54,15 +60,17 @@ private:
   std::shared_ptr<GraphUtils> homing_graph_;
 
   ShortestPathsReport sub_graph_rep_;
-  ShortestPathsReport global_graph__rep_;
+  ShortestPathsReport global_graph_rep_;
   ShortestPathsReport homing_graph_rep;
   
   int local_target_vertex_id;
 
   // variables
   State robotState_;
+
   Eigen::Quaterniond quat_;
   bool firstTime = true;
+  bool initialize_graph = true;
   ufo::math::Vector3 m_currentPosition;
   double m_currentHeading;
   double bounding_box_size_, m_global_space;

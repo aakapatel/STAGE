@@ -43,6 +43,7 @@ struct Vertex {
     gain = 0;
     edges = 0;
     is_root = false;
+    sub_id = 0;
   }
 
   // Unique id for each vertex (root: 0, others: positive number).
@@ -60,6 +61,8 @@ struct Vertex {
   int edges;
   // If it is root vertex 
   bool is_root;
+  // Sub graph id to keep track while adding to global graph 
+  int sub_id;
 };
 
 class GraphUtils {
@@ -110,8 +113,9 @@ public:
                                Vertex** v_res);
   bool getNearestVertices(const State* state, double range,
                           std::vector<Vertex*>* v_res);
-
-
+  
+  Vertex* getVertexBySubId (int s_id);
+  
 
   // Boost graph 
   std::shared_ptr<Graph> graph_;

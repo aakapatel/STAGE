@@ -322,7 +322,19 @@ ufo::math::Vector3 GraphManager::stateToUfo (State s) {
   return v;
 }
 
+void GraphManager::initializeGraphs () {
+  if (initialize_graph) {
+    global_graph_.reset(new GraphUtils());
+    if (global_graph_ != NULL) global_graph_->reset();
+    global_graph_.reset(new GraphUtils());
+    global_graph_rep_.reset();
+    initialize_graph = false;
+  }
+}
+
 void GraphManager::buildLocalGraph () {
+
+  initializeGraphs();
 
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
   
@@ -378,18 +390,6 @@ void GraphManager::buildLocalGraph () {
       sub_graph_->vertices_map_[id]->edges++;
     }
 
-
-    // ufo::geometry::OBB obb_target = makeOBB (stateToUfo(target_vertex->state), 
-    //                                     stateToUfo(sub_graph_->vertices_map_[id]->state), obb_radius_);
-    // 
-    // if (!isInCollision(ufoMAP_, obb_target, true, false, true, mapDepth_)) 
-    //
-    // { 
-    //   sub_graph_->addEdge(sub_graph_->vertices_map_[id], target_vertex, 
-    //                         sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], target_vertex));
-    //   // sub_graph_->vertices_map_[id]->edges++;
-    // }
-
     // Get nearby vertices from the current vertex and connect the them to form local edges 
     std::vector<Vertex*> nearby_vertices;
     sub_graph_->getNearestVertices(&sub_graph_->vertices_map_[id]->state, 6, &nearby_vertices);
@@ -416,7 +416,7 @@ void GraphManager::buildLocalGraph () {
  
   // ROS_INFO_STREAM ("target vertex has " << target_vertex->edges  << " edges" << "\n");
 
-  // ROS_INFO_STREAM ("Built local graph with " << sub_graph_->getNumVertices() << " nodes & " << sub_graph_->getNumEdges() << " edges" << "\n"); 
+  ROS_INFO_STREAM ("Built local graph with " << sub_graph_->getNumVertices() << " nodes & " << sub_graph_->getNumEdges() << " edges\n"); 
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
 
   auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
@@ -433,8 +433,8 @@ void GraphManager::buildLocalGraph () {
 
 }
 
-void GraphManager::planLocalPath () {
 
+void GraphManager::planLocalPath () {
 
   std::vector<Vertex*> nearby_vertices;
   sub_graph_->getNearestVertices(&sub_graph_->vertices_map_[local_target_vertex_id]->state, 4, &nearby_vertices);
@@ -449,6 +449,7 @@ void GraphManager::planLocalPath () {
   }
   if (path.empty()) {
     ROS_WARN ("Dijkstra SP -> Empty :( \n");
+    return;
   }
   exploration_path_.poses.clear();
   geometry_msgs::PoseStamped p;
@@ -457,28 +458,21 @@ void GraphManager::planLocalPath () {
   
   // TODO Either look up nearby vertex id or make sure target vertex has non zero edges 
 
-  for (int i = 0; i < path.size(); i++) {
-   
-    float angle = atan2(path[i+1]->state[1] - path[i]->state[1], path[i+1]->state[0] - path[i]->state[0]);
-    float angle_last;
-    // cout << "alive " << endl;
-    if (i != 0) {
-    angle_last = atan2(path[i]->state[1] - path[i-1]->state[1], path[i]->state[0] - path[i-1]->state[0]);
-    } else {
-      angle_last = 0;
-    }
-    // cout << "still alive " << endl;
-    ufo::math::Vector3 v(0, 0, angle);
-    ufo::math::Vector3 v_last(0, 0, angle_last);
-    Eigen::Quaternion<float> q = Euler2Quaternion(v);
-    Eigen::Quaternion<float> q_last = Euler2Quaternion(v_last);
+  
+  nav_msgs::Path new_path;
+  new_path.poses.clear();
+  GraphManager::segmentPath(path, new_path);
 
-    if (i == path.size()-1) {
-      q = q_last;
-    }
-    p.pose.position.x = path[i]->state[0];
-    p.pose.position.y = path[i]->state[1];
-    p.pose.position.z = path[i]->state[2];
+  for (int i = 0; i < new_path.poses.size() - 1; i++) {
+   
+    float angle = atan2(new_path.poses[i+1].pose.position.y - new_path.poses[i].pose.position.y, 
+                          new_path.poses[i+1].pose.position.x - new_path.poses[i].pose.position.x);
+    ufo::math::Vector3 v(0, 0, angle);
+    Eigen::Quaternion<float> q = Euler2Quaternion(v);
+    
+    p.pose.position.x = new_path.poses[i].pose.position.x;
+    p.pose.position.y = new_path.poses[i].pose.position.y;
+    p.pose.position.z = new_path.poses[i].pose.position.z;
     p.pose.orientation.x = q.x();
     p.pose.orientation.y = q.y();
     p.pose.orientation.z = q.z();
@@ -486,9 +480,58 @@ void GraphManager::planLocalPath () {
     exploration_path_.poses.push_back(p);
  
   }
+  if (exploration_path_.poses.empty()) {
   
-  ROS_INFO_STREAM ("Exploration path size " << exploration_path_.poses.size() << "\n");
+    ROS_WARN ("Exploration path empty \n ");
+  }
 }
+
+
+void GraphManager::buildGlobalGraph () {
+
+  std::shared_ptr<Graph> sub_graph = sub_graph_->graph_;
+  std::unordered_map<int, Vertex*>& v_map = sub_graph_->vertices_map_;
+  
+  std::pair<Graph::GraphType::edge_iterator,
+            Graph::GraphType::edge_iterator> ei;
+
+  std::pair<Graph::GraphType::vertex_iterator,
+            Graph::GraphType::vertex_iterator> vi;
+  
+  sub_graph->getEdgeIterator(ei);
+  
+  sub_graph->getVertexIterator(vi);
+
+  if (sub_graph_->getNumVertices() == 0) {
+    return;
+  }
+  
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
+  
+    int id = sub_graph->getVertexProperty(it);
+    Vertex* v = new Vertex (id, v_map[id]->state);
+    v->is_root = v_map[id]->is_root;
+    v->sub_id = id;
+    global_graph_->addVertex(v);
+  }
+  
+  for (Graph::GraphType::edge_iterator it = ei.first; it != ei.second; ++it) {
+    
+    int src_id, trg_id;
+    double weight;
+    std::tie(src_id, trg_id, weight) = sub_graph->getEdgeProperty(it);
+     
+    // Vertex* v_s = global_graph_->getVertexBySubId(src_id);
+    // Vertex* v_t = global_graph_->getVertexBySubId(trg_id);
+
+    global_graph_->addEdge(global_graph_->getVertex(src_id), global_graph_->getVertex(trg_id), weight);
+
+  }
+
+  ROS_INFO_STREAM ("Build global graph with " << global_graph_->getNumVertices() << " vertices & " << global_graph_->getNumEdges() << " edges\n");
+
+}
+
 
 ufo::math::Vector3 GraphManager::pointToUfo(geometry_msgs::Point p)
 {
@@ -537,7 +580,6 @@ void GraphManager::fetchExplorationTargets()
       local_exploration_target_ = pointToUfo(frontier_srv.response.best_local);
       
       // Build a local graph accounting also the local exploration target for simpler planning 
-      GraphManager::buildLocalGraph ();
 
       }
     else if (frontier_srv.response.local_nav == false)
@@ -549,8 +591,6 @@ void GraphManager::fetchExplorationTargets()
       global_repos_targets_ = pointsToUfo(frontier_srv.response.global_targets);
     }
   }
-
-  GraphManager::visualizeGraph ();
 
 }
 
@@ -582,9 +622,15 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
 {
 
-  fetchExplorationTargets ();
+  GraphManager::fetchExplorationTargets ();
   
-  planLocalPath ();
+  GraphManager::buildLocalGraph ();
+
+  GraphManager::planLocalPath ();
+
+  GraphManager:: visualizeGraph ();
+
+  GraphManager::buildGlobalGraph ();
 
   // TODO Homing path to be included in this ros service 
 
@@ -693,6 +739,59 @@ void GraphManager::visualizeGraph() {
   localGraphVisPub.publish(marker_array);
 
 }
+
+void GraphManager::segmentPath(std::vector<Vertex*> path,
+                                 nav_msgs::Path& path_seg) 
+{
+  float dt_ = 0.5;
+  path_seg.poses.clear();
+  double v_max_ = 0.5;
+  double yaw_rate_max_ = 0.5;
+  if (path.size() == 0) return;
+
+  for (int i = 0; i < (path.size() - 1); ++i) {
+    Eigen::Vector3d start(path[i]->state[0], path[i]->state[1],
+                          path[i]->state[2]);
+    Eigen::Vector3d end(path[i+1]->state[0], path[i+1]->state[1],
+                          path[i+1]->state[2]);
+    Eigen::Vector3d distance = end - start;
+    double yaw_start = 0;
+    double yaw_end = 0;
+    double yaw_direction = 0;
+    if (yaw_direction > M_PI) {
+      yaw_direction -= 2.0 * M_PI;
+    }
+    if (yaw_direction < -M_PI) {
+      yaw_direction += 2.0 * M_PI;
+    }
+
+    double dist_norm = distance.norm();
+    double disc = std::min(dt_ * v_max_ / dist_norm,
+                           dt_ * yaw_rate_max_ / abs(yaw_direction));
+
+    bool int_flag = true;
+
+    if (int_flag) {
+      for (double it = 0.0; it <= 1.0; it += disc) {
+        tf::Vector3 origin((1.0 - it) * start[0] + it * end[0],
+                           (1.0 - it) * start[1] + it * end[1],
+                           (1.0 - it) * start[2] + it * end[2]);
+        double yaw = yaw_start + yaw_direction * it;
+        if (yaw > M_PI) yaw -= 2.0 * M_PI;
+        if (yaw < -M_PI) yaw += 2.0 * M_PI;
+        tf::Quaternion quat;
+        quat.setEuler(0.0, 0.0, yaw);
+        tf::Pose poseTF(quat, origin);
+        geometry_msgs::Pose pose;
+        tf::poseTFToMsg(poseTF, pose);
+        geometry_msgs::PoseStamped pose_stamped;
+        pose_stamped.pose.position = pose.position;
+        pose_stamped.pose.orientation = pose.orientation;
+        path_seg.poses.push_back(pose_stamped);
+      }
+    }
+  }
+} // segmentPath
 /*
 
 TODO:
