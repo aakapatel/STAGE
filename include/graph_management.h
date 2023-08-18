@@ -40,6 +40,8 @@ public:
   
   void buildLocalGraph ();
   
+  void planLocalPath ();
+
   void visualizeGraph ();
 
 private:
@@ -54,6 +56,8 @@ private:
   ShortestPathsReport sub_graph_rep_;
   ShortestPathsReport global_graph__rep_;
   ShortestPathsReport homing_graph_rep;
+  
+  int local_target_vertex_id;
 
   // variables
   State robotState_;
@@ -86,7 +90,7 @@ private:
   nav_msgs::Path homing_path_;
   ufo::math::Vector3 home_position;
   
-  nav_msgs::Path exploration_path_to_publish_;
+  nav_msgs::Path exploration_path_;
 
   
   // ros::NodeHandle m_nh;
