@@ -15,6 +15,7 @@ Panels:
         - /Path1
         - /MarkerArray1
         - /MarkerArray2
+        - /Path2
       Splitter Ratio: 0.5
     Tree Height: 1187
   - Class: rviz/Selection
@@ -34,7 +35,7 @@ Panels:
   - Class: rviz/Time
     Name: Time
     SyncMode: 0
-    SyncSource: PointCloud2
+    SyncSource: ""
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -54,10 +55,10 @@ Visualization Manager:
     - Class: UFOMap
       Enabled: true
       Information:
-        "# Inner Nodes": 7 345
-        "# Leaf Nodes": 17 728
+        "# Inner Nodes": 8 953
+        "# Leaf Nodes": 26 112
         Resolution: 30 cm
-        Size: 310,65 KiB
+        Size: 413,84 KiB
       Min. Depth: 0
       Name: UFOMap
       Occupancy Thresholds:
@@ -162,7 +163,7 @@ Visualization Manager:
       Marker Topic: /frontiers
       Name: MarkerArray
       Namespaces:
-        {}
+        frontier: true
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -173,6 +174,30 @@ Visualization Manager:
         edges: true
         vertices: true
       Queue Size: 100
+      Value: true
+    - Alpha: 1
+      Buffer Length: 1
+      Class: rviz/Path
+      Color: 25; 255; 0
+      Enabled: true
+      Head Diameter: 0.25
+      Head Length: 0.15000000596046448
+      Length: 0.30000001192092896
+      Line Style: Billboards
+      Line Width: 0.20000000298023224
+      Name: Path
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Pose Color: 255; 85; 255
+      Pose Style: Arrows
+      Queue Size: 10
+      Radius: 0.029999999329447746
+      Shaft Diameter: 0.10000000149011612
+      Shaft Length: 0.25
+      Topic: /command_path
+      Unreliable: false
       Value: true
   Enabled: true
   Global Options:
@@ -202,7 +227,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 21.296939849853516
+      Distance: 18.93146514892578
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -210,9 +235,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -0.9117087125778198
-        Y: -2.2971057891845703
-        Z: 0.6486621499061584
+        X: 1.6370134353637695
+        Y: -1.9177922010421753
+        Z: 0.7096509337425232
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -220,7 +245,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: hummingbird/base_link
-      Yaw: 1.5836256742477417
+      Yaw: 1.593626618385315
     Saved: ~
 Window Geometry:
   Displays:
@@ -238,5 +263,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 2560
-  X: 0
+  X: 5120
   Y: 0

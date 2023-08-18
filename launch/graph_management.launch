@@ -21,7 +21,7 @@
     
     <param name="safety_height" value = "4" />
     
-    <param name="traversability_radius" value="0.2" />
+    <param name="traversability_radius" value="0.4" />
     
     <param name="planning_check_depth" value="1" />
     
@@ -31,7 +31,7 @@
 
     <param name="maximum_edge_length" value="2" /> 
 
-    <param name ="maximum_iterations_local" value="1500" />
+    <param name ="maximum_iterations_local" value="700" />
 
     <param name ="maximum_iterations_global" value="4000" />
 

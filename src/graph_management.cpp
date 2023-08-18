@@ -346,7 +346,7 @@ void GraphManager::buildLocalGraph () {
   sub_graph_->addVertex(target_vertex);
   local_target_vertex_id = target_vertex->id;
 
-  ROS_INFO_STREAM ("target_vertex " << target_vertex->state[0] << " " << target_vertex->state[1] << "\n");
+  // ROS_INFO_STREAM ("target_vertex " << target_vertex->state[0] << " " << target_vertex->state[1] << "\n");
 
   State state;
   for (int i = 0; i < nodes.size(); i++) {
@@ -362,12 +362,15 @@ void GraphManager::buildLocalGraph () {
 
     int id = sub_graph_->graph_->getVertexProperty(it);
 
-    ufo::geometry::OBB obb_root = makeOBB (stateToUfo(root_vertex->state), 
-                                        stateToUfo(sub_graph_->vertices_map_[id]->state), obb_radius_);
+    // ufo::geometry::OBB obb_root = makeOBB (stateToUfo(root_vertex->state), 
+    //                                       stateToUfo(sub_graph_->vertices_map_[id]->state), obb_radius_);
     
+    ufo::geometry::LineSegment root_line (stateToUfo(root_vertex->state), 
+                                          stateToUfo(sub_graph_->vertices_map_[id]->state));
+
     if (sub_graph_->vertices_map_[id]->edges < 6 
           and sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], root_vertex) < 1.5*max_edge_length_ 
-          and !isInCollision(ufoMAP_, obb_root, true, false, true, mapDepth_)) 
+          and !isInCollision(ufoMAP_, root_line, true, false, true, mapDepth_)) 
 
     { 
       sub_graph_->addEdge(sub_graph_->vertices_map_[id], root_vertex, 
@@ -376,29 +379,31 @@ void GraphManager::buildLocalGraph () {
     }
 
 
-    ufo::geometry::OBB obb_target = makeOBB (stateToUfo(target_vertex->state), 
-                                        stateToUfo(sub_graph_->vertices_map_[id]->state), obb_radius_);
-    
-    if (!isInCollision(ufoMAP_, obb_target, true, false, true, mapDepth_)) 
-
-    { 
-      sub_graph_->addEdge(sub_graph_->vertices_map_[id], target_vertex, 
-                            sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], target_vertex));
-      // sub_graph_->vertices_map_[id]->edges++;
-    }
+    // ufo::geometry::OBB obb_target = makeOBB (stateToUfo(target_vertex->state), 
+    //                                     stateToUfo(sub_graph_->vertices_map_[id]->state), obb_radius_);
+    // 
+    // if (!isInCollision(ufoMAP_, obb_target, true, false, true, mapDepth_)) 
+    //
+    // { 
+    //   sub_graph_->addEdge(sub_graph_->vertices_map_[id], target_vertex, 
+    //                         sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], target_vertex));
+    //   // sub_graph_->vertices_map_[id]->edges++;
+    // }
 
     // Get nearby vertices from the current vertex and connect the them to form local edges 
     std::vector<Vertex*> nearby_vertices;
-    sub_graph_->getNearestVertices(&sub_graph_->vertices_map_[id]->state, 10, &nearby_vertices);
+    sub_graph_->getNearestVertices(&sub_graph_->vertices_map_[id]->state, 6, &nearby_vertices);
 
     for (int i = 0; i < nearby_vertices.size(); i++) {
       
-      ufo::geometry::OBB obb = makeOBB (stateToUfo(sub_graph_->vertices_map_[id]->state),
-                                        stateToUfo(nearby_vertices[i]->state), obb_radius_);
+      // ufo::geometry::OBB obb = makeOBB (stateToUfo(sub_graph_->vertices_map_[id]->state),
+      //                                   stateToUfo(nearby_vertices[i]->state), obb_radius_);
+      ufo::geometry::LineSegment line (stateToUfo(sub_graph_->vertices_map_[id]->state),
+                                        stateToUfo(nearby_vertices[i]->state));
 
       if (sub_graph_->vertices_map_[id]->edges < 6 
             and sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], nearby_vertices[i]) < max_edge_length_
-            and !isInCollision(ufoMAP_, obb, true, false, true, mapDepth_))  
+            and !isInCollision(ufoMAP_, line, true, false, true, mapDepth_))  
       { 
         // Maximum edges check is a MUST here to prevent unnecessary edges 
         
@@ -409,9 +414,9 @@ void GraphManager::buildLocalGraph () {
     }
   }
  
-  ROS_INFO_STREAM ("target vertex has " << target_vertex->edges  << " edges" << "\n");
+  // ROS_INFO_STREAM ("target vertex has " << target_vertex->edges  << " edges" << "\n");
 
-  ROS_INFO_STREAM ("Built local graph with " << sub_graph_->getNumVertices() << " nodes & " << sub_graph_->getNumEdges() << " edges" << "\n"); 
+  // ROS_INFO_STREAM ("Built local graph with " << sub_graph_->getNumVertices() << " nodes & " << sub_graph_->getNumEdges() << " edges" << "\n"); 
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
 
   auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
@@ -430,10 +435,21 @@ void GraphManager::buildLocalGraph () {
 
 void GraphManager::planLocalPath () {
 
-  std::vector<Vertex*> path;
-  sub_graph_->getShortestPath(local_target_vertex_id, sub_graph_rep_, true, path);
+
+  std::vector<Vertex*> nearby_vertices;
+  sub_graph_->getNearestVertices(&sub_graph_->vertices_map_[local_target_vertex_id]->state, 4, &nearby_vertices);
   
-  ROS_INFO_STREAM ("Dijkstra path size " << path.size() << "\n");
+  std::vector<Vertex*> path;
+  for (auto v : nearby_vertices) {
+
+    sub_graph_->getShortestPath(v->id, sub_graph_rep_, true, path);
+    if (!path.empty()) {
+      break;
+    }
+  }
+  if (path.empty()) {
+    ROS_WARN ("Dijkstra SP -> Empty :( \n");
+  }
   exploration_path_.poses.clear();
   geometry_msgs::PoseStamped p;
 
@@ -441,17 +457,17 @@ void GraphManager::planLocalPath () {
   
   // TODO Either look up nearby vertex id or make sure target vertex has non zero edges 
 
-  for (int i = 0; i < path.size(); ++i) {
+  for (int i = 0; i < path.size(); i++) {
    
     float angle = atan2(path[i+1]->state[1] - path[i]->state[1], path[i+1]->state[0] - path[i]->state[0]);
     float angle_last;
-    cout << "alive " << endl;
+    // cout << "alive " << endl;
     if (i != 0) {
     angle_last = atan2(path[i]->state[1] - path[i-1]->state[1], path[i]->state[0] - path[i-1]->state[0]);
     } else {
       angle_last = 0;
     }
-    cout << "still alive " << endl;
+    // cout << "still alive " << endl;
     ufo::math::Vector3 v(0, 0, angle);
     ufo::math::Vector3 v_last(0, 0, angle_last);
     Eigen::Quaternion<float> q = Euler2Quaternion(v);
