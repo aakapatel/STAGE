@@ -426,7 +426,7 @@ void GraphManager::buildLocalGraph () {
   
   //Fetch shortest path report from root vertex to all vertices in the graph
   if (sub_graph_->findShortestPaths(root_vertex->id, sub_graph_rep_)) {
-    ROS_INFO ("Sub graph dijkstra report : PASS \n");
+    // ROS_INFO ("Sub graph dijkstra report : PASS \n");
   } else {
     ROS_WARN ("Could not find dijkstra shortest paths \n");
   }
@@ -528,7 +528,29 @@ void GraphManager::buildGlobalGraph () {
 
   }
 
-  ROS_INFO_STREAM ("Build global graph with " << global_graph_->getNumVertices() << " vertices & " << global_graph_->getNumEdges() << " edges\n");
+  ROS_INFO_STREAM ("Built global graph with " << global_graph_->getNumVertices() << " vertices & " << global_graph_->getNumEdges() << " edges\n");
+  
+  high_resolution_clock::time_point start_total = high_resolution_clock::now();
+  
+  Vertex* nearest_vertex;
+  global_graph_->getNearestVertex(&robotState_, &nearest_vertex);
+
+  ROS_INFO_STREAM ("Nearest  " << nearest_vertex->state[0] << " " << nearest_vertex->state[1] << " " <<  nearest_vertex->state[2] << " \n");
+  ROS_INFO_STREAM ("Nearest vertex has " << nearest_vertex->edges << " edges\n");
+  global_graph_rep_.reset();
+  
+  if (global_graph_->findShortestPaths(nearest_vertex->id, global_graph_rep_)) {
+    ROS_INFO ("Global graph dijkstra report : PASS \n");
+  } else {
+    ROS_WARN ("Global Could not find dijkstra shortest paths \n");
+  }
+
+  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+
+  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+
+  ROS_INFO_STREAM("\033[;34m Global Dijkstra report time ... \033[0m "
+                    << duration_total.count() << " \033[;34m ms \033[0m\n ");
 
 }
 
