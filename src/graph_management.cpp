@@ -279,11 +279,6 @@ GraphManager::tunePlanningSpace()
 void GraphManager::sampleNodes (std::vector<node*>& nodes) {
 
   nodes.clear();
-  for (std::vector<node *>::iterator it_clear_helper = nodes.begin();
-       it_clear_helper != --nodes.end(); it_clear_helper++) {
-    (*it_clear_helper)->readyForDeletion();
-    delete (*it_clear_helper);
-  }
   
   node *current_pos = new node(robotState_.x(), robotState_.y(), robotState_.z());
   current_pos->addParent(nullptr);
@@ -399,11 +394,20 @@ void GraphManager::buildLocalGraph () {
 
   State state;
   for (int i = 0; i < nodes.size(); i++) {
-    Vertex* vertex = new Vertex(sub_graph_->generateVertexID(), ufoToState(*(nodes[i]->point))); 
+    Vertex* vertex = new Vertex(sub_graph_->generateVertexID(), ufoToState(*(nodes[i]->point)));
     vertex->is_root = false;
     sub_graph_->addVertex(vertex);
   }
-
+  
+  // for (int i = 0; i < nodes.size(); i++) {
+  //   if ((nodes[i]->myParent) != nullptr) {
+  //
+  //     Vertex* vertex = new Vertex(sub_graph_->generateVertexID(), ufoToState(*(nodes[i]->myParent->point))); 
+  //     vertex->is_root = false;
+  //     sub_graph_->addVertex(vertex);
+  //   }
+  // }
+  
   std::pair<Graph::GraphType::vertex_iterator,
             Graph::GraphType::vertex_iterator> vi;
   sub_graph_->graph_->getVertexIterator(vi);
