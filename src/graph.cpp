@@ -40,6 +40,14 @@ void Graph::removeEdge(int u_id, int v_id) {
                      graph_);
 }
 
+void Graph::removeVertex (int u_id) {
+  if (vertex_descriptors_.find(u_id) == vertex_descriptors_.end()) {
+    return;
+  }
+
+  boost::remove_vertex(vertex_descriptors_[u_id], graph_);
+}
+
 bool Graph::findDijkstraShortestPaths(int src_id, ShortestPathsReport& rep) {
   rep.source_id = src_id;
   rep.status = false;

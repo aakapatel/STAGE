@@ -65,6 +65,8 @@ struct Vertex {
   int sub_id;
 };
 
+
+
 class GraphUtils {
 public:
   
@@ -84,6 +86,8 @@ public:
   void addVertex(Vertex* v);
   void addEdge(Vertex* v, Vertex* u, double weight);
   void removeEdge(Vertex* v, Vertex* u);
+  void removeVertex(Vertex* v);
+
 
   int getNumVertices() { return graph_->getNumVertices(); }
   int getNumEdges() { return graph_->getNumEdges(); }
@@ -129,7 +133,7 @@ private:
   // IDs are non-negative integer from 0 (root node)
   // and increased as adding new sub-graph or new vertices.
   int subgraph_ind_;
-  int id_count_ = 0;
+  int id_count_;
   
   // Kd-tree for nearest neigbor lookup, also keep all vertices.
   kdtree* kd_tree_;

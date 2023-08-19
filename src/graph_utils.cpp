@@ -77,6 +77,10 @@ void GraphUtils::removeEdge(Vertex* v, Vertex* u) {
   graph_->removeEdge(v->id, u->id);
 }
 
+void GraphUtils::removeVertex (Vertex* v) {
+  graph_->removeVertex(v->id);
+}
+
 bool GraphUtils::getNearestVertex(const State* state, Vertex** v_res) {
   if (getNumVertices() <= 0) return false;
   kdres* nearest = kd_nearest3(kd_tree_, state->x(), state->y(), state->z());

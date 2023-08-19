@@ -52,7 +52,10 @@ GraphManager::GraphManager(const ros::NodeHandle& nh, const ros::NodeHandle& nh_
 
   m_frontierPub = nh_.advertise<visualization_msgs::MarkerArray>("/frontier_nodes_vis", 10);
 
-  localGraphVisPub = nh_.advertise<visualization_msgs::MarkerArray>("/local_planning_graph", 10);
+  local_Graph_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/local_planning_graph", 10);
+
+  global_Graph_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/global_planning_graph", 10);
+  
 
   // Services 
   m_frontier_client = nh_.serviceClient<stage_planner::frontierRequest>("request_frontier_target");
@@ -273,13 +276,22 @@ GraphManager::tunePlanningSpace()
   return planning_space_scaler;
 }
 
-void GraphManager::sampleNodes (std::vector<ufo::math::Vector3>& nodes) {
+void GraphManager::sampleNodes (std::vector<node*>& nodes) {
 
   nodes.clear();
+  for (std::vector<node *>::iterator it_clear_helper = nodes.begin();
+       it_clear_helper != --nodes.end(); it_clear_helper++) {
+    (*it_clear_helper)->readyForDeletion();
+    delete (*it_clear_helper);
+  }
+  
+  node *current_pos = new node(robotState_.x(), robotState_.y(), robotState_.z());
+  current_pos->addParent(nullptr);
+  nodes.push_back(current_pos);
 
   srand(time(0));
   int itterations = 0;
-
+  
   while (itterations < iterations_local_) {
   
     // Generate a random point
@@ -297,9 +309,34 @@ void GraphManager::sampleNodes (std::vector<ufo::math::Vector3>& nodes) {
         isInCollision(ufoMAP_, point_sphere, false, true, false,
                       mapDepth_)) 
     {
-      nodes.push_back(random_point);  
-    }
-      itterations++;
+      float distance = std::numeric_limits<float>::max();
+      node *parent;
+      std::vector<node *>::iterator it_node;
+      for (it_node = nodes.begin(); it_node != nodes.end();
+           it_node++) {
+        ufo::math::Vector3 direction = random_point - *((*it_node)->point);
+        double new_distance = abs(direction.norm());
+        if (new_distance < distance) {
+          distance = new_distance;
+          parent = *it_node;
+        }
+      };
+      ufo::math::Vector3 start_point(parent->point->x(), parent->point->y(),
+                                     parent->point->z());
+      ufo::math::Vector3 direction = random_point - start_point;
+      ufo::geometry::LineSegment myline(random_point, start_point);
+
+      if (!isInCollision(ufoMAP_, myline, true, false, true, mapDepth_))
+
+      {
+        node *new_node = new node(x, y, z);
+        new_node->addParent(parent);
+        parent->addChild(new_node);
+        nodes.push_back(new_node);
+      }
+    
+    } 
+    itterations++;
   }
   
   // ROS_INFO_STREAM ("Sampled : " << nodes.size() << " nodes" << "\n ");
@@ -344,7 +381,7 @@ void GraphManager::buildLocalGraph () {
   sub_graph_.reset(new GraphUtils());
   sub_graph_rep_.reset();
 
-  std::vector<ufo::math::Vector3> nodes;
+  std::vector<node*> nodes;
   nodes.clear();
 
   GraphManager::sampleNodes(nodes);
@@ -362,7 +399,7 @@ void GraphManager::buildLocalGraph () {
 
   State state;
   for (int i = 0; i < nodes.size(); i++) {
-    Vertex* vertex = new Vertex(sub_graph_->generateVertexID(), ufoToState(nodes[i])); 
+    Vertex* vertex = new Vertex(sub_graph_->generateVertexID(), ufoToState(*(nodes[i]->point))); 
     vertex->is_root = false;
     sub_graph_->addVertex(vertex);
   }
@@ -413,6 +450,13 @@ void GraphManager::buildLocalGraph () {
       }
     }
   }
+
+  // std::unordered_map<int, Vertex*>& vertices_map = sub_graph_->vertices_map_;
+  // for (int i = 0; i < sub_graph_->getNumVertices(); i++) {
+  //   if (vertices_map[i]->edges == 0) {
+  //     sub_graph_->removeVertex(vertices_map[i]);
+  //   }
+  // }
  
   // ROS_INFO_STREAM ("target vertex has " << target_vertex->edges  << " edges" << "\n");
 
@@ -509,10 +553,13 @@ void GraphManager::buildGlobalGraph () {
   for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
   
     int id = sub_graph->getVertexProperty(it);
-    Vertex* v = new Vertex (id, v_map[id]->state);
-    v->is_root = v_map[id]->is_root;
-    v->sub_id = id;
-    global_graph_->addVertex(v);
+    if (v_map[id]->edges != 0) {
+ 
+      Vertex* v = new Vertex (id, v_map[id]->state);
+      v->is_root = v_map[id]->is_root;
+      v->sub_id = id;
+      global_graph_->addVertex(v);
+    }
   }
   
   for (Graph::GraphType::edge_iterator it = ei.first; it != ei.second; ++it) {
@@ -525,6 +572,8 @@ void GraphManager::buildGlobalGraph () {
     // Vertex* v_t = global_graph_->getVertexBySubId(trg_id);
 
     global_graph_->addEdge(global_graph_->getVertex(src_id), global_graph_->getVertex(trg_id), weight);
+    global_graph_->getVertex(src_id)->edges++;
+    global_graph_->getVertex(trg_id)->edges++;
 
   }
 
@@ -538,12 +587,13 @@ void GraphManager::buildGlobalGraph () {
   ROS_INFO_STREAM ("Nearest  " << nearest_vertex->state[0] << " " << nearest_vertex->state[1] << " " <<  nearest_vertex->state[2] << " \n");
   ROS_INFO_STREAM ("Nearest vertex has " << nearest_vertex->edges << " edges\n");
   global_graph_rep_.reset();
-  
-  if (global_graph_->findShortestPaths(nearest_vertex->id, global_graph_rep_)) {
-    ROS_INFO ("Global graph dijkstra report : PASS \n");
-  } else {
-    ROS_WARN ("Global Could not find dijkstra shortest paths \n");
-  }
+  ROS_INFO ("report reset success \n");
+
+  // if (global_graph_->findShortestPaths(nearest_vertex->id, global_graph_rep_)) {
+  //   ROS_INFO ("Global graph dijkstra report : PASS \n");
+  // } else {
+  //   ROS_WARN ("Global Could not find dijkstra shortest paths \n");
+  // }
 
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
 
@@ -650,9 +700,11 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
   GraphManager::planLocalPath ();
 
-  GraphManager:: visualizeGraph ();
+  GraphManager:: visualizeLocalGraph ();
 
   GraphManager::buildGlobalGraph ();
+
+  GraphManager::visualizeGlobalGraph ();
 
   // TODO Homing path to be included in this ros service 
 
@@ -680,7 +732,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
 
 
-void GraphManager::visualizeGraph() {
+void GraphManager::visualizeLocalGraph() {
   std::shared_ptr<Graph> g = sub_graph_->graph_;
   std::unordered_map<int, Vertex*>& v_map = sub_graph_->vertices_map_;
 
@@ -758,10 +810,91 @@ void GraphManager::visualizeGraph() {
   }
   marker_array.markers.push_back(vertex_marker);
 
-  localGraphVisPub.publish(marker_array);
+  local_Graph_Vis_Pub_.publish(marker_array);
 
 }
 
+void GraphManager::visualizeGlobalGraph() {
+  std::shared_ptr<Graph> g = global_graph_->graph_;
+  std::unordered_map<int, Vertex*>& v_map = global_graph_->vertices_map_;
+
+  if (sub_graph_->getNumVertices() == 0) return;
+
+  visualization_msgs::MarkerArray marker_array;
+
+  // Plot all edges
+  visualization_msgs::Marker edge_marker;
+  edge_marker.header.stamp = ros::Time::now();
+  edge_marker.header.seq = 0;
+  edge_marker.header.frame_id = "world";
+  edge_marker.id = 0;
+  edge_marker.ns = "edges";
+  edge_marker.action = visualization_msgs::Marker::ADD;
+  edge_marker.type = visualization_msgs::Marker::LINE_LIST;
+  edge_marker.scale.x = 0.04;
+  edge_marker.color.r = 0 / 255.0;
+  edge_marker.color.g = 200.0 / 255.0;
+  edge_marker.color.b = 0.0;
+  edge_marker.color.a = 1.0;
+  // edge_marker.lifetime = ros::Duration(graph_lifetime);
+  edge_marker.frame_locked = false;
+
+  std::pair<Graph::GraphType::edge_iterator, Graph::GraphType::edge_iterator>
+      ei;
+  g->getEdgeIterator(ei);
+  for (Graph::GraphType::edge_iterator it = ei.first; it != ei.second; ++it) {
+    int src_id, tgt_id;
+    double weight;
+    std::tie(src_id, tgt_id, weight) = g->getEdgeProperty(it);
+    geometry_msgs::Point p1;
+    p1.x = v_map[src_id]->state[0];
+    p1.y = v_map[src_id]->state[1];
+    p1.z = v_map[src_id]->state[2];
+    geometry_msgs::Point p2;
+    p2.x = v_map[tgt_id]->state[0];
+    p2.y = v_map[tgt_id]->state[1];
+    p2.z = v_map[tgt_id]->state[2];
+    edge_marker.points.push_back(p1);
+    edge_marker.points.push_back(p2);
+  }
+  marker_array.markers.push_back(edge_marker);
+
+  // Plot all vertices
+  visualization_msgs::Marker vertex_marker;
+  vertex_marker.header.stamp = ros::Time::now();
+  vertex_marker.header.seq = 0;
+  vertex_marker.header.frame_id = "world";
+  vertex_marker.id = 0;
+  vertex_marker.ns = "vertices";
+  vertex_marker.action = visualization_msgs::Marker::ADD;
+  vertex_marker.type = visualization_msgs::Marker::SPHERE_LIST;
+  vertex_marker.scale.x = 0.3;
+  vertex_marker.scale.y = 0.3;
+  vertex_marker.scale.z = 0.3;
+  vertex_marker.color.r =  255.0 / 255.0;
+  vertex_marker.color.g = 255.0 / 255.0;
+  vertex_marker.color.b = 255.0 / 255.0;
+  vertex_marker.color.a = 1.0;
+  // vertex_marker.lifetime = ros::Duration(graph_lifetime);
+  vertex_marker.frame_locked = false;
+
+  std::pair<Graph::GraphType::vertex_iterator,
+            Graph::GraphType::vertex_iterator>
+      vi;
+  g->getVertexIterator(vi);
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
+    int id = g->getVertexProperty(it);
+    geometry_msgs::Point p1;
+    p1.x = v_map[id]->state[0];
+    p1.y = v_map[id]->state[1];
+    p1.z = v_map[id]->state[2];
+    vertex_marker.points.push_back(p1);
+  }
+  marker_array.markers.push_back(vertex_marker);
+
+  global_Graph_Vis_Pub_.publish(marker_array);
+
+}
 void GraphManager::segmentPath(std::vector<Vertex*> path,
                                  nav_msgs::Path& path_seg) 
 {

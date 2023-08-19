@@ -15,6 +15,7 @@ Panels:
         - /Path1
         - /MarkerArray1
         - /MarkerArray2
+        - /MarkerArray3
         - /Path2
       Splitter Ratio: 0.5
     Tree Height: 1187
@@ -55,10 +56,10 @@ Visualization Manager:
     - Class: UFOMap
       Enabled: true
       Information:
-        "# Inner Nodes": 8 953
-        "# Leaf Nodes": 26 112
+        "# Inner Nodes": 7 865
+        "# Leaf Nodes": 21 880
         Resolution: 30 cm
-        Size: 413,84 KiB
+        Size: 355,27 KiB
       Min. Depth: 0
       Name: UFOMap
       Occupancy Thresholds:
@@ -163,7 +164,15 @@ Visualization Manager:
       Marker Topic: /frontiers
       Name: MarkerArray
       Namespaces:
-        frontier: true
+        {}
+      Queue Size: 100
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /global_planning_graph
+      Name: MarkerArray
+      Namespaces:
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -171,8 +180,7 @@ Visualization Manager:
       Marker Topic: /local_planning_graph
       Name: MarkerArray
       Namespaces:
-        edges: true
-        vertices: true
+        {}
       Queue Size: 100
       Value: true
     - Alpha: 1

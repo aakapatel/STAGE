@@ -5,6 +5,35 @@
 #include "graph_utils.h"
 
 
+struct node {    
+    
+  ufo::math::Vector3 *point;
+  node *myParent = nullptr;
+  double distanceToParent = -1;
+  std::vector<node *> myChilds{};
+  std::vector<node *> myPath{};
+  double distanceToGoal;
+  node(float x, float y, float z)
+  {
+  point = new ufo::math::Vector3(x, y, z);
+  }
+  node(ufo::math::Vector3 *givenPoint)
+  {
+  point = new ufo::math::Vector3(givenPoint->x(), givenPoint->y(), givenPoint->z());
+  }
+  ufo::math::Vector3 *getNodePointer();
+  void addChild(node *newChild) {
+    myChilds.push_back(newChild);
+  }
+  void addParent(node *newParent) {
+    myParent = newParent;
+  }
+  void readyForDeletion() {
+    delete point;
+  }
+};
+
+
 class GraphManager
 {
 
@@ -22,7 +51,7 @@ public:
   ufo::geometry::OBB makeOBB(ufo::math::Vector3 source, ufo::math::Vector3 goal, float radius);
   double computeVolumetricGain(ufo::math::Vector3 frontier, ufo::map::OccupancyMapColor const &map);
   ufo::math::Vector3 tunePlanningSpace ();
-  void sampleNodes (std::vector<ufo::math::Vector3>& nodes); 
+  void sampleNodes (std::vector<node*>& nodes); 
   ufo::math::Vector3 pointToUfo(geometry_msgs::Point p);
   std::vector<ufo::math::Vector3> pointsToUfo(std::vector<geometry_msgs::Point> points);
   void fetchExplorationTargets();
@@ -48,7 +77,9 @@ public:
 
   void planLocalPath ();
 
-  void visualizeGraph ();
+  void visualizeLocalGraph ();
+
+  void visualizeGlobalGraph ();
 
 private:
 
@@ -122,9 +153,10 @@ private:
   ros::Publisher m_frontierSelectionPub;
   ros::Publisher command_pub;
 
-  ros::Publisher localGraphVisPub;
-
-  //Services 
+  ros::Publisher local_Graph_Vis_Pub_;
+  ros::Publisher global_Graph_Vis_Pub_;
+  
+    //Services 
   ros::ServiceClient m_frontier_client;
   ros::ServiceClient m_target_query_client;
   ros::ServiceServer m_exploration_path_srv;
