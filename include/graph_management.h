@@ -81,6 +81,9 @@ public:
 
   void visualizeGlobalGraph ();
 
+  void visualize ();
+
+
 private:
 
   ros::NodeHandle nh_;
@@ -94,14 +97,14 @@ private:
   ShortestPathsReport global_graph_rep_;
   ShortestPathsReport homing_graph_rep;
   
+  int vertex_id = -1;
   int local_target_vertex_id;
-
+  
   // variables
   State robotState_;
 
   Eigen::Quaterniond quat_;
   bool firstTime = true;
-  bool initialize_graph = true;
   ufo::math::Vector3 m_currentPosition;
   double m_currentHeading;
   double bounding_box_size_, m_global_space;

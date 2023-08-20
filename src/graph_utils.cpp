@@ -29,13 +29,14 @@ void GraphUtils::reset() {
   edge_map_.clear();
 
   // Other params.
-  subgraph_ind_ = -1;
-  id_count_ = -1;
+  // subgraph_ind_ = -1;
+  // id_count_ = -1;
 
 }
 
 Vertex* GraphUtils::getVertexBySubId (int s_id) {
   
+  Vertex* v;
   if (graph_->getNumVertices() == 0) {
     return NULL;
   }
@@ -44,10 +45,12 @@ Vertex* GraphUtils::getVertexBySubId (int s_id) {
   graph_->getVertexIterator(vi);
   for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
     int id = graph_->getVertexProperty(it);
-    if (id == vertices_map_[id]->sub_id) {
-      return vertices_map_[id]; 
+    if (s_id == vertices_map_[id]->sub_id) {
+      
+      v = vertices_map_[id]; 
     }
   }
+  return v;
 }
 
 double GraphUtils::distanceBetweenVertices (Vertex*v, Vertex*u) {

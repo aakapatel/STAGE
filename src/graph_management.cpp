@@ -355,27 +355,28 @@ ufo::math::Vector3 GraphManager::stateToUfo (State s) {
 }
 
 void GraphManager::initializeGraphs () {
-  if (initialize_graph) {
-    global_graph_.reset(new GraphUtils());
-    if (global_graph_ != NULL) global_graph_->reset();
-    global_graph_.reset(new GraphUtils());
-    global_graph_rep_.reset();
-    initialize_graph = false;
-  }
-}
 
-void GraphManager::buildLocalGraph () {
 
-  initializeGraphs();
-
-  high_resolution_clock::time_point start_total = high_resolution_clock::now();
-  
   sub_graph_.reset(new GraphUtils());
   
   if (sub_graph_ != NULL) sub_graph_->reset();
   sub_graph_.reset(new GraphUtils());
   sub_graph_rep_.reset();
 
+  if (initialize_global_graph) {
+    global_graph_.reset(new GraphUtils());
+    if (global_graph_ != NULL) global_graph_->reset();
+    global_graph_.reset(new GraphUtils());
+    global_graph_rep_.reset();
+    initialize_global_graph = false;
+  }
+
+}
+
+void GraphManager::buildLocalGraph () {
+
+  // high_resolution_clock::time_point start_total = high_resolution_clock::now();
+  
   std::vector<node*> nodes;
   nodes.clear();
 
@@ -398,15 +399,6 @@ void GraphManager::buildLocalGraph () {
     vertex->is_root = false;
     sub_graph_->addVertex(vertex);
   }
-  
-  // for (int i = 0; i < nodes.size(); i++) {
-  //   if ((nodes[i]->myParent) != nullptr) {
-  //
-  //     Vertex* vertex = new Vertex(sub_graph_->generateVertexID(), ufoToState(*(nodes[i]->myParent->point))); 
-  //     vertex->is_root = false;
-  //     sub_graph_->addVertex(vertex);
-  //   }
-  // }
   
   std::pair<Graph::GraphType::vertex_iterator,
             Graph::GraphType::vertex_iterator> vi;
@@ -464,14 +456,14 @@ void GraphManager::buildLocalGraph () {
  
   // ROS_INFO_STREAM ("target vertex has " << target_vertex->edges  << " edges" << "\n");
 
-  ROS_INFO_STREAM ("Built local graph with " << sub_graph_->getNumVertices() << " nodes & " << sub_graph_->getNumEdges() << " edges\n"); 
-  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
-
-  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-
-  ROS_INFO_STREAM("\033[;34m Graph building takes ... \033[0m "
-                    << duration_total.count() << " \033[;34m ms \033[0m\n ");
-  
+  // ROS_INFO_STREAM ("Built local graph with " << sub_graph_->getNumVertices() << " nodes & " << sub_graph_->getNumEdges() << " edges\n"); 
+  // high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+  //
+  // auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+  //
+  // ROS_INFO_STREAM("\033[;34m Graph building takes ... \033[0m "
+  //                   << duration_total.count() << " \033[;34m ms \033[0m\n ");
+  // 
   //Fetch shortest path report from root vertex to all vertices in the graph
   if (sub_graph_->findShortestPaths(root_vertex->id, sub_graph_rep_)) {
     // ROS_INFO ("Sub graph dijkstra report : PASS \n");
@@ -559,7 +551,7 @@ void GraphManager::buildGlobalGraph () {
     int id = sub_graph->getVertexProperty(it);
     if (v_map[id]->edges != 0) {
  
-      Vertex* v = new Vertex (id, v_map[id]->state);
+      Vertex* v = new Vertex (global_graph_->generateVertexID(), v_map[id]->state);
       v->is_root = v_map[id]->is_root;
       v->sub_id = id;
       global_graph_->addVertex(v);
@@ -572,41 +564,38 @@ void GraphManager::buildGlobalGraph () {
     double weight;
     std::tie(src_id, trg_id, weight) = sub_graph->getEdgeProperty(it);
      
-    // Vertex* v_s = global_graph_->getVertexBySubId(src_id);
-    // Vertex* v_t = global_graph_->getVertexBySubId(trg_id);
+    Vertex* v_s = global_graph_->getVertexBySubId(src_id);
+    Vertex* v_t = global_graph_->getVertexBySubId(trg_id);
 
-    global_graph_->addEdge(global_graph_->getVertex(src_id), global_graph_->getVertex(trg_id), weight);
-    global_graph_->getVertex(src_id)->edges++;
-    global_graph_->getVertex(trg_id)->edges++;
+    global_graph_->addEdge(v_s, v_t, global_graph_->distanceBetweenVertices(v_s, v_t));
+    v_s->edges++;
+    v_t->edges++;
 
   }
 
-  ROS_INFO_STREAM ("Built global graph with " << global_graph_->getNumVertices() << " vertices & " << global_graph_->getNumEdges() << " edges\n");
+  // ROS_INFO_STREAM ("Built global graph with " << global_graph_->getNumVertices() << " vertices & " << global_graph_->getNumEdges() << " edges\n");
   
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
   
   Vertex* nearest_vertex;
   global_graph_->getNearestVertex(&robotState_, &nearest_vertex);
 
-  ROS_INFO_STREAM ("Nearest  " << nearest_vertex->state[0] << " " << nearest_vertex->state[1] << " " <<  nearest_vertex->state[2] << " \n");
-  ROS_INFO_STREAM ("Nearest vertex has " << nearest_vertex->edges << " edges\n");
   global_graph_rep_.reset();
-  ROS_INFO ("report reset success \n");
 
-  // if (global_graph_->findShortestPaths(nearest_vertex->id, global_graph_rep_)) {
-  //   ROS_INFO ("Global graph dijkstra report : PASS \n");
-  // } else {
-  //   ROS_WARN ("Global Could not find dijkstra shortest paths \n");
-  // }
+  if (global_graph_->findShortestPaths(nearest_vertex->id, global_graph_rep_)) {
+    // ROS_INFO ("Global graph dijkstra report : PASS \n");
+  } else {
+    ROS_WARN ("Global Could not find dijkstra shortest paths \n");
+  }
 
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
 
   auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
 
-  ROS_INFO_STREAM("\033[;34m Global Dijkstra report time ... \033[0m "
-                    << duration_total.count() << " \033[;34m ms \033[0m\n ");
+  // ROS_INFO_STREAM("\033[;34m Global Dijkstra report time ... \033[0m "
+                    // << duration_total.count() << " \033[;34m ms \033[0m\n ");
 
-}
+} //buildGlobalGraph 
 
 
 ufo::math::Vector3 GraphManager::pointToUfo(geometry_msgs::Point p)
@@ -698,17 +687,27 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
 {
 
+  high_resolution_clock::time_point start_total = high_resolution_clock::now();
+
+  GraphManager::initializeGraphs ();
+
   GraphManager::fetchExplorationTargets ();
   
   GraphManager::buildLocalGraph ();
 
   GraphManager::planLocalPath ();
 
-  GraphManager:: visualizeLocalGraph ();
-
   GraphManager::buildGlobalGraph ();
 
-  GraphManager::visualizeGlobalGraph ();
+  GraphManager::visualize ();
+
+  
+  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+
+  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+
+  ROS_INFO_STREAM("\033[;34m Total Execution time \033[0m "
+                    << duration_total.count() << " \033[;34m ms \033[0m\n ");
 
   // TODO Homing path to be included in this ros service 
 
@@ -734,7 +733,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
   
 }
 
-
+// Visualization of navigation graphs 
 
 void GraphManager::visualizeLocalGraph() {
   std::shared_ptr<Graph> g = sub_graph_->graph_;
@@ -951,6 +950,15 @@ void GraphManager::segmentPath(std::vector<Vertex*> path,
     }
   }
 } // segmentPath
+
+
+void GraphManager::visualize () {
+
+  GraphManager::visualizeLocalGraph ();
+  GraphManager::visualizeGlobalGraph ();
+}
+
+
 /*
 
 TODO:

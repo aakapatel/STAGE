@@ -132,8 +132,8 @@ private:
   
   // IDs are non-negative integer from 0 (root node)
   // and increased as adding new sub-graph or new vertices.
-  int subgraph_ind_;
-  int id_count_;
+  int subgraph_ind_ = -1;
+  int id_count_ = -1;
   
   // Kd-tree for nearest neigbor lookup, also keep all vertices.
   kdtree* kd_tree_;
