@@ -897,9 +897,9 @@ void GraphManager::visualizeLocalGraph() {
   edge_marker.action = visualization_msgs::Marker::ADD;
   edge_marker.type = visualization_msgs::Marker::LINE_LIST;
   edge_marker.scale.x = 0.04;
-  edge_marker.color.r = 200.0 / 255.0;
-  edge_marker.color.g = 200.0 / 255.0;
-  edge_marker.color.b = 200.0 / 255.0;
+  edge_marker.color.r = 150.0 / 255.0;
+  edge_marker.color.g = 100.0 / 255.0;
+  edge_marker.color.b = 0.0;
   edge_marker.color.a = 0.8;
   edge_marker.frame_locked = false;
 
@@ -932,13 +932,13 @@ void GraphManager::visualizeLocalGraph() {
   vertex_marker.ns = "vertices";
   vertex_marker.action = visualization_msgs::Marker::ADD;
   vertex_marker.type = visualization_msgs::Marker::SPHERE_LIST;
-  vertex_marker.scale.x = 0.3;
-  vertex_marker.scale.y = 0.3;
-  vertex_marker.scale.z = 0.3;
-  vertex_marker.color.r = 125.0 / 255.0;
-  vertex_marker.color.g = 42.0 / 255.0;
-  vertex_marker.color.b = 104.0 / 255.0;
-  vertex_marker.color.a = 1.0;
+  vertex_marker.scale.x = 0.25;
+  vertex_marker.scale.y = 0.25;
+  vertex_marker.scale.z = 0.25;
+  // vertex_marker.color.r = 125.0 / 255.0;
+  // vertex_marker.color.g = 42.0 / 255.0;
+  // vertex_marker.color.b = 104.0 / 255.0;
+  // vertex_marker.color.a = 1.0;
   vertex_marker.frame_locked = false;
 
   std::pair<Graph::GraphType::vertex_iterator,
@@ -968,7 +968,7 @@ void GraphManager::visualizeLocalGraph() {
     p1.y = v_map[id]->state[1];
     p1.z = v_map[id]->state[2];
     
-    double h = (1.0 - std::min(std::max((p1.z-minZ)/ (maxZ - minZ), 0.0), 1.0)) *0.6; 
+    double h = (1.0 - std::min(std::max((p1.z-minZ)/ (maxZ - minZ), 0.0), 1.0)) *0.8; 
     vertex_marker.colors.push_back(GraphManager::heightMapColor(h));
     vertex_marker.points.push_back(p1);
   }
