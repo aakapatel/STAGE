@@ -356,12 +356,12 @@ std::vector<ufo::math::Vector3> FrontierExtraction::fetchFrontiers()
 
         ufo::math::Vector3 frontier_pt(i->x(), i->y(), i->z());
 
-        // ufo::geometry::Sphere sphere(frontier_pt, 0.5);
+        ufo::geometry::Sphere sphere(frontier_pt, 0.5);
 
         double info_gain = computeVolumetricGain (frontier_pt,ufoMAP_);
        
-    // if (!isInCollision(ufoMAP_, sphere, true, false, true, mapDepth_) and info_gain > VOLUMETRIC_GAIN_THREASHOLD)
-     if (info_gain > VOLUMETRIC_GAIN_THREASHOLD)
+    if (!isInCollision(ufoMAP_, sphere, true, false, true, mapDepth_) and info_gain > VOLUMETRIC_GAIN_THREASHOLD)
+     // if (info_gain > VOLUMETRIC_GAIN_THREASHOLD)
 
         {
 
@@ -997,7 +997,7 @@ std::vector<ufo::math::Vector3> FrontierExtraction::fetchLocallyTraversableFront
 double FrontierExtraction::computeVolumetricGain(ufo::math::Vector3 frontier, ufo::map::OccupancyMapColor const &map)
 {
 
-    double r = 1;
+    double r = 2;
     int unknown_cells, free_cells, occupied_cells = 0;
     ufo::geometry::Sphere sphere(frontier, r);
 
@@ -1014,7 +1014,7 @@ double FrontierExtraction::computeVolumetricGain(ufo::math::Vector3 frontier, uf
         }
     }
     
-    double volumetric_gain = 10 * (log(unknown_cells / (occupied_cells + 1)));
+    double volumetric_gain = 10 * (log(unknown_cells + free_cells / (2*occupied_cells + 1)));
 
     return volumetric_gain;
 }

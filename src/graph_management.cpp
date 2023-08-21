@@ -217,7 +217,7 @@ double GraphManager::computeVolumetricGain(ufo::math::Vector3 frontier,
         }
     }
     
-    double volumetric_gain = 10 * (log(unknown_cells / (occupied_cells + 1)));
+    double volumetric_gain = 10 * (log(unknown_cells + free_cells / (2*occupied_cells + 1)));
 
     return volumetric_gain;
 }
