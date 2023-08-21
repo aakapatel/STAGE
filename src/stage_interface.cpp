@@ -22,7 +22,7 @@ StageInterface::StageInterface(const ros::NodeHandle& nh, const ros::NodeHandle&
 
     // Register publishers
 
-    m_trajectory_Publisher = nh_.advertise<trajectory_msgs::MultiDOFJointTrajectory>("/hummingbird/command_trajectory", 1, true);
+    m_trajectory_Publisher = nh_.advertise<trajectory_msgs::MultiDOFJointTrajectory>("/hummingbird/command/trajectory", 1, true);
 
     m_command_Path_Publisher = nh_.advertise<nav_msgs::Path>("/command_path", 1, true);
 

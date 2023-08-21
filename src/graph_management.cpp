@@ -489,6 +489,7 @@ void GraphManager::planLocalPath () {
   }
   if (path.empty()) {
     ROS_WARN ("Dijkstra SP -> Empty :( \n");
+    run_global_planner = true;
     return;
   }
   exploration_path_.poses.clear();
@@ -618,7 +619,7 @@ void GraphManager::planGlobalPath () {
     }
   }
 
-  // ROS_INFO_STREAM ("Global target " << global_target.x() << " " << global_target.y() << " " << global_target.z() << "\n");
+  ROS_INFO_STREAM ("Global target " << global_target.x() << " " << global_target.y() << " " << global_target.z() << "\n");
   
   Vertex* global_reposition_vertex;
   State g_s = ufoToState(global_target);
@@ -695,6 +696,8 @@ void GraphManager::fetchExplorationTargets()
 {
 
   stage_planner::frontierRequest frontier_srv;
+  
+  global_repos_targets_.clear();
 
   if (!run_global_planner)
   {
@@ -703,6 +706,7 @@ void GraphManager::fetchExplorationTargets()
   else
   {
     frontier_srv.request.force_global = true;
+    run_global_planner = false;
   }
 
   if (m_frontier_client.call(frontier_srv))
@@ -730,8 +734,8 @@ void GraphManager::fetchExplorationTargets()
       global_exploration = true;
 
       global_repos_targets_ = pointsToUfo(frontier_srv.response.global_targets);
-      // GraphManager::buildLocalGraph();
-      // GraphManager::buildGlobalGraph();
+      GraphManager::buildLocalGraph();
+      GraphManager::buildGlobalGraph();
       GraphManager::planGlobalPath ();  
 
     }
