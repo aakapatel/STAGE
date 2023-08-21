@@ -588,8 +588,11 @@ void GraphManager::buildGlobalGraph () {
   
   // ROS_INFO_STREAM ("Built global graph with " << global_graph_->getNumVertices() << " vertices & " << global_graph_->getNumEdges() << " edges\n");
   
-  high_resolution_clock::time_point start_total = high_resolution_clock::now();
-  
+} //buildGlobalGraph 
+
+
+void GraphManager::planGlobalPath () {
+
   Vertex* nearest_vertex;
   global_graph_->getNearestVertex(&robotState_, &nearest_vertex);
 
@@ -600,19 +603,7 @@ void GraphManager::buildGlobalGraph () {
   } else {
     ROS_WARN ("Could not find dijkstra shortest paths on global graph \n");
   }
-
-  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
-
-  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-
-  // ROS_INFO_STREAM("\033[;34m Global Dijkstra report time ... \033[0m "
-                    // << duration_total.count() << " \033[;34m ms \033[0m\n ");
-
-} //buildGlobalGraph 
-
-
-void GraphManager::planGlobalPath () {
-
+  
   double gain;
   double my_gain = -std::numeric_limits<double>::max();
   ufo::math::Vector3 global_target;
@@ -740,6 +731,8 @@ void GraphManager::fetchExplorationTargets()
       global_exploration = true;
 
       global_repos_targets_ = pointsToUfo(frontier_srv.response.global_targets);
+      // GraphManager::buildLocalGraph();
+      // GraphManager::buildGlobalGraph();
       GraphManager::planGlobalPath ();  
 
     }

@@ -67,7 +67,7 @@ void ControlInterface::publishCallback(const ros::TimerEvent&){
                 ControlInterface::updatePath();
                 path_pose.header.frame_id = frame_id;
                 ref_pub.publish(path_pose);
-                ROS_INFO_STREAM ("Publishing Reference " << "\n");
+                // ROS_INFO_STREAM ("Publishing Reference " << "\n");
             }
             break;
 
