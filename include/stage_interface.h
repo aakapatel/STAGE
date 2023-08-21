@@ -69,7 +69,7 @@ class StageInterface
     double dt_ = 0.5;
     bool firstTime;
     bool initialization = false;
-    bool explore = true; // For debug only! normally should be false.
+    bool explore = false; // For debug only! normally should be false.
     bool stop_planning = false;
     bool return_home = false;
     bool start_planner_first_time = true;

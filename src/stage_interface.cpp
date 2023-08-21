@@ -51,10 +51,16 @@ bool StageInterface::initializePlanner (stage_planner::initializePlanning::Reque
   if (req.initialize) {
     initialization = true;
     explore = true;
-    res.success = true;
+    StageInterface::generateTrajectory();
+
+    m_command_Path_Publisher.publish(command_path);
+    
+    // if (reachedEndOfPath()) {
+      res.success = true;
+      ROS_INFO ("Initialization Successful : Ready ");
+    // }
   }
   
-  ROS_INFO ("Initialization Successful : Ready ");
   return true;
 
 }
@@ -258,7 +264,23 @@ void StageInterface::generateTrajectory() {
     nav_msgs::Path initialization_path;  
     std::vector<geometry_msgs::PoseStamped> initialization_poses;  
     geometry_msgs::PoseStamped init_pose;  
-    
+ 
+    init_pose.pose.position.x = fetchCurrentPosition().x();
+    init_pose.pose.position.y = fetchCurrentPosition().y();
+    init_pose.pose.position.z = fetchCurrentPosition().z();
+    init_pose.pose.orientation.x = 0;
+    init_pose.pose.orientation.y = 0;
+    init_pose.pose.orientation.z = 0;
+    init_pose.pose.orientation.w = 1;
+    initialization_path.poses.push_back(init_pose);
+    init_pose.pose.position.x = fetchCurrentPosition().x();
+    init_pose.pose.position.y = fetchCurrentPosition().y();
+    init_pose.pose.position.z = fetchCurrentPosition().z() + 1;
+    init_pose.pose.orientation.x = 0;
+    init_pose.pose.orientation.y = 0;
+    init_pose.pose.orientation.z = 0;
+    init_pose.pose.orientation.w = 1;
+    initialization_path.poses.push_back(init_pose);
     init_pose.pose.position.x = fetchCurrentPosition().x() + 2;
     init_pose.pose.position.y = fetchCurrentPosition().y();
     init_pose.pose.position.z = fetchCurrentPosition().z() + 1;
@@ -340,7 +362,7 @@ bool StageInterface::reachedEndOfPath () {
   
   double d = calculateDistance(fetchCurrentPosition(), end_of_path);
 
-  if (d < 1) {
+  if (d < 0.5) {
     fetch_new_path_ = true;
     return true;
   } else {
@@ -353,20 +375,18 @@ bool StageInterface::reachedEndOfPath () {
 void StageInterface::mainLoop (const ros::TimerEvent &event) 
 {
 
-  if ((start_planner_first_time or reachedEndOfPath()) and !stop_planning ) {
+  if (explore) {
 
-    if (fetchExplorationPath ()) {
+    if (reachedEndOfPath() and !stop_planning ) {
 
-      generateTrajectory ();
+      if (fetchExplorationPath ()) {
+
+        generateTrajectory ();
     
-      // ROS_INFO_STREAM ("command path length is " << command_path.poses.size() << "\n");
+        m_command_Path_Publisher.publish(command_path);
     
-      m_command_Path_Publisher.publish(command_path);
-    
+      }
     }
-    
-    start_planner_first_time = false;
-
   }
 
 }

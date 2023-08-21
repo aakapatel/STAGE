@@ -74,6 +74,8 @@ private:
     bool atPoint(geometry_msgs::Point point);
     bool atRotation(geometry_msgs::Quaternion q);
 
-    STATE state = HOLD;
+    // TODO NOT SAFE!!!!!! CHANGE THIS TO HOLD 
+
+    STATE state = PATH; //DEBUG ONLY. IT SHOULD BE HOLD MODE
 
 };

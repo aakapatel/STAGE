@@ -535,16 +535,19 @@ void GraphManager::buildGlobalGraph () {
   std::pair<Graph::GraphType::edge_iterator,
             Graph::GraphType::edge_iterator> ei;
   std::pair<Graph::GraphType::vertex_iterator,
-            Graph::GraphType::vertex_iterator> vi;
+            Graph::GraphType::vertex_iterator> s_vi;
+  
+  std::pair<Graph::GraphType::vertex_iterator,
+            Graph::GraphType::vertex_iterator> g_vi;
   
   sub_graph->getEdgeIterator(ei);
-  sub_graph->getVertexIterator(vi);
+  sub_graph->getVertexIterator(s_vi);
 
   if (sub_graph_->getNumVertices() == 0) {
     return;
   }
   
-  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
+  for (Graph::GraphType::vertex_iterator it = s_vi.first; it != s_vi.second; ++it) {
   
     int id = sub_graph->getVertexProperty(it);
     if (v_map[id]->edges != 0) {
@@ -556,8 +559,8 @@ void GraphManager::buildGlobalGraph () {
     }
   }
 
-  global_graph_->graph_->getVertexIterator(vi);
-  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
+  global_graph_->graph_->getVertexIterator(g_vi);
+  for (Graph::GraphType::vertex_iterator it = g_vi.first; it != g_vi.second; ++it) {
 
     int id = global_graph_->graph_->getVertexProperty(it);
 
@@ -570,7 +573,7 @@ void GraphManager::buildGlobalGraph () {
       ufo::geometry::LineSegment line (stateToUfo(global_graph_->vertices_map_[id]->state),
                                         stateToUfo(nearby_vertices[i]->state));
 
-      if (global_graph_->vertices_map_[id]->edges < 4 
+      if (global_graph_->vertices_map_[id]->edges < 3 
             and global_graph_->distanceBetweenVertices(global_graph_->vertices_map_[id], nearby_vertices[i]) < max_edge_length_
             and !isInCollision(ufoMAP_, line, true, false, true, mapDepth_))  
       { 
@@ -583,21 +586,6 @@ void GraphManager::buildGlobalGraph () {
     }
   } 
   
-  // for (Graph::GraphType::edge_iterator it = ei.first; it != ei.second; ++it) {
-  //   
-  //   int src_id, trg_id;
-  //   double weight;
-  //   std::tie(src_id, trg_id, weight) = sub_graph->getEdgeProperty(it);
-  //    
-  //   Vertex* v_s = global_graph_->getVertexBySubId(src_id);
-  //   Vertex* v_t = global_graph_->getVertexBySubId(trg_id);
-  //
-  //   global_graph_->addEdge(v_s, v_t, global_graph_->distanceBetweenVertices(v_s, v_t));
-  //   v_s->edges++;
-  //   v_t->edges++;
-  //   
-  // }
-
   // ROS_INFO_STREAM ("Built global graph with " << global_graph_->getNumVertices() << " vertices & " << global_graph_->getNumEdges() << " edges\n");
   
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
