@@ -566,14 +566,14 @@ void GraphManager::buildGlobalGraph () {
 
     // Get nearby vertices from the current vertex and connect the them to form local edges 
     std::vector<Vertex*> nearby_vertices;
-    global_graph_->getNearestVertices(&global_graph_->vertices_map_[id]->state, 3, &nearby_vertices);
+    global_graph_->getNearestVertices(&global_graph_->vertices_map_[id]->state, 6, &nearby_vertices);
 
     for (int i = 0; i < nearby_vertices.size(); i++) {
       
       ufo::geometry::LineSegment line (stateToUfo(global_graph_->vertices_map_[id]->state),
                                         stateToUfo(nearby_vertices[i]->state));
 
-      if (global_graph_->vertices_map_[id]->edges < 3 
+      if (global_graph_->vertices_map_[id]->edges < 4 
             and global_graph_->distanceBetweenVertices(global_graph_->vertices_map_[id], nearby_vertices[i]) < max_edge_length_
             and !isInCollision(ufoMAP_, line, true, false, true, mapDepth_))  
       { 
@@ -616,7 +616,6 @@ void GraphManager::planGlobalPath () {
       my_gain = gain;
       global_target = v;
     }
-
   }
 
   // ROS_INFO_STREAM ("Global target " << global_target.x() << " " << global_target.y() << " " << global_target.z() << "\n");

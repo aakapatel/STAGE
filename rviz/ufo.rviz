@@ -109,8 +109,8 @@ Visualization Manager:
     - Alpha: 0.10000000149011612
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 13.085039138793945
-        Min Value: -0.2421271800994873
+        Max Value: 12.897951126098633
+        Min Value: -3.787517547607422
         Value: true
       Axis: Z
       Channel Name: intensity
@@ -226,9 +226,9 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5697963237762451
+      Pitch: 1.45979642868042
       Target Frame: hummingbird/base_link
-      Yaw: 1.413626790046692
+      Yaw: 1.5486266613006592
     Saved: ~
 Window Geometry:
   Displays:
