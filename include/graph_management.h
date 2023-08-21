@@ -76,6 +76,8 @@ public:
   void buildGlobalGraph ();
 
   void planLocalPath ();
+  
+  void planGlobalPath ();
 
   void visualizeLocalGraph ();
 

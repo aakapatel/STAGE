@@ -425,7 +425,7 @@ void GraphManager::buildLocalGraph () {
 
     // Get nearby vertices from the current vertex and connect the them to form local edges 
     std::vector<Vertex*> nearby_vertices;
-    sub_graph_->getNearestVertices(&sub_graph_->vertices_map_[id]->state, 6, &nearby_vertices);
+    sub_graph_->getNearestVertices(&sub_graph_->vertices_map_[id]->state, 3, &nearby_vertices);
 
     for (int i = 0; i < nearby_vertices.size(); i++) {
       
@@ -534,12 +534,10 @@ void GraphManager::buildGlobalGraph () {
   
   std::pair<Graph::GraphType::edge_iterator,
             Graph::GraphType::edge_iterator> ei;
-
   std::pair<Graph::GraphType::vertex_iterator,
             Graph::GraphType::vertex_iterator> vi;
   
   sub_graph->getEdgeIterator(ei);
-  
   sub_graph->getVertexIterator(vi);
 
   if (sub_graph_->getNumVertices() == 0) {
@@ -557,21 +555,48 @@ void GraphManager::buildGlobalGraph () {
       global_graph_->addVertex(v);
     }
   }
+
+  global_graph_->graph_->getVertexIterator(vi);
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
+
+    int id = global_graph_->graph_->getVertexProperty(it);
+
+    // Get nearby vertices from the current vertex and connect the them to form local edges 
+    std::vector<Vertex*> nearby_vertices;
+    global_graph_->getNearestVertices(&global_graph_->vertices_map_[id]->state, 3, &nearby_vertices);
+
+    for (int i = 0; i < nearby_vertices.size(); i++) {
+      
+      ufo::geometry::LineSegment line (stateToUfo(global_graph_->vertices_map_[id]->state),
+                                        stateToUfo(nearby_vertices[i]->state));
+
+      if (global_graph_->vertices_map_[id]->edges < 4 
+            and global_graph_->distanceBetweenVertices(global_graph_->vertices_map_[id], nearby_vertices[i]) < max_edge_length_
+            and !isInCollision(ufoMAP_, line, true, false, true, mapDepth_))  
+      { 
+        // Maximum edges check is a MUST here to prevent unnecessary edges 
+        
+        global_graph_->addEdge(global_graph_->vertices_map_[id], nearby_vertices[i], 
+                              global_graph_->distanceBetweenVertices(global_graph_->vertices_map_[id], nearby_vertices[i]));
+        global_graph_->vertices_map_[id]->edges++;
+      }
+    }
+  } 
   
-  for (Graph::GraphType::edge_iterator it = ei.first; it != ei.second; ++it) {
-    
-    int src_id, trg_id;
-    double weight;
-    std::tie(src_id, trg_id, weight) = sub_graph->getEdgeProperty(it);
-     
-    Vertex* v_s = global_graph_->getVertexBySubId(src_id);
-    Vertex* v_t = global_graph_->getVertexBySubId(trg_id);
-
-    global_graph_->addEdge(v_s, v_t, global_graph_->distanceBetweenVertices(v_s, v_t));
-    v_s->edges++;
-    v_t->edges++;
-
-  }
+  // for (Graph::GraphType::edge_iterator it = ei.first; it != ei.second; ++it) {
+  //   
+  //   int src_id, trg_id;
+  //   double weight;
+  //   std::tie(src_id, trg_id, weight) = sub_graph->getEdgeProperty(it);
+  //    
+  //   Vertex* v_s = global_graph_->getVertexBySubId(src_id);
+  //   Vertex* v_t = global_graph_->getVertexBySubId(trg_id);
+  //
+  //   global_graph_->addEdge(v_s, v_t, global_graph_->distanceBetweenVertices(v_s, v_t));
+  //   v_s->edges++;
+  //   v_t->edges++;
+  //   
+  // }
 
   // ROS_INFO_STREAM ("Built global graph with " << global_graph_->getNumVertices() << " vertices & " << global_graph_->getNumEdges() << " edges\n");
   
@@ -585,7 +610,7 @@ void GraphManager::buildGlobalGraph () {
   if (global_graph_->findShortestPaths(nearest_vertex->id, global_graph_rep_)) {
     // ROS_INFO ("Global graph dijkstra report : PASS \n");
   } else {
-    ROS_WARN ("Global Could not find dijkstra shortest paths \n");
+    ROS_WARN ("Could not find dijkstra shortest paths on global graph \n");
   }
 
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
@@ -596,6 +621,77 @@ void GraphManager::buildGlobalGraph () {
                     // << duration_total.count() << " \033[;34m ms \033[0m\n ");
 
 } //buildGlobalGraph 
+
+
+void GraphManager::planGlobalPath () {
+
+  double gain;
+  double my_gain = -std::numeric_limits<double>::max();
+  ufo::math::Vector3 global_target;
+
+  for (ufo::math::Vector3 v : global_repos_targets_) {
+
+    gain = computeVolumetricGain(v, ufoMAP_);
+
+    if (gain > my_gain) {
+      my_gain = gain;
+      global_target = v;
+    }
+
+  }
+
+  // ROS_INFO_STREAM ("Global target " << global_target.x() << " " << global_target.y() << " " << global_target.z() << "\n");
+  
+  Vertex* global_reposition_vertex;
+  State g_s = ufoToState(global_target);
+
+  global_graph_->getNearestVertex(&g_s, &global_reposition_vertex);
+
+  std::vector<Vertex*> nearby_vertices;
+  global_graph_->getNearestVertices(&global_graph_->vertices_map_[global_reposition_vertex->id]->state, 4, &nearby_vertices);
+  
+  std::vector<Vertex*> path;
+  for (auto v : nearby_vertices) {
+
+    global_graph_->getShortestPath(v->id, global_graph_rep_, true, path);
+    if (!path.empty()) {
+      break;
+    }
+  }
+  if (path.empty()) {
+    ROS_WARN ("Global Dijkstra SP -> Empty :( \n");
+    return;
+  }
+  exploration_path_.poses.clear();
+  geometry_msgs::PoseStamped p;
+
+  
+  nav_msgs::Path new_path;
+  new_path.poses.clear();
+  GraphManager::segmentPath(path, new_path);
+
+  for (int i = 0; i < new_path.poses.size() - 1; i++) {
+   
+    float angle = atan2(new_path.poses[i+1].pose.position.y - new_path.poses[i].pose.position.y, 
+                          new_path.poses[i+1].pose.position.x - new_path.poses[i].pose.position.x);
+    ufo::math::Vector3 v(0, 0, angle);
+    Eigen::Quaternion<float> q = Euler2Quaternion(v);
+    
+    p.pose.position.x = new_path.poses[i].pose.position.x;
+    p.pose.position.y = new_path.poses[i].pose.position.y;
+    p.pose.position.z = new_path.poses[i].pose.position.z;
+    p.pose.orientation.x = q.x();
+    p.pose.orientation.y = q.y();
+    p.pose.orientation.z = q.z();
+    p.pose.orientation.w = q.w();
+    exploration_path_.poses.push_back(p);
+ 
+  }
+  if (exploration_path_.poses.empty()) {
+  
+    ROS_WARN ("Global reposition path is empty \n ");
+  }
+}
 
 
 ufo::math::Vector3 GraphManager::pointToUfo(geometry_msgs::Point p)
@@ -619,7 +715,6 @@ std::vector<ufo::math::Vector3> GraphManager::pointsToUfo(std::vector<geometry_m
 
 void GraphManager::fetchExplorationTargets()
 {
-  
 
   stage_planner::frontierRequest frontier_srv;
 
@@ -645,6 +740,9 @@ void GraphManager::fetchExplorationTargets()
       local_exploration_target_ = pointToUfo(frontier_srv.response.best_local);
       
       // Build a local graph accounting also the local exploration target for simpler planning 
+      GraphManager::buildLocalGraph ();
+      GraphManager::planLocalPath ();
+      GraphManager::buildGlobalGraph ();
 
       }
     else if (frontier_srv.response.local_nav == false)
@@ -654,6 +752,8 @@ void GraphManager::fetchExplorationTargets()
       global_exploration = true;
 
       global_repos_targets_ = pointsToUfo(frontier_srv.response.global_targets);
+      GraphManager::planGlobalPath ();  
+
     }
   }
 
@@ -693,15 +793,6 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
   GraphManager::fetchExplorationTargets ();
   
-  GraphManager::buildLocalGraph ();
-
-  GraphManager::planLocalPath ();
-
-  GraphManager::buildGlobalGraph ();
-
-  GraphManager::visualize ();
-
-  
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
 
   auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
@@ -728,6 +819,8 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
       res.planning_status_global = false;
       res.planning_status_homing = true;
   }
+
+  GraphManager::visualize ();
 
   return true;
   

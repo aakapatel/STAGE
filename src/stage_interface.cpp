@@ -173,7 +173,7 @@ bool StageInterface::fetchExplorationPath () {
 
   if (m_exploration_path_client.call(exploration_path_srv)) {
     
-    if (exploration_path_srv.response.path.poses.size() >= 2) {
+    if (!exploration_path_srv.response.path.poses.empty()) {
       got_new_path = true;
       exploration_path_ = exploration_path_srv.response.path;
     } else {
@@ -359,7 +359,7 @@ void StageInterface::mainLoop (const ros::TimerEvent &event)
 
       generateTrajectory ();
     
-      ROS_INFO_STREAM ("command path length is " << command_path.poses.size() << "\n");
+      // ROS_INFO_STREAM ("command path length is " << command_path.poses.size() << "\n");
     
       m_command_Path_Publisher.publish(command_path);
     
