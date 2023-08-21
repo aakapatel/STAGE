@@ -69,8 +69,11 @@ public:
 
   void improvePath (std::vector<Vertex*> raw_path, std::vector<Vertex*>& path);
  
+  std_msgs::ColorRGBA heightMapColor(double h);
+  
 
-  // GRAPH AND PLANNING 
+
+    // GRAPH AND PLANNING 
   
   void initializeGraphs ();
 

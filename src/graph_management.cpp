@@ -1,4 +1,5 @@
 #include "graph_management.h"
+#include <std_msgs/ColorRGBA.h>
 
 using namespace std;
 using namespace std::chrono;
@@ -363,8 +364,6 @@ void GraphManager::initializeGraphs () {
   sub_graph_.reset(new GraphUtils());
   sub_graph_rep_.reset();
 
-  
-
   if (initialize_global_graph) {
     global_graph_.reset(new GraphUtils());
     if (global_graph_ != NULL) global_graph_->reset();
@@ -448,25 +447,11 @@ void GraphManager::buildLocalGraph () {
       }
     }
   }
-
-  // std::unordered_map<int, Vertex*>& vertices_map = sub_graph_->vertices_map_;
-  // for (int i = 0; i < sub_graph_->getNumVertices(); i++) {
-  //   if (vertices_map[i]->edges == 0) {
-  //     sub_graph_->removeVertex(vertices_map[i]);
-  //   }
-  // }
  
-  // ROS_INFO_STREAM ("target vertex has " << target_vertex->edges  << " edges" << "\n");
-
   // ROS_INFO_STREAM ("Built local graph with " << sub_graph_->getNumVertices() << " nodes & " << sub_graph_->getNumEdges() << " edges\n"); 
-  // high_resolution_clock::time_point stop_total = high_resolution_clock::now();
-  //
-  // auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-  //
-  // ROS_INFO_STREAM("\033[;34m Graph building takes ... \033[0m "
-  //                   << duration_total.count() << " \033[;34m ms \033[0m\n ");
-  // 
+
   //Fetch shortest path report from root vertex to all vertices in the graph
+  
   if (sub_graph_->findShortestPaths(root_vertex->id, sub_graph_rep_)) {
     // ROS_INFO ("Sub graph dijkstra report : PASS \n");
   } else {
@@ -478,18 +463,27 @@ void GraphManager::buildLocalGraph () {
 
 void GraphManager::improvePath (std::vector<Vertex*> raw_path, std::vector<Vertex*>& path) {
 
-  improvement_graph_.reset(new GraphUtils());
+  // Reset the improvement graph & clear memory 
   
-  if (improvement_graph_ != NULL) improvement_graph_->reset();
   improvement_graph_.reset(new GraphUtils());
+  if (improvement_graph_ != NULL) {
+    improvement_graph_->reset();
+  }
+  // Reset SP report 
   improvement_graph_rep_.reset();
   
+  // Include root vertex as current robot state
   Vertex* root_vertex = new Vertex (improvement_graph_->generateVertexID(), robotState_);
   improvement_graph_->addVertex(root_vertex);
   root_vertex->is_root = true;
   
+  // Include goal vertex as last vertex of Dijkstra path 
+
   Vertex* goal_vertex = new Vertex (improvement_graph_->generateVertexID(), raw_path.back()->state);
   improvement_graph_->addVertex(goal_vertex);
+  
+  // Not ideal, but check nearest neighbours to add edges in a graph that will improve the path
+  // by shortcutting some edges 
 
   for (std::vector<Vertex*>::iterator it_vert = raw_path.begin(); it_vert != std::prev(raw_path.end(),1); it_vert++) {
     
@@ -523,6 +517,8 @@ void GraphManager::improvePath (std::vector<Vertex*> raw_path, std::vector<Verte
     }
   }
   
+  // Dijkstra SP report from root to all vertices in improvement graph 
+
   if (improvement_graph_->findShortestPaths(root_vertex->id, improvement_graph_rep_)) {
     // ROS_INFO ("Improvement graph dijkstra report : PASS \n");
   } else {
@@ -902,10 +898,9 @@ void GraphManager::visualizeLocalGraph() {
   edge_marker.type = visualization_msgs::Marker::LINE_LIST;
   edge_marker.scale.x = 0.04;
   edge_marker.color.r = 200.0 / 255.0;
-  edge_marker.color.g = 100.0 / 255.0;
-  edge_marker.color.b = 0.0;
-  edge_marker.color.a = 1.0;
-  // edge_marker.lifetime = ros::Duration(graph_lifetime);
+  edge_marker.color.g = 200.0 / 255.0;
+  edge_marker.color.b = 200.0 / 255.0;
+  edge_marker.color.a = 0.8;
   edge_marker.frame_locked = false;
 
   std::pair<Graph::GraphType::edge_iterator, Graph::GraphType::edge_iterator>
@@ -944,19 +939,37 @@ void GraphManager::visualizeLocalGraph() {
   vertex_marker.color.g = 42.0 / 255.0;
   vertex_marker.color.b = 104.0 / 255.0;
   vertex_marker.color.a = 1.0;
-  // vertex_marker.lifetime = ros::Duration(graph_lifetime);
   vertex_marker.frame_locked = false;
 
   std::pair<Graph::GraphType::vertex_iterator,
             Graph::GraphType::vertex_iterator>
       vi;
   g->getVertexIterator(vi);
+  
+  double minZ = std::numeric_limits<double>::max();
+  double maxZ = -std::numeric_limits<double>::max();
+
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
+    
+    int id = g->getVertexProperty(it);
+    if (v_map[id]->state[2] > maxZ) {
+      maxZ = v_map[id]->state[2];
+    }
+
+    if (v_map[id]->state[2] < minZ) {
+      minZ = v_map[id]->state[2];
+    }
+  }
+
   for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
     int id = g->getVertexProperty(it);
     geometry_msgs::Point p1;
     p1.x = v_map[id]->state[0];
     p1.y = v_map[id]->state[1];
     p1.z = v_map[id]->state[2];
+    
+    double h = (1.0 - std::min(std::max((p1.z-minZ)/ (maxZ - minZ), 0.0), 1.0)) *0.6; 
+    vertex_marker.colors.push_back(GraphManager::heightMapColor(h));
     vertex_marker.points.push_back(p1);
   }
   marker_array.markers.push_back(vertex_marker);
@@ -1039,6 +1052,7 @@ void GraphManager::visualizeGlobalGraph() {
     p1.x = v_map[id]->state[0];
     p1.y = v_map[id]->state[1];
     p1.z = v_map[id]->state[2];
+
     vertex_marker.points.push_back(p1);
   }
   marker_array.markers.push_back(vertex_marker);
@@ -1104,6 +1118,55 @@ void GraphManager::visualize () {
 
   GraphManager::visualizeLocalGraph ();
   GraphManager::visualizeGlobalGraph ();
+}
+
+std_msgs::ColorRGBA GraphManager::heightMapColor(double h) {
+
+  std_msgs::ColorRGBA color;
+  color.a = 0.8;
+  // blend over HSV-values (more colors)
+
+  double s = 1.0;
+  double v = 1.0;
+
+  h -= floor(h);
+  h *= 6;
+  int i;
+  double m, n, f;
+
+  i = floor(h);
+  f = h - i;
+  if (!(i & 1))
+    f = 1 - f; // if i is even
+  m = v * (1 - s);
+  n = v * (1 - s * f);
+
+  switch (i) {
+    case 6:
+    case 0:
+      color.r = v; color.g = n; color.b = m;
+      break;
+    case 1:
+      color.r = n; color.g = v; color.b = m;
+      break;
+    case 2:
+      color.r = m; color.g = v; color.b = n;
+      break;
+    case 3:
+      color.r = m; color.g = n; color.b = v;
+      break;
+    case 4:
+      color.r = n; color.g = m; color.b = v;
+      break;
+    case 5:
+      color.r = v; color.g = m; color.b = n;
+      break;
+    default:
+      color.r = 1; color.g = 0.5; color.b = 0.5;
+      break;
+  }
+
+  return color;
 }
 
 
