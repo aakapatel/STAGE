@@ -476,7 +476,7 @@ void GraphManager::buildLocalGraph () {
 }
 
 
-void GraphManager::buildImprovementGraph (std::vector<Vertex*> raw_path, std::vector<Vertex*>& path) {
+void GraphManager::improvePath (std::vector<Vertex*> raw_path, std::vector<Vertex*>& path) {
 
   improvement_graph_.reset(new GraphUtils());
   
@@ -522,7 +522,6 @@ void GraphManager::buildImprovementGraph (std::vector<Vertex*> raw_path, std::ve
       }
     }
   }
-
   
   if (improvement_graph_->findShortestPaths(root_vertex->id, improvement_graph_rep_)) {
     // ROS_INFO ("Improvement graph dijkstra report : PASS \n");
@@ -555,7 +554,7 @@ void GraphManager::planLocalPath () {
   
   std::vector<Vertex*> path;
 
-  GraphManager::buildImprovementGraph (raw_path, path);
+  GraphManager::improvePath (raw_path, path);
   exploration_path_.poses.clear();
   geometry_msgs::PoseStamped p;
 
@@ -693,18 +692,26 @@ void GraphManager::planGlobalPath () {
   std::vector<Vertex*> nearby_vertices;
   global_graph_->getNearestVertices(&global_graph_->vertices_map_[global_reposition_vertex->id]->state, 4, &nearby_vertices);
   
-  std::vector<Vertex*> path;
+  std::vector<Vertex*> raw_path;
   for (auto v : nearby_vertices) {
 
-    global_graph_->getShortestPath(v->id, global_graph_rep_, true, path);
-    if (!path.empty()) {
+    global_graph_->getShortestPath(v->id, global_graph_rep_, true, raw_path);
+    if (!raw_path.empty()) {
       break;
     }
   }
-  if (path.empty()) {
+  if (raw_path.empty()) {
     ROS_WARN ("Global Dijkstra SP -> Empty :( \n");
     return;
   }
+
+  std::vector<Vertex*> path;
+  
+  // Improve dijkstra path by connecting nodes that can be traversed in a straight line 
+  // to reduce criss-cross in a path
+
+  GraphManager::improvePath (raw_path, path);
+
   exploration_path_.poses.clear();
   geometry_msgs::PoseStamped p;
 

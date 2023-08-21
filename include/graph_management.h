@@ -67,7 +67,9 @@ public:
   void segmentPath (std::vector<Vertex*> path, 
                       nav_msgs::Path& path_seg);
 
-  void buildImprovementGraph (std::vector<Vertex*> raw_path, std::vector<Vertex*>& path);
+  void improvePath (std::vector<Vertex*> raw_path, std::vector<Vertex*>& path);
+ 
+
   // GRAPH AND PLANNING 
   
   void initializeGraphs ();
