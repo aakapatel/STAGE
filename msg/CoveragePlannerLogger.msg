@@ -1,6 +1,0 @@
-Header header
-
-float32 graph_build_time
-float32 total_time
-float32 path_length
-float32 tsp_path_time
