@@ -363,6 +363,8 @@ void GraphManager::initializeGraphs () {
   sub_graph_.reset(new GraphUtils());
   sub_graph_rep_.reset();
 
+  
+
   if (initialize_global_graph) {
     global_graph_.reset(new GraphUtils());
     if (global_graph_ != NULL) global_graph_->reset();
@@ -474,24 +476,86 @@ void GraphManager::buildLocalGraph () {
 }
 
 
+void GraphManager::buildImprovementGraph (std::vector<Vertex*> raw_path, std::vector<Vertex*>& path) {
+
+  improvement_graph_.reset(new GraphUtils());
+  
+  if (improvement_graph_ != NULL) improvement_graph_->reset();
+  improvement_graph_.reset(new GraphUtils());
+  improvement_graph_rep_.reset();
+  
+  Vertex* root_vertex = new Vertex (improvement_graph_->generateVertexID(), robotState_);
+  improvement_graph_->addVertex(root_vertex);
+  root_vertex->is_root = true;
+  
+  Vertex* goal_vertex = new Vertex (improvement_graph_->generateVertexID(), raw_path.back()->state);
+  improvement_graph_->addVertex(goal_vertex);
+
+  for (std::vector<Vertex*>::iterator it_vert = raw_path.begin(); it_vert != std::prev(raw_path.end(),1); it_vert++) {
+    
+    Vertex* imp_vertex = new Vertex (improvement_graph_->generateVertexID(), (*it_vert)->state);
+    improvement_graph_->addVertex(imp_vertex);
+
+  }
+
+  std::pair<Graph::GraphType::vertex_iterator,
+            Graph::GraphType::vertex_iterator> vi;
+  improvement_graph_->graph_->getVertexIterator(vi);
+  
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
+
+    int id = improvement_graph_->graph_->getVertexProperty(it);
+
+    // Get nearby vertices from the current vertex and connect the them to form local edges 
+    std::vector<Vertex*> nearby_vertices;
+    improvement_graph_->getNearestVertices(&improvement_graph_->vertices_map_[id]->state, 10, &nearby_vertices);
+      
+    for (int i = 0; i < nearby_vertices.size(); i++) {
+      
+      ufo::geometry::LineSegment line (stateToUfo(improvement_graph_->vertices_map_[id]->state), stateToUfo(nearby_vertices[i]->state));
+
+      if (!isInCollision(ufoMAP_, line, true, false, true, mapDepth_)) 
+
+      { 
+        improvement_graph_->addEdge(improvement_graph_->vertices_map_[id], nearby_vertices[i], 
+                              improvement_graph_->distanceBetweenVertices(improvement_graph_->vertices_map_[id], nearby_vertices[i]));
+      }
+    }
+  }
+
+  
+  if (improvement_graph_->findShortestPaths(root_vertex->id, improvement_graph_rep_)) {
+    // ROS_INFO ("Improvement graph dijkstra report : PASS \n");
+  } else {
+    ROS_WARN ("Could not find dijkstra shortest paths on graph improvement \n");
+  }
+  
+  improvement_graph_->getShortestPath(goal_vertex->id, improvement_graph_rep_, true, path);
+
+}
+
 void GraphManager::planLocalPath () {
 
   std::vector<Vertex*> nearby_vertices;
   sub_graph_->getNearestVertices(&sub_graph_->vertices_map_[local_target_vertex_id]->state, 4, &nearby_vertices);
   
-  std::vector<Vertex*> path;
+  std::vector<Vertex*> raw_path;
   for (auto v : nearby_vertices) {
 
-    sub_graph_->getShortestPath(v->id, sub_graph_rep_, true, path);
-    if (!path.empty()) {
+    sub_graph_->getShortestPath(v->id, sub_graph_rep_, true, raw_path);
+    if (!raw_path.empty()) {
       break;
     }
   }
-  if (path.empty()) {
+  if (raw_path.empty()) {
     ROS_WARN ("Dijkstra SP -> Empty :( \n");
     run_global_planner = true;
     return;
   }
+  
+  std::vector<Vertex*> path;
+
+  GraphManager::buildImprovementGraph (raw_path, path);
   exploration_path_.poses.clear();
   geometry_msgs::PoseStamped p;
 

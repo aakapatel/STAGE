@@ -67,6 +67,7 @@ public:
   void segmentPath (std::vector<Vertex*> path, 
                       nav_msgs::Path& path_seg);
 
+  void buildImprovementGraph (std::vector<Vertex*> raw_path, std::vector<Vertex*>& path);
   // GRAPH AND PLANNING 
   
   void initializeGraphs ();
@@ -94,11 +95,14 @@ private:
   std::shared_ptr<GraphUtils> sub_graph_;
   std::shared_ptr<GraphUtils> global_graph_;
   std::shared_ptr<GraphUtils> homing_graph_;
+  std::shared_ptr<GraphUtils> improvement_graph_;
 
+  
   ShortestPathsReport sub_graph_rep_;
   ShortestPathsReport global_graph_rep_;
-  ShortestPathsReport homing_graph_rep;
-  
+  ShortestPathsReport homing_graph_rep_;
+  ShortestPathsReport improvement_graph_rep_;
+
   int vertex_id = -1;
   int local_target_vertex_id;
   
