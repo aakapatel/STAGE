@@ -420,7 +420,7 @@ void FrontierExtraction::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
     robotState_[3] = yaw * (180 / M_PI);
 
 
-   visualize(); 
+   // visualize(); 
 
 }
 
@@ -1067,10 +1067,10 @@ std::vector<geometry_msgs::Point> FrontierExtraction::fetchLocalTargets()
 
     std::vector<geometry_msgs::Point> local_targets;
 
-    for (ufo::math::Vector3 global_frontier : fetchLocalFrontiers())
+    for (ufo::math::Vector3 local_frontier : fetchLocalFrontiers())
     {
 
-        local_targets.push_back(ufoToPoint(global_frontier));
+        local_targets.push_back(ufoToPoint(local_frontier));
     }
 
     return local_targets;
@@ -1097,7 +1097,7 @@ bool FrontierExtraction::exportFrontierTargets(stage_planner::frontierRequest::R
                                                stage_planner::frontierRequest::Response &res)
 {
 
-   // visualize(); 
+   visualize(); 
 
     if (req.local)
     {
@@ -1106,8 +1106,8 @@ bool FrontierExtraction::exportFrontierTargets(stage_planner::frontierRequest::R
         {
             res.local_targets = fetchLocalTargets();
             res.local_nav = true;
-            
-            // ROS_INFO_STREAM ("Fetched local exploration targets .. ready to plan \n ");
+             
+            ROS_INFO_STREAM ("Fetched " << res.local_targets.size() << " local exploration targets .. ready to plan \n ");
             
         }
         else

@@ -537,23 +537,15 @@ double GraphManager::getPathLength (std::vector<Vertex*> path) {
 
   double l= 0;
 
-  for (std::vector<Vertex*>::iterator i = path.begin(); i != path.end(); i++) {
-    
-    l = l + calculateDistance(stateToUfo((*i)->state), stateToUfo((*std::next(i,1))->state));
-
+  for (int i = 0; i < path.size() - 1; ++i) {
+    l = l + calculateDistance( stateToUfo(path[i]->state), stateToUfo(path[i+1]->state));
   }
-  ROS_INFO_STREAM ("path length " << l << "\n"); 
   return l;
 }
 
 void GraphManager::planLocalPath () {
-
-  // std::vector<Vertex*> nearby_vertices;
-  // sub_graph_->getNearestVertices(&sub_graph_->vertices_map_[local_target_vertex_id]->state, 4, &nearby_vertices);
   
   local_paths_.clear();
-
-  std::vector<Vertex*> dijkstra_path;
 
   std::pair<Graph::GraphType::vertex_iterator,
             Graph::GraphType::vertex_iterator> vi;
@@ -563,23 +555,21 @@ void GraphManager::planLocalPath () {
 
     int id = sub_graph_->graph_->getVertexProperty(it);
     
-    // dijkstra_path.clear();
-
     if (sub_graph_->vertices_map_[id]->is_target) {
-      ROS_INFO_STREAM ("checking target\n");
 
-      sub_graph_->getShortestPath(id, sub_graph_rep_, true, dijkstra_path);
+        std::vector<Vertex*> dijkstra_path;
+        
+        dijkstra_path.clear();
+        
+        sub_graph_->getShortestPath(sub_graph_->vertices_map_[id]->id, sub_graph_rep_, true, dijkstra_path);
       
-      ROS_INFO_STREAM("DP length " << dijkstra_path.size() << "\n");
-
-      if (!dijkstra_path.empty()) {
+        if (!dijkstra_path.empty()) {
         
-        std::pair<std::vector<Vertex*>, double> p = std::make_pair(dijkstra_path, getPathLength(dijkstra_path));
+          std::pair<std::vector<Vertex*>, double> p = std::make_pair(dijkstra_path, getPathLength(dijkstra_path));
         
-        local_paths_.push_back(p);
+          local_paths_.push_back(p);
 
-        ROS_INFO_STREAM ("local paths points " << dijkstra_path.size() << " and length is "  << getPathLength(dijkstra_path) <<  "\n");
-      }
+        }
     }
   }
   
@@ -801,7 +791,8 @@ void GraphManager::fetchExplorationTargets()
 
   stage_planner::frontierRequest frontier_srv;
   
-  // global_repos_targets_.clear();
+  global_repos_targets_.clear();
+  local_exploration_targets_.clear();
 
   if (!run_global_planner)
   {
@@ -822,6 +813,8 @@ void GraphManager::fetchExplorationTargets()
       local_exploration = true;
       global_exploration = false;
       
+      ROS_INFO("Local Exploration\n");
+
       // get a frontier target in local FOV 
       local_exploration_targets_ = pointsToUfo(frontier_srv.response.local_targets);
       
