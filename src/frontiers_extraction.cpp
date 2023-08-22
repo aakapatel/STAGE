@@ -1097,38 +1097,22 @@ bool FrontierExtraction::exportFrontierTargets(stage_planner::frontierRequest::R
                                                stage_planner::frontierRequest::Response &res)
 {
 
-   visualize(); 
+  visualize(); 
 
-    if (req.local)
-    {
-
-        if (!fetchLocalFrontiers().empty())
-        {
-            res.local_targets = fetchLocalTargets();
-            res.local_nav = true;
-             
-            ROS_INFO_STREAM ("Fetched " << res.local_targets.size() << " local exploration targets .. ready to plan \n ");
-            
-        }
-        else
-        {
-            res.local_nav = false;
-            res.global_targets = fetchGlobalRepositioningTargets();
-        
-            ROS_INFO_STREAM ("Global repositioning candidates exist .. ready to plan \n ");
-
-        }
+  if (req.explore) {
+      
+    res.local_targets = fetchLocalTargets();
+      
+    res.global_targets = fetchGlobalRepositioningTargets();
+      
+    if (res.local_targets.empty() and res.global_targets.empty())  { 
+        res.frontiers_exist = false; 
+    } else {
+        res.frontiers_exist = true;
     }
-    else if (req.force_global)
-    {
-        res.local_nav = false;
-        res.global_targets = fetchGlobalRepositioningTargets();
-        
-        ROS_INFO_STREAM ("Global repositioning candidates exist .. ready to plan \n ");
-        
-    }
-
-    return true;
+  }    
+  
+  return true;
 }
 
 bool FrontierExtraction::queryFrontierTarget(stage_planner::isFrontier::Request &req,

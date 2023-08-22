@@ -1,6 +1,5 @@
-bool local
-bool force_global
+bool explore
 ---
-bool local_nav
+bool frontiers_exist
 geometry_msgs/Point[] local_targets
 geometry_msgs/Point[] global_targets

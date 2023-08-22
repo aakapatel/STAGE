@@ -59,6 +59,8 @@ GraphManager::GraphManager(const ros::NodeHandle& nh, const ros::NodeHandle& nh_
   
   local_Paths_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/local_dijkstra_paths", 10);
 
+  global_Paths_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/global_dijkstra_paths", 10);
+
   // Services 
   m_frontier_client = nh_.serviceClient<stage_planner::frontierRequest>("request_frontier_target");
   
@@ -544,8 +546,10 @@ double GraphManager::getPathLength (std::vector<Vertex*> path) {
   return l;
 }
 
-void GraphManager::planLocalPath () {
+bool GraphManager::planLocalPath () {
   
+  bool path_exist = false; 
+
   local_paths_.clear();
 
   std::pair<Graph::GraphType::vertex_iterator,
@@ -580,18 +584,26 @@ void GraphManager::planLocalPath () {
     GraphManager::visualizeLocalPaths(local_paths_);
   } else {
     ROS_WARN ("No local dijkstra paths.. triggiring global planing \n");
-    run_global_planner = true;
-    return;
+    return false;
   }
 
   std::vector<Vertex*> path;
 
-  std::vector<Vertex*> raw_path = local_paths_.front().first;
+  std::vector<Vertex*> raw_path;
   
+  double path_length = -std::numeric_limits<double>::max();
+  
+  for (auto i = 0; i < local_paths_.size(); i++) {
+    
+    if (local_paths_[i].second > path_length) {
+      path_length = local_paths_[i].second;
+      raw_path = local_paths_[i].first;
+    }
+  }
+
   if (raw_path.empty()) {
     ROS_WARN ("Local Dijkstra SP -> Empty :( \n");
-    run_global_planner = true;
-    return;
+    return false;
   }
   
   GraphManager::improvePath (raw_path, path);
@@ -623,8 +635,12 @@ void GraphManager::planLocalPath () {
   if (exploration_path_.poses.empty()) {
   
     ROS_WARN ("Exploration path empty \n ");
+  } else {
+    path_exist = true;
   }
-}
+
+  return path_exist;
+} // buildLocalGraph
 
 
 void GraphManager::buildGlobalGraph () {
@@ -809,50 +825,17 @@ void GraphManager::fetchExplorationTargets()
   global_repos_targets_.clear();
   local_exploration_targets_.clear();
 
-  if (!run_global_planner)
-  {
-    frontier_srv.request.local = true;
-  }
-  else
-  {
-    frontier_srv.request.force_global = true;
-    run_global_planner = false;
-  }
+    frontier_srv.request.explore = true;
 
-  if (m_frontier_client.call(frontier_srv))
-  {
+  if (m_frontier_client.call(frontier_srv)) {
 
-    if (frontier_srv.response.local_nav)
-    {
-
-      local_exploration = true;
-      global_exploration = false;
-      
-      ROS_INFO("Local Exploration\n");
+    if (frontier_srv.response.frontiers_exist) {
 
       // get a frontier target in local FOV 
       local_exploration_targets_ = pointsToUfo(frontier_srv.response.local_targets);
-      
-      // ROS_INFO_STREAM ( " Local_targets size  is " << local_exploration_targets_.size() << "\n");
-      // Build a local graph accounting also the local exploration target for simpler planning 
-      GraphManager::buildLocalGraph ();
-      GraphManager::planLocalPath ();
-      GraphManager::buildGlobalGraph ();
-
-      }
-    if (frontier_srv.response.local_nav == false or run_global_planner)
-    {
-
-      local_exploration = false;
-      global_exploration = true;
 
       global_repos_targets_ = pointsToUfo(frontier_srv.response.global_targets);
-      ROS_INFO_STREAM ( " Global_targets size  is " << global_repos_targets_.size() << "\n");
-      GraphManager::buildLocalGraph();
-      GraphManager::buildGlobalGraph();
-      GraphManager::planGlobalPath ();  
 
-      run_global_planner = false;
     }
   }
 
@@ -891,7 +874,17 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
   GraphManager::initializeGraphs ();
 
   GraphManager::fetchExplorationTargets ();
-  
+
+  GraphManager::buildLocalGraph ();
+  GraphManager::buildGlobalGraph ();
+
+  if (GraphManager::planLocalPath ()) {
+    // ROS_INFO_STREAM ("Running LOCAL planner\n");
+  } else {
+    ROS_WARN ("No local paths, Running GLOBAL planner\n");
+    GraphManager::planGlobalPath();
+  }
+
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
 
   auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);

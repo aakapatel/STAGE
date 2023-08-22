@@ -81,7 +81,7 @@ public:
   
   void buildGlobalGraph ();
 
-  void planLocalPath ();
+  bool planLocalPath ();
   
   void planGlobalPath ();
 
@@ -175,7 +175,7 @@ private:
   ros::Publisher m_frontierSelectionPub;
   ros::Publisher command_pub;
   ros::Publisher local_Paths_Vis_Pub_;
-
+  ros::Publisher global_Paths_Vis_Pub_;
   ros::Publisher local_Graph_Vis_Pub_;
   ros::Publisher global_Graph_Vis_Pub_;
   
