@@ -1001,7 +1001,7 @@ double FrontierExtraction::computeVolumetricGain(ufo::math::Vector3 frontier, uf
     int unknown_cells, free_cells, occupied_cells = 0;
     ufo::geometry::Sphere sphere(frontier, r);
 
-    for (auto it = map.beginLeaves(sphere, true, true, true, false, 3), it_end = map.endLeaves(); it != it_end; ++it)
+    for (auto it = map.beginLeaves(sphere, true, true, true, false, mapDepth_), it_end = map.endLeaves(); it != it_end; ++it)
     {
         if (it.isUnknown()) {
         unknown_cells++;
@@ -1014,8 +1014,14 @@ double FrontierExtraction::computeVolumetricGain(ufo::math::Vector3 frontier, uf
         }
     }
     
-    double volumetric_gain = 10 * (log(unknown_cells + free_cells / (2*occupied_cells + 1)));
+    double volumetric_gain = 10 * (log(4*unknown_cells + free_cells - 2*occupied_cells));
 
+    if (std::isnan(volumetric_gain)) {
+      volumetric_gain = 0;
+    }
+
+    
+    ROS_INFO_STREAM ("Gain --> " << volumetric_gain << "\n");
     return volumetric_gain;
 }
 

@@ -201,11 +201,11 @@ double GraphManager::computeVolumetricGain(ufo::math::Vector3 frontier,
                                            ufo::map::OccupancyMapColor const &map)
 {
 
-    double r = 1;
+    double r = 2;
     int unknown_cells, free_cells, occupied_cells = 0;
     ufo::geometry::Sphere sphere(frontier, r);
 
-    for (auto it = map.beginLeaves(sphere, true, true, true, false, 3), it_end = map.endLeaves(); it != it_end; ++it)
+    for (auto it = map.beginLeaves(sphere, true, true, true, false, mapDepth_), it_end = map.endLeaves(); it != it_end; ++it)
     {
         if (it.isUnknown()) {
         unknown_cells++;
@@ -218,8 +218,13 @@ double GraphManager::computeVolumetricGain(ufo::math::Vector3 frontier,
         }
     }
     
-    double volumetric_gain = 10 * (log(unknown_cells + free_cells / (2*occupied_cells + 1)));
-
+    // double volumetric_gain = 10 * (log(unknown_cells + free_cells / (2*occupied_cells + 1)));
+    
+    double volumetric_gain = 10 * (log(4*unknown_cells + free_cells - 2*occupied_cells));
+    if (std::isnan(volumetric_gain)) {
+      volumetric_gain = 0;
+    }
+    
     return volumetric_gain;
 }
 
@@ -667,11 +672,12 @@ void GraphManager::planGlobalPath () {
   double gain;
   double my_gain = -std::numeric_limits<double>::max();
   ufo::math::Vector3 global_target;
+  
+  ROS_INFO_STREAM ("Potential global repos targets " << global_repos_targets_.size() << "\n");
 
   for (ufo::math::Vector3 v : global_repos_targets_) {
 
     gain = computeVolumetricGain(v, ufoMAP_);
-
     if (gain > my_gain) {
       my_gain = gain;
       global_target = v;
@@ -764,7 +770,7 @@ void GraphManager::fetchExplorationTargets()
 
   stage_planner::frontierRequest frontier_srv;
   
-  global_repos_targets_.clear();
+  // global_repos_targets_.clear();
 
   if (!run_global_planner)
   {
@@ -788,6 +794,8 @@ void GraphManager::fetchExplorationTargets()
       // get a frontier target in local FOV 
       local_exploration_target_ = pointToUfo(frontier_srv.response.best_local);
       
+      ROS_INFO_STREAM("local_target " << local_exploration_target_.x() << " " << local_exploration_target_.y() << " " << local_exploration_target_.z() << "\n");
+
       // Build a local graph accounting also the local exploration target for simpler planning 
       GraphManager::buildLocalGraph ();
       GraphManager::planLocalPath ();
@@ -801,6 +809,7 @@ void GraphManager::fetchExplorationTargets()
       global_exploration = true;
 
       global_repos_targets_ = pointsToUfo(frontier_srv.response.global_targets);
+      ROS_INFO_STREAM ( " Global_targets size  is " << global_repos_targets_.size() << "\n");
       GraphManager::buildLocalGraph();
       GraphManager::buildGlobalGraph();
       GraphManager::planGlobalPath ();  
