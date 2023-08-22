@@ -83,7 +83,7 @@ public:
 
   bool planLocalPath ();
   
-  void planGlobalPath ();
+  bool planGlobalPath ();
 
   void visualizeLocalGraph ();
 
@@ -95,6 +95,7 @@ public:
   
   void visualizeLocalPaths (std::vector<std::pair<std::vector<Vertex*>, double>> local_paths);
 
+  void visualizeGlobalPaths (std::vector<std::pair<std::vector<Vertex*>, double>> global_paths);
 
 
 private:

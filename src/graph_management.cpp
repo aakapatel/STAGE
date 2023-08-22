@@ -396,6 +396,8 @@ void GraphManager::buildLocalGraph () {
   root_vertex->is_target = false;
   sub_graph_->addVertex(root_vertex);
   
+  // Ad local exploration targets to graph 
+  
   for (auto i : local_exploration_targets_) {
   
     Vertex* target_vertex = new Vertex(sub_graph_->generateVertexID(), ufoToState(i));
@@ -645,18 +647,17 @@ bool GraphManager::planLocalPath () {
 
 void GraphManager::buildGlobalGraph () {
 
+  global_graph_rep_.reset();
+  
   std::shared_ptr<Graph> sub_graph = sub_graph_->graph_;
   std::unordered_map<int, Vertex*>& v_map = sub_graph_->vertices_map_;
   
-  std::pair<Graph::GraphType::edge_iterator,
-            Graph::GraphType::edge_iterator> ei;
   std::pair<Graph::GraphType::vertex_iterator,
             Graph::GraphType::vertex_iterator> s_vi;
   
   std::pair<Graph::GraphType::vertex_iterator,
             Graph::GraphType::vertex_iterator> g_vi;
   
-  sub_graph->getEdgeIterator(ei);
   sub_graph->getVertexIterator(s_vi);
 
   if (sub_graph_->getNumVertices() == 0) {
@@ -670,9 +671,19 @@ void GraphManager::buildGlobalGraph () {
  
       Vertex* v = new Vertex (global_graph_->generateVertexID(), v_map[id]->state);
       v->is_root = v_map[id]->is_root;
+      v->is_target = false;
       v->sub_id = id;
       global_graph_->addVertex(v);
     }
+  }
+
+  // Add global exploration targets to global graph for simpler direct path
+  for (auto i : global_repos_targets_) {
+  
+    Vertex* target_vertex = new Vertex(global_graph_->generateVertexID(), ufoToState(i));
+    target_vertex->is_root = false;
+    target_vertex->is_target = true;
+    global_graph_->addVertex(target_vertex);
   }
 
   global_graph_->graph_->getVertexIterator(g_vi);
@@ -682,7 +693,7 @@ void GraphManager::buildGlobalGraph () {
 
     // Get nearby vertices from the current vertex and connect the them to form local edges 
     std::vector<Vertex*> nearby_vertices;
-    global_graph_->getNearestVertices(&global_graph_->vertices_map_[id]->state, 6, &nearby_vertices);
+    global_graph_->getNearestVertices(&global_graph_->vertices_map_[id]->state, 2, &nearby_vertices);
 
     for (int i = 0; i < nearby_vertices.size(); i++) {
       
@@ -704,63 +715,78 @@ void GraphManager::buildGlobalGraph () {
   
   // ROS_INFO_STREAM ("Built global graph with " << global_graph_->getNumVertices() << " vertices & " << global_graph_->getNumEdges() << " edges\n");
   
-} //buildGlobalGraph 
-
-
-void GraphManager::planGlobalPath () {
-
+  // Dijkstra SP report from root to all vertices in global graph 
+  
   Vertex* nearest_vertex;
   global_graph_->getNearestVertex(&robotState_, &nearest_vertex);
 
-  global_graph_rep_.reset();
-
   if (global_graph_->findShortestPaths(nearest_vertex->id, global_graph_rep_)) {
-    // ROS_INFO ("Global graph dijkstra report : PASS \n");
   } else {
     ROS_WARN ("Could not find dijkstra shortest paths on global graph \n");
   }
+
+} //buildGlobalGraph 
+
+
+bool GraphManager::planGlobalPath () {
+
+
+  bool path_exist = false; 
+
+  global_paths_.clear();
+
+  std::pair<Graph::GraphType::vertex_iterator,
+            Graph::GraphType::vertex_iterator> vi;
+  global_graph_->graph_->getVertexIterator(vi);
   
-  double gain;
-  double my_gain = -std::numeric_limits<double>::max();
-  ufo::math::Vector3 global_target;
-  
-  // ROS_INFO_STREAM ("Potential global repos targets " << global_repos_targets_.size() << "\n");
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
 
-  for (ufo::math::Vector3 v : global_repos_targets_) {
+    int id = global_graph_->graph_->getVertexProperty(it);
+    
+    if (global_graph_->vertices_map_[id]->is_target) {
+        
+        std::vector<Vertex*> dijkstra_path;
+        
+        dijkstra_path.clear();
+        
+        global_graph_->getShortestPath(global_graph_->vertices_map_[id]->id, global_graph_rep_, true, dijkstra_path);
+      
+        if (!dijkstra_path.empty()) {
+        
+          std::pair<std::vector<Vertex*>, double> p = std::make_pair(dijkstra_path, getPathLength(dijkstra_path));
+        
+          global_paths_.push_back(p);
 
-    gain = computeVolumetricGain(v, ufoMAP_);
-
-    if (gain > my_gain) {
-      my_gain = gain;
-      global_target = v;
+        }
     }
   }
-
-  ROS_INFO_STREAM ("Global target " << global_target.x() << " " << global_target.y() << " " << global_target.z() << "\n");
   
-  Vertex* global_reposition_vertex;
-  State g_s = ufoToState(global_target);
+  ROS_INFO_STREAM ("global paths size " << global_paths_.size() << "\n");
+  if (!global_paths_.empty()) {
 
-  global_graph_->getNearestVertex(&g_s, &global_reposition_vertex);
+    GraphManager::visualizeGlobalPaths(global_paths_);
+  } else {
+    ROS_WARN ("No global dijkstra paths .. NOT READY! \n");
+    return false;
+  }
 
-  std::vector<Vertex*> nearby_vertices;
-  global_graph_->getNearestVertices(&global_graph_->vertices_map_[global_reposition_vertex->id]->state, 4, &nearby_vertices);
-  
   std::vector<Vertex*> raw_path;
-  for (auto v : nearby_vertices) {
-
-    global_graph_->getShortestPath(v->id, global_graph_rep_, true, raw_path);
-    if (!raw_path.empty()) {
-      break;
-    }
-  }
-  if (raw_path.empty()) {
-    ROS_WARN ("Global Dijkstra SP -> Empty :( \n");
-    return;
-  }
-
   std::vector<Vertex*> path;
   
+  double path_length = std::numeric_limits<double>::max();
+  
+  for (auto i = 0; i < global_paths_.size(); i++) {
+    
+    if (global_paths_[i].second < path_length) {
+      path_length = global_paths_[i].second;
+      raw_path = global_paths_[i].first;
+    }
+  }
+
+  if (raw_path.empty()) {
+    ROS_WARN ("Global Dijkstra SP -> Empty :( \n");
+    return false;
+  }
   // Improve dijkstra path by connecting nodes that can be traversed in a straight line 
   // to reduce criss-cross in a path
 
@@ -794,7 +820,11 @@ void GraphManager::planGlobalPath () {
   if (exploration_path_.poses.empty()) {
   
     ROS_WARN ("Global reposition path is empty \n ");
+  } else {
+    path_exist = true;
   }
+  
+  return path_exist;
 }
 
 
@@ -836,6 +866,9 @@ void GraphManager::fetchExplorationTargets()
 
       global_repos_targets_ = pointsToUfo(frontier_srv.response.global_targets);
 
+      ROS_INFO_STREAM ("Fetched " << local_exploration_targets_.size() << " Local & " 
+                                  << global_repos_targets_.size() << " Global frontiers \n");
+
     }
   }
 
@@ -874,17 +907,40 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
   GraphManager::initializeGraphs ();
 
   GraphManager::fetchExplorationTargets ();
+  
+  if (!local_exploration_targets_.empty()) {
 
-  GraphManager::buildLocalGraph ();
-  GraphManager::buildGlobalGraph ();
+    GraphManager::buildLocalGraph ();
+    GraphManager::buildGlobalGraph ();
 
-  if (GraphManager::planLocalPath ()) {
+    if (GraphManager::planLocalPath ()) 
+    {
     // ROS_INFO_STREAM ("Running LOCAL planner\n");
-  } else {
-    ROS_WARN ("No local paths, Running GLOBAL planner\n");
-    GraphManager::planGlobalPath();
-  }
+    } 
+    else {
+    
+      if (GraphManager::planGlobalPath()) {
+      
+        ROS_INFO ("No local paths, triggering global planner \n");
+      } else {
+      
+        ROS_WARN ("No feasible exploration paths, trigger homing.. \n");
+      }
+    } 
+  } else if (!global_repos_targets_.empty()) {
 
+    GraphManager::buildLocalGraph ();
+
+    GraphManager::buildGlobalGraph ();
+    
+    if (GraphManager::planGlobalPath()) {
+      ROS_INFO ("Global planner triggered \n");
+    } else {
+   
+      ROS_WARN ("No feasible exploration paths, trigger homing.. \n");
+    }
+  }
+  
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
 
   auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
@@ -1080,6 +1136,70 @@ void GraphManager::visualizeLocalPaths (std::vector<std::pair<std::vector<Vertex
   marker_array.markers.push_back(vertex_marker);
 
   local_Paths_Vis_Pub_.publish(marker_array);
+
+}
+
+void GraphManager::visualizeGlobalPaths (std::vector<std::pair<std::vector<Vertex*>, double>> global_paths) {
+
+  visualization_msgs::MarkerArray marker_array;
+
+  visualization_msgs::Marker edge_marker;
+  visualization_msgs::Marker vertex_marker;
+  edge_marker.header.stamp = ros::Time::now();
+  edge_marker.header.seq = 0;
+  edge_marker.header.frame_id = "world";
+  edge_marker.id = 0;
+  edge_marker.ns = "edges";
+  edge_marker.action = visualization_msgs::Marker::ADD;
+  edge_marker.type = visualization_msgs::Marker::LINE_LIST;
+  edge_marker.scale.x = 0.04;
+  edge_marker.color.r = 255.0 / 255.0;
+  edge_marker.color.g = 0 / 255.0;
+  edge_marker.color.b = 255.0 / 255.0;
+  edge_marker.color.a = 1.0;
+  // edge_marker.lifetime = ros::Duration(graph_lifetime);
+  edge_marker.frame_locked = false;
+  
+  vertex_marker.header.stamp = ros::Time::now();
+  vertex_marker.header.seq = 0;
+  vertex_marker.header.frame_id = "world";
+  vertex_marker.id = 0;
+  vertex_marker.ns = "vertices";
+  vertex_marker.action = visualization_msgs::Marker::ADD;
+  vertex_marker.type = visualization_msgs::Marker::SPHERE_LIST;
+  vertex_marker.scale.x = 0.3;
+  vertex_marker.scale.y = 0.3;
+  vertex_marker.scale.z = 0.3;
+  vertex_marker.color.r =  255.0 / 255.0;
+  vertex_marker.color.g = 0 / 255.0;
+  vertex_marker.color.b = 255.0 / 255.0;
+  vertex_marker.color.a = 1.0;
+  // vertex_marker.lifetime = ros::Duration(graph_lifetime);
+  vertex_marker.frame_locked = false; 
+
+  for (int i = 0; i < global_paths.size() - 1; ++i) {
+
+    for (int it = 0; it < global_paths[i].first.size() - 1; ++it) {
+
+      geometry_msgs::Point p1;
+      geometry_msgs::Point p2;
+      p1.x = global_paths[i].first[it]->state[0];
+      p1.y = global_paths[i].first[it]->state[1];
+      p1.z = global_paths[i].first[it]->state[2];
+      p2.x = global_paths[i].first[it+1]->state[0];
+      p2.y = global_paths[i].first[it+1]->state[1];
+      p2.z = global_paths[i].first[it+1]->state[2];
+
+      edge_marker.points.push_back(p1);
+      edge_marker.points.push_back(p2);
+      vertex_marker.points.push_back(p1);
+      vertex_marker.points.push_back(p2);
+    }
+  }
+  marker_array.markers.push_back(edge_marker);
+  marker_array.markers.push_back(vertex_marker);
+
+  global_Paths_Vis_Pub_.publish(marker_array);
 
 }
 
