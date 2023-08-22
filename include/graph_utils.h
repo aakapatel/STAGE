@@ -43,6 +43,7 @@ struct Vertex {
     gain = 0;
     edges = 0;
     is_root = false;
+    is_target = false;
     sub_id = 0;
   }
 
@@ -61,6 +62,8 @@ struct Vertex {
   int edges;
   // If it is root vertex 
   bool is_root;
+  // If vertex is a potential target 
+  bool is_target;
   // Sub graph id to keep track while adding to global graph 
   int sub_id;
 };

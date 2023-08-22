@@ -390,20 +390,25 @@ void GraphManager::buildLocalGraph () {
 
   Vertex* root_vertex = new Vertex(sub_graph_->generateVertexID(), robotState_);
   root_vertex->is_root = true;
+  root_vertex->is_target = false;
   sub_graph_->addVertex(root_vertex);
- 
-  Vertex* target_vertex = new Vertex(sub_graph_->generateVertexID(), ufoToState(local_exploration_target_));
-  target_vertex->is_root = false;
-  sub_graph_->addVertex(target_vertex);
-  local_target_vertex_id = target_vertex->id;
-
-  // ROS_INFO_STREAM ("target_vertex " << target_vertex->state[0] << " " << target_vertex->state[1] << "\n");
+  
+  for (auto i : local_exploration_targets_) {
+  
+    Vertex* target_vertex = new Vertex(sub_graph_->generateVertexID(), ufoToState(i));
+    target_vertex->is_root = false;
+    target_vertex->is_target = true;
+    sub_graph_->addVertex(target_vertex);
+  }
+  
+  // Add random sampled nodes in local graph 
 
   State state;
   for (int i = 0; i < nodes.size(); i++) {
     Vertex* vertex = new Vertex(sub_graph_->generateVertexID(), ufoToState(*(nodes[i]->point)));
     vertex->is_root = false;
     sub_graph_->addVertex(vertex);
+    vertex->is_target = false;
   }
   
   std::pair<Graph::GraphType::vertex_iterator,
@@ -413,9 +418,6 @@ void GraphManager::buildLocalGraph () {
 
     int id = sub_graph_->graph_->getVertexProperty(it);
 
-    // ufo::geometry::OBB obb_root = makeOBB (stateToUfo(root_vertex->state), 
-    //                                       stateToUfo(sub_graph_->vertices_map_[id]->state), obb_radius_);
-    
     ufo::geometry::LineSegment root_line (stateToUfo(root_vertex->state), 
                                           stateToUfo(sub_graph_->vertices_map_[id]->state));
 
@@ -435,8 +437,6 @@ void GraphManager::buildLocalGraph () {
 
     for (int i = 0; i < nearby_vertices.size(); i++) {
       
-      // ufo::geometry::OBB obb = makeOBB (stateToUfo(sub_graph_->vertices_map_[id]->state),
-      //                                   stateToUfo(nearby_vertices[i]->state), obb_radius_);
       ufo::geometry::LineSegment line (stateToUfo(sub_graph_->vertices_map_[id]->state),
                                         stateToUfo(nearby_vertices[i]->state));
 
@@ -444,7 +444,6 @@ void GraphManager::buildLocalGraph () {
             and sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], nearby_vertices[i]) < max_edge_length_
             and !isInCollision(ufoMAP_, line, true, false, true, mapDepth_))  
       { 
-        // Maximum edges check is a MUST here to prevent unnecessary edges 
         
         sub_graph_->addEdge(sub_graph_->vertices_map_[id], nearby_vertices[i], 
                               sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], nearby_vertices[i]));
@@ -534,34 +533,65 @@ void GraphManager::improvePath (std::vector<Vertex*> raw_path, std::vector<Verte
 
 }
 
+double GraphManager::getPathLength (std::vector<Vertex*> path) {
+
+  double l= 0;
+
+  for (std::vector<Vertex*>::iterator i = path.begin(); i != path.end(); i++) {
+    
+    l = l + calculateDistance(stateToUfo((*i)->state), stateToUfo((*std::next(i,1))->state));
+
+  }
+  ROS_INFO_STREAM ("path length " << l << "\n"); 
+  return l;
+}
+
 void GraphManager::planLocalPath () {
 
-  std::vector<Vertex*> nearby_vertices;
-  sub_graph_->getNearestVertices(&sub_graph_->vertices_map_[local_target_vertex_id]->state, 4, &nearby_vertices);
+  // std::vector<Vertex*> nearby_vertices;
+  // sub_graph_->getNearestVertices(&sub_graph_->vertices_map_[local_target_vertex_id]->state, 4, &nearby_vertices);
   
-  std::vector<Vertex*> raw_path;
-  for (auto v : nearby_vertices) {
+  local_paths_.clear();
 
-    sub_graph_->getShortestPath(v->id, sub_graph_rep_, true, raw_path);
-    if (!raw_path.empty()) {
-      break;
+  std::vector<Vertex*> dijkstra_path;
+
+  std::pair<Graph::GraphType::vertex_iterator,
+            Graph::GraphType::vertex_iterator> vi;
+  sub_graph_->graph_->getVertexIterator(vi);
+  
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
+
+    int id = sub_graph_->graph_->getVertexProperty(it);
+    
+    // dijkstra_path.clear();
+
+    if (sub_graph_->vertices_map_[id]->is_target) {
+      ROS_INFO_STREAM ("checking target\n");
+
+      sub_graph_->getShortestPath(id, sub_graph_rep_, true, dijkstra_path);
+      
+      ROS_INFO_STREAM("DP length " << dijkstra_path.size() << "\n");
+
+      if (!dijkstra_path.empty()) {
+        
+        std::pair<std::vector<Vertex*>, double> p = std::make_pair(dijkstra_path, getPathLength(dijkstra_path));
+        
+        local_paths_.push_back(p);
+
+        ROS_INFO_STREAM ("local paths points " << dijkstra_path.size() << " and length is "  << getPathLength(dijkstra_path) <<  "\n");
+      }
     }
   }
-  if (raw_path.empty()) {
-    ROS_WARN ("Dijkstra SP -> Empty :( \n");
-    run_global_planner = true;
-    return;
-  }
   
+
+  ROS_INFO_STREAM ("local paths size " << local_paths_.size() << "\n");
   std::vector<Vertex*> path;
+
+  std::vector<Vertex*> raw_path = local_paths_.front().first;
 
   GraphManager::improvePath (raw_path, path);
   exploration_path_.poses.clear();
   geometry_msgs::PoseStamped p;
-
-  // FIX ME! BUG@ Dijkstra path is empty because target vertex has 0 edges 
-  
-  // TODO Either look up nearby vertex id or make sure target vertex has non zero edges 
 
   
   nav_msgs::Path new_path;
@@ -793,10 +823,9 @@ void GraphManager::fetchExplorationTargets()
       global_exploration = false;
       
       // get a frontier target in local FOV 
-      local_exploration_target_ = pointToUfo(frontier_srv.response.best_local);
+      local_exploration_targets_ = pointsToUfo(frontier_srv.response.local_targets);
       
-      ROS_INFO_STREAM("local_target " << local_exploration_target_.x() << " " << local_exploration_target_.y() << " " << local_exploration_target_.z() << "\n");
-
+      ROS_INFO_STREAM ( " Local_targets size  is " << local_exploration_targets_.size() << "\n");
       // Build a local graph accounting also the local exploration target for simpler planning 
       GraphManager::buildLocalGraph ();
       GraphManager::planLocalPath ();

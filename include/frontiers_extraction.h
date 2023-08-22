@@ -167,6 +167,8 @@ public:
 
     geometry_msgs::Point ufoToPoint(ufo::math::Vector3 v);
     
+    std::vector<geometry_msgs::Point> fetchLocalTargets ();
+    
     void visualize();
 
 private:

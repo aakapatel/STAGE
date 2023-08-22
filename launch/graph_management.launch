@@ -17,7 +17,7 @@
 		  <remap from="cloud_in" to="/hummingbird/velodyne_points" />
       <param name="robot_frame_id" value="hummingbird/base_link" />
 		  <param name="num_workers" value="$(arg num_workers)" />
-		  <param name="max_range" value="10" />
+		  <param name="max_range" value="12" />
 		  <param name="min_range" value="0.5" />
 		  <param name="robot_radius" value="0.5" />
 		  <param name="robot_height" value="0.5" />

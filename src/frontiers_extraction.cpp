@@ -1061,6 +1061,20 @@ geometry_msgs::Point FrontierExtraction::ufoToPoint(ufo::math::Vector3 v)
     return p;
 }
 
+
+std::vector<geometry_msgs::Point> FrontierExtraction::fetchLocalTargets()
+{
+
+    std::vector<geometry_msgs::Point> local_targets;
+
+    for (ufo::math::Vector3 global_frontier : fetchLocalFrontiers())
+    {
+
+        local_targets.push_back(ufoToPoint(global_frontier));
+    }
+
+    return local_targets;
+}
 // If no local frontiers, fetch re-positioning targets for global exploration
 
 std::vector<geometry_msgs::Point> FrontierExtraction::fetchGlobalRepositioningTargets()
@@ -1090,11 +1104,10 @@ bool FrontierExtraction::exportFrontierTargets(stage_planner::frontierRequest::R
 
         if (!fetchLocalFrontiers().empty())
         {
-            geometry_msgs::Point frontier_point = ufoToPoint(fetchInformativeFrontier());
-            res.best_local = frontier_point;
+            res.local_targets = fetchLocalTargets();
             res.local_nav = true;
             
-            ROS_INFO_STREAM ("Fetched local exploration target .. ready to plan \n ");
+            // ROS_INFO_STREAM ("Fetched local exploration targets .. ready to plan \n ");
             
         }
         else

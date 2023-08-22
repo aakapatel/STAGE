@@ -90,7 +90,8 @@ public:
   void visualizeGlobalGraph ();
 
   void visualize ();
-
+  
+  double getPathLength (std::vector<Vertex*> path);
 
 private:
 
@@ -111,6 +112,9 @@ private:
   int vertex_id = -1;
   int local_target_vertex_id;
   
+  std::vector<std::pair<std::vector<Vertex*>, double>> local_paths_;
+  std::vector<std::pair<std::vector<Vertex*>, double>> global_paths_;
+
   // variables
   State robotState_;
 
@@ -130,7 +134,7 @@ private:
   bool check = false;
   float SCALER_X, SCALER_Y, SCALER_Z, highest_x, highest_y, highest_z, lowest_x, lowest_y, lowest_z;
   double m_min_dist_bw_nodes;
-  ufo::math::Vector3 local_exploration_target_;
+  std::vector<ufo::math::Vector3> local_exploration_targets_;
   std::vector<ufo::math::Vector3> global_repos_targets_;
   int iterations_local_;
   int iterations_global_;
