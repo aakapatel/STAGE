@@ -201,7 +201,7 @@ double GraphManager::computeVolumetricGain(ufo::math::Vector3 frontier,
                                            ufo::map::OccupancyMapColor const &map)
 {
 
-    double r = 2;
+    double r = 4;
     int unknown_cells, free_cells, occupied_cells = 0;
     ufo::geometry::Sphere sphere(frontier, r);
 
@@ -220,7 +220,7 @@ double GraphManager::computeVolumetricGain(ufo::math::Vector3 frontier,
     
     // double volumetric_gain = 10 * (log(unknown_cells + free_cells / (2*occupied_cells + 1)));
     
-    double volumetric_gain = 10 * (log(4*unknown_cells + free_cells - 2*occupied_cells));
+    double volumetric_gain = 10 * (log(unknown_cells));
     if (std::isnan(volumetric_gain)) {
       volumetric_gain = 0;
     }

@@ -99,10 +99,6 @@ FrontierExtraction::FrontierExtraction(const ros::NodeHandle& nh, const ros::Nod
     m_colorFree.a = a;
 
     // Subscribers
-    
-    // m_pointCloudSubscriber = nh_.subscribe(cloud_in, 5, &FrontierExtraction::insertPointCloudCallback, this);
-
-    // m_tfPointCloudSubscriber = nh_.subscribe(m_tfListener, 5, &FrontierExtraction::insertPointCloudScan, this);
 
     m_pointCloudSubscriber = new message_filters::Subscriber<sensor_msgs::PointCloud2>(nh_, cloud_in, 5);
    
@@ -121,7 +117,6 @@ FrontierExtraction::FrontierExtraction(const ros::NodeHandle& nh, const ros::Nod
 
     frontiersVisPub_ = nh_.advertise<visualization_msgs::MarkerArray>("/frontiers", 10);  
     
-    anglesVisPub_ = nh_.advertise<visualization_msgs::Marker>("/angles", 10);  
   
 
     // Services
@@ -329,6 +324,7 @@ void FrontierExtraction::extractFrontiers(const tf::Point &sensorOriginTf, const
                     double z_diff = abs(m_currentPose.pose.pose.position.z - pt.z());
 
                     if ((z_diff < max_allowed_height_))
+                    // if ((z_diff < 8))
                     {
 
                         if (FrontierExtraction::verifyFrontier(x, y, z, sensorOrigin) && !(m_octree->isNodeOccupied(me)))
@@ -356,12 +352,11 @@ std::vector<ufo::math::Vector3> FrontierExtraction::fetchFrontiers()
 
         ufo::math::Vector3 frontier_pt(i->x(), i->y(), i->z());
 
-        ufo::geometry::Sphere sphere(frontier_pt, 0.5);
+        ufo::geometry::Sphere sphere(frontier_pt, 1);
 
         double info_gain = computeVolumetricGain (frontier_pt,ufoMAP_);
        
-    if (!isInCollision(ufoMAP_, sphere, true, false, true, mapDepth_) and info_gain > VOLUMETRIC_GAIN_THREASHOLD)
-     // if (info_gain > VOLUMETRIC_GAIN_THREASHOLD)
+    if (info_gain > VOLUMETRIC_GAIN_THREASHOLD and isInCollision(ufoMAP_, sphere, false, true, false, mapDepth_))
 
         {
 
@@ -839,12 +834,13 @@ void FrontierExtraction::visualize () {
   
   visualization_msgs::MarkerArray marker_array;
   visualization_msgs::Marker frontiers_marker;
-  visualization_msgs::Marker angle_marker;
+  visualization_msgs::Marker info_gain_marker;
   
   int marker_id = 0;
   
   for (auto i : fetchFrontiers()) {
-
+  
+  int info_gain = int(computeVolumetricGain(i, ufoMAP_));
   frontiers_marker.header.frame_id = "world";
   frontiers_marker.header.stamp = ros::Time::now();
   frontiers_marker.ns = "frontier";
@@ -855,35 +851,35 @@ void FrontierExtraction::visualize () {
   frontiers_marker.scale.x = 0.3;
   frontiers_marker.scale.y = 0.3;
   frontiers_marker.scale.z = 0.3;
-  frontiers_marker.color.a = 1.0;
-  frontiers_marker.color.r = 0.0;
-  frontiers_marker.color.g = 0.8;
+  frontiers_marker.color.a = 0.7;
+  frontiers_marker.color.r = 1.0;
+  frontiers_marker.color.g = 0.0;
   frontiers_marker.color.b = 0.0;
 
-  angle_marker.header.frame_id = "world";
-  angle_marker.header.stamp = ros::Time::now();
-  angle_marker.ns = "angles";
-  angle_marker.id = marker_id++;
-  angle_marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
-  angle_marker.action = visualization_msgs::Marker::ADD;
-  angle_marker.pose.position.x = i.x();
-  angle_marker.pose.position.y = i.y();
-  angle_marker.pose.position.z = i.z();
-  angle_marker.pose.orientation.w = 1;
-  angle_marker.scale.y = 0.3;
-  angle_marker.scale.x = 0.3;
-  angle_marker.scale.z = 0.6;
-  angle_marker.color.a = 1.0;
-  angle_marker.color.r = 0.0;
-  angle_marker.color.g = 0.8;
-  angle_marker.color.b = 0.0;
-  // angle_marker.text = std::to_string(calculateAngle(i));
+  info_gain_marker.header.frame_id = "world";
+  info_gain_marker.header.stamp = ros::Time::now();
+  info_gain_marker.ns = "info_gain";
+  info_gain_marker.id = marker_id++;
+  info_gain_marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
+  info_gain_marker.action = visualization_msgs::Marker::ADD;
+  info_gain_marker.pose.position.x = i.x();
+  info_gain_marker.pose.position.y = i.y();
+  info_gain_marker.pose.position.z = i.z();
+  info_gain_marker.pose.orientation.w = 1;
+  info_gain_marker.scale.y = 0.3;
+  info_gain_marker.scale.x = 0.3;
+  info_gain_marker.scale.z = 0.6;
+  info_gain_marker.color.a = 1.0;
+  info_gain_marker.color.r = 1.0;
+  info_gain_marker.color.g = 1.0;
+  info_gain_marker.color.b = 0.0;
+  info_gain_marker.text = std::to_string(info_gain);
   geometry_msgs::Point p;
   p.x = i.x();
   p.y = i.y();
   p.z = i.z();
   frontiers_marker.points.push_back(p);
-  // marker_array.markers.push_back(angle_marker);
+  marker_array.markers.push_back(info_gain_marker);
   marker_array.markers.push_back(frontiers_marker);
   }
   
@@ -997,7 +993,7 @@ std::vector<ufo::math::Vector3> FrontierExtraction::fetchLocallyTraversableFront
 double FrontierExtraction::computeVolumetricGain(ufo::math::Vector3 frontier, ufo::map::OccupancyMapColor const &map)
 {
 
-    double r = 2;
+    double r = 4;
     int unknown_cells, free_cells, occupied_cells = 0;
     ufo::geometry::Sphere sphere(frontier, r);
 
@@ -1014,14 +1010,14 @@ double FrontierExtraction::computeVolumetricGain(ufo::math::Vector3 frontier, uf
         }
     }
     
-    double volumetric_gain = 10 * (log(4*unknown_cells + free_cells - 2*occupied_cells));
+    double volumetric_gain = 10 * (log(unknown_cells));
 
     if (std::isnan(volumetric_gain)) {
       volumetric_gain = 0;
     }
 
     
-    ROS_INFO_STREAM ("Gain --> " << volumetric_gain << "\n");
+    // ROS_INFO_STREAM ("Gain --> " << volumetric_gain << "\n");
     return volumetric_gain;
 }
 

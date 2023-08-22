@@ -256,7 +256,6 @@ private:
     ros::Publisher m_frontierSelectionPub;
     ros::Publisher command_pub;
     ros::Publisher frontiersVisPub_;
-    ros::Publisher anglesVisPub_;
 
 
 protected:
