@@ -574,11 +574,17 @@ void GraphManager::planLocalPath () {
   }
   
 
-  ROS_INFO_STREAM ("local paths size " << local_paths_.size() << "\n");
+  // ROS_INFO_STREAM ("local paths size " << local_paths_.size() << "\n");
   std::vector<Vertex*> path;
 
   std::vector<Vertex*> raw_path = local_paths_.front().first;
-
+  
+  if (raw_path.empty()) {
+    ROS_WARN ("Local Dijkstra SP -> Empty :( \n");
+    run_global_planner = true;
+    return;
+  }
+  
   GraphManager::improvePath (raw_path, path);
   exploration_path_.poses.clear();
   geometry_msgs::PoseStamped p;
