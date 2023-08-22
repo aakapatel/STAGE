@@ -57,6 +57,7 @@ GraphManager::GraphManager(const ros::NodeHandle& nh, const ros::NodeHandle& nh_
 
   global_Graph_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/global_planning_graph", 10);
   
+  local_Paths_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/local_dijkstra_paths", 10);
 
   // Services 
   m_frontier_client = nh_.serviceClient<stage_planner::frontierRequest>("request_frontier_target");
@@ -573,8 +574,12 @@ void GraphManager::planLocalPath () {
     }
   }
   
+  ROS_INFO_STREAM ("local paths size " << local_paths_.size() << "\n");
+  if (!local_paths_.empty()) {
 
-  // ROS_INFO_STREAM ("local paths size " << local_paths_.size() << "\n");
+    GraphManager::visualizeLocalPaths(local_paths_);
+  }
+
   std::vector<Vertex*> path;
 
   std::vector<Vertex*> raw_path = local_paths_.front().first;
@@ -1013,6 +1018,70 @@ void GraphManager::visualizeLocalGraph() {
   marker_array.markers.push_back(vertex_marker);
 
   local_Graph_Vis_Pub_.publish(marker_array);
+
+}
+
+void GraphManager::visualizeLocalPaths (std::vector<std::pair<std::vector<Vertex*>, double>> local_paths) {
+
+  visualization_msgs::MarkerArray marker_array;
+
+  visualization_msgs::Marker edge_marker;
+  visualization_msgs::Marker vertex_marker;
+  edge_marker.header.stamp = ros::Time::now();
+  edge_marker.header.seq = 0;
+  edge_marker.header.frame_id = "world";
+  edge_marker.id = 0;
+  edge_marker.ns = "edges";
+  edge_marker.action = visualization_msgs::Marker::ADD;
+  edge_marker.type = visualization_msgs::Marker::LINE_LIST;
+  edge_marker.scale.x = 0.04;
+  edge_marker.color.r = 255.0 / 255.0;
+  edge_marker.color.g = 0 / 255.0;
+  edge_marker.color.b = 0.0;
+  edge_marker.color.a = 1.0;
+  // edge_marker.lifetime = ros::Duration(graph_lifetime);
+  edge_marker.frame_locked = false;
+  
+  vertex_marker.header.stamp = ros::Time::now();
+  vertex_marker.header.seq = 0;
+  vertex_marker.header.frame_id = "world";
+  vertex_marker.id = 0;
+  vertex_marker.ns = "vertices";
+  vertex_marker.action = visualization_msgs::Marker::ADD;
+  vertex_marker.type = visualization_msgs::Marker::SPHERE_LIST;
+  vertex_marker.scale.x = 0.3;
+  vertex_marker.scale.y = 0.3;
+  vertex_marker.scale.z = 0.3;
+  vertex_marker.color.r =  255.0 / 255.0;
+  vertex_marker.color.g = 0 / 255.0;
+  vertex_marker.color.b = 0 / 255.0;
+  vertex_marker.color.a = 1.0;
+  // vertex_marker.lifetime = ros::Duration(graph_lifetime);
+  vertex_marker.frame_locked = false; 
+
+  for (int i = 0; i < local_paths.size() - 1; ++i) {
+
+    for (int it = 0; it < local_paths[i].first.size() - 1; ++it) {
+
+      geometry_msgs::Point p1;
+      geometry_msgs::Point p2;
+      p1.x = local_paths[i].first[it]->state[0];
+      p1.y = local_paths[i].first[it]->state[1];
+      p1.z = local_paths[i].first[it]->state[2];
+      p2.x = local_paths[i].first[it+1]->state[0];
+      p2.y = local_paths[i].first[it+1]->state[1];
+      p2.z = local_paths[i].first[it+1]->state[2];
+
+      edge_marker.points.push_back(p1);
+      edge_marker.points.push_back(p2);
+      vertex_marker.points.push_back(p1);
+      vertex_marker.points.push_back(p2);
+    }
+  }
+  marker_array.markers.push_back(edge_marker);
+  marker_array.markers.push_back(vertex_marker);
+
+  local_Paths_Vis_Pub_.publish(marker_array);
 
 }
 

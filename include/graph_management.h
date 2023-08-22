@@ -92,6 +92,10 @@ public:
   void visualize ();
   
   double getPathLength (std::vector<Vertex*> path);
+  
+  void visualizeLocalPaths (std::vector<std::pair<std::vector<Vertex*>, double>> local_paths);
+
+
 
 private:
 
@@ -170,6 +174,7 @@ private:
   ros::Publisher m_frontierPub;
   ros::Publisher m_frontierSelectionPub;
   ros::Publisher command_pub;
+  ros::Publisher local_Paths_Vis_Pub_;
 
   ros::Publisher local_Graph_Vis_Pub_;
   ros::Publisher global_Graph_Vis_Pub_;
