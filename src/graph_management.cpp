@@ -201,7 +201,7 @@ double GraphManager::computeVolumetricGain(ufo::math::Vector3 frontier,
                                            ufo::map::OccupancyMapColor const &map)
 {
 
-    double r = 4;
+    double r = 2;
     int unknown_cells, free_cells, occupied_cells = 0;
     ufo::geometry::Sphere sphere(frontier, r);
 
@@ -673,11 +673,12 @@ void GraphManager::planGlobalPath () {
   double my_gain = -std::numeric_limits<double>::max();
   ufo::math::Vector3 global_target;
   
-  ROS_INFO_STREAM ("Potential global repos targets " << global_repos_targets_.size() << "\n");
+  // ROS_INFO_STREAM ("Potential global repos targets " << global_repos_targets_.size() << "\n");
 
   for (ufo::math::Vector3 v : global_repos_targets_) {
 
     gain = computeVolumetricGain(v, ufoMAP_);
+
     if (gain > my_gain) {
       my_gain = gain;
       global_target = v;
