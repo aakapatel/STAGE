@@ -57,9 +57,9 @@ Visualization Manager:
       Enabled: true
       Information:
         "# Inner Nodes": 3 265
-        "# Leaf Nodes": 5 824
+        "# Leaf Nodes": 5 808
         Resolution: 30 cm
-        Size: 122,02 KiB
+        Size: 121,90 KiB
       Min. Depth: 0
       Name: UFOMap
       Occupancy Thresholds:
@@ -110,8 +110,8 @@ Visualization Manager:
     - Alpha: 0.10000000149011612
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 10.735584259033203
-        Min Value: -0.21891194581985474
+        Max Value: 10.743146896362305
+        Min Value: -0.21899795532226562
         Value: true
       Axis: Z
       Channel Name: intensity
@@ -152,13 +152,13 @@ Visualization Manager:
       Queue Size: 100
       Value: false
     - Class: rviz/MarkerArray
-      Enabled: true
+      Enabled: false
       Marker Topic: /local_planning_graph
       Name: MarkerArray
       Namespaces:
         {}
       Queue Size: 100
-      Value: true
+      Value: false
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path

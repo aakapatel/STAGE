@@ -578,6 +578,10 @@ void GraphManager::planLocalPath () {
   if (!local_paths_.empty()) {
 
     GraphManager::visualizeLocalPaths(local_paths_);
+  } else {
+    ROS_WARN ("No local dijkstra paths.. triggiring global planing \n");
+    run_global_planner = true;
+    return;
   }
 
   std::vector<Vertex*> path;
@@ -829,14 +833,14 @@ void GraphManager::fetchExplorationTargets()
       // get a frontier target in local FOV 
       local_exploration_targets_ = pointsToUfo(frontier_srv.response.local_targets);
       
-      ROS_INFO_STREAM ( " Local_targets size  is " << local_exploration_targets_.size() << "\n");
+      // ROS_INFO_STREAM ( " Local_targets size  is " << local_exploration_targets_.size() << "\n");
       // Build a local graph accounting also the local exploration target for simpler planning 
       GraphManager::buildLocalGraph ();
       GraphManager::planLocalPath ();
       GraphManager::buildGlobalGraph ();
 
       }
-    else if (frontier_srv.response.local_nav == false)
+    if (frontier_srv.response.local_nav == false or run_global_planner)
     {
 
       local_exploration = false;
@@ -848,6 +852,7 @@ void GraphManager::fetchExplorationTargets()
       GraphManager::buildGlobalGraph();
       GraphManager::planGlobalPath ();  
 
+      run_global_planner = false;
     }
   }
 
