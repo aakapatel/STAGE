@@ -55,7 +55,7 @@ public:
   ufo::math::Vector3 pointToUfo(geometry_msgs::Point p);
   std::vector<ufo::math::Vector3> pointsToUfo(std::vector<geometry_msgs::Point> points);
   void fetchExplorationTargets();
-  bool isLastTargetFrontier();
+  bool isLastTargetFrontier(geometry_msgs::Point last_target_frontier);
   bool nextExplorationPath (stage_planner::explorationPath::Request &req,
                              stage_planner::explorationPath::Response &res);
   Eigen::Quaternion<float> Euler2Quaternion(ufo::math::Vector3 v);

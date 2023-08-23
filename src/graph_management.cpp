@@ -687,9 +687,24 @@ void GraphManager::buildGlobalGraph () {
   }
 
   global_graph_->graph_->getVertexIterator(g_vi);
+  
   for (Graph::GraphType::vertex_iterator it = g_vi.first; it != g_vi.second; ++it) {
 
     int id = global_graph_->graph_->getVertexProperty(it);
+    
+    ufo::math::Vector3 vertex;
+    vertex.x() = global_graph_->vertices_map_[id]->state[0];
+    vertex.y() = global_graph_->vertices_map_[id]->state[1];
+    vertex.z() = global_graph_->vertices_map_[id]->state[2];
+   
+    
+    if (std::find(global_repos_targets_.begin(), global_repos_targets_.end(),
+                vertex) != global_repos_targets_.end()) {
+      
+      global_graph_->vertices_map_[id]->is_target = true;
+    } else {
+      global_graph_->vertices_map_[id]->is_target = false;
+    }
 
     // Get nearby vertices from the current vertex and connect the them to form local edges 
     std::vector<Vertex*> nearby_vertices;
@@ -874,10 +889,9 @@ void GraphManager::fetchExplorationTargets()
 
 }
 
-bool GraphManager::isLastTargetFrontier () {
+bool GraphManager::isLastTargetFrontier (geometry_msgs::Point last_target_frontier) {
 
   stage_planner::isFrontier frontier_query_srv;
-  geometry_msgs::Point last_target_frontier;
   bool is_last_target_frontier;
 
   last_target_frontier.x = exploration_target.x();
