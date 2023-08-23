@@ -50,8 +50,8 @@ public:
                      bool unknown_space, ufo::map::DepthType min_depth);
   ufo::geometry::OBB makeOBB(ufo::math::Vector3 source, ufo::math::Vector3 goal, float radius);
   double computeVolumetricGain(ufo::math::Vector3 frontier, ufo::map::OccupancyMapColor const &map);
-  ufo::math::Vector3 tunePlanningSpace ();
-  void sampleNodes (std::vector<node*>& nodes); 
+  ufo::math::Vector3 tunePlanningSpace (bool global);
+  void sampleNodes (std::vector<node*>& nodes, bool global); 
   ufo::math::Vector3 pointToUfo(geometry_msgs::Point p);
   std::vector<ufo::math::Vector3> pointsToUfo(std::vector<geometry_msgs::Point> points);
   void fetchExplorationTargets();

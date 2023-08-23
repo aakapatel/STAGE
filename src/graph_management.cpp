@@ -116,7 +116,9 @@ Eigen::Quaternion<float> GraphManager::Euler2Quaternion(ufo::math::Vector3 v)
 
 void GraphManager::odomCallback(
     const nav_msgs::Odometry::ConstPtr &pose)
-{
+{   
+    GraphManager::initializeGraphs ();
+
     if (firstTime)
     {
         m_prevPose = *pose;
@@ -125,6 +127,30 @@ void GraphManager::odomCallback(
     else
     {
         m_currentPose = *pose;
+        
+        ufo::math::Vector3 newPoint (pose->pose.pose.position.x, 
+                                      pose->pose.pose.position.y,
+                                      pose->pose.pose.position.z);
+        ufo::math::Vector3 oldPoint (m_prevPose.pose.pose.position.x,
+                                      m_prevPose.pose.pose.position.y,
+                                      m_prevPose.pose.pose.position.z);
+      if (calculateDistance(newPoint, oldPoint) > 2)
+      {
+        m_prevPose = *pose;
+        
+        std::vector<node*> global_nodes;
+        global_nodes.clear();
+        
+        GraphManager::sampleNodes (global_nodes, true);
+        
+        for (int i = 0; i < global_nodes.size(); i++) {
+          Vertex* vertex = new Vertex(global_graph_->generateVertexID(), ufoToState(*(global_nodes[i]->point)));
+          vertex->is_root = false;
+          global_graph_->addVertex(vertex);
+          vertex->is_target = false;
+        }
+      }
+
     }
     m_currentPosition.x() = m_currentPose.pose.pose.position.x;
     m_currentPosition.y() = m_currentPose.pose.pose.position.y;
@@ -231,9 +257,15 @@ double GraphManager::computeVolumetricGain(ufo::math::Vector3 frontier,
     return volumetric_gain;
 }
 
-ufo::math::Vector3
-GraphManager::tunePlanningSpace()
+ufo::math::Vector3 GraphManager::tunePlanningSpace(bool global)
 {
+  float bounding_box_size = 0;
+
+  if (global) {
+    bounding_box_size = bounding_box_size_;
+  } else {
+    bounding_box_size = bounding_box_size_;
+  }
 
   highest_x = -std::numeric_limits<float>::max();
   highest_y = -std::numeric_limits<float>::max();
@@ -242,12 +274,12 @@ GraphManager::tunePlanningSpace()
   lowest_y = std::numeric_limits<float>::max();
   lowest_z = std::numeric_limits<float>::max();
 
-  ufo::math::Vector3 minPoint(robotState_[0] - 1 * bounding_box_size_,
-                              robotState_[1] - 1 * bounding_box_size_,
-                              robotState_[2] - 1 * bounding_box_size_);
-  ufo::math::Vector3 maxPoint(robotState_[0] + 1 * bounding_box_size_,
-                              robotState_[1] + 1 * bounding_box_size_,
-                              robotState_[2] + 1 * bounding_box_size_);
+  ufo::math::Vector3 minPoint(robotState_[0] - 1 * bounding_box_size,
+                              robotState_[1] - 1 * bounding_box_size,
+                              robotState_[2] - 1 * bounding_box_size);
+  ufo::math::Vector3 maxPoint(robotState_[0] + 1 * bounding_box_size,
+                              robotState_[1] + 1 * bounding_box_size,
+                              robotState_[2] + 1 * bounding_box_size);
   ufo::geometry::AABB aabb(minPoint, maxPoint);
 
   for (auto it = ufoMAP_.beginLeaves(aabb, false, true, false, false,
@@ -285,7 +317,7 @@ GraphManager::tunePlanningSpace()
   return planning_space_scaler;
 }
 
-void GraphManager::sampleNodes (std::vector<node*>& nodes) {
+void GraphManager::sampleNodes (std::vector<node*>& nodes, bool global) {
 
   nodes.clear();
   
@@ -295,12 +327,18 @@ void GraphManager::sampleNodes (std::vector<node*>& nodes) {
 
   srand(time(0));
   int itterations = 0;
-  
-  while (itterations < iterations_local_) {
+  int iterations_local = 0;
+  if (global) {
+    iterations_local = iterations_local_/10;
+  } else {
+    iterations_local = iterations_local_;
+  }
+
+  while (itterations < iterations_local) {
   
     // Generate a random point
 
-    ufo::math::Vector3 box = tunePlanningSpace();
+    ufo::math::Vector3 box = tunePlanningSpace(global);
 
     float x = lowest_x + abs(1024 * rand() / (RAND_MAX + 1.0)) * box.x();
     float y = lowest_y + abs(1024 * rand() / (RAND_MAX + 1.0)) * box.y();
@@ -365,13 +403,6 @@ ufo::math::Vector3 GraphManager::stateToUfo (State s) {
 
 void GraphManager::initializeGraphs () {
 
-
-  sub_graph_.reset(new GraphUtils());
-  
-  if (sub_graph_ != NULL) sub_graph_->reset();
-  sub_graph_.reset(new GraphUtils());
-  sub_graph_rep_.reset();
-
   if (initialize_global_graph) {
     global_graph_.reset(new GraphUtils());
     if (global_graph_ != NULL) global_graph_->reset();
@@ -385,12 +416,18 @@ void GraphManager::initializeGraphs () {
 void GraphManager::buildLocalGraph () {
 
   // high_resolution_clock::time_point start_total = high_resolution_clock::now();
+ 
+  sub_graph_.reset(new GraphUtils());
   
+  if (sub_graph_ != NULL) sub_graph_->reset();
+  sub_graph_.reset(new GraphUtils());
+  sub_graph_rep_.reset();
+
   std::vector<node*> nodes;
   nodes.clear();
 
-  GraphManager::sampleNodes(nodes);
-
+  GraphManager::sampleNodes(nodes, false);
+  
   Vertex* root_vertex = new Vertex(sub_graph_->generateVertexID(), robotState_);
   root_vertex->is_root = true;
   root_vertex->is_target = false;
@@ -664,19 +701,6 @@ void GraphManager::buildGlobalGraph () {
     return;
   }
   
-  for (Graph::GraphType::vertex_iterator it = s_vi.first; it != s_vi.second; ++it) {
-  
-    int id = sub_graph->getVertexProperty(it);
-    if (v_map[id]->edges != 0) {
- 
-      Vertex* v = new Vertex (global_graph_->generateVertexID(), v_map[id]->state);
-      v->is_root = v_map[id]->is_root;
-      v->is_target = false;
-      v->sub_id = id;
-      global_graph_->addVertex(v);
-    }
-  }
-
   // Add global exploration targets to global graph for simpler direct path
   for (auto i : global_repos_targets_) {
   
@@ -708,20 +732,20 @@ void GraphManager::buildGlobalGraph () {
 
     // Get nearby vertices from the current vertex and connect the them to form local edges 
     std::vector<Vertex*> nearby_vertices;
-    global_graph_->getNearestVertices(&global_graph_->vertices_map_[id]->state, 2, &nearby_vertices);
+    global_graph_->getNearestVertices(&global_graph_->vertices_map_[id]->state, 6, &nearby_vertices);
 
     for (int i = 0; i < nearby_vertices.size(); i++) {
       
       ufo::geometry::LineSegment line (stateToUfo(global_graph_->vertices_map_[id]->state),
                                         stateToUfo(nearby_vertices[i]->state));
 
-      if (global_graph_->vertices_map_[id]->edges < 4 
+      if (global_graph_->vertices_map_[id]->edges < 5 
             and global_graph_->distanceBetweenVertices(global_graph_->vertices_map_[id], nearby_vertices[i]) < max_edge_length_
             and !isInCollision(ufoMAP_, line, true, false, true, mapDepth_))  
       { 
         // Maximum edges check is a MUST here to prevent unnecessary edges 
         
-        global_graph_->addEdge(global_graph_->vertices_map_[id], nearby_vertices[i], 
+        global_graph_->addEdge(global_graph_->vertices_map_[id], global_graph_->vertices_map_[nearby_vertices[i]->id], 
                               global_graph_->distanceBetweenVertices(global_graph_->vertices_map_[id], nearby_vertices[i]));
         global_graph_->vertices_map_[id]->edges++;
       }
@@ -934,6 +958,8 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
     else {
     
       if (GraphManager::planGlobalPath()) {
+
+        // GraphManager::buildGlobalGraph ();
       
         ROS_INFO ("No local paths, triggering global planner \n");
       } else {
@@ -943,7 +969,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
     } 
   } else if (!global_repos_targets_.empty()) {
 
-    GraphManager::buildLocalGraph ();
+    // GraphManager::buildLocalGraph ();
 
     GraphManager::buildGlobalGraph ();
     

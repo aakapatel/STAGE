@@ -391,6 +391,11 @@ void FrontierExtraction::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
     else
     {
         m_currentPose = *pose;
+    
+      
+
+
+
     }
     m_currentPosition.x() = m_currentPose.pose.pose.position.x;
     m_currentPosition.y() = m_currentPose.pose.pose.position.y;
