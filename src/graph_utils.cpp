@@ -80,8 +80,8 @@ void GraphUtils::removeEdge(Vertex* v, Vertex* u) {
   graph_->removeEdge(v->id, u->id);
 }
 
-void GraphUtils::removeVertex (Vertex* v) {
-  graph_->removeVertex(v->id);
+void GraphUtils::removeVertex (int id) {
+  graph_->removeVertex(id);
 }
 
 bool GraphUtils::getNearestVertex(const State* state, Vertex** v_res) {

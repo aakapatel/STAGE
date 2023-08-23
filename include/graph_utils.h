@@ -89,7 +89,7 @@ public:
   void addVertex(Vertex* v);
   void addEdge(Vertex* v, Vertex* u, double weight);
   void removeEdge(Vertex* v, Vertex* u);
-  void removeVertex(Vertex* v);
+  void removeVertex(int id);
 
 
   int getNumVertices() { return graph_->getNumVertices(); }
