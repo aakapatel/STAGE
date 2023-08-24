@@ -96,6 +96,9 @@ public:
   void visualizeLocalPaths (std::vector<std::pair<std::vector<Vertex*>, double>> local_paths);
 
   void visualizeGlobalPaths (std::vector<std::pair<std::vector<Vertex*>, double>> global_paths);
+  
+  bool getNeighbours (const State* state, double range, std::vector<Vertex*>* v_res);
+  void keepVertex (Vertex* v);
 
 
 private:
@@ -109,6 +112,8 @@ private:
   std::shared_ptr<GraphUtils> improvement_graph_;
   std::shared_ptr<GraphUtils> frontier_graph_;
 
+  
+  kdtree* kd_tree_;
   
   ShortestPathsReport sub_graph_rep_;
   ShortestPathsReport global_graph_rep_;

@@ -119,7 +119,9 @@ void GraphManager::odomCallback(
 {   
 
     if (firstTime)
-    {   
+    {     
+      if (kd_tree_) kd_free(kd_tree_);
+      kd_tree_ = kd_create(3);
         GraphManager::resetGraphs ();
         m_prevPose = *pose;
         firstTime = false;
@@ -684,6 +686,30 @@ bool GraphManager::planLocalPath () {
   return path_exist;
 } // buildLocalGraph
 
+void GraphManager::keepVertex (Vertex* v) {
+  
+  kd_insert3(kd_tree_, v->state.x(), v->state.y(), v->state.z(), v);
+}
+
+bool GraphManager::getNeighbours (const State* state, double range, std::vector<Vertex*>* v_res) {
+
+  // Notice that this might include the same vertex in the result.
+  // if that vertex is added to the tree before.
+  // Use the distance 0 or small threshold to filter out.
+  kdres* neighbors =
+      kd_nearest_range3(kd_tree_, state->x(), state->y(), state->z(), range);
+  int neighbors_size = kd_res_size(neighbors);
+  if (neighbors_size <= 0) return false;
+  v_res->clear();
+  for (int i = 0; i < neighbors_size; ++i) {
+    Vertex* new_neighbor = (Vertex*)kd_res_item_data(neighbors);
+    v_res->push_back(new_neighbor);
+    if (kd_res_next(neighbors) <= 0) break;
+  }
+  kd_res_free(neighbors);
+  return true;
+
+}
 
 void GraphManager::buildGlobalGraph () {
 
@@ -702,6 +728,7 @@ void GraphManager::buildGlobalGraph () {
   // reset vertex property 
 
   for (int i = 0; i < global_graph_->getNumVertices(); ++i) {
+
     global_graph_->vertices_map_[i]->is_frontier = false;
     global_graph_->vertices_map_[i]->neighbours = global_graph_->getNumNeighbours(global_graph_->vertices_map_[i]);
   }
@@ -726,24 +753,16 @@ void GraphManager::buildGlobalGraph () {
         vertex->is_target = false;
         vertex->is_sampled = true;
         vertex->is_frontier = true;
+
+
+
+        // ROS_INFO_STREAM ("neighbours of vertex : " << nearby_vertices.size() << "\n");
+
+
       }
     }
   }
 
-  std::vector<int> excessive;
-
-  for (int i = 0; i < global_graph_->getNumVertices(); ++i) {
-
-    if (global_graph_->vertices_map_[i]->neighbours > 4) {
-      excessive.push_back(i);
-    }
-  }
-  
-  for (std::vector<int>::iterator i = excessive.begin(); i != excessive.end(); i++) {
-
-    global_graph_->removeVertex(*i);
-
-  }
 
  
   // // Add all global vertex ids to the list 
