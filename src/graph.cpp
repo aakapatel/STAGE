@@ -44,7 +44,16 @@ void Graph::removeVertex (int u_id) {
   if (vertex_descriptors_.find(u_id) == vertex_descriptors_.end()) {
     return;
   }
-
+  // GraphType::vertex_iterator vi, vi_end, next;
+  // std::tie(vi, vi_end) = vertices(graph_);
+  // for (next = vi; vi != vi_end; vi = next) {
+  //   ++next;
+  //   if (vi->id == u_id) {
+  //
+  //     boost::remove_vertex(vertex_descriptors_[u_id], graph_);
+  //   }
+  // }
+  
   boost::remove_vertex(vertex_descriptors_[u_id], graph_);
 }
 

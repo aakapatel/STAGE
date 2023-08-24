@@ -48,6 +48,7 @@ struct Vertex {
     is_cluster_centroid = false;
     is_frontier = false;
     sub_id = 0;
+    neighbours = 0;
   }
 
   // Unique id for each vertex (root: 0, others: positive number).
@@ -75,6 +76,8 @@ struct Vertex {
   bool is_frontier;
   // Sub graph id to keep track while adding to global graph 
   int sub_id;
+  // number of neighbours in x meters radius
+  int neighbours;
 };
 
 
@@ -132,6 +135,7 @@ public:
   
   Vertex* getVertexBySubId (int s_id);
   
+  int getNumNeighbours (Vertex* v);
 
   // Boost graph 
   std::shared_ptr<Graph> graph_;

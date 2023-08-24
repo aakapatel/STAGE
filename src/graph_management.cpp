@@ -703,9 +703,11 @@ void GraphManager::buildGlobalGraph () {
 
   for (int i = 0; i < global_graph_->getNumVertices(); ++i) {
     global_graph_->vertices_map_[i]->is_frontier = false;
+    global_graph_->vertices_map_[i]->neighbours = global_graph_->getNumNeighbours(global_graph_->vertices_map_[i]);
   }
 
-  // Add global exploration targets to global graph for simpler direct path
+
+      // Add global exploration targets to global graph for simpler direct path
   
   for (int i = 0; i < frontier_graph_->getNumVertices(); ++i) {
 
@@ -715,7 +717,7 @@ void GraphManager::buildGlobalGraph () {
       frontier_nodes.clear();
         
       GraphManager::sampleNodes (frontier_nodes, frontier_graph_->vertices_map_[i]->state, 
-                                  iterations_local_/10, bounding_box_size_/4);
+                                  iterations_local_/20, bounding_box_size_/4);
         
       for (int i = 0; i < frontier_nodes.size(); i++) {
         Vertex* vertex = new Vertex(global_graph_->generateVertexID(), ufoToState(*(frontier_nodes[i]->point)));
@@ -728,7 +730,22 @@ void GraphManager::buildGlobalGraph () {
     }
   }
 
+  std::vector<int> excessive;
 
+  for (int i = 0; i < global_graph_->getNumVertices(); ++i) {
+
+    if (global_graph_->vertices_map_[i]->neighbours > 4) {
+      excessive.push_back(i);
+    }
+  }
+  
+  for (std::vector<int>::iterator i = excessive.begin(); i != excessive.end(); i++) {
+
+    global_graph_->removeVertex(*i);
+
+  }
+
+ 
   // // Add all global vertex ids to the list 
   //
   // for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
@@ -971,25 +988,24 @@ void GraphManager::fetchExplorationTargets()
       gains.clear();
       for (int i = 0; i < frontier_graph_->getNumVertices(); ++i) {
           
-        std::vector<Vertex*> nearby_vertices;
-        frontier_graph_->getNearestVertices(&frontier_graph_->vertices_map_[i]->state, 4, &nearby_vertices);
-        frontier_graph_->vertices_map_[i]->gain = nearby_vertices.size();
-        gains.push_back(nearby_vertices.size());
+        Vertex* v = frontier_graph_->vertices_map_[i];
 
-        ROS_INFO_STREAM ("frontier gain : " << nearby_vertices.size() << "\n");
+        frontier_graph_->vertices_map_[i]->neighbours = frontier_graph_->getNumNeighbours(frontier_graph_->vertices_map_[i]);
+        // ROS_INFO_STREAM ("neighbours : " << frontier_graph_->vertices_map_[i]->neighbours << "\n"); 
+        gains.push_back(frontier_graph_->vertices_map_[i]->neighbours);
       
       }
       
       double average_gain = std::accumulate(gains.begin(), gains.end(), 0.0) / gains.size();
       
-      ROS_INFO_STREAM ("Average gain ----> : " << average_gain << "\n");
+      // ROS_INFO_STREAM ("Average gain ----> : " << average_gain << "\n");
 
 
       for (int i = 0; i < frontier_graph_->getNumVertices(); ++i) {
         
-        if (frontier_graph_->vertices_map_[i]->gain > average_gain) {
+        if (frontier_graph_->vertices_map_[i]->neighbours > average_gain) {
 
-          frontier_graph_->vertices_map_[centroid_id]->is_cluster_centroid = true;
+          frontier_graph_->vertices_map_[i]->is_cluster_centroid = true;
           
         }
       }

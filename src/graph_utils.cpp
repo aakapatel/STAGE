@@ -53,6 +53,13 @@ Vertex* GraphUtils::getVertexBySubId (int s_id) {
   return v;
 }
 
+int GraphUtils::getNumNeighbours (Vertex* v) {
+
+  std::vector<Vertex*> nearby_vertices;
+  getNearestVertices(&vertices_map_[v->id]->state, 2, &nearby_vertices);
+  return nearby_vertices.size();
+}
+
 double GraphUtils::distanceBetweenVertices (Vertex*v, Vertex*u) {
   
   return sqrt(pow(v->state.x() - u->state.x(), 2 ) 

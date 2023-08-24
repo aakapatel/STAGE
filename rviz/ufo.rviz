@@ -57,10 +57,10 @@ Visualization Manager:
     - Class: UFOMap
       Enabled: true
       Information:
-        "# Inner Nodes": 3 873
-        "# Leaf Nodes": 7 920
+        "# Inner Nodes": 8 001
+        "# Leaf Nodes": 20 136
         Resolution: 30 cm
-        Size: 152,65 KiB
+        Size: 344,84 KiB
       Min. Depth: 0
       Name: UFOMap
       Occupancy Thresholds:
@@ -111,8 +111,8 @@ Visualization Manager:
     - Alpha: 0.10000000149011612
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 10.742035865783691
-        Min Value: -0.21950018405914307
+        Max Value: 9.196113586425781
+        Min Value: -0.6165204048156738
         Value: true
       Axis: Z
       Channel Name: intensity
@@ -141,7 +141,8 @@ Visualization Manager:
       Marker Topic: /frontiers
       Name: MarkerArray
       Namespaces:
-        {}
+        frontier: true
+        info_gain: false
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -149,7 +150,8 @@ Visualization Manager:
       Marker Topic: /global_planning_graph
       Name: MarkerArray
       Namespaces:
-        {}
+        edges: true
+        vertices: true
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -189,7 +191,8 @@ Visualization Manager:
       Marker Topic: /local_dijkstra_paths
       Name: MarkerArray
       Namespaces:
-        {}
+        edges: true
+        vertices: true
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -236,9 +239,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -8.494270324707031
-        Y: -3.9111266136169434
-        Z: -1.4314860105514526
+        X: -0.9621614217758179
+        Y: -0.8642885088920593
+        Z: -1.4344360828399658
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
