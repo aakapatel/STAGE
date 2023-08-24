@@ -75,7 +75,7 @@ public:
 
     // GRAPH AND PLANNING 
   
-  void initializeGraphs ();
+  void resetGraphs ();
 
   void buildLocalGraph ();
   
@@ -120,6 +120,8 @@ private:
   std::vector<std::pair<std::vector<Vertex*>, double>> local_paths_;
   std::vector<std::pair<std::vector<Vertex*>, double>> global_paths_;
 
+  std::list<int> global_vertices_ids_;
+
   // variables
   State robotState_;
 
@@ -130,7 +132,7 @@ private:
   double bounding_box_size_, m_global_space;
   double m_local_fov;
   bool map_received;
-  bool initialize_global_graph = true;
+  bool reset_global_graph = true;
   std::string m_ufomap;
   bool m_max_allowed_Z;
   double obb_radius_;

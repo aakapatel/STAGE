@@ -117,7 +117,6 @@ Eigen::Quaternion<float> GraphManager::Euler2Quaternion(ufo::math::Vector3 v)
 void GraphManager::odomCallback(
     const nav_msgs::Odometry::ConstPtr &pose)
 {   
-    GraphManager::initializeGraphs ();
 
     if (firstTime)
     {
@@ -401,14 +400,23 @@ ufo::math::Vector3 GraphManager::stateToUfo (State s) {
   return v;
 }
 
-void GraphManager::initializeGraphs () {
+void GraphManager::resetGraphs () {
 
-  if (initialize_global_graph) {
+  if (reset_global_graph) {
     global_graph_.reset(new GraphUtils());
     if (global_graph_ != NULL) global_graph_->reset();
     global_graph_.reset(new GraphUtils());
     global_graph_rep_.reset();
-    initialize_global_graph = false;
+    reset_global_graph = false;
+    global_vertices_ids_.clear();
+
+    // Adding home vertex at initialization phase for simpler RTB planning
+    
+    Vertex* home_vertex = new Vertex (global_graph_->generateVertexID(), robotState_);
+    home_vertex->is_root = false;
+    home_vertex->is_target = false;
+    global_graph_->addVertex(home_vertex);
+
   }
 
 }
@@ -686,20 +694,12 @@ void GraphManager::buildGlobalGraph () {
 
   global_graph_rep_.reset();
   
-  std::shared_ptr<Graph> sub_graph = sub_graph_->graph_;
-  std::unordered_map<int, Vertex*>& v_map = sub_graph_->vertices_map_;
+  std::unordered_map<int, Vertex*>& global_vertex_map = global_graph_->vertices_map_;
   
   std::pair<Graph::GraphType::vertex_iterator,
-            Graph::GraphType::vertex_iterator> s_vi;
-  
-  std::pair<Graph::GraphType::vertex_iterator,
-            Graph::GraphType::vertex_iterator> g_vi;
-  
-  sub_graph->getVertexIterator(s_vi);
+            Graph::GraphType::vertex_iterator> vi;
 
-  if (sub_graph_->getNumVertices() == 0) {
-    return;
-  }
+  global_graph_->graph_->getVertexIterator(vi);
   
   // Add global exploration targets to global graph for simpler direct path
   for (auto i : global_repos_targets_) {
@@ -709,47 +709,77 @@ void GraphManager::buildGlobalGraph () {
     target_vertex->is_target = true;
     global_graph_->addVertex(target_vertex);
   }
-
-  global_graph_->graph_->getVertexIterator(g_vi);
   
-  for (Graph::GraphType::vertex_iterator it = g_vi.first; it != g_vi.second; ++it) {
+  // Add all global vertex ids to the list 
+  // for (int i = 0; i < global_graph_->getNumVertices(); ++i) {
 
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
+  
+    int i = global_graph_->graph_->getVertexProperty(it);
+    
+    if (!global_vertices_ids_.empty()) {
+
+      std::list<int>::iterator it;
+      it = std::find(global_vertices_ids_.begin(), global_vertices_ids_.end(), global_vertex_map[i]->id);
+      if (it == global_vertices_ids_.end()) {
+        global_vertices_ids_.push_back(global_vertex_map[i]->id);
+      } 
+    }
+  }
+  
+  // for (int id = 0; id < global_graph_->getNumVertices(); ++id) {
+  
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
+  
     int id = global_graph_->graph_->getVertexProperty(it);
     
-    ufo::math::Vector3 vertex;
-    vertex.x() = global_graph_->vertices_map_[id]->state[0];
-    vertex.y() = global_graph_->vertices_map_[id]->state[1];
-    vertex.z() = global_graph_->vertices_map_[id]->state[2];
-   
+    ufo::math::Vector3 vertex = stateToUfo(global_vertex_map[id]->state);
     
     if (std::find(global_repos_targets_.begin(), global_repos_targets_.end(),
                 vertex) != global_repos_targets_.end()) {
       
-      global_graph_->vertices_map_[id]->is_target = true;
+      global_vertex_map[id]->is_target = true;
     } else {
-      global_graph_->vertices_map_[id]->is_target = false;
-    }
-
-    // Get nearby vertices from the current vertex and connect the them to form local edges 
-    std::vector<Vertex*> nearby_vertices;
-    global_graph_->getNearestVertices(&global_graph_->vertices_map_[id]->state, 6, &nearby_vertices);
-
-    for (int i = 0; i < nearby_vertices.size(); i++) {
-      
-      ufo::geometry::LineSegment line (stateToUfo(global_graph_->vertices_map_[id]->state),
-                                        stateToUfo(nearby_vertices[i]->state));
-
-      if (global_graph_->vertices_map_[id]->edges < 5 
-            and global_graph_->distanceBetweenVertices(global_graph_->vertices_map_[id], nearby_vertices[i]) < max_edge_length_
-            and !isInCollision(ufoMAP_, line, true, false, true, mapDepth_))  
-      { 
-        // Maximum edges check is a MUST here to prevent unnecessary edges 
-        
-        global_graph_->addEdge(global_graph_->vertices_map_[id], global_graph_->vertices_map_[nearby_vertices[i]->id], 
-                              global_graph_->distanceBetweenVertices(global_graph_->vertices_map_[id], nearby_vertices[i]));
-        global_graph_->vertices_map_[id]->edges++;
+      global_vertex_map[id]->is_target = false;
+      if (!global_vertices_ids_.empty()) {
+  
+        global_vertices_ids_.remove(global_vertex_map[id]->id);
       }
     }
+  }
+
+  
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
+
+    int id = global_graph_->graph_->getVertexProperty(it);
+    
+    std::list<int>::iterator v_it;
+    v_it = std::find(global_vertices_ids_.begin(), global_vertices_ids_.end(), id);
+    
+    if (v_it != global_vertices_ids_.end()) {
+
+      // Get nearby vertices from the current vertex and connect the them to form local edges 
+      std::vector<Vertex*> nearby_vertices;
+      global_graph_->getNearestVertices(&global_graph_->vertices_map_[id]->state, 6, &nearby_vertices);
+
+      for (int i = 0; i < nearby_vertices.size(); i++) {
+        
+        ufo::geometry::LineSegment line (stateToUfo(global_graph_->vertices_map_[id]->state),
+                                          stateToUfo(nearby_vertices[i]->state));
+  
+        if (global_graph_->vertices_map_[id]->edges < 5 
+              and global_graph_->distanceBetweenVertices(global_graph_->vertices_map_[id], nearby_vertices[i]) < max_edge_length_
+              and !isInCollision(ufoMAP_, line, true, false, true, mapDepth_))  
+        { 
+          // Maximum edges check is a MUST here to prevent unnecessary edges 
+        
+          global_graph_->addEdge(global_graph_->vertices_map_[id], global_graph_->vertices_map_[nearby_vertices[i]->id], 
+                                global_graph_->distanceBetweenVertices(global_graph_->vertices_map_[id], nearby_vertices[i]));
+          global_graph_->vertices_map_[id]->edges++;
+        }
+      }
+    }
+
   } 
   
   // ROS_INFO_STREAM ("Built global graph with " << global_graph_->getNumVertices() << " vertices & " << global_graph_->getNumEdges() << " edges\n");
@@ -942,7 +972,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
-  GraphManager::initializeGraphs ();
+  GraphManager::resetGraphs ();
 
   GraphManager::fetchExplorationTargets ();
   
