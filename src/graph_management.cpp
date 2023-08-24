@@ -751,10 +751,12 @@ void GraphManager::buildGlobalGraph () {
   }
 
   // Iterate through global vertices with nearby neighbours look up to densify the graph
-  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
+  // for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
 
-    int id = global_graph_->graph_->getVertexProperty(it);
+    // int id = global_graph_->graph_->getVertexProperty(it);
     
+  for (int id = 0; id < global_graph_->getNumVertices(); ++id) {
+
     std::list<int>::iterator v_it;
     v_it = std::find(global_vertices_ids_.begin(), global_vertices_ids_.end(), id);
     
@@ -762,14 +764,14 @@ void GraphManager::buildGlobalGraph () {
 
       // Get nearby vertices from the current vertex and connect the them to form local edges 
       std::vector<Vertex*> nearby_vertices;
-      global_graph_->getNearestVertices(&global_graph_->vertices_map_[id]->state, 6, &nearby_vertices);
+      global_graph_->getNearestVertices(&global_graph_->vertices_map_[id]->state, 4, &nearby_vertices);
 
       for (int i = 0; i < nearby_vertices.size(); i++) {
         
         ufo::geometry::LineSegment line (stateToUfo(global_graph_->vertices_map_[id]->state),
                                           stateToUfo(nearby_vertices[i]->state));
   
-        if (global_graph_->vertices_map_[id]->edges < 5 
+        if (global_graph_->vertices_map_[id]->edges < 5
               and global_graph_->distanceBetweenVertices(global_graph_->vertices_map_[id], nearby_vertices[i]) < max_edge_length_
               and !isInCollision(ufoMAP_, line, true, false, true, mapDepth_))  
         { 
@@ -783,25 +785,7 @@ void GraphManager::buildGlobalGraph () {
     }
   } 
  
-  for (Graph::GraphType::edge_iterator it = ei.first; it != ei.second; ++it) {
-    
-    int src_id;
-    int trg_id;
-    double weight;
-    
-    std::tie(src_id, trg_id, weight) = global_graph_->graph_->getEdgeProperty(it);
-    Vertex* src_v = global_graph_->getVertex(src_id);
-    Vertex* trg_v = global_graph_->getVertex(trg_id);
 
-    std::list<int>::iterator i_s;
-    std::list<int>::iterator i_t;
-    i_s = std::find(global_vertices_ids_.begin(), global_vertices_ids_.end(), src_id);
-    i_t = std::find(global_vertices_ids_.begin(), global_vertices_ids_.end(), trg_id);
-    if (i_s == global_vertices_ids_.end() or i_t == global_vertices_ids_.end()) {
-      global_graph_->removeEdge(src_v, trg_v);
-    }
-
-  }
 
 
   // ROS_INFO_STREAM ("Built global graph with " << global_graph_->getNumVertices() << " vertices & " << global_graph_->getNumEdges() << " edges\n");
@@ -1327,6 +1311,16 @@ void GraphManager::visualizeGlobalGraph() {
     int src_id, tgt_id;
     double weight;
     std::tie(src_id, tgt_id, weight) = g->getEdgeProperty(it);
+
+    Vertex* src_v = global_graph_->getVertex(src_id);
+    Vertex* tgt_v = global_graph_->getVertex(tgt_id);
+
+    std::list<int>::iterator i_s;
+    std::list<int>::iterator i_t;
+    i_s = std::find(global_vertices_ids_.begin(), global_vertices_ids_.end(), src_id);
+    i_t = std::find(global_vertices_ids_.begin(), global_vertices_ids_.end(), tgt_id);
+    if (i_s != global_vertices_ids_.end() and i_t != global_vertices_ids_.end()) {
+
     geometry_msgs::Point p1;
     p1.x = v_map[src_id]->state[0];
     p1.y = v_map[src_id]->state[1];
@@ -1337,6 +1331,7 @@ void GraphManager::visualizeGlobalGraph() {
     p2.z = v_map[tgt_id]->state[2];
     edge_marker.points.push_back(p1);
     edge_marker.points.push_back(p2);
+    }
   }
   marker_array.markers.push_back(edge_marker);
 
