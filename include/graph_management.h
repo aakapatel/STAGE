@@ -50,8 +50,8 @@ public:
                      bool unknown_space, ufo::map::DepthType min_depth);
   ufo::geometry::OBB makeOBB(ufo::math::Vector3 source, ufo::math::Vector3 goal, float radius);
   double computeVolumetricGain(ufo::math::Vector3 frontier, ufo::map::OccupancyMapColor const &map);
-  ufo::math::Vector3 tunePlanningSpace (bool global);
-  void sampleNodes (std::vector<node*>& nodes, bool global); 
+  ufo::math::Vector3 tunePlanningSpace (State state, double bounding_box_size);
+  void sampleNodes (std::vector<node*>& nodes, State state, int iterations_max, double bounding_box_size); 
   ufo::math::Vector3 pointToUfo(geometry_msgs::Point p);
   std::vector<ufo::math::Vector3> pointsToUfo(std::vector<geometry_msgs::Point> points);
   void fetchExplorationTargets();
@@ -107,12 +107,14 @@ private:
   std::shared_ptr<GraphUtils> global_graph_;
   std::shared_ptr<GraphUtils> homing_graph_;
   std::shared_ptr<GraphUtils> improvement_graph_;
+  std::shared_ptr<GraphUtils> frontier_graph_;
 
   
   ShortestPathsReport sub_graph_rep_;
   ShortestPathsReport global_graph_rep_;
   ShortestPathsReport homing_graph_rep_;
   ShortestPathsReport improvement_graph_rep_;
+  ShortestPathsReport frontier_graph_rep_;
 
   int vertex_id = -1;
   int local_target_vertex_id;

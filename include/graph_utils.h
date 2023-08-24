@@ -45,6 +45,8 @@ struct Vertex {
     is_root = false;
     is_target = false;
     is_sampled = false;
+    is_cluster_centroid = false;
+    is_frontier = false;
     sub_id = 0;
   }
 
@@ -67,6 +69,10 @@ struct Vertex {
   bool is_target;
   // If node is randomly sampled 
   bool is_sampled;
+  // If a node is center of cluster 
+  bool is_cluster_centroid;
+  // If a node itself is a frontier
+  bool is_frontier;
   // Sub graph id to keep track while adding to global graph 
   int sub_id;
 };
