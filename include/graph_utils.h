@@ -44,6 +44,7 @@ struct Vertex {
     edges = 0;
     is_root = false;
     is_target = false;
+    is_sampled = false;
     sub_id = 0;
   }
 
@@ -64,6 +65,8 @@ struct Vertex {
   bool is_root;
   // If vertex is a potential target 
   bool is_target;
+  // If node is randomly sampled 
+  bool is_sampled;
   // Sub graph id to keep track while adding to global graph 
   int sub_id;
 };

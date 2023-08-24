@@ -147,6 +147,7 @@ void GraphManager::odomCallback(
           vertex->is_root = false;
           global_graph_->addVertex(vertex);
           vertex->is_target = false;
+          vertex->is_sampled = true;
         }
       }
 
@@ -409,14 +410,14 @@ void GraphManager::resetGraphs () {
     global_graph_rep_.reset();
     reset_global_graph = false;
     global_vertices_ids_.clear();
-
     // Adding home vertex at initialization phase for simpler RTB planning
     
     Vertex* home_vertex = new Vertex (global_graph_->generateVertexID(), robotState_);
-    home_vertex->is_root = false;
+    home_vertex->is_root = true;
     home_vertex->is_target = false;
+    home_vertex->is_sampled = false;
     global_graph_->addVertex(home_vertex);
-
+    global_vertices_ids_.push_back(home_vertex->id);
   }
 
 }
@@ -693,13 +694,16 @@ bool GraphManager::planLocalPath () {
 void GraphManager::buildGlobalGraph () {
 
   global_graph_rep_.reset();
-  
   std::unordered_map<int, Vertex*>& global_vertex_map = global_graph_->vertices_map_;
   
   std::pair<Graph::GraphType::vertex_iterator,
             Graph::GraphType::vertex_iterator> vi;
+  
+  std::pair<Graph::GraphType::edge_iterator,
+            Graph::GraphType::edge_iterator> ei;
 
   global_graph_->graph_->getVertexIterator(vi);
+  global_graph_->graph_->getEdgeIterator(ei);
   
   // Add global exploration targets to global graph for simpler direct path
   for (auto i : global_repos_targets_) {
@@ -707,48 +711,46 @@ void GraphManager::buildGlobalGraph () {
     Vertex* target_vertex = new Vertex(global_graph_->generateVertexID(), ufoToState(i));
     target_vertex->is_root = false;
     target_vertex->is_target = true;
+    target_vertex->is_sampled = false;
     global_graph_->addVertex(target_vertex);
   }
   
   // Add all global vertex ids to the list 
-  // for (int i = 0; i < global_graph_->getNumVertices(); ++i) {
 
   for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
   
     int i = global_graph_->graph_->getVertexProperty(it);
     
-    if (!global_vertices_ids_.empty()) {
+    std::list<int>::iterator v_it;
+    v_it = std::find(global_vertices_ids_.begin(), global_vertices_ids_.end(), i);
+    if (v_it == global_vertices_ids_.end()) {
 
-      std::list<int>::iterator it;
-      it = std::find(global_vertices_ids_.begin(), global_vertices_ids_.end(), global_vertex_map[i]->id);
-      if (it == global_vertices_ids_.end()) {
-        global_vertices_ids_.push_back(global_vertex_map[i]->id);
-      } 
+      global_vertices_ids_.push_back(global_graph_->vertices_map_[i]->id);
     }
   }
   
-  // for (int id = 0; id < global_graph_->getNumVertices(); ++id) {
-  
+  // Check if a previous target is still a frontier and if not, remove from vertices_ids 
+  // Also check if the non-frontier node is randomly sampled, if yes, do not delete 
   for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
   
     int id = global_graph_->graph_->getVertexProperty(it);
     
-    ufo::math::Vector3 vertex = stateToUfo(global_vertex_map[id]->state);
+    ufo::math::Vector3 vertex = stateToUfo(global_graph_->vertices_map_[id]->state);
     
     if (std::find(global_repos_targets_.begin(), global_repos_targets_.end(),
                 vertex) != global_repos_targets_.end()) {
       
-      global_vertex_map[id]->is_target = true;
+      global_graph_->vertices_map_[id]->is_target = true;
     } else {
-      global_vertex_map[id]->is_target = false;
-      if (!global_vertices_ids_.empty()) {
+      global_graph_->vertices_map_[id]->is_target = false;
+      if (!global_vertices_ids_.empty() and !global_graph_->vertices_map_[id]->is_sampled) {
   
-        global_vertices_ids_.remove(global_vertex_map[id]->id);
+        global_vertices_ids_.remove(global_graph_->vertices_map_[id]->id);
       }
     }
   }
 
-  
+  // Iterate through global vertices with nearby neighbours look up to densify the graph
   for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
 
     int id = global_graph_->graph_->getVertexProperty(it);
@@ -779,9 +781,29 @@ void GraphManager::buildGlobalGraph () {
         }
       }
     }
-
   } 
-  
+ 
+  for (Graph::GraphType::edge_iterator it = ei.first; it != ei.second; ++it) {
+    
+    int src_id;
+    int trg_id;
+    double weight;
+    
+    std::tie(src_id, trg_id, weight) = global_graph_->graph_->getEdgeProperty(it);
+    Vertex* src_v = global_graph_->getVertex(src_id);
+    Vertex* trg_v = global_graph_->getVertex(trg_id);
+
+    std::list<int>::iterator i_s;
+    std::list<int>::iterator i_t;
+    i_s = std::find(global_vertices_ids_.begin(), global_vertices_ids_.end(), src_id);
+    i_t = std::find(global_vertices_ids_.begin(), global_vertices_ids_.end(), trg_id);
+    if (i_s == global_vertices_ids_.end() or i_t == global_vertices_ids_.end()) {
+      global_graph_->removeEdge(src_v, trg_v);
+    }
+
+  }
+
+
   // ROS_INFO_STREAM ("Built global graph with " << global_graph_->getNumVertices() << " vertices & " << global_graph_->getNumEdges() << " edges\n");
   
   // Dijkstra SP report from root to all vertices in global graph 
@@ -1343,12 +1365,18 @@ void GraphManager::visualizeGlobalGraph() {
   g->getVertexIterator(vi);
   for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
     int id = g->getVertexProperty(it);
-    geometry_msgs::Point p1;
-    p1.x = v_map[id]->state[0];
-    p1.y = v_map[id]->state[1];
-    p1.z = v_map[id]->state[2];
+    
+    std::list<int>::iterator v_it;
+    v_it = std::find(global_vertices_ids_.begin(), global_vertices_ids_.end(), id);
+    if (v_it != global_vertices_ids_.end()) {
 
-    vertex_marker.points.push_back(p1);
+      geometry_msgs::Point p1;
+      p1.x = v_map[id]->state[0];
+      p1.y = v_map[id]->state[1];
+      p1.z = v_map[id]->state[2];
+
+      vertex_marker.points.push_back(p1);
+    }
   }
   marker_array.markers.push_back(vertex_marker);
 
