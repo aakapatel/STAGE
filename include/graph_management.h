@@ -75,7 +75,9 @@ public:
 
     // GRAPH AND PLANNING 
   
-  void resetGraphs ();
+  void resetLocalGraph ();
+  void resetGlobalGraph ();
+  void resetFrontierGraph ();
 
   void buildLocalGraph ();
   
@@ -98,7 +100,13 @@ public:
   void visualizeGlobalPaths (std::vector<std::pair<std::vector<Vertex*>, double>> global_paths);
   
   bool getNeighbours (const State* state, double range, std::vector<Vertex*>* v_res);
-  void keepVertex (Vertex* v);
+  void insertVertexKdtree (Vertex* v);
+  void resetKdtree ();
+
+  int assignVertexID(); 
+
+  void updateKdtree ();
+
 
 
 private:
@@ -121,13 +129,15 @@ private:
   ShortestPathsReport improvement_graph_rep_;
   ShortestPathsReport frontier_graph_rep_;
 
-  int vertex_id = -1;
+  int vertex_id_ = -1;
   int local_target_vertex_id;
   
   std::vector<std::pair<std::vector<Vertex*>, double>> local_paths_;
   std::vector<std::pair<std::vector<Vertex*>, double>> global_paths_;
 
   std::list<int> global_vertices_ids_;
+  
+  std::list<Vertex*> all_vertices;
 
   // variables
   State robotState_;
