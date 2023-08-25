@@ -123,7 +123,10 @@ void GraphManager::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
 
     if (firstTime)
     {     
-
+      GraphManager::resetKdtree ();
+      GraphManager::resetLocalGraph ();
+      GraphManager::resetGlobalGraph ();
+      GraphManager::resetFrontierGraph ();
       m_prevPose = *pose;
       firstTime = false;
     }
@@ -397,6 +400,7 @@ ufo::math::Vector3 GraphManager::stateToUfo (State s) {
 
 void GraphManager::resetLocalGraph () {
 
+  sub_graph_.reset(new GraphUtils());
   if (sub_graph_ != NULL) sub_graph_->reset();
   sub_graph_.reset(new GraphUtils());
   sub_graph_rep_.reset();
@@ -405,34 +409,34 @@ void GraphManager::resetLocalGraph () {
 
 void GraphManager::resetGlobalGraph () {
 
-  // State home_state;
-  //
-  // if (reset_global_graph) {
-  //   // Adding home vertex at initialization phase for simpler RTB planning
-  //   State home_state;
-  //   home_state[0] = robotState_[0];
-  //   home_state[1] = robotState_[1];
-  //   home_state[2] = robotState_[2] + 1;
-  //   Vertex* home = new Vertex (assignVertexID(), home_state);
-  //   GraphManager::insertVertexKdtree(home);
-  //   // global_vertices_ids_.push_back(home->id);
-  //   reset_global_graph = false;
-  // }
-  
-  if (global_graph_ != NULL) { 
-    global_graph_->reset();
+  Vertex* home;
+
+  if (reset_global_graph) {
+    // Adding home vertex at initialization phase for simpler RTB planning
+    State home_state;
+    home_state[0] = robotState_[0];
+    home_state[1] = robotState_[1];
+    home_state[2] = robotState_[2] + 1;
+    home = new Vertex (assignVertexID(), home_state);
+    GraphManager::insertVertexKdtree(home);
+    global_vertices_ids_.push_back(home->id);
+    reset_global_graph = false;
   }
+  
+  global_graph_.reset(new GraphUtils());
+  if (global_graph_ != NULL) global_graph_->reset();
   global_graph_.reset(new GraphUtils());
   global_graph_rep_.reset();
-  // // Vertex* home_vertex = new Vertex (global_graph_->generateVertexID(), home_state);
-  // home_vertex->is_root = true;
-  // home_vertex->is_target = false;
-  // home_vertex->is_sampled = false;
-  // global_graph_->addVertex(home_vertex);
+  Vertex* home_vertex = new Vertex (global_graph_->generateVertexID(), home->state);
+  home_vertex->is_root = true;
+  home_vertex->is_target = false;
+  home_vertex->is_sampled = false;
+  global_graph_->addVertex(home_vertex);
 }
 
 void GraphManager::resetFrontierGraph () {
 
+  frontier_graph_.reset(new GraphUtils());
   if (frontier_graph_ != NULL) frontier_graph_->reset();
   frontier_graph_.reset(new GraphUtils());
   frontier_graph_rep_.reset();
@@ -442,14 +446,8 @@ void GraphManager::resetFrontierGraph () {
 void GraphManager::buildLocalGraph () {
 
   // high_resolution_clock::time_point start_total = high_resolution_clock::now();
-  // ROS_INFO("OK \n");
-  if (sub_graph_ != NULL) { 
-    sub_graph_->reset();
-  }
-  sub_graph_.reset(new GraphUtils());
-  sub_graph_rep_.reset();
   
-  // ROS_INFO ("PROBLEM? \n");
+  GraphManager::resetLocalGraph ();
 
   std::vector<node*> nodes;
   nodes.clear();
@@ -716,7 +714,7 @@ void GraphManager::insertVertexKdtree (Vertex* v) {
 }
 
 void GraphManager::resetKdtree () {
-
+  all_vertices.clear();
   if (kd_tree_) kd_free(kd_tree_);
   kd_tree_ = kd_create(3);
 }
@@ -816,8 +814,8 @@ void GraphManager::buildGlobalGraph () {
     
   for (int id = 0; id < global_graph_->getNumVertices(); ++id) {
 
-    std::list<int>::iterator v_it;
-    v_it = std::find(global_vertices_ids_.begin(), global_vertices_ids_.end(), id);
+    // std::list<int>::iterator v_it;
+    // v_it = std::find(global_vertices_ids_.begin(), global_vertices_ids_.end(), id);
     
     // Get nearby vertices from the current vertex and connect the them to form local edges 
     std::vector<Vertex*> nearby_vertices;
@@ -979,7 +977,6 @@ std::vector<ufo::math::Vector3> GraphManager::pointsToUfo(std::vector<geometry_m
 void GraphManager::fetchExplorationTargets()
 {
 
-  
   stage_planner::frontierRequest frontier_srv;
   
   global_repos_targets_.clear();
@@ -1065,29 +1062,17 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 {
 
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
-  
-  if (first_time) {
-    ROS_INFO ("OK ");
-    GraphManager::resetKdtree ();
-    GraphManager::resetLocalGraph ();
-    GraphManager::resetGlobalGraph ();
-    GraphManager::resetFrontierGraph ();
-    first_time = false;
-  }
-  
-  ROS_INFO ("OK 2 ");
+
   GraphManager::fetchExplorationTargets ();
   
-  ROS_INFO ("OK 3 ");
   if (!local_exploration_targets_.empty()) {
 
     GraphManager::buildLocalGraph ();
     // GraphManager::buildGlobalGraph ();
 
-  ROS_INFO ("OK 4 ");
     if (GraphManager::planLocalPath ()) 
     {
-    ROS_INFO_STREAM ("Running LOCAL planner\n");
+    // ROS_INFO_STREAM ("Running LOCAL planner\n");
     } 
     else {
     GraphManager::buildGlobalGraph ();
