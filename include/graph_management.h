@@ -71,7 +71,7 @@ public:
  
   std_msgs::ColorRGBA heightMapColor(double h);
   
-
+  bool first_time = true;
 
     // GRAPH AND PLANNING 
   
