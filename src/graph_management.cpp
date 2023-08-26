@@ -373,7 +373,6 @@ void GraphManager::sampleNodes (std::vector<node*>& nodes, State state, int iter
         parent->addChild(new_node);
         nodes.push_back(new_node);
       }
-    
     } 
     itterations++;
   }
@@ -400,8 +399,9 @@ ufo::math::Vector3 GraphManager::stateToUfo (State s) {
 
 void GraphManager::resetLocalGraph () {
 
-  sub_graph_.reset(new GraphUtils());
-  if (sub_graph_ != NULL) sub_graph_->reset();
+  if (sub_graph_ != NULL) {
+    sub_graph_->reset();
+  }
   sub_graph_.reset(new GraphUtils());
   sub_graph_rep_.reset();
 
@@ -423,8 +423,9 @@ void GraphManager::resetGlobalGraph () {
     reset_global_graph = false;
   }
   
-  global_graph_.reset(new GraphUtils());
-  if (global_graph_ != NULL) global_graph_->reset();
+  if (global_graph_ != NULL) {
+    global_graph_->reset();
+  }
   global_graph_.reset(new GraphUtils());
   global_graph_rep_.reset();
   Vertex* home_vertex = new Vertex (global_graph_->generateVertexID(), home->state);
@@ -436,8 +437,9 @@ void GraphManager::resetGlobalGraph () {
 
 void GraphManager::resetFrontierGraph () {
 
-  frontier_graph_.reset(new GraphUtils());
-  if (frontier_graph_ != NULL) frontier_graph_->reset();
+  if (frontier_graph_ != NULL) {
+    frontier_graph_->reset();
+  }
   frontier_graph_.reset(new GraphUtils());
   frontier_graph_rep_.reset();
 
@@ -459,7 +461,7 @@ void GraphManager::buildLocalGraph () {
   root_vertex->is_target = false;
   sub_graph_->addVertex(root_vertex);
   
-  // Ad local exploration targets to graph 
+  // Add local exploration targets to graph 
   
   for (auto i : local_exploration_targets_) {
   
@@ -715,7 +717,10 @@ void GraphManager::insertVertexKdtree (Vertex* v) {
 
 void GraphManager::resetKdtree () {
   all_vertices.clear();
-  if (kd_tree_) kd_free(kd_tree_);
+
+  // BUG can not free memory 
+
+  // if (kd_tree_) kd_free(kd_tree_);
   kd_tree_ = kd_create(3);
 }
 
@@ -746,12 +751,12 @@ void GraphManager::updateKdtree () {
   
     (*it)->is_frontier = false;
     
-    // std::vector<Vertex*> nearby_vertices;
-    // nearby_vertices.clear();
-    // GraphManager::getNeighbours(&(*it)->state, 1, &nearby_vertices);
-    // if (nearby_vertices.size() > 4) {
-    //   it = all_vertices.erase(it);
-    // }
+    std::vector<Vertex*> nearby_vertices;
+    nearby_vertices.clear();
+    GraphManager::getNeighbours(&(*it)->state, 1, &nearby_vertices);
+    if (nearby_vertices.size() > 4) {
+      it = all_vertices.erase(it);
+    }
   }
 }
 
@@ -854,7 +859,6 @@ void GraphManager::buildGlobalGraph () {
 
 
 bool GraphManager::planGlobalPath () {
-
 
   bool path_exist = false; 
 
@@ -1088,8 +1092,6 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
       }
     } 
   } else if (!global_repos_targets_.empty()) {
-
-    // GraphManager::buildLocalGraph ();
 
     GraphManager::buildGlobalGraph ();
     

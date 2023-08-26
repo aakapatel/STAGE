@@ -29,8 +29,8 @@ void GraphUtils::reset() {
   edge_map_.clear();
 
   // Other params.
-  // subgraph_ind_ = -1;
-  // id_count_ = -1;
+  subgraph_ind_ = -1;
+  id_count_ = -1;
 
 }
 

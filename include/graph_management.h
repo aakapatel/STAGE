@@ -116,9 +116,8 @@ private:
 
   std::shared_ptr<GraphUtils> sub_graph_;
   std::shared_ptr<GraphUtils> global_graph_;
-  std::shared_ptr<GraphUtils> homing_graph_;
-  std::shared_ptr<GraphUtils> improvement_graph_;
   std::shared_ptr<GraphUtils> frontier_graph_;
+  std::shared_ptr<GraphUtils> improvement_graph_;
 
   
   kdtree* kd_tree_;
