@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(octomap_DIR "/opt/ros/noetic/share/octomap")
 set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 ##set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Wall -Wextra")
+
 find_package(catkin_simple REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(SuiteSparse REQUIRED)
@@ -12,6 +13,29 @@ find_package(SuiteSparse REQUIRED)
 find_package (PCL 1.10 REQUIRED)
 
 set(PCL_INCLUDE_DIRS /usr/include/pcl-1.10 /usr/include/eigen3/)
+
+
+# Point collision checking:
+#   0 - Orignal
+#   1 - Direct TSDF/ESDF distance check (requires continuous path check during execution)
+#   2 - Using interpolated tsdf distance
+add_definitions(-DCOL_CHECK_METHOD=0)
+# Line collision checking: 
+#   0 - Orignal
+#   1 - Cuboid around the edge
+#   2 - Direct TSDF/ESDF distance check (requires continuous path check during execution)
+#   3 - Using interpolated tsdf distance
+add_definitions(-DEDGE_CHECK_METHOD=1)
+# Ray casting: 
+#   0 - Original
+#   1 - Iterative ray casting
+add_definitions(-DRAY_CAST_METHOD=1)
+
+# Verify the values of the definitions
+get_directory_property( DirDefs COMPILE_DEFINITIONS ) 
+message( "COMPILE DEFINITIONS: ${DirDefs}" )
+
+
 
 include_directories(${PCL_INCLUDE_DIRS})
 
@@ -49,6 +73,7 @@ find_package(catkin REQUIRED COMPONENTS
   ufomap_mapping
   roscpp_serialization
   kdtree
+  voxblox_ros
 )
 
 find_package(ufomap REQUIRED)
@@ -105,6 +130,8 @@ include_directories(
 add_library(${PROJECT_NAME}
   src/graph.cpp
   src/graph_utils.cpp
+  src/voxblox/voxblox_common_impl.cpp
+  src/voxblox/voxblox_alt_impl.cpp
 )
 
 
