@@ -682,14 +682,27 @@ void GraphManager::improvePath (std::vector<Vertex*> raw_path, std::vector<Verte
       
     for (int i = 0; i < nearby_vertices.size(); i++) {
       
-      ufo::geometry::LineSegment line (stateToUfo(improvement_graph_->vertices_map_[id]->state), stateToUfo(nearby_vertices[i]->state));
+      Eigen::Vector3d v1 (improvement_graph_->vertices_map_[id]->state[0], 
+                          improvement_graph_->vertices_map_[id]->state[1], 
+                          improvement_graph_->vertices_map_[id]->state[2]);
+    
+      Eigen::Vector3d v2 (nearby_vertices[i]->state[0], nearby_vertices[i]->state[1], nearby_vertices[i]->state[2]);
+      MapManager::VoxelStatus vn = map_manager_->getPathStatus(v1, v2, robot_box_size_, true);
 
-      if (!isInCollision(ufoMAP_, line, true, false, true, mapDepth_)) 
+    
+      if (MapManager::VoxelStatus::kFree == vn) { 
 
-      { 
         improvement_graph_->addEdge(improvement_graph_->vertices_map_[id], nearby_vertices[i], 
                               improvement_graph_->distanceBetweenVertices(improvement_graph_->vertices_map_[id], nearby_vertices[i]));
       }
+      // ufo::geometry::LineSegment line (stateToUfo(improvement_graph_->vertices_map_[id]->state), stateToUfo(nearby_vertices[i]->state));
+      //
+      // if (!isInCollision(ufoMAP_, line, true, false, true, mapDepth_)) 
+      //
+      // { 
+      //   improvement_graph_->addEdge(improvement_graph_->vertices_map_[id], nearby_vertices[i], 
+      //                         improvement_graph_->distanceBetweenVertices(improvement_graph_->vertices_map_[id], nearby_vertices[i]));
+      // }
     }
   }
   
@@ -775,7 +788,7 @@ bool GraphManager::planLocalPath () {
     return false;
   }
   
-  // GraphManager::improvePath (raw_path, path);
+  GraphManager::improvePath (raw_path, path);
    
   // ROS_INFO_STREAM ("improved path size " << path.size() << "\n");
   exploration_path_.poses.clear();
@@ -784,7 +797,7 @@ bool GraphManager::planLocalPath () {
   
   nav_msgs::Path new_path;
   new_path.poses.clear();
-  GraphManager::segmentPath(raw_path, new_path);
+  GraphManager::segmentPath(path, new_path);
 
   ROS_INFO_STREAM ("segmented path size " << new_path.poses.size() << "\n");
   for (int i = 0; i < new_path.poses.size() - 1; i++) {
