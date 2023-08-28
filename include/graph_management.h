@@ -145,7 +145,15 @@ private:
 
   // variables
   State robotState_;
-
+  
+  Eigen::Vector3d robot_box_size_;
+  Eigen::Vector3d safety_margin_;
+  
+  double safety_margin;
+  double robot_box_x;
+  double robot_box_y;
+  double robot_box_z;
+  
   Eigen::Quaterniond quat_;
   bool firstTime = true;
   ufo::math::Vector3 m_currentPosition;
