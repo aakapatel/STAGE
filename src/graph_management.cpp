@@ -372,14 +372,12 @@ void GraphManager::sampleNodes (std::vector<node*>& nodes, State state, int iter
     float x = lowest_x + abs(1024 * rand() / (RAND_MAX + 1.0)) * box.x();
     float y = lowest_y + abs(1024 * rand() / (RAND_MAX + 1.0)) * box.y();
     float z = lowest_z + abs(1024 * rand() / (RAND_MAX + 1.0)) * box.z();
-    ufo::math::Vector3 random_point(x, y, z);
-    
-    ufo::geometry::Sphere point_sphere(random_point, obb_radius_);
-    if (!isInCollision(ufoMAP_, point_sphere, true, false, true,
-                       mapDepth_) and
-        isInCollision(ufoMAP_, point_sphere, false, true, false,
-                      mapDepth_)) 
-    {
+    ufo::math::Vector3 random_point(x,y,z); 
+    Eigen::Vector3d random_state(x,y,z); 
+    if (MapManager::VoxelStatus::kFree ==
+        map_manager_->getBoxStatus(random_state 
+                                  + safety_margin_, robot_box_size_, true)) { 
+      
       float distance = std::numeric_limits<float>::max();
       node *parent;
       std::vector<node *>::iterator it_node;
@@ -392,13 +390,9 @@ void GraphManager::sampleNodes (std::vector<node*>& nodes, State state, int iter
           parent = *it_node;
         }
       };
-      ufo::math::Vector3 start_point(parent->point->x(), parent->point->y(),
-                                     parent->point->z());
-      ufo::math::Vector3 direction = random_point - start_point;
-      ufo::geometry::LineSegment myline(random_point, start_point);
-
-      if (!isInCollision(ufoMAP_, myline, true, false, true, mapDepth_))
-
+      Eigen::Vector3d start_pos (parent->point->x(), parent->point->y(), parent->point->z());
+      if (MapManager::VoxelStatus::kFree ==
+            map_manager_->getPathStatus(random_state, start_pos, robot_box_size_, true))
       {
         node *new_node = new node(x, y, z);
         new_node->addParent(parent);
@@ -478,6 +472,9 @@ void GraphManager::resetFrontierGraph () {
 }
 
 void GraphManager::printVoxelStatus (MapManager::VoxelStatus vs) {
+
+  // Only for DEBUG 
+
   if (MapManager::VoxelStatus::kUnknown == vs) {
     ROS_INFO ("Unknown box \n");
   }
@@ -549,31 +546,8 @@ void GraphManager::buildLocalGraph () {
                               sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], root_vertex));
         sub_graph_->vertices_map_[id]->edges++;
       }
-    } else {
-      // printVoxelStatus(vs);
-    }
+    } 
     
-
-    //UFOMAP CHECK 
-    
-    /*
-
-    ufo::geometry::LineSegment root_line (stateToUfo(root_vertex->state), 
-                                          stateToUfo(sub_graph_->vertices_map_[id]->state));
-
-    if (sub_graph_->vertices_map_[id]->edges < 6 
-          and sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], root_vertex) < 1.5*max_edge_length_ 
-          and !isInCollision(ufoMAP_, root_line, true, false, true, mapDepth_)) 
-
-
-    { 
-      sub_graph_->addEdge(sub_graph_->vertices_map_[id], root_vertex, 
-                            sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], root_vertex));
-      sub_graph_->vertices_map_[id]->edges++;
-    }
-    
-    */
-
     // Get nearby vertices from the current vertex and connect the them to form local edges 
     std::vector<Vertex*> nearby_vertices;
     sub_graph_->getNearestVertices(&sub_graph_->vertices_map_[id]->state, 3, &nearby_vertices);
@@ -582,47 +556,25 @@ void GraphManager::buildLocalGraph () {
       
     // VOXBLOX CHECK 
 
-    Eigen::Vector3d v_n (nearby_vertices[i]->state[0], nearby_vertices[i]->state[1], nearby_vertices[i]->state[2]);
-    MapManager::VoxelStatus vn = map_manager_->getPathStatus(v, v_n, robot_box_size_, true);
-
-    
-    if (MapManager::VoxelStatus::kFree == vn) {
-
       if (sub_graph_->vertices_map_[id]->edges < 6 
           and sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], nearby_vertices[i]) < max_edge_length_) 
-
       { 
+
+        Eigen::Vector3d v_n (nearby_vertices[i]->state[0], nearby_vertices[i]->state[1], nearby_vertices[i]->state[2]);
+        MapManager::VoxelStatus vn = map_manager_->getPathStatus(v, v_n, robot_box_size_, true);
+      
+        if (MapManager::VoxelStatus::kFree == vn) {
+       
           sub_graph_->addEdge(sub_graph_->vertices_map_[id], nearby_vertices[i], 
                                 sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], nearby_vertices[i]));
           sub_graph_->vertices_map_[id]->edges++;
+        }
       }
-    } else {
-        // printVoxelStatus(vn);
-      }
-
-      // UFOMAP CHECK 
-      
-      /*
-
-      ufo::geometry::LineSegment line (stateToUfo(sub_graph_->vertices_map_[id]->state),
-                                        stateToUfo(nearby_vertices[i]->state));
-
-      if (sub_graph_->vertices_map_[id]->edges < 6 
-            and sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], nearby_vertices[i]) < max_edge_length_
-            and !isInCollision(ufoMAP_, line, true, false, true, mapDepth_))  
-      { 
-        
-        sub_graph_->addEdge(sub_graph_->vertices_map_[id], nearby_vertices[i], 
-                              sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], nearby_vertices[i]));
-        sub_graph_->vertices_map_[id]->edges++;
-      }
-      
-      */ 
 
     }
   }
  
-  ROS_INFO_STREAM ("Built local graph with " << sub_graph_->getNumVertices() << " nodes & " << sub_graph_->getNumEdges() << " edges\n"); 
+  // ROS_INFO_STREAM ("Built local graph with " << sub_graph_->getNumVertices() << " nodes & " << sub_graph_->getNumEdges() << " edges\n"); 
   
   visualizeLocalGraph ();
 
@@ -695,14 +647,6 @@ void GraphManager::improvePath (std::vector<Vertex*> raw_path, std::vector<Verte
         improvement_graph_->addEdge(improvement_graph_->vertices_map_[id], nearby_vertices[i], 
                               improvement_graph_->distanceBetweenVertices(improvement_graph_->vertices_map_[id], nearby_vertices[i]));
       }
-      // ufo::geometry::LineSegment line (stateToUfo(improvement_graph_->vertices_map_[id]->state), stateToUfo(nearby_vertices[i]->state));
-      //
-      // if (!isInCollision(ufoMAP_, line, true, false, true, mapDepth_)) 
-      //
-      // { 
-      //   improvement_graph_->addEdge(improvement_graph_->vertices_map_[id], nearby_vertices[i], 
-      //                         improvement_graph_->distanceBetweenVertices(improvement_graph_->vertices_map_[id], nearby_vertices[i]));
-      // }
     }
   }
   
@@ -760,12 +704,10 @@ bool GraphManager::planLocalPath () {
     }
   }
   
-  ROS_INFO_STREAM ("local paths size " << local_paths_.size() << "\n");
   if (!local_paths_.empty()) {
 
     GraphManager::visualizeLocalPaths(local_paths_);
   } else {
-    ROS_WARN ("No local dijkstra paths.. triggiring global planing \n");
     return false;
   }
 
@@ -882,23 +824,19 @@ void GraphManager::buildGlobalGraph () {
   
   
   if (all_vertices.empty()) {
-    ROS_INFO ("Have not sampled any nodes yet \n");
+    ROS_INFO ("Have not sampled any global nodes yet \n");
     return;
   } else {
     GraphManager::updateKdtree ();
     GraphManager::resetGlobalGraph ();
-    ROS_INFO_STREAM ("sampled " << all_vertices.size() << " nodes\n");
+    // ROS_INFO_STREAM ("sampled " << all_vertices.size() << " nodes\n");
   }
   std::unordered_map<int, Vertex*>& global_vertex_map = global_graph_->vertices_map_;
   
   std::pair<Graph::GraphType::vertex_iterator,
             Graph::GraphType::vertex_iterator> vi;
   
-  std::pair<Graph::GraphType::edge_iterator,
-            Graph::GraphType::edge_iterator> ei;
-
   global_graph_->graph_->getVertexIterator(vi);
-  global_graph_->graph_->getEdgeIterator(ei);
  
   // Add global exploration targets to global graph for simpler direct path
   
@@ -937,27 +875,31 @@ void GraphManager::buildGlobalGraph () {
     
   for (int id = 0; id < global_graph_->getNumVertices(); ++id) {
 
-    // std::list<int>::iterator v_it;
-    // v_it = std::find(global_vertices_ids_.begin(), global_vertices_ids_.end(), id);
-    
     // Get nearby vertices from the current vertex and connect the them to form local edges 
     std::vector<Vertex*> nearby_vertices;
     global_graph_->getNearestVertices(&global_graph_->vertices_map_[id]->state, 4, &nearby_vertices);
 
+    Eigen::Vector3d v (global_graph_->vertices_map_[id]->state[0], 
+                       global_graph_->vertices_map_[id]->state[1], 
+                       global_graph_->vertices_map_[id]->state[2]);
+    
     for (int i = 0; i < nearby_vertices.size(); i++) {
-        
-      ufo::geometry::LineSegment line (stateToUfo(global_graph_->vertices_map_[id]->state),
-                                          stateToUfo(nearby_vertices[i]->state));
-  
-      if (global_graph_->vertices_map_[id]->edges < 5
-              and global_graph_->distanceBetweenVertices(global_graph_->vertices_map_[id], nearby_vertices[i]) < max_edge_length_
-              and !isInCollision(ufoMAP_, line, true, false, true, mapDepth_))  
+
+      if (global_graph_->vertices_map_[id]->edges < 6 
+          and global_graph_->distanceBetweenVertices(global_graph_->vertices_map_[id], nearby_vertices[i]) < max_edge_length_) 
       { 
-        
-        global_graph_->addEdge(global_graph_->vertices_map_[id], global_graph_->vertices_map_[nearby_vertices[i]->id], 
+
+        Eigen::Vector3d v_n (nearby_vertices[i]->state[0], nearby_vertices[i]->state[1], nearby_vertices[i]->state[2]);
+        MapManager::VoxelStatus vn = map_manager_->getPathStatus(v, v_n, robot_box_size_, true);
+      
+        if (MapManager::VoxelStatus::kFree == vn) {
+       
+          global_graph_->addEdge(global_graph_->vertices_map_[id], nearby_vertices[i], 
                                 global_graph_->distanceBetweenVertices(global_graph_->vertices_map_[id], nearby_vertices[i]));
-        global_graph_->vertices_map_[id]->edges++;
+          global_graph_->vertices_map_[id]->edges++;
+        }
       }
+
     }
   } 
 
@@ -1010,7 +952,6 @@ bool GraphManager::planGlobalPath () {
     }
   }
   
-  ROS_INFO_STREAM ("global paths size " << global_paths_.size() << "\n");
   if (!global_paths_.empty()) {
 
     GraphManager::visualizeGlobalPaths(global_paths_);
@@ -1148,8 +1089,8 @@ void GraphManager::fetchExplorationTargets()
         }
       }
       
-      ROS_INFO_STREAM ("Fetched " << local_exploration_targets_.size() << " Local & " 
-                                  << global_repos_targets_.size() << " Global frontiers \n");
+      // ROS_INFO_STREAM ("Fetched " << local_exploration_targets_.size() << " Local & " 
+                                  // << global_repos_targets_.size() << " Global frontiers \n");
 
     }
   }
@@ -1182,54 +1123,23 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
                                         stage_planner::explorationPath::Response &res)
 
 {
-    if (MapManager::VoxelStatus::kFree ==
-        map_manager_->getBoxStatus(
-            Eigen::Vector3d(robotState_[0], robotState_[1], robotState_[2]) + safety_margin_,
-            robot_box_size_, true)) { 
-      
-    ROS_INFO ("FREE \n");
-
-    } else if (MapManager::VoxelStatus::kOccupied ==
-        map_manager_->getBoxStatus(
-            Eigen::Vector3d(robotState_[0], robotState_[1], robotState_[2]) + safety_margin_,
-            robot_box_size_, true)) { 
-
-    ROS_INFO ("Occupied \n");
-
-  } else if (MapManager::VoxelStatus::kUnknown ==
-        map_manager_->getBoxStatus(
-            Eigen::Vector3d(robotState_[0], robotState_[1], robotState_[2]) + safety_margin_,
-            robot_box_size_, true)) { 
-
-    ROS_INFO ("Unknown \n");
-
-  }
   
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
-ROS_INFO ("0 \n");
   GraphManager::fetchExplorationTargets ();
   
-ROS_INFO ("1 \n");
   if (!local_exploration_targets_.empty()) {
 
     GraphManager::buildLocalGraph ();
-    // GraphManager::buildGlobalGraph ();
-ROS_INFO ("2 \n");
 
     if (GraphManager::planLocalPath ()) 
     {
     // ROS_INFO_STREAM ("Running LOCAL planner\n");
-ROS_INFO ("3 \n");
     } 
     else {
     GraphManager::buildGlobalGraph ();
     
-ROS_INFO ("4 \n");
       if (GraphManager::planGlobalPath()) {
 
-ROS_INFO ("5 \n");
-        // GraphManager::buildGlobalGraph ();
-      
         ROS_INFO ("No local paths, triggering global planner \n");
       } else {
       
