@@ -24,7 +24,9 @@ GraphManager::GraphManager(const ros::NodeHandle& nh, const ros::NodeHandle& nh_
       max_edge_length_(4)
 
 {
-  
+   map_manager_ =
+      new MapManagerVoxblox<MapManagerVoxbloxServer, MapManagerVoxbloxVoxel>(
+          nh_, nh_private_);
   // Set variables
   nh_private_.param("frame_id", m_worldFrameId, m_worldFrameId);
   nh_private_.param("odometry", m_odometry, m_odometry);
@@ -140,6 +142,9 @@ void GraphManager::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
       ufo::math::Vector3 oldPoint (m_prevPose.pose.pose.position.x,
                                       m_prevPose.pose.pose.position.y,
                                       m_prevPose.pose.pose.position.z);
+      
+
+
       if (calculateDistance(newPoint, oldPoint) > 2)
       {
         m_prevPose = *pose;
@@ -1064,7 +1069,31 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
                                         stage_planner::explorationPath::Response &res)
 
 {
+    if (MapManager::VoxelStatus::kFree ==
+        map_manager_->getBoxStatus(
+            Eigen::Vector3d(robotState_[0], robotState_[1], robotState_[2]) +
+                Eigen::Vector3d(0.5, 0.5, 0.5),
+            Eigen::Vector3d(0.5, 0.5, 0.5), true)) { 
+      
+    ROS_INFO ("FREE \n");
 
+    } else if (MapManager::VoxelStatus::kOccupied ==
+        map_manager_->getBoxStatus(
+            Eigen::Vector3d(robotState_[0], robotState_[1], robotState_[2]) +
+                Eigen::Vector3d(0.5, 0.5, 0.5),
+            Eigen::Vector3d(0.5, 0.5, 0.5), true)) {
+
+    ROS_INFO ("Occupied \n");
+
+  } else if (MapManager::VoxelStatus::kUnknown ==
+        map_manager_->getBoxStatus(
+            Eigen::Vector3d(robotState_[0], robotState_[1], robotState_[2]) +
+                Eigen::Vector3d(0.5, 0.5, 0.5),
+            Eigen::Vector3d(0.5, 0.5, 0.5), true)) {
+
+ROS_INFO ("Unknown \n");
+
+  }
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
   GraphManager::fetchExplorationTargets ();

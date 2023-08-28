@@ -4,6 +4,9 @@
 #include "frontiers_extraction.h"
 #include "graph_utils.h"
 
+#include "map_manager.h"
+#include "map_manager_voxblox_impl.h"
+#include "params.h"
 
 struct node {    
     
@@ -120,6 +123,8 @@ private:
   std::shared_ptr<GraphUtils> improvement_graph_;
 
   
+  MapManagerVoxblox<MapManagerVoxbloxServer, 
+                    MapManagerVoxbloxVoxel>* map_manager_;
   kdtree* kd_tree_;
   
   ShortestPathsReport sub_graph_rep_;

@@ -3,7 +3,11 @@
 
   <env name="ROSCONSOLE_FORMAT" value="[${severity}] : ${message}"/>
   
-
+  <arg name="robot_name" default="hummingbird"/>
+  <arg name="gbplanner_config_file" default="$(find stage_planner)/config/$(arg robot_name)/gbplanner_config.yaml"/>
+  <arg name="pci_file" default="$(find stage_planner)/config/$(arg robot_name)/planner_control_interface_sim_config.yaml"/>
+  <arg name="voxblox_config_file" default="$(find stage_planner)/config/$(arg robot_name)/voxblox_sim_config.yaml"/>
+  <arg name="map_config_file" default="$(arg voxblox_config_file)"/>
 
   <node pkg="stage_planner" type="graph_management_node" name="graph_management_node" respawn="true" output="screen">
 
@@ -34,6 +38,11 @@
     <param name ="maximum_iterations_local" value="1500" />
 
     <param name ="maximum_iterations_global" value="4000" />
+
+    <remap from="odometry" to="/hummingbird/ground_truth/odometry" />
+    <remap from="/pointcloud" to="/hummingbird/velodyne_points" />
+    <rosparam command="load" file="$(arg gbplanner_config_file)" />
+    <rosparam command="load" file="$(arg map_config_file)" /> 
 
   </node>
 

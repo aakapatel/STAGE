@@ -74,6 +74,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp_serialization
   kdtree
   voxblox_ros
+  voxblox
 )
 
 find_package(ufomap REQUIRED)
@@ -163,6 +164,7 @@ add_executable(stage_interface_node src/stage_interface_node.cpp)
 ## Specify libraries to link a library or executable target against
  target_link_libraries(
    stage_interface_node
+   stage_planner
    ${catkin_LIBRARIES}
    ${OCTOMAP_LIBRARIES}
    ${PCL_LIBRARIES}
@@ -179,4 +181,5 @@ add_executable(control_interface src/control_interface.cpp)
   ${CMAKE_DL_LIBS}
 )
 
-
+cs_install()
+# cs_export(LIBRARIES)
