@@ -5,9 +5,11 @@ using namespace std;
 using namespace std::chrono;
 using namespace std::this_thread;
 
-GraphManager::GraphManager(const ros::NodeHandle& nh, const ros::NodeHandle& nh_private)
+GraphManager::GraphManager(const ros::NodeHandle& nh, const ros::NodeHandle& nh_private, 
+                           MapManagerVoxblox<MapManagerVoxbloxServer, MapManagerVoxbloxVoxel>* map_manager)
     : nh_(nh), 
-      nh_private_(nh_private), 
+      nh_private_(nh_private),
+      map_manager_(map_manager),
       m_worldFrameId("world"), 
       m_odometry("/hummingbird/ground_truth/odometry"),
       m_currentHeading(0), 
@@ -28,9 +30,9 @@ GraphManager::GraphManager(const ros::NodeHandle& nh, const ros::NodeHandle& nh_
       robot_box_z(0.5)
 
 {
-   map_manager_ =
-      new MapManagerVoxblox<MapManagerVoxbloxServer, MapManagerVoxbloxVoxel>(
-          nh_, nh_private_);
+   // map_manager_ =
+   //    new MapManagerVoxblox<MapManagerVoxbloxServer, MapManagerVoxbloxVoxel>(
+   //        nh_, nh_private_);
   // Set variables
   nh_private_.param("frame_id", m_worldFrameId, m_worldFrameId);
   nh_private_.param("odometry", m_odometry, m_odometry);
@@ -51,9 +53,9 @@ GraphManager::GraphManager(const ros::NodeHandle& nh, const ros::NodeHandle& nh_
 
   nh_private_.param("safety_margin", safety_margin, safety_margin);
 
-  nh_private_.param("robot_x", robot_box_size_[0], robot_box_size_[0]);
-  nh_private_.param("robot_y", robot_box_size_[1], robot_box_size_[1]);
-  nh_private_.param("robot_z", robot_box_size_[2], robot_box_size_[2]); 
+  nh_private_.param("robot_x", robot_box_x, robot_box_x);
+  nh_private_.param("robot_y", robot_box_y, robot_box_y);
+  nh_private_.param("robot_z", robot_box_z, robot_box_z);
 
 
 
@@ -88,6 +90,11 @@ GraphManager::GraphManager(const ros::NodeHandle& nh, const ros::NodeHandle& nh_
   safety_margin_[0] = safety_margin;
   safety_margin_[1] = safety_margin;
   safety_margin_[2] = safety_margin;
+  
+  robot_box_size_[0] = robot_box_x;
+  robot_box_size_[1] = robot_box_y;
+  robot_box_size_[2] = robot_box_z;
+
 
   map_manager_->setRobotRadius(robot_box_size_.norm() / 2.0);
 
@@ -470,6 +477,18 @@ void GraphManager::resetFrontierGraph () {
 
 }
 
+void GraphManager::printVoxelStatus (MapManager::VoxelStatus vs) {
+  if (MapManager::VoxelStatus::kUnknown == vs) {
+    ROS_INFO ("Unknown box \n");
+  }
+  if (MapManager::VoxelStatus::kFree == vs) {
+    ROS_INFO ("Free box \n");
+  }
+  if (MapManager::VoxelStatus::kOccupied == vs) {
+    ROS_INFO ("Occupied box \n");
+  }
+}
+
 void GraphManager::buildLocalGraph () {
 
   // high_resolution_clock::time_point start_total = high_resolution_clock::now();
@@ -512,28 +531,48 @@ void GraphManager::buildLocalGraph () {
   for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
 
     int id = sub_graph_->graph_->getVertexProperty(it);
+    
+    // VOXBLOX CHECK 
 
-    // ufo::geometry::LineSegment root_line (stateToUfo(root_vertex->state), 
-    //                                       stateToUfo(sub_graph_->vertices_map_[id]->state));
-    //
-    // if (sub_graph_->vertices_map_[id]->edges < 6 
-    //       and sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], root_vertex) < 1.5*max_edge_length_ 
-    //       and !isInCollision(ufoMAP_, root_line, true, false, true, mapDepth_)) 
-    //
     Eigen::Vector3d v_r (root_vertex->state[0], root_vertex->state[1], root_vertex->state[2]);
     Eigen::Vector3d v (sub_graph_->vertices_map_[id]->state[0], sub_graph_->vertices_map_[id]->state[1], 
                         sub_graph_->vertices_map_[id]->state[2]);
     MapManager::VoxelStatus vs = map_manager_->getPathStatus(v, v_r, robot_box_size_, true);
+    
+    
+    if (MapManager::VoxelStatus::kFree == vs) {
+      if (sub_graph_->vertices_map_[id]->edges < 6 
+              and sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], root_vertex) < 1.5*max_edge_length_) 
+
+      { 
+        sub_graph_->addEdge(sub_graph_->vertices_map_[id], root_vertex, 
+                              sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], root_vertex));
+        sub_graph_->vertices_map_[id]->edges++;
+      }
+    } else {
+      // printVoxelStatus(vs);
+    }
+    
+
+    //UFOMAP CHECK 
+    
+    /*
+
+    ufo::geometry::LineSegment root_line (stateToUfo(root_vertex->state), 
+                                          stateToUfo(sub_graph_->vertices_map_[id]->state));
 
     if (sub_graph_->vertices_map_[id]->edges < 6 
           and sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], root_vertex) < 1.5*max_edge_length_ 
-          and MapManager::VoxelStatus::kFree == vs) 
+          and !isInCollision(ufoMAP_, root_line, true, false, true, mapDepth_)) 
+
 
     { 
       sub_graph_->addEdge(sub_graph_->vertices_map_[id], root_vertex, 
                             sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], root_vertex));
       sub_graph_->vertices_map_[id]->edges++;
     }
+    
+    */
 
     // Get nearby vertices from the current vertex and connect the them to form local edges 
     std::vector<Vertex*> nearby_vertices;
@@ -541,33 +580,44 @@ void GraphManager::buildLocalGraph () {
 
     for (int i = 0; i < nearby_vertices.size(); i++) {
       
-      // ufo::geometry::LineSegment line (stateToUfo(sub_graph_->vertices_map_[id]->state),
-      //                                   stateToUfo(nearby_vertices[i]->state));
-      //
-      // if (sub_graph_->vertices_map_[id]->edges < 6 
-      //       and sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], nearby_vertices[i]) < max_edge_length_
-      //       and !isInCollision(ufoMAP_, line, true, false, true, mapDepth_))  
-      // { 
-      //   
-      //   sub_graph_->addEdge(sub_graph_->vertices_map_[id], nearby_vertices[i], 
-      //                         sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], nearby_vertices[i]));
-      //   sub_graph_->vertices_map_[id]->edges++;
-      // }
-
+    // VOXBLOX CHECK 
 
     Eigen::Vector3d v_n (nearby_vertices[i]->state[0], nearby_vertices[i]->state[1], nearby_vertices[i]->state[2]);
     MapManager::VoxelStatus vn = map_manager_->getPathStatus(v, v_n, robot_box_size_, true);
 
-    if (sub_graph_->vertices_map_[id]->edges < 6 
-          and sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], nearby_vertices[i]) < max_edge_length_ 
-          and MapManager::VoxelStatus::kFree == vn) 
+    
+    if (MapManager::VoxelStatus::kFree == vn) {
 
-    { 
+      if (sub_graph_->vertices_map_[id]->edges < 6 
+          and sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], nearby_vertices[i]) < max_edge_length_) 
+
+      { 
+          sub_graph_->addEdge(sub_graph_->vertices_map_[id], nearby_vertices[i], 
+                                sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], nearby_vertices[i]));
+          sub_graph_->vertices_map_[id]->edges++;
+      }
+    } else {
+        // printVoxelStatus(vn);
+      }
+
+      // UFOMAP CHECK 
+      
+      /*
+
+      ufo::geometry::LineSegment line (stateToUfo(sub_graph_->vertices_map_[id]->state),
+                                        stateToUfo(nearby_vertices[i]->state));
+
+      if (sub_graph_->vertices_map_[id]->edges < 6 
+            and sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], nearby_vertices[i]) < max_edge_length_
+            and !isInCollision(ufoMAP_, line, true, false, true, mapDepth_))  
+      { 
+        
         sub_graph_->addEdge(sub_graph_->vertices_map_[id], nearby_vertices[i], 
                               sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], nearby_vertices[i]));
         sub_graph_->vertices_map_[id]->edges++;
-    }
-
+      }
+      
+      */ 
 
     }
   }
@@ -697,7 +747,7 @@ bool GraphManager::planLocalPath () {
     }
   }
   
-  // ROS_INFO_STREAM ("local paths size " << local_paths_.size() << "\n");
+  ROS_INFO_STREAM ("local paths size " << local_paths_.size() << "\n");
   if (!local_paths_.empty()) {
 
     GraphManager::visualizeLocalPaths(local_paths_);
@@ -725,15 +775,18 @@ bool GraphManager::planLocalPath () {
     return false;
   }
   
-  GraphManager::improvePath (raw_path, path);
+  // GraphManager::improvePath (raw_path, path);
+   
+  // ROS_INFO_STREAM ("improved path size " << path.size() << "\n");
   exploration_path_.poses.clear();
   geometry_msgs::PoseStamped p;
 
   
   nav_msgs::Path new_path;
   new_path.poses.clear();
-  GraphManager::segmentPath(path, new_path);
+  GraphManager::segmentPath(raw_path, new_path);
 
+  ROS_INFO_STREAM ("segmented path size " << new_path.poses.size() << "\n");
   for (int i = 0; i < new_path.poses.size() - 1; i++) {
    
     float angle = atan2(new_path.poses[i+1].pose.position.y - new_path.poses[i].pose.position.y, 
@@ -1140,23 +1193,28 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
   }
   
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
-
+ROS_INFO ("0 \n");
   GraphManager::fetchExplorationTargets ();
   
+ROS_INFO ("1 \n");
   if (!local_exploration_targets_.empty()) {
 
     GraphManager::buildLocalGraph ();
     // GraphManager::buildGlobalGraph ();
+ROS_INFO ("2 \n");
 
     if (GraphManager::planLocalPath ()) 
     {
     // ROS_INFO_STREAM ("Running LOCAL planner\n");
+ROS_INFO ("3 \n");
     } 
     else {
     GraphManager::buildGlobalGraph ();
     
+ROS_INFO ("4 \n");
       if (GraphManager::planGlobalPath()) {
 
+ROS_INFO ("5 \n");
         // GraphManager::buildGlobalGraph ();
       
         ROS_INFO ("No local paths, triggering global planner \n");

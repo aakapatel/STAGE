@@ -40,7 +40,7 @@
     <param name ="safety_margin" value="0.5" />
     <param name ="robot_x" value="0.5" />
     <param name ="robot_y" value="0.5" />
-    <param name ="robot_z" value="0.5" />
+    <param name ="robot_z" value="0.2" />
 
     <remap from="odometry" to="/hummingbird/ground_truth/odometry" />
     <remap from="/pointcloud" to="/hummingbird/velodyne_points" />
