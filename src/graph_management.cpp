@@ -513,12 +513,21 @@ void GraphManager::buildLocalGraph () {
 
     int id = sub_graph_->graph_->getVertexProperty(it);
 
-    ufo::geometry::LineSegment root_line (stateToUfo(root_vertex->state), 
-                                          stateToUfo(sub_graph_->vertices_map_[id]->state));
+    // ufo::geometry::LineSegment root_line (stateToUfo(root_vertex->state), 
+    //                                       stateToUfo(sub_graph_->vertices_map_[id]->state));
+    //
+    // if (sub_graph_->vertices_map_[id]->edges < 6 
+    //       and sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], root_vertex) < 1.5*max_edge_length_ 
+    //       and !isInCollision(ufoMAP_, root_line, true, false, true, mapDepth_)) 
+    //
+    Eigen::Vector3d v_r (root_vertex->state[0], root_vertex->state[1], root_vertex->state[2]);
+    Eigen::Vector3d v (sub_graph_->vertices_map_[id]->state[0], sub_graph_->vertices_map_[id]->state[1], 
+                        sub_graph_->vertices_map_[id]->state[2]);
+    MapManager::VoxelStatus vs = map_manager_->getPathStatus(v, v_r, robot_box_size_, true);
 
     if (sub_graph_->vertices_map_[id]->edges < 6 
           and sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], root_vertex) < 1.5*max_edge_length_ 
-          and !isInCollision(ufoMAP_, root_line, true, false, true, mapDepth_)) 
+          and MapManager::VoxelStatus::kFree == vs) 
 
     { 
       sub_graph_->addEdge(sub_graph_->vertices_map_[id], root_vertex, 
@@ -532,22 +541,40 @@ void GraphManager::buildLocalGraph () {
 
     for (int i = 0; i < nearby_vertices.size(); i++) {
       
-      ufo::geometry::LineSegment line (stateToUfo(sub_graph_->vertices_map_[id]->state),
-                                        stateToUfo(nearby_vertices[i]->state));
+      // ufo::geometry::LineSegment line (stateToUfo(sub_graph_->vertices_map_[id]->state),
+      //                                   stateToUfo(nearby_vertices[i]->state));
+      //
+      // if (sub_graph_->vertices_map_[id]->edges < 6 
+      //       and sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], nearby_vertices[i]) < max_edge_length_
+      //       and !isInCollision(ufoMAP_, line, true, false, true, mapDepth_))  
+      // { 
+      //   
+      //   sub_graph_->addEdge(sub_graph_->vertices_map_[id], nearby_vertices[i], 
+      //                         sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], nearby_vertices[i]));
+      //   sub_graph_->vertices_map_[id]->edges++;
+      // }
 
-      if (sub_graph_->vertices_map_[id]->edges < 6 
-            and sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], nearby_vertices[i]) < max_edge_length_
-            and !isInCollision(ufoMAP_, line, true, false, true, mapDepth_))  
-      { 
-        
+
+    Eigen::Vector3d v_n (nearby_vertices[i]->state[0], nearby_vertices[i]->state[1], nearby_vertices[i]->state[2]);
+    MapManager::VoxelStatus vn = map_manager_->getPathStatus(v, v_n, robot_box_size_, true);
+
+    if (sub_graph_->vertices_map_[id]->edges < 6 
+          and sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], nearby_vertices[i]) < max_edge_length_ 
+          and MapManager::VoxelStatus::kFree == vn) 
+
+    { 
         sub_graph_->addEdge(sub_graph_->vertices_map_[id], nearby_vertices[i], 
                               sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], nearby_vertices[i]));
         sub_graph_->vertices_map_[id]->edges++;
-      }
+    }
+
+
     }
   }
  
   ROS_INFO_STREAM ("Built local graph with " << sub_graph_->getNumVertices() << " nodes & " << sub_graph_->getNumEdges() << " edges\n"); 
+  
+  visualizeLocalGraph ();
 
   //Fetch shortest path report from root vertex to all vertices in the graph
   
