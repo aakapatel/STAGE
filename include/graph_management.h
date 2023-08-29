@@ -170,7 +170,8 @@ private:
   int mapDepth_;
   double m_volumetric_gain_threashold;
   bool check = false;
-  float SCALER_X, SCALER_Y, SCALER_Z, highest_x, highest_y, highest_z, lowest_x, lowest_y, lowest_z;
+  float SCALER_X, SCALER_Y, SCALER_Z, highest_x, highest_y, 
+        highest_z, lowest_x, lowest_y, lowest_z;
   double m_min_dist_bw_nodes;
   std::vector<ufo::math::Vector3> local_exploration_targets_;
   std::vector<ufo::math::Vector3> global_repos_targets_;

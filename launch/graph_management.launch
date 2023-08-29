@@ -35,12 +35,12 @@
 
     <param name="maximum_edge_length" value="2" /> 
 
-    <param name ="maximum_iterations_local" value="2500" />
+    <param name ="maximum_iterations_local" value="1500" />
 
-    <param name ="safety_margin" value="0.5" />
-    <param name ="robot_x" value="0.5" />
-    <param name ="robot_y" value="0.5" />
-    <param name ="robot_z" value="0.2" />
+    <param name ="safety_margin" value="0.8" />
+    <param name ="robot_x" value="0.8" />
+    <param name ="robot_y" value="0.8" />
+    <param name ="robot_z" value="0.4" />
 
     <remap from="odometry" to="/hummingbird/ground_truth/odometry" />
     <remap from="/pointcloud" to="/hummingbird/velodyne_points" />

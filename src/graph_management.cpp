@@ -501,23 +501,41 @@ void GraphManager::buildLocalGraph () {
   sub_graph_->addVertex(root_vertex);
   
   // Add local exploration targets to graph 
-  
-  for (auto i : local_exploration_targets_) {
-  
-    Vertex* target_vertex = new Vertex(sub_graph_->generateVertexID(), ufoToState(i));
-    target_vertex->is_root = false;
-    target_vertex->is_target = true;
-    sub_graph_->addVertex(target_vertex);
+ 
+  for (int i = 0; i < frontier_graph_->getNumVertices(); ++i) {
+
+    if (frontier_graph_->vertices_map_[i]->is_local and 
+        frontier_graph_->vertices_map_[i]->is_cluster_centroid) {
+
+      std::vector<node*> frontier_nodes;
+      frontier_nodes.clear();
+        
+      GraphManager::sampleNodes (frontier_nodes, frontier_graph_->vertices_map_[i]->state, 
+                                  iterations_local_/1000, bounding_box_size_/4);
+        
+      for (int i = 0; i < frontier_nodes.size(); i++) {
+        Vertex* vertex = new Vertex(sub_graph_->generateVertexID(), ufoToState(*(frontier_nodes[i]->point)));
+        vertex->is_root = false;
+        vertex->is_target = false;
+        vertex->is_sampled = true;
+        vertex->is_local = true;
+        vertex->is_frontier = true;
+        sub_graph_->addVertex(vertex); 
+      }
+    }
   }
   
+
   // Add random sampled nodes in local graph 
 
-  State state;
   for (int i = 0; i < nodes.size(); i++) {
     Vertex* vertex = new Vertex(sub_graph_->generateVertexID(), ufoToState(*(nodes[i]->point)));
     vertex->is_root = false;
-    sub_graph_->addVertex(vertex);
     vertex->is_target = false;
+    vertex->is_sampled = true;
+    vertex->is_local = true;
+    vertex->is_frontier = false;
+    sub_graph_->addVertex(vertex);
   }
   
   std::pair<Graph::GraphType::vertex_iterator,
@@ -530,10 +548,10 @@ void GraphManager::buildLocalGraph () {
     // VOXBLOX CHECK 
 
     Eigen::Vector3d v_r (root_vertex->state[0], root_vertex->state[1], root_vertex->state[2]);
-    Eigen::Vector3d v (sub_graph_->vertices_map_[id]->state[0], sub_graph_->vertices_map_[id]->state[1], 
-                        sub_graph_->vertices_map_[id]->state[2]);
+    Eigen::Vector3d v (sub_graph_->vertices_map_[id]->state[0], 
+                      sub_graph_->vertices_map_[id]->state[1], 
+                      sub_graph_->vertices_map_[id]->state[2]);
     MapManager::VoxelStatus vs = map_manager_->getPathStatus(v, v_r, robot_box_size_, true);
-    
     
     if (MapManager::VoxelStatus::kFree == vs) {
       if (sub_graph_->vertices_map_[id]->edges < 6 
@@ -548,7 +566,7 @@ void GraphManager::buildLocalGraph () {
     
     // Get nearby vertices from the current vertex and connect the them to form local edges 
     std::vector<Vertex*> nearby_vertices;
-    sub_graph_->getNearestVertices(&sub_graph_->vertices_map_[id]->state, 3, &nearby_vertices);
+    sub_graph_->getNearestVertices(&sub_graph_->vertices_map_[id]->state, 4, &nearby_vertices);
 
     for (int i = 0; i < nearby_vertices.size(); i++) {
       
@@ -568,7 +586,6 @@ void GraphManager::buildLocalGraph () {
           sub_graph_->vertices_map_[id]->edges++;
         }
       }
-
     }
   }
  
@@ -684,7 +701,8 @@ bool GraphManager::planLocalPath () {
 
     int id = sub_graph_->graph_->getVertexProperty(it);
     
-    if (sub_graph_->vertices_map_[id]->is_target) {
+    if (sub_graph_->vertices_map_[id]->is_local 
+        and sub_graph_->vertices_map_[id]->is_frontier) {
 
         std::vector<Vertex*> dijkstra_path;
         
@@ -713,11 +731,11 @@ bool GraphManager::planLocalPath () {
 
   std::vector<Vertex*> raw_path;
   
-  double path_length = -std::numeric_limits<double>::max();
+  double path_length = std::numeric_limits<double>::max();
   
   for (auto i = 0; i < local_paths_.size(); i++) {
     
-    if (local_paths_[i].second > path_length) {
+    if (local_paths_[i].second < path_length) {
       path_length = local_paths_[i].second;
       raw_path = local_paths_[i].first;
     }
@@ -811,7 +829,7 @@ void GraphManager::updateKdtree () {
     std::vector<Vertex*> nearby_vertices;
     nearby_vertices.clear();
     GraphManager::getNeighbours(&(*it)->state, 1, &nearby_vertices);
-    if (nearby_vertices.size() > 4) {
+    if (nearby_vertices.size() > 6) {
       it = all_vertices.erase(it);
     }
   }
@@ -828,8 +846,6 @@ void GraphManager::buildGlobalGraph () {
     GraphManager::resetGlobalGraph ();
     // ROS_INFO_STREAM ("sampled " << all_vertices.size() << " nodes\n");
   }
-  std::unordered_map<int, Vertex*>& global_vertex_map = global_graph_->vertices_map_;
-  
   std::pair<Graph::GraphType::vertex_iterator,
             Graph::GraphType::vertex_iterator> vi;
   
@@ -845,7 +861,7 @@ void GraphManager::buildGlobalGraph () {
       frontier_nodes.clear();
         
       GraphManager::sampleNodes (frontier_nodes, frontier_graph_->vertices_map_[i]->state, 
-                                  iterations_local_/100, bounding_box_size_/4);
+                                  iterations_local_/1000, bounding_box_size_/4);
         
       for (int i = 0; i < frontier_nodes.size(); i++) {
         Vertex* vertex = new Vertex(assignVertexID(), ufoToState(*(frontier_nodes[i]->point)));
@@ -1054,12 +1070,19 @@ void GraphManager::fetchExplorationTargets()
       global_repos_targets_ = pointsToUfo(frontier_srv.response.global_targets);
       
       GraphManager::resetFrontierGraph ();
-      if (global_repos_targets_.empty()) { 
+      if (global_repos_targets_.empty() and local_exploration_targets_.empty()) { 
         return; 
       }
 
+      for (auto i : local_exploration_targets_) {
+        Vertex* frontier_vertex = new Vertex (frontier_graph_->generateVertexID(), ufoToState(i));
+        frontier_vertex->is_local = true;
+        frontier_graph_->addVertex(frontier_vertex);
+      }
+      
       for (auto i : global_repos_targets_) {
         Vertex* frontier_vertex = new Vertex (frontier_graph_->generateVertexID(), ufoToState(i));
+        frontier_vertex->is_local = false;
         frontier_graph_->addVertex(frontier_vertex);
       }
       
