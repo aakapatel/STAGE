@@ -295,7 +295,7 @@ double GraphManager::computeVolumetricGain(ufo::math::Vector3 frontier,
     
     // double volumetric_gain = 10 * (log(unknown_cells + free_cells / (2*occupied_cells + 1)));
     
-    double volumetric_gain = 10 * (log(unknown_cells));
+    double volumetric_gain = (log(unknown_cells));
     if (std::isnan(volumetric_gain)) {
       volumetric_gain = 0;
     }
@@ -475,6 +475,71 @@ void GraphManager::resetFrontierGraph () {
 
 }
 
+void GraphManager::insertVertexKdtree (Vertex* v) {
+  
+  all_vertices.push_back(v);
+  kd_insert3(kd_tree_, v->state.x(), v->state.y(), v->state.z(), v);
+}
+
+void GraphManager::resetKdtree () {
+  all_vertices.clear();
+
+  // BUG can not free memory 
+
+  // if (kd_tree_) kd_free(kd_tree_);
+  kd_tree_ = kd_create(3);
+}
+
+bool GraphManager::getNeighbours (const State* state, double range, std::vector<Vertex*>* v_res) {
+
+  // Notice that this might include the same vertex in the result.
+  // if that vertex is added to the tree before.
+  // Use the distance 0 or small threshold to filter out.
+  kdres* neighbors =
+      kd_nearest_range3(kd_tree_, state->x(), state->y(), state->z(), range);
+  int neighbors_size = kd_res_size(neighbors);
+  if (neighbors_size <= 0) return false;
+  v_res->clear();
+  for (int i = 0; i < neighbors_size; ++i) {
+    Vertex* new_neighbor = (Vertex*)kd_res_item_data(neighbors);
+    v_res->push_back(new_neighbor);
+    if (kd_res_next(neighbors) <= 0) break;
+  }
+  kd_res_free(neighbors);
+  return true;
+
+}
+
+void GraphManager::updateKdtree () {
+    
+  for (std::list<Vertex*>::iterator it = all_vertices.begin(); it != all_vertices.end(); it++) {
+  
+    // (*it)->is_frontier = false;
+    (*it)->is_local = false;
+
+    // std::vector<Vertex*> nearby_vertices;
+    // nearby_vertices.clear();
+    // GraphManager::getNeighbours(&(*it)->state, 1, &nearby_vertices);
+    // if (nearby_vertices.size() > 2) {
+    //   it = all_vertices.erase(it);
+    // }
+  
+    if ((*it)->is_frontier) {
+      it = all_vertices.erase(it);
+    }
+  }
+}
+
+double GraphManager::getPathLength (std::vector<Vertex*> path) {
+
+  double l= 0;
+
+  for (int i = 0; i < path.size() - 1; ++i) {
+    l = l + calculateDistance( stateToUfo(path[i]->state), stateToUfo(path[i+1]->state));
+  }
+  return l;
+}
+
 void GraphManager::printVoxelStatus (MapManager::VoxelStatus vs) {
 
   // Only for DEBUG 
@@ -626,88 +691,6 @@ void GraphManager::buildLocalGraph () {
 }
 
 
-void GraphManager::improvePath (std::vector<Vertex*> raw_path, std::vector<Vertex*>& path) {
-
-  // Reset the improvement graph & clear memory 
-  
-  improvement_graph_.reset(new GraphUtils());
-  if (improvement_graph_ != NULL) {
-    improvement_graph_->reset();
-  }
-  // Reset SP report 
-  improvement_graph_rep_.reset();
-  
-  // Include root vertex as current robot state
-  Vertex* root_vertex = new Vertex (improvement_graph_->generateVertexID(), robotState_);
-  improvement_graph_->addVertex(root_vertex);
-  root_vertex->is_root = true;
-  
-  // Include goal vertex as last vertex of Dijkstra path 
-
-  Vertex* goal_vertex = new Vertex (improvement_graph_->generateVertexID(), raw_path.back()->state);
-  improvement_graph_->addVertex(goal_vertex);
-  
-  // Not ideal, but check nearest neighbours to add edges in a graph that will improve the path
-  // by shortcutting some edges 
-
-  for (std::vector<Vertex*>::iterator it_vert = raw_path.begin(); it_vert != std::prev(raw_path.end(),1); it_vert++) {
-    
-    Vertex* imp_vertex = new Vertex (improvement_graph_->generateVertexID(), (*it_vert)->state);
-    improvement_graph_->addVertex(imp_vertex);
-
-  }
-
-  std::pair<Graph::GraphType::vertex_iterator,
-            Graph::GraphType::vertex_iterator> vi;
-  improvement_graph_->graph_->getVertexIterator(vi);
-  
-  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
-
-    int id = improvement_graph_->graph_->getVertexProperty(it);
-
-    // Get nearby vertices from the current vertex and connect the them to form local edges 
-    std::vector<Vertex*> nearby_vertices;
-    improvement_graph_->getNearestVertices(&improvement_graph_->vertices_map_[id]->state, 10, &nearby_vertices);
-      
-    for (int i = 0; i < nearby_vertices.size(); i++) {
-      
-      Eigen::Vector3d v1 (improvement_graph_->vertices_map_[id]->state[0], 
-                          improvement_graph_->vertices_map_[id]->state[1], 
-                          improvement_graph_->vertices_map_[id]->state[2]);
-    
-      Eigen::Vector3d v2 (nearby_vertices[i]->state[0], nearby_vertices[i]->state[1], nearby_vertices[i]->state[2]);
-      MapManager::VoxelStatus vn = map_manager_->getPathStatus(v1, v2, robot_box_size_, true);
-
-    
-      if (MapManager::VoxelStatus::kFree == vn) { 
-
-        improvement_graph_->addEdge(improvement_graph_->vertices_map_[id], nearby_vertices[i], 
-                              improvement_graph_->distanceBetweenVertices(improvement_graph_->vertices_map_[id], nearby_vertices[i]));
-      }
-    }
-  }
-  
-  // Dijkstra SP report from root to all vertices in improvement graph 
-
-  if (improvement_graph_->findShortestPaths(root_vertex->id, improvement_graph_rep_)) {
-    // ROS_INFO ("Improvement graph dijkstra report : PASS \n");
-  } else {
-    ROS_WARN ("Could not find dijkstra shortest paths on graph improvement \n");
-  }
-  
-  improvement_graph_->getShortestPath(goal_vertex->id, improvement_graph_rep_, true, path);
-
-}
-
-double GraphManager::getPathLength (std::vector<Vertex*> path) {
-
-  double l= 0;
-
-  for (int i = 0; i < path.size() - 1; ++i) {
-    l = l + calculateDistance( stateToUfo(path[i]->state), stateToUfo(path[i+1]->state));
-  }
-  return l;
-}
 
 void GraphManager::planLocalPath () {
   
@@ -750,139 +733,8 @@ void GraphManager::planLocalPath () {
 } // buildLocalGraph
 
 
-bool GraphManager::setPath (bool local, bool global, bool homing) {
-
-  bool path_set = false;
-
-  std::vector<Vertex*> path;
-
-  std::vector<Vertex*> raw_path;
-  std::vector<std::pair<std::vector<Vertex*>, double>> paths_;
-  
-  if (local) {
-    paths_ = local_paths_;
-  } else if (global) {
-    paths_ = global_paths_;
-  } else if (homing) {
-    ROS_INFO ("Trying homing ! \n");
-  }
-
-  
-  double gain, path_length;
-  
-  double reward = 2*gain - path_length; 
-
-  double my_reward = -std::numeric_limits<double>::max();
-  
-  for (auto i = 0; i < paths_.size(); i++) {
-    
-    gain = computeVolumetricGain(stateToUfo((paths_[i].first.back())->state), ufoMAP_);
-    
-    path_length = paths_[i].second;
-
-    if (reward > my_reward) {
-      my_reward = reward;
-      raw_path = paths_[i].first;
-    }
-  }
-
-  if (raw_path.empty()) {
-    ROS_WARN ("Local Dijkstra SP -> Empty :( \n");
-    return false;
-  }
-  
-  GraphManager::improvePath (raw_path, path);
-   
-  exploration_path_.poses.clear();
-  geometry_msgs::PoseStamped p;
-  
-  nav_msgs::Path new_path;
-  new_path.poses.clear();
-  GraphManager::segmentPath(path, new_path);
-
-  for (int i = 0; i < new_path.poses.size() - 1; i++) {
-   
-    float angle = atan2(new_path.poses[i+1].pose.position.y - new_path.poses[i].pose.position.y, 
-                          new_path.poses[i+1].pose.position.x - new_path.poses[i].pose.position.x);
-    ufo::math::Vector3 v(0, 0, angle);
-    Eigen::Quaternion<float> q = Euler2Quaternion(v);
-    
-    p.pose.position.x = new_path.poses[i].pose.position.x;
-    p.pose.position.y = new_path.poses[i].pose.position.y;
-    p.pose.position.z = new_path.poses[i].pose.position.z;
-    p.pose.orientation.x = q.x();
-    p.pose.orientation.y = q.y();
-    p.pose.orientation.z = q.z();
-    p.pose.orientation.w = q.w();
-    exploration_path_.poses.push_back(p);
- 
-  }
-  if (exploration_path_.poses.empty()) {
-  
-    ROS_WARN ("Exploration path empty \n ");
-  } else {
-    path_set = true;
-  }
-  
-  return path_set;
-
-}
 
 
-void GraphManager::insertVertexKdtree (Vertex* v) {
-  
-  all_vertices.push_back(v);
-  kd_insert3(kd_tree_, v->state.x(), v->state.y(), v->state.z(), v);
-}
-
-void GraphManager::resetKdtree () {
-  all_vertices.clear();
-
-  // BUG can not free memory 
-
-  // if (kd_tree_) kd_free(kd_tree_);
-  kd_tree_ = kd_create(3);
-}
-
-bool GraphManager::getNeighbours (const State* state, double range, std::vector<Vertex*>* v_res) {
-
-  // Notice that this might include the same vertex in the result.
-  // if that vertex is added to the tree before.
-  // Use the distance 0 or small threshold to filter out.
-  kdres* neighbors =
-      kd_nearest_range3(kd_tree_, state->x(), state->y(), state->z(), range);
-  int neighbors_size = kd_res_size(neighbors);
-  if (neighbors_size <= 0) return false;
-  v_res->clear();
-  for (int i = 0; i < neighbors_size; ++i) {
-    Vertex* new_neighbor = (Vertex*)kd_res_item_data(neighbors);
-    v_res->push_back(new_neighbor);
-    if (kd_res_next(neighbors) <= 0) break;
-  }
-  kd_res_free(neighbors);
-  return true;
-
-}
-
-void GraphManager::updateKdtree () {
-    
-  for (std::list<Vertex*>::iterator it = all_vertices.begin(); it != all_vertices.end(); it++) {
-  
-    // (*it)->is_frontier = false;
-    (*it)->is_local = false;
-
-    // std::vector<Vertex*> nearby_vertices;
-    // nearby_vertices.clear();
-    // GraphManager::getNeighbours(&(*it)->state, 1, &nearby_vertices);
-    // if (nearby_vertices.size() > 2) {
-    //   it = all_vertices.erase(it);
-    // }
-  
-    if ((*it)->is_frontier) {
-      it = all_vertices.erase(it);
-    }
-  }
-}
 
 void GraphManager::buildGlobalGraph () {
   
@@ -987,14 +839,6 @@ void GraphManager::buildGlobalGraph () {
 } //buildGlobalGraph 
 
 
-
-void GraphManager::updateGraph (const ros::TimerEvent &event) {
-  
-  if (build_global_graph_) {
-    GraphManager::buildGlobalGraph ();
-  }
-} 
-
 void GraphManager::planGlobalPath () {
 
   Vertex* nearest_vertex;
@@ -1015,8 +859,6 @@ void GraphManager::planGlobalPath () {
 
     int id = global_graph_->graph_->getVertexProperty(it);
     
-    // if (global_graph_->vertices_map_[id]->is_target) {
-        
     if (global_graph_->vertices_map_[id]->is_frontier) {
     
         std::vector<Vertex*> dijkstra_path;
@@ -1045,6 +887,163 @@ void GraphManager::planGlobalPath () {
 
 } // planGlobalPaths 
 
+
+bool GraphManager::setPath (bool local, bool global, bool homing) {
+
+  bool path_set = false;
+
+  std::vector<Vertex*> path;
+
+  std::vector<Vertex*> raw_path;
+  std::vector<std::pair<std::vector<Vertex*>, double>> paths_;
+  
+  if (local) {
+    paths_ = local_paths_;
+  } else if (global) {
+    paths_ = global_paths_;
+  } else if (homing) {
+    ROS_INFO ("Trying homing ! \n");
+  }
+  
+  double gain, path_length;
+  double my_reward = -std::numeric_limits<double>::max();
+  
+  double reward = exp(gain - path_length); 
+  
+  for (auto i = 0; i < paths_.size(); i++) {
+    
+    gain = computeVolumetricGain(stateToUfo((paths_[i].first.back())->state), ufoMAP_);
+    
+    path_length = paths_[i].second;
+
+    if (reward > my_reward) {
+      my_reward = reward;
+      raw_path = paths_[i].first;
+    }
+  }
+
+  if (raw_path.empty()) {
+    ROS_WARN ("Local Dijkstra SP -> Empty :( \n");
+    return false;
+  }
+  
+  GraphManager::improvePath (raw_path, path);
+   
+  exploration_path_.poses.clear();
+  geometry_msgs::PoseStamped p;
+  
+  nav_msgs::Path new_path;
+  new_path.poses.clear();
+  GraphManager::segmentPath(path, new_path);
+
+  for (int i = 0; i < new_path.poses.size() - 1; i++) {
+   
+    float angle = atan2(new_path.poses[i+1].pose.position.y - new_path.poses[i].pose.position.y, 
+                          new_path.poses[i+1].pose.position.x - new_path.poses[i].pose.position.x);
+    ufo::math::Vector3 v(0, 0, angle);
+    Eigen::Quaternion<float> q = Euler2Quaternion(v);
+    
+    p.pose.position.x = new_path.poses[i].pose.position.x;
+    p.pose.position.y = new_path.poses[i].pose.position.y;
+    p.pose.position.z = new_path.poses[i].pose.position.z;
+    p.pose.orientation.x = q.x();
+    p.pose.orientation.y = q.y();
+    p.pose.orientation.z = q.z();
+    p.pose.orientation.w = q.w();
+    exploration_path_.poses.push_back(p);
+ 
+  }
+  if (exploration_path_.poses.empty()) {
+  
+    ROS_WARN ("Exploration path empty \n ");
+  } else {
+    path_set = true;
+  }
+  
+  return path_set;
+
+}
+
+
+void GraphManager::improvePath (std::vector<Vertex*> raw_path, std::vector<Vertex*>& path) {
+
+  // Reset the improvement graph & clear memory 
+  
+  improvement_graph_.reset(new GraphUtils());
+  if (improvement_graph_ != NULL) {
+    improvement_graph_->reset();
+  }
+  // Reset SP report 
+  improvement_graph_rep_.reset();
+  
+  // Include root vertex as current robot state
+  Vertex* root_vertex = new Vertex (improvement_graph_->generateVertexID(), robotState_);
+  improvement_graph_->addVertex(root_vertex);
+  root_vertex->is_root = true;
+  
+  // Include goal vertex as last vertex of Dijkstra path 
+
+  Vertex* goal_vertex = new Vertex (improvement_graph_->generateVertexID(), raw_path.back()->state);
+  improvement_graph_->addVertex(goal_vertex);
+  
+  // Not ideal, but check nearest neighbours to add edges in a graph that will improve the path
+  // by shortcutting some edges 
+
+  for (std::vector<Vertex*>::iterator it_vert = raw_path.begin(); it_vert != std::prev(raw_path.end(),1); it_vert++) {
+    
+    Vertex* imp_vertex = new Vertex (improvement_graph_->generateVertexID(), (*it_vert)->state);
+    improvement_graph_->addVertex(imp_vertex);
+
+  }
+
+  std::pair<Graph::GraphType::vertex_iterator,
+            Graph::GraphType::vertex_iterator> vi;
+  improvement_graph_->graph_->getVertexIterator(vi);
+  
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
+
+    int id = improvement_graph_->graph_->getVertexProperty(it);
+
+    // Get nearby vertices from the current vertex and connect the them to form local edges 
+    std::vector<Vertex*> nearby_vertices;
+    improvement_graph_->getNearestVertices(&improvement_graph_->vertices_map_[id]->state, 10, &nearby_vertices);
+      
+    for (int i = 0; i < nearby_vertices.size(); i++) {
+      
+      Eigen::Vector3d v1 (improvement_graph_->vertices_map_[id]->state[0], 
+                          improvement_graph_->vertices_map_[id]->state[1], 
+                          improvement_graph_->vertices_map_[id]->state[2]);
+    
+      Eigen::Vector3d v2 (nearby_vertices[i]->state[0], nearby_vertices[i]->state[1], nearby_vertices[i]->state[2]);
+      MapManager::VoxelStatus vn = map_manager_->getPathStatus(v1, v2, robot_box_size_, true);
+
+    
+      if (MapManager::VoxelStatus::kFree == vn) { 
+
+        improvement_graph_->addEdge(improvement_graph_->vertices_map_[id], nearby_vertices[i], 
+                              improvement_graph_->distanceBetweenVertices(improvement_graph_->vertices_map_[id], nearby_vertices[i]));
+      }
+    }
+  }
+  
+  // Dijkstra SP report from root to all vertices in improvement graph 
+
+  if (improvement_graph_->findShortestPaths(root_vertex->id, improvement_graph_rep_)) {
+    // ROS_INFO ("Improvement graph dijkstra report : PASS \n");
+  } else {
+    ROS_WARN ("Could not find dijkstra shortest paths on graph improvement \n");
+  }
+  
+  improvement_graph_->getShortestPath(goal_vertex->id, improvement_graph_rep_, true, path);
+
+}
+
+void GraphManager::updateGraph (const ros::TimerEvent &event) {
+  
+  if (build_global_graph_) {
+    GraphManager::buildGlobalGraph ();
+  }
+} 
 
 ufo::math::Vector3 GraphManager::pointToUfo(geometry_msgs::Point p)
 {
@@ -1088,19 +1087,25 @@ void GraphManager::fetchExplorationTargets()
       if (global_repos_targets_.empty() and local_exploration_targets_.empty()) { 
         return; 
       }
+      
+      if (!local_exploration_targets_.empty()) {
 
-      for (auto i : local_exploration_targets_) {
-        Vertex* frontier_vertex = new Vertex (frontier_graph_->generateVertexID(), ufoToState(i));
-        frontier_vertex->is_local = true;
-        frontier_graph_->addVertex(frontier_vertex);
+        for (auto i : local_exploration_targets_) {
+          Vertex* frontier_vertex = new Vertex (frontier_graph_->generateVertexID(), ufoToState(i));
+          frontier_vertex->is_local = true;
+          frontier_graph_->addVertex(frontier_vertex);
+        }
       }
-      
-      for (auto i : global_repos_targets_) {
-        Vertex* frontier_vertex = new Vertex (frontier_graph_->generateVertexID(), ufoToState(i));
-        frontier_vertex->is_local = false;
-        frontier_graph_->addVertex(frontier_vertex);
+        
+      if (!global_repos_targets_.empty()) {
+
+        for (auto i : global_repos_targets_) {
+          Vertex* frontier_vertex = new Vertex (frontier_graph_->generateVertexID(), ufoToState(i));
+          frontier_vertex->is_local = false;
+          frontier_graph_->addVertex(frontier_vertex);
+        }
       }
-      
+
       std::vector<double> gains;
       gains.clear();
       for (int i = 0; i < frontier_graph_->getNumVertices(); ++i) {
@@ -1117,11 +1122,11 @@ void GraphManager::fetchExplorationTargets()
       
       for (int i = 0; i < frontier_graph_->getNumVertices(); ++i) {
         
-        if (frontier_graph_->vertices_map_[i]->neighbours > average_gain) {
+        // if (frontier_graph_->vertices_map_[i]->neighbours > average_gain) {
 
           frontier_graph_->vertices_map_[i]->is_cluster_centroid = true;
           
-        }
+        // }
       }
       
       // ROS_INFO_STREAM ("Fetched " << local_exploration_targets_.size() << " Local & " 
@@ -1340,8 +1345,8 @@ void GraphManager::visualizeLocalPaths (std::vector<std::pair<std::vector<Vertex
   edge_marker.action = visualization_msgs::Marker::ADD;
   edge_marker.type = visualization_msgs::Marker::LINE_LIST;
   edge_marker.scale.x = 0.04;
-  edge_marker.color.r = 255.0 / 255.0;
-  edge_marker.color.g = 0 / 255.0;
+  edge_marker.color.r = 0.0 / 255.0;
+  edge_marker.color.g = 255.0 / 255.0;
   edge_marker.color.b = 0.0;
   edge_marker.color.a = 1.0;
   // edge_marker.lifetime = ros::Duration(graph_lifetime);
@@ -1357,8 +1362,8 @@ void GraphManager::visualizeLocalPaths (std::vector<std::pair<std::vector<Vertex
   vertex_marker.scale.x = 0.3;
   vertex_marker.scale.y = 0.3;
   vertex_marker.scale.z = 0.3;
-  vertex_marker.color.r =  255.0 / 255.0;
-  vertex_marker.color.g = 0 / 255.0;
+  vertex_marker.color.r =  0.0 / 255.0;
+  vertex_marker.color.g = 255.0 / 255.0;
   vertex_marker.color.b = 0 / 255.0;
   vertex_marker.color.a = 1.0;
   // vertex_marker.lifetime = ros::Duration(graph_lifetime);
