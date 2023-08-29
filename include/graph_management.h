@@ -88,9 +88,9 @@ public:
   
   void buildGlobalGraph ();
 
-  bool planLocalPath ();
+  void planLocalPath ();
   
-  bool planGlobalPath ();
+  void planGlobalPath ();
 
   void visualizeLocalGraph ();
 
@@ -114,6 +114,8 @@ public:
 
   void updateGraph(const ros::TimerEvent& event);
   
+  bool setPath (std::vector<std::pair<std::vector<Vertex*>, double>> paths_);
+
   ros::Timer graph_timer_;
 
 private:
@@ -147,6 +149,7 @@ private:
   
   std::list<Vertex*> all_vertices;
 
+  std::list<Vertex*> sparse_vertices;
   // variables
   State robotState_;
   

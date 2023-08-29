@@ -621,6 +621,8 @@ void GraphManager::buildLocalGraph () {
     ROS_WARN ("Could not find dijkstra shortest paths \n");
   }
 
+  GraphManager::planLocalPath ();
+
 }
 
 
@@ -707,10 +709,8 @@ double GraphManager::getPathLength (std::vector<Vertex*> path) {
   return l;
 }
 
-bool GraphManager::planLocalPath () {
+void GraphManager::planLocalPath () {
   
-  bool path_exist = false; 
-
   local_paths_.clear();
 
   std::pair<Graph::GraphType::vertex_iterator,
@@ -744,8 +744,15 @@ bool GraphManager::planLocalPath () {
 
     GraphManager::visualizeLocalPaths(local_paths_);
   } else {
-    return false;
+    return;
   }
+
+} // buildLocalGraph
+
+
+bool GraphManager::setPath (std::vector<std::pair<std::vector<Vertex*>, double>> paths_) {
+
+  bool path_set = false;
 
   std::vector<Vertex*> path;
 
@@ -753,11 +760,11 @@ bool GraphManager::planLocalPath () {
   
   double path_length = std::numeric_limits<double>::max();
   
-  for (auto i = 0; i < local_paths_.size(); i++) {
+  for (auto i = 0; i < paths_.size(); i++) {
     
-    if (local_paths_[i].second < path_length) {
-      path_length = local_paths_[i].second;
-      raw_path = local_paths_[i].first;
+    if (paths_[i].second < path_length) {
+      path_length = paths_[i].second;
+      raw_path = paths_[i].first;
     }
   }
 
@@ -768,10 +775,8 @@ bool GraphManager::planLocalPath () {
   
   GraphManager::improvePath (raw_path, path);
    
-  // ROS_INFO_STREAM ("improved path size " << path.size() << "\n");
   exploration_path_.poses.clear();
   geometry_msgs::PoseStamped p;
-
   
   nav_msgs::Path new_path;
   new_path.poses.clear();
@@ -798,11 +803,13 @@ bool GraphManager::planLocalPath () {
   
     ROS_WARN ("Exploration path empty \n ");
   } else {
-    path_exist = true;
+    path_set = true;
   }
   
-  return path_exist;
-} // buildLocalGraph
+  return path_set;
+
+}
+
 
 void GraphManager::insertVertexKdtree (Vertex* v) {
   
@@ -840,7 +847,6 @@ bool GraphManager::getNeighbours (const State* state, double range, std::vector<
 }
 
 void GraphManager::updateKdtree () {
-  
     
   for (std::list<Vertex*>::iterator it = all_vertices.begin(); it != all_vertices.end(); it++) {
   
@@ -946,6 +952,8 @@ void GraphManager::buildGlobalGraph () {
   // Dijkstra SP report from root to all vertices in global graph 
   
   build_global_graph_ = false;
+  
+  GraphManager::planGlobalPath ();
 
 } //buildGlobalGraph 
 
@@ -958,9 +966,7 @@ void GraphManager::updateGraph (const ros::TimerEvent &event) {
   }
 } 
 
-bool GraphManager::planGlobalPath () {
-
-  bool path_exist = false; 
+void GraphManager::planGlobalPath () {
 
   Vertex* nearest_vertex;
   global_graph_->getNearestVertex(&robotState_, &nearest_vertex);
@@ -1005,65 +1011,10 @@ bool GraphManager::planGlobalPath () {
     GraphManager::visualizeGlobalPaths(global_paths_);
   } else {
     ROS_WARN ("No global dijkstra paths .. NOT READY! \n");
-    return false;
+    return;
   }
 
-  std::vector<Vertex*> raw_path;
-  std::vector<Vertex*> path;
-  
-  double path_length = std::numeric_limits<double>::max();
-  
-  for (auto i = 0; i < global_paths_.size(); i++) {
-    
-    if (global_paths_[i].second < path_length) {
-      path_length = global_paths_[i].second;
-      raw_path = global_paths_[i].first;
-    }
-  }
-
-  if (raw_path.empty()) {
-    ROS_WARN ("Global Dijkstra SP -> Empty :( \n");
-    return false;
-  }
-  // Improve dijkstra path by connecting nodes that can be traversed in a straight line 
-  // to reduce criss-cross in a path
-
-  GraphManager::improvePath (raw_path, path);
-
-  exploration_path_.poses.clear();
-  geometry_msgs::PoseStamped p;
-
-  
-  nav_msgs::Path new_path;
-  new_path.poses.clear();
-  GraphManager::segmentPath(path, new_path);
-
-  for (int i = 0; i < new_path.poses.size() - 1; i++) {
-   
-    float angle = atan2(new_path.poses[i+1].pose.position.y - new_path.poses[i].pose.position.y, 
-                          new_path.poses[i+1].pose.position.x - new_path.poses[i].pose.position.x);
-    ufo::math::Vector3 v(0, 0, angle);
-    Eigen::Quaternion<float> q = Euler2Quaternion(v);
-    
-    p.pose.position.x = new_path.poses[i].pose.position.x;
-    p.pose.position.y = new_path.poses[i].pose.position.y;
-    p.pose.position.z = new_path.poses[i].pose.position.z;
-    p.pose.orientation.x = q.x();
-    p.pose.orientation.y = q.y();
-    p.pose.orientation.z = q.z();
-    p.pose.orientation.w = q.w();
-    exploration_path_.poses.push_back(p);
- 
-  }
-  if (exploration_path_.poses.empty()) {
-  
-    ROS_WARN ("Global reposition path is empty \n ");
-  } else {
-    path_exist = true;
-  }
-  
-  return path_exist;
-}
+} // planGlobalPaths 
 
 
 ufo::math::Vector3 GraphManager::pointToUfo(geometry_msgs::Point p)
@@ -1186,14 +1137,14 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
     GraphManager::buildLocalGraph ();
 
-    if (GraphManager::planLocalPath ()) 
+    if (GraphManager::setPath (local_paths_)) 
     {
-    ROS_INFO_STREAM ("Running LOCAL planner\n");
+    ROS_INFO_STREAM ("Running Local planner\n");
     } 
     else {
     // GraphManager::buildGlobalGraph ();
-    
-      if (GraphManager::planGlobalPath()) {
+
+      if (GraphManager::setPath(global_paths_)) {
 
         ROS_INFO ("No local paths, triggering global planner \n");
       } else {
@@ -1205,7 +1156,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
     // GraphManager::buildGlobalGraph ();
     
-    if (GraphManager::planGlobalPath()) {
+    if (GraphManager::setPath(global_paths_)) {
       ROS_INFO ("Global planner triggered \n");
     } else {
    

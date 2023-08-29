@@ -425,7 +425,7 @@ void FrontierExtraction::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
     robotState_[3] = yaw * (180 / M_PI);
 
 
-   // visualize(); 
+   visualize(); 
 
 }
 
@@ -1102,7 +1102,7 @@ bool FrontierExtraction::exportFrontierTargets(stage_planner::frontierRequest::R
                                                stage_planner::frontierRequest::Response &res)
 {
 
-  visualize(); 
+  // visualize(); 
 
   if (req.explore) {
       
