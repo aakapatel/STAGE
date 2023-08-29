@@ -114,7 +114,7 @@ public:
 
   void updateGraph(const ros::TimerEvent& event);
   
-  bool setPath (std::vector<std::pair<std::vector<Vertex*>, double>> paths_);
+  bool setPath (bool local, bool global, bool homing);
 
   ros::Timer graph_timer_;
 

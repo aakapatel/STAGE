@@ -750,20 +750,38 @@ void GraphManager::planLocalPath () {
 } // buildLocalGraph
 
 
-bool GraphManager::setPath (std::vector<std::pair<std::vector<Vertex*>, double>> paths_) {
+bool GraphManager::setPath (bool local, bool global, bool homing) {
 
   bool path_set = false;
 
   std::vector<Vertex*> path;
 
   std::vector<Vertex*> raw_path;
+  std::vector<std::pair<std::vector<Vertex*>, double>> paths_;
   
-  double path_length = std::numeric_limits<double>::max();
+  if (local) {
+    paths_ = local_paths_;
+  } else if (global) {
+    paths_ = global_paths_;
+  } else if (homing) {
+    ROS_INFO ("Trying homing ! \n");
+  }
+
+  
+  double gain, path_length;
+  
+  double reward = 2*gain - path_length; 
+
+  double my_reward = -std::numeric_limits<double>::max();
   
   for (auto i = 0; i < paths_.size(); i++) {
     
-    if (paths_[i].second < path_length) {
-      path_length = paths_[i].second;
+    gain = computeVolumetricGain(stateToUfo((paths_[i].first.back())->state), ufoMAP_);
+    
+    path_length = paths_[i].second;
+
+    if (reward > my_reward) {
+      my_reward = reward;
       raw_path = paths_[i].first;
     }
   }
@@ -887,21 +905,32 @@ void GraphManager::buildGlobalGraph () {
 
     if (frontier_graph_->vertices_map_[i]->is_cluster_centroid) {
 
-      std::vector<node*> frontier_nodes;
-      frontier_nodes.clear();
+      // std::vector<node*> frontier_nodes;
+      // frontier_nodes.clear();
+      //   
+      // GraphManager::sampleNodes (frontier_nodes, frontier_graph_->vertices_map_[i]->state, 
+      //                             iterations_local_/1000, bounding_box_size_/4);
+      //   
+      // for (int i = 0; i < frontier_nodes.size(); i++) {
+      //   Vertex* vertex = new Vertex(assignVertexID(), ufoToState(*(frontier_nodes[i]->point)));
+      //   vertex->is_root = false;
+      //   vertex->is_target = false;
+      //   vertex->is_sampled = true;
+      //   vertex->is_local = false;
+      //   vertex->is_frontier = true;
+      //   GraphManager::insertVertexKdtree(vertex);
+      // }
+      
         
-      GraphManager::sampleNodes (frontier_nodes, frontier_graph_->vertices_map_[i]->state, 
-                                  iterations_local_/1000, bounding_box_size_/4);
-        
-      for (int i = 0; i < frontier_nodes.size(); i++) {
-        Vertex* vertex = new Vertex(assignVertexID(), ufoToState(*(frontier_nodes[i]->point)));
+        // Decide if want to include only frontier or also sampled nodes around the frontier 
+
+        Vertex* vertex = new Vertex(assignVertexID(), frontier_graph_->vertices_map_[i]->state);
         vertex->is_root = false;
         vertex->is_target = false;
-        vertex->is_sampled = true;
+        vertex->is_sampled = false;
         vertex->is_local = false;
         vertex->is_frontier = true;
         GraphManager::insertVertexKdtree(vertex);
-      }
     }
   }
 
@@ -1137,14 +1166,13 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
     GraphManager::buildLocalGraph ();
 
-    if (GraphManager::setPath (local_paths_)) 
+    if (GraphManager::setPath (true, false, false)) 
     {
     ROS_INFO_STREAM ("Running Local planner\n");
     } 
     else {
-    // GraphManager::buildGlobalGraph ();
 
-      if (GraphManager::setPath(global_paths_)) {
+      if (GraphManager::setPath(false, true, false)) {
 
         ROS_INFO ("No local paths, triggering global planner \n");
       } else {
@@ -1154,9 +1182,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
     } 
   } else if (!global_repos_targets_.empty()) {
 
-    // GraphManager::buildGlobalGraph ();
-    
-    if (GraphManager::setPath(global_paths_)) {
+    if (GraphManager::setPath(false, true, false)) {
       ROS_INFO ("Global planner triggered \n");
     } else {
    
