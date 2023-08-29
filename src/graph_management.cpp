@@ -169,8 +169,6 @@ void GraphManager::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
       ufo::math::Vector3 oldPoint (m_prevPose.pose.pose.position.x,
                                       m_prevPose.pose.pose.position.y,
                                       m_prevPose.pose.pose.position.z);
-      
-
 
       if (calculateDistance(newPoint, oldPoint) > 2)
       {
@@ -741,7 +739,6 @@ bool GraphManager::planLocalPath () {
   new_path.poses.clear();
   GraphManager::segmentPath(path, new_path);
 
-  ROS_INFO_STREAM ("segmented path size " << new_path.poses.size() << "\n");
   for (int i = 0; i < new_path.poses.size() - 1; i++) {
    
     float angle = atan2(new_path.poses[i+1].pose.position.y - new_path.poses[i].pose.position.y, 
