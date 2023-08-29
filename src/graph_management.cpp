@@ -86,6 +86,7 @@ GraphManager::GraphManager(const ros::NodeHandle& nh, const ros::NodeHandle& nh_
   
   m_exploration_path_srv = nh_.advertiseService("next_exploration_path", &GraphManager::nextExplorationPath, this);
   
+  graph_timer_ = nh_.createTimer(ros::Duration(1), &GraphManager::updateGraph, this);
 
   safety_margin_[0] = safety_margin;
   safety_margin_[1] = safety_margin;
@@ -99,6 +100,10 @@ GraphManager::GraphManager(const ros::NodeHandle& nh, const ros::NodeHandle& nh_
   map_manager_->setRobotRadius(robot_box_size_.norm() / 2.0);
 
 };
+
+
+
+
 
 // Define an ufoMAP object
 ufo::map::OccupancyMapColor ufoMAP_(0.2);
@@ -174,21 +179,21 @@ void GraphManager::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
       {
         m_prevPose = *pose;
         
-        std::vector<node*> global_nodes;
-        global_nodes.clear();
-        
-        GraphManager::sampleNodes (global_nodes, robotState_, iterations_local_/10, bounding_box_size_/2);
-        
-        for (int i = 0; i < global_nodes.size(); i++) {
-          
-          Vertex* vertex = new Vertex(assignVertexID(), ufoToState(*(global_nodes[i]->point)));
-          vertex->is_root = false;
-          vertex->is_target = false;
-          vertex->is_sampled = true;
-          
-          GraphManager::insertVertexKdtree (vertex);
-
-        }
+        // std::vector<node*> global_nodes;
+        // global_nodes.clear();
+        // 
+        // GraphManager::sampleNodes (global_nodes, robotState_, iterations_local_/10, bounding_box_size_/2);
+        // 
+        // for (int i = 0; i < global_nodes.size(); i++) {
+        //   
+        //   Vertex* vertex = new Vertex(assignVertexID(), ufoToState(*(global_nodes[i]->point)));
+        //   vertex->is_root = false;
+        //   vertex->is_target = false;
+        //   vertex->is_sampled = true;
+        //   
+        //   GraphManager::insertVertexKdtree (vertex);
+        //
+        // }
       }
 
     }
@@ -218,6 +223,7 @@ void GraphManager::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
     robotState_[1] = pose->pose.pose.position.y;
     robotState_[2] = pose->pose.pose.position.z;
     robotState_[3] = yaw * (180 / M_PI);
+
 }
 
 double GraphManager::calculateDistance(ufo::math::Vector3 point1,
@@ -489,11 +495,25 @@ void GraphManager::buildLocalGraph () {
   // high_resolution_clock::time_point start_total = high_resolution_clock::now();
   
   GraphManager::resetLocalGraph ();
+  
+  GraphManager::updateKdtree ();
 
   std::vector<node*> nodes;
   nodes.clear();
 
   GraphManager::sampleNodes(nodes, robotState_, iterations_local_, bounding_box_size_);
+  
+  // Add random sampled nodes in local graph 
+
+  for (int i = 0; i < nodes.size(); i++) {
+    Vertex* vertex = new Vertex(assignVertexID(), ufoToState(*(nodes[i]->point)));
+    vertex->is_root = false;
+    vertex->is_target = false;
+    vertex->is_sampled = true;
+    vertex->is_local = true;
+    vertex->is_frontier = false;
+    GraphManager::insertVertexKdtree(vertex);
+  }
   
   Vertex* root_vertex = new Vertex(sub_graph_->generateVertexID(), robotState_);
   root_vertex->is_root = true;
@@ -514,28 +534,30 @@ void GraphManager::buildLocalGraph () {
                                   iterations_local_/1000, bounding_box_size_/4);
         
       for (int i = 0; i < frontier_nodes.size(); i++) {
-        Vertex* vertex = new Vertex(sub_graph_->generateVertexID(), ufoToState(*(frontier_nodes[i]->point)));
+        Vertex* vertex = new Vertex(assignVertexID(), ufoToState(*(frontier_nodes[i]->point)));
         vertex->is_root = false;
         vertex->is_target = false;
         vertex->is_sampled = true;
         vertex->is_local = true;
         vertex->is_frontier = true;
-        sub_graph_->addVertex(vertex); 
+        GraphManager::insertVertexKdtree(vertex);
       }
     }
   }
-  
 
-  // Add random sampled nodes in local graph 
+  for (std::list<Vertex*>::iterator it = all_vertices.begin(); it != all_vertices.end(); it++) {
+    
+    if ((*it)->is_local) {
 
-  for (int i = 0; i < nodes.size(); i++) {
-    Vertex* vertex = new Vertex(sub_graph_->generateVertexID(), ufoToState(*(nodes[i]->point)));
-    vertex->is_root = false;
-    vertex->is_target = false;
-    vertex->is_sampled = true;
-    vertex->is_local = true;
-    vertex->is_frontier = false;
-    sub_graph_->addVertex(vertex);
+      Vertex* v = new Vertex(sub_graph_->generateVertexID(), (*it)->state);
+      v->is_root = (*it)->is_root;
+      v->is_target = (*it)->is_target;
+      v->is_sampled = (*it)->is_sampled;
+      v->is_local = (*it)->is_local;
+      v->is_frontier = (*it)->is_frontier;
+      v->sub_id = (*it)->id;
+      sub_graph_->addVertex(v);
+    }
   }
   
   std::pair<Graph::GraphType::vertex_iterator,
@@ -590,8 +612,6 @@ void GraphManager::buildLocalGraph () {
   }
  
   // ROS_INFO_STREAM ("Built local graph with " << sub_graph_->getNumVertices() << " nodes & " << sub_graph_->getNumEdges() << " edges\n"); 
-  
-  visualizeLocalGraph ();
 
   //Fetch shortest path report from root vertex to all vertices in the graph
   
@@ -824,19 +844,23 @@ void GraphManager::updateKdtree () {
     
   for (std::list<Vertex*>::iterator it = all_vertices.begin(); it != all_vertices.end(); it++) {
   
-    (*it)->is_frontier = false;
-    
-    std::vector<Vertex*> nearby_vertices;
-    nearby_vertices.clear();
-    GraphManager::getNeighbours(&(*it)->state, 1, &nearby_vertices);
-    if (nearby_vertices.size() > 6) {
+    // (*it)->is_frontier = false;
+    (*it)->is_local = false;
+
+    // std::vector<Vertex*> nearby_vertices;
+    // nearby_vertices.clear();
+    // GraphManager::getNeighbours(&(*it)->state, 1, &nearby_vertices);
+    // if (nearby_vertices.size() > 2) {
+    //   it = all_vertices.erase(it);
+    // }
+  
+    if ((*it)->is_frontier) {
       it = all_vertices.erase(it);
     }
   }
 }
 
 void GraphManager::buildGlobalGraph () {
-  
   
   if (all_vertices.empty()) {
     ROS_INFO ("Have not sampled any global nodes yet \n");
@@ -868,6 +892,7 @@ void GraphManager::buildGlobalGraph () {
         vertex->is_root = false;
         vertex->is_target = false;
         vertex->is_sampled = true;
+        vertex->is_local = false;
         vertex->is_frontier = true;
         GraphManager::insertVertexKdtree(vertex);
       }
@@ -881,6 +906,7 @@ void GraphManager::buildGlobalGraph () {
     v->is_target = (*it)->is_target;
     v->is_sampled = (*it)->is_sampled;
     v->is_frontier = (*it)->is_frontier;
+    v->is_local = (*it)->is_local;
     v->sub_id = (*it)->id;
     global_graph_->addVertex(v);
 
@@ -912,7 +938,6 @@ void GraphManager::buildGlobalGraph () {
           global_graph_->vertices_map_[id]->edges++;
         }
       }
-
     }
   } 
 
@@ -920,6 +945,23 @@ void GraphManager::buildGlobalGraph () {
   
   // Dijkstra SP report from root to all vertices in global graph 
   
+  build_global_graph_ = false;
+
+} //buildGlobalGraph 
+
+
+
+void GraphManager::updateGraph (const ros::TimerEvent &event) {
+  
+  if (build_global_graph_) {
+    GraphManager::buildGlobalGraph ();
+  }
+} 
+
+bool GraphManager::planGlobalPath () {
+
+  bool path_exist = false; 
+
   Vertex* nearest_vertex;
   global_graph_->getNearestVertex(&robotState_, &nearest_vertex);
 
@@ -927,14 +969,7 @@ void GraphManager::buildGlobalGraph () {
   } else {
     ROS_WARN ("Could not find dijkstra shortest paths on global graph \n");
   }
-
-} //buildGlobalGraph 
-
-
-bool GraphManager::planGlobalPath () {
-
-  bool path_exist = false; 
-
+  
   global_paths_.clear();
 
   std::pair<Graph::GraphType::vertex_iterator,
@@ -1153,10 +1188,10 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
     if (GraphManager::planLocalPath ()) 
     {
-    // ROS_INFO_STREAM ("Running LOCAL planner\n");
+    ROS_INFO_STREAM ("Running LOCAL planner\n");
     } 
     else {
-    GraphManager::buildGlobalGraph ();
+    // GraphManager::buildGlobalGraph ();
     
       if (GraphManager::planGlobalPath()) {
 
@@ -1168,7 +1203,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
     } 
   } else if (!global_repos_targets_.empty()) {
 
-    GraphManager::buildGlobalGraph ();
+    // GraphManager::buildGlobalGraph ();
     
     if (GraphManager::planGlobalPath()) {
       ROS_INFO ("Global planner triggered \n");
@@ -1206,6 +1241,8 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
   }
 
   GraphManager::visualize ();
+  
+  build_global_graph_ = true;
 
   return true;
   

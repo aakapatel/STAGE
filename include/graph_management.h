@@ -112,7 +112,9 @@ public:
 
   void updateKdtree ();
 
-
+  void updateGraph(const ros::TimerEvent& event);
+  
+  ros::Timer graph_timer_;
 
 private:
 
@@ -156,6 +158,9 @@ private:
   double robot_box_y;
   double robot_box_z;
   
+
+  bool build_global_graph_ = false;
+
   Eigen::Quaterniond quat_;
   bool firstTime = true;
   ufo::math::Vector3 m_currentPosition;
