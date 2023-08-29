@@ -205,8 +205,8 @@ void StageInterface::segmentPath(const nav_msgs::Path& path,
                                  nav_msgs::Path& path_seg) 
 {
   path_seg.poses.clear();
-  double v_max_ = 0.5;
-  double yaw_rate_max_ = 0.5;
+  double v_max_ = 1.5;
+  double yaw_rate_max_ = 1;
   if (path.poses.size() == 0) return;
   if (path.poses.size() == 1) path_seg.poses.push_back(path.poses[0]);
 
@@ -335,7 +335,7 @@ void StageInterface::generateTrajectory() {
       
       mav_msgs::msgMultiDofJointTrajectoryPointFromEigen(
           trajectory_point_, &trajectory_point_msg_);
-      time_sum += 2*dt_;
+      time_sum += dt_;
       trajectory_point_msg_.time_from_start = ros::Duration(time_sum);
       // trajectory_array_.points.insert(trajectory_array_.points.begin(),trajectory_point_msg_);
       trajectory_array_.points.push_back(trajectory_point_msg_);
@@ -362,7 +362,7 @@ bool StageInterface::reachedEndOfPath () {
   
   double d = calculateDistance(fetchCurrentPosition(), end_of_path);
 
-  if (d < 0.5) {
+  if (d < 1) {
     fetch_new_path_ = true;
     return true;
   } else {

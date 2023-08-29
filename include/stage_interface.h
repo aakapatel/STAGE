@@ -66,7 +66,7 @@ class StageInterface
     bool planning_status_global = false;
     bool planning_status_homing = false;
     int n_seq_;
-    double dt_ = 0.5;
+    double dt_ = 0.1;
     bool firstTime;
     bool initialization = false;
     bool explore = false; // For debug only! normally should be false.

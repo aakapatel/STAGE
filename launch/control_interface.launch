@@ -12,7 +12,7 @@
     
     <param name="reference_topic" type="String" value="/hummingbird/command/pose"/>
     
-    <param name="WP_SIZE" type="double" value="0.4"/>
+    <param name="WP_SIZE" type="double" value="0.5"/>
     
     <param name="ROTATION_TOLERANCE" type="double" value="0.25"/>
     
