@@ -572,6 +572,7 @@ void GraphManager::printVoxelStatus (MapManager::VoxelStatus vs) {
 }
 
 void GraphManager::buildSparseGraph (State state) {
+  
 
   Vertex* v_root = new Vertex (sparse_graph_->generateVertexID(), state);
   v_root->is_root = true;
@@ -581,23 +582,6 @@ void GraphManager::buildSparseGraph (State state) {
     ROS_WARN ("No samples from sub graph, can not build sparse graph \n");
     return;
   }
-
-  // std::vector<Vertex*> neighbours;
-  // neighbours.clear();
-  // GraphManager::getNeighbours(&state, 4, &neighbours);
-  // 
-  // for (int iv = 0; iv < sparse_graph_->getNumVertices(); ++iv) {
-  //   
-  //   for (auto i : neighbours) {
-  //     if (sparse_graph_->vertices_map_[iv]->sub_id != i->id) {
-  //     
-  //       Vertex* v = new Vertex (sparse_graph_->generateVertexID(), i->state);
-  //       v->is_root = false;
-  //       v->sub_id = i->id;
-  //       sparse_graph_->addVertex(v);
-  //     }
-  //   }
-  // }
     
     std::vector<node*> nodes;
     nodes.clear();
@@ -608,10 +592,8 @@ void GraphManager::buildSparseGraph (State state) {
     for (int i = 0; i < nodes.size(); i++) {
       Vertex* vertex = new Vertex(sparse_graph_->generateVertexID(), ufoToState(*(nodes[i]->point)));
       vertex->is_sampled = true;
-      // GraphManager::insertVertexKdtree(vertex);
       sparse_graph_->addVertex(vertex); 
     }
-    
 
 
   std::pair<Graph::GraphType::vertex_iterator,
@@ -667,47 +649,19 @@ void GraphManager::updateSparseGraph () {
     ROS_WARN ("Frontier graph is empty! can not update sparse graph \n");
     return;
   }
-
-  std::pair<Graph::GraphType::vertex_iterator,
-            Graph::GraphType::vertex_iterator> vi;
-  sparse_graph_->graph_->getVertexIterator(vi);
-  for (Graph::GraphType::vertex_iterator i_s = vi.first; i_s != vi.second; ++i_s) {
-
-    int it_s = sparse_graph_->graph_->getVertexProperty(i_s);
-    
-    Eigen::Vector3d v_s (sparse_graph_->vertices_map_[it_s]->state[0], 
-                         sparse_graph_->vertices_map_[it_s]->state[1],
-                         sparse_graph_->vertices_map_[it_s]->state[2]);
-
-    std::pair<Graph::GraphType::vertex_iterator,
-            Graph::GraphType::vertex_iterator> vf;
-    frontier_graph_->graph_->getVertexIterator(vf);
-
-  for (Graph::GraphType::vertex_iterator i_f = vf.first; i_f != vf.second; ++i_f) {
-
-    int it_f = frontier_graph_->graph_->getVertexProperty(i_f);
-
-      Eigen::Vector3d v_f (frontier_graph_->vertices_map_[it_f]->state[0], 
-                           frontier_graph_->vertices_map_[it_f]->state[1],
-                           frontier_graph_->vertices_map_[it_f]->state[2]);
-      
-
-      MapManager::VoxelStatus v = map_manager_->getPathStatus(v_s, v_f, robot_box_size_, true);
-      double edge_weight = calculateDistance(stateToUfo(sparse_graph_->vertices_map_[it_s]->state), 
-                                                        stateToUfo(frontier_graph_->vertices_map_[it_f]->state));
-
-      if (edge_weight < 8 and MapManager::VoxelStatus::kFree == v) {
-        Vertex* v_frontier = new Vertex (sparse_graph_->generateVertexID(), frontier_graph_->vertices_map_[it_f]->state);
-        v_frontier->is_frontier = true;
-        sparse_graph_->addVertex(v_frontier);
-        sparse_graph_->addEdge(sparse_graph_->vertices_map_[it_s], v_frontier, edge_weight);
-      }
-    }
-
+  
+  for (auto i = 0; i < sparse_graph_->getNumVertices(); ++i) {
+    sparse_graph_->vertices_map_[i]->is_frontier = false;
   }
 
-  ROS_INFO_STREAM ("Sparse graph has " << sparse_graph_->getNumVertices() << " nodes & " << sparse_graph_->getNumEdges() << " edges \n");
+  for (int i = 0; i < frontier_graph_->getNumVertices(); ++i) {
 
+    Vertex* vertex = new Vertex(sparse_graph_->generateVertexID(), frontier_graph_->vertices_map_[i]->state);
+    vertex->is_sampled = false;
+    vertex->is_local = false;
+    vertex->is_frontier = true;
+    sparse_graph_->addVertex(vertex);
+  }
 }
 
 void GraphManager::buildLocalGraph () {
@@ -1249,7 +1203,7 @@ void GraphManager::fetchExplorationTargets()
     }
   }
 
-  // GraphManager::updateSparseGraph();
+  GraphManager::updateSparseGraph();
 
 }
 
