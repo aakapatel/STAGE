@@ -83,6 +83,7 @@ public:
   void resetLocalGraph ();
   void resetGlobalGraph ();
   void resetFrontierGraph ();
+  void resetSparseGraph ();
 
   void buildLocalGraph ();
   
@@ -104,6 +105,8 @@ public:
 
   void visualizeGlobalPaths (std::vector<std::pair<std::vector<Vertex*>, double>> global_paths);
   
+  void visualizeFrontierGraph ();
+  
   bool getNeighbours (const State* state, double range, std::vector<Vertex*>* v_res);
   void insertVertexKdtree (Vertex* v);
   void resetKdtree ();
@@ -115,6 +118,10 @@ public:
   void updateGraph(const ros::TimerEvent& event);
   
   bool setPath (bool local, bool global, bool homing);
+  
+  void buildSparseGraph (State state);
+
+  void updateSparseGraph ();
 
   ros::Timer graph_timer_;
 
@@ -127,6 +134,8 @@ private:
   std::shared_ptr<GraphUtils> global_graph_;
   std::shared_ptr<GraphUtils> frontier_graph_;
   std::shared_ptr<GraphUtils> improvement_graph_;
+  std::shared_ptr<GraphUtils> pose_graph_;
+  std::shared_ptr<GraphUtils> sparse_graph_;
 
   
   MapManagerVoxblox<MapManagerVoxbloxServer, 
@@ -138,6 +147,8 @@ private:
   ShortestPathsReport homing_graph_rep_;
   ShortestPathsReport improvement_graph_rep_;
   ShortestPathsReport frontier_graph_rep_;
+  ShortestPathsReport pose_graph_rep_;
+  ShortestPathsReport sparse_graph_rep_;
 
   int vertex_id_ = -1;
   int local_target_vertex_id;
@@ -221,6 +232,7 @@ private:
   ros::Publisher global_Paths_Vis_Pub_;
   ros::Publisher local_Graph_Vis_Pub_;
   ros::Publisher global_Graph_Vis_Pub_;
+  ros::Publisher frontier_Graph_Vis_Pub_;
   
     //Services 
   ros::ServiceClient m_frontier_client;

@@ -43,13 +43,11 @@ struct Vertex {
     gain = 0;
     edges = 0;
     is_root = false;
-    is_target = false;
     is_sampled = false;
     is_local = false;
-    is_cluster_centroid = false;
     is_frontier = false;
     sub_id = 0;
-    neighbours = 0;
+    neighbours = {};
   }
 
   // Unique id for each vertex (root: 0, others: positive number).
@@ -67,20 +65,16 @@ struct Vertex {
   int edges;
   // If it is root vertex 
   bool is_root;
-  // If vertex is a potential target 
-  bool is_target;
   // If node is randomly sampled 
   bool is_sampled;
   // If in local FOV
   bool is_local;
-  // If a node is center of cluster 
-  bool is_cluster_centroid;
   // If a node itself is a frontier
   bool is_frontier;
   // Sub graph id to keep track while adding to global graph 
   int sub_id;
-  // number of neighbours in x meters radius
-  int neighbours;
+  // neighbours in x meters radius
+  std::vector<Vertex*> neighbours;
 };
 
 
