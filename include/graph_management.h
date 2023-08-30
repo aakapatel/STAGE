@@ -96,6 +96,8 @@ public:
   void visualizeLocalGraph ();
 
   void visualizeGlobalGraph ();
+  
+  void visualizeSparseGraph ();
 
   void visualize ();
   
@@ -233,6 +235,7 @@ private:
   ros::Publisher local_Graph_Vis_Pub_;
   ros::Publisher global_Graph_Vis_Pub_;
   ros::Publisher frontier_Graph_Vis_Pub_;
+  ros::Publisher sparse_Graph_Vis_Pub_;
   
     //Services 
   ros::ServiceClient m_frontier_client;

@@ -76,6 +76,8 @@ GraphManager::GraphManager(const ros::NodeHandle& nh, const ros::NodeHandle& nh_
   
   frontier_Graph_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/frontier_graph", 10);
   
+  sparse_Graph_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/sparse_planning_graph", 10);
+  
   local_Paths_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/local_dijkstra_paths", 10);
 
   global_Paths_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/global_dijkstra_paths", 10);
@@ -533,10 +535,14 @@ void GraphManager::updateKdtree () {
   
     (*it)->is_frontier = false;
     (*it)->is_local = false;
+    
+    std::vector<Vertex*> n;
+    GraphManager::getNeighbours(&(*it)->state, 0.5, &n);
 
-    // if ((*it)->is_frontier) {
-    //   it = all_vertices.erase(it);
-    // }
+    if (n.size() > 1) {
+      it = all_vertices.erase(it);
+    }
+
   }
 }
 
@@ -576,15 +582,37 @@ void GraphManager::buildSparseGraph (State state) {
     return;
   }
 
-  std::vector<Vertex*> neighbours;
-  neighbours.clear();
-  GraphManager::getNeighbours(&state, 2, &neighbours);
-  
-  for (auto i : neighbours) {
-    Vertex* v = new Vertex (sparse_graph_->generateVertexID(), i->state);
-    v->is_root = false;
-    sparse_graph_->addVertex(v);
-  }
+  // std::vector<Vertex*> neighbours;
+  // neighbours.clear();
+  // GraphManager::getNeighbours(&state, 4, &neighbours);
+  // 
+  // for (int iv = 0; iv < sparse_graph_->getNumVertices(); ++iv) {
+  //   
+  //   for (auto i : neighbours) {
+  //     if (sparse_graph_->vertices_map_[iv]->sub_id != i->id) {
+  //     
+  //       Vertex* v = new Vertex (sparse_graph_->generateVertexID(), i->state);
+  //       v->is_root = false;
+  //       v->sub_id = i->id;
+  //       sparse_graph_->addVertex(v);
+  //     }
+  //   }
+  // }
+    
+    std::vector<node*> nodes;
+    nodes.clear();
+        
+    GraphManager::sampleNodes (nodes, state, 
+                              iterations_local_/100, bounding_box_size_/4);
+        
+    for (int i = 0; i < nodes.size(); i++) {
+      Vertex* vertex = new Vertex(sparse_graph_->generateVertexID(), ufoToState(*(nodes[i]->point)));
+      vertex->is_sampled = true;
+      // GraphManager::insertVertexKdtree(vertex);
+      sparse_graph_->addVertex(vertex); 
+    }
+    
+
 
   std::pair<Graph::GraphType::vertex_iterator,
             Graph::GraphType::vertex_iterator> vi;
@@ -607,8 +635,8 @@ void GraphManager::buildSparseGraph (State state) {
       
     // VOXBLOX CHECK 
 
-      if (sparse_graph_->vertices_map_[id]->edges < 6 
-          and sparse_graph_->distanceBetweenVertices(sparse_graph_->vertices_map_[id], nearby_vertices[i]) < max_edge_length_) 
+      if (sparse_graph_->vertices_map_[id]->edges < 5 
+          and sparse_graph_->distanceBetweenVertices(sparse_graph_->vertices_map_[id], nearby_vertices[i]) < 2*max_edge_length_) 
       { 
 
         Eigen::Vector3d v_n (nearby_vertices[i]->state[0], nearby_vertices[i]->state[1], nearby_vertices[i]->state[2]);
@@ -624,6 +652,7 @@ void GraphManager::buildSparseGraph (State state) {
     }
   } 
 
+  // ROS_INFO_STREAM ("Built Sparse graph with " << sparse_graph_->getNumVertices() << " nodes & " << sparse_graph_->getNumEdges() << " edges \n");
 } // buildSparseGraph 
 
 
@@ -639,14 +668,24 @@ void GraphManager::updateSparseGraph () {
     return;
   }
 
-  for (int it_s = 0; it_s < sparse_graph_->getNumVertices(); ++it_s) {
+  std::pair<Graph::GraphType::vertex_iterator,
+            Graph::GraphType::vertex_iterator> vi;
+  sparse_graph_->graph_->getVertexIterator(vi);
+  for (Graph::GraphType::vertex_iterator i_s = vi.first; i_s != vi.second; ++i_s) {
+
+    int it_s = sparse_graph_->graph_->getVertexProperty(i_s);
     
     Eigen::Vector3d v_s (sparse_graph_->vertices_map_[it_s]->state[0], 
                          sparse_graph_->vertices_map_[it_s]->state[1],
                          sparse_graph_->vertices_map_[it_s]->state[2]);
 
-    for (int it_f = 0; it_f < frontier_graph_->getNumVertices(); ++it_f) {
-  
+    std::pair<Graph::GraphType::vertex_iterator,
+            Graph::GraphType::vertex_iterator> vf;
+    frontier_graph_->graph_->getVertexIterator(vf);
+
+  for (Graph::GraphType::vertex_iterator i_f = vf.first; i_f != vf.second; ++i_f) {
+
+    int it_f = frontier_graph_->graph_->getVertexProperty(i_f);
 
       Eigen::Vector3d v_f (frontier_graph_->vertices_map_[it_f]->state[0], 
                            frontier_graph_->vertices_map_[it_f]->state[1],
@@ -840,9 +879,6 @@ void GraphManager::planLocalPath () {
   }
 
 } // buildLocalGraph
-
-
-
 
 
 void GraphManager::buildGlobalGraph () {
@@ -1213,7 +1249,7 @@ void GraphManager::fetchExplorationTargets()
     }
   }
 
-  GraphManager::updateSparseGraph();
+  // GraphManager::updateSparseGraph();
 
 }
 
@@ -1633,7 +1669,7 @@ void GraphManager::visualizeGlobalGraph() {
   std::shared_ptr<Graph> g = global_graph_->graph_;
   std::unordered_map<int, Vertex*>& v_map = global_graph_->vertices_map_;
 
-  if (sub_graph_->getNumVertices() == 0) return;
+  if (global_graph_->getNumVertices() == 0) return;
 
   visualization_msgs::MarkerArray marker_array;
 
@@ -1661,15 +1697,6 @@ void GraphManager::visualizeGlobalGraph() {
     int src_id, tgt_id;
     double weight;
     std::tie(src_id, tgt_id, weight) = g->getEdgeProperty(it);
-
-    // Vertex* src_v = global_graph_->getVertex(src_id);
-    // Vertex* tgt_v = global_graph_->getVertex(tgt_id);
-    //
-    // std::list<int>::iterator i_s;
-    // std::list<int>::iterator i_t;
-    // i_s = std::find(global_vertices_ids_.begin(), global_vertices_ids_.end(), src_id);
-    // i_t = std::find(global_vertices_ids_.begin(), global_vertices_ids_.end(), tgt_id);
-    // if (i_s != global_vertices_ids_.end() and i_t != global_vertices_ids_.end()) {
 
     geometry_msgs::Point p1;
     p1.x = v_map[src_id]->state[0];
@@ -1728,6 +1755,96 @@ void GraphManager::visualizeGlobalGraph() {
   global_Graph_Vis_Pub_.publish(marker_array);
 
 }
+
+void GraphManager::visualizeSparseGraph() {
+  std::shared_ptr<Graph> g = sparse_graph_->graph_;
+  std::unordered_map<int, Vertex*>& v_map = sparse_graph_->vertices_map_;
+
+  if (sparse_graph_->getNumVertices() == 0) return;
+
+  visualization_msgs::MarkerArray marker_array;
+
+  // Plot all edges
+  visualization_msgs::Marker edge_marker;
+  edge_marker.header.stamp = ros::Time::now();
+  edge_marker.header.seq = 0;
+  edge_marker.header.frame_id = "world";
+  edge_marker.id = 0;
+  edge_marker.ns = "edges";
+  edge_marker.action = visualization_msgs::Marker::ADD;
+  edge_marker.type = visualization_msgs::Marker::LINE_LIST;
+  edge_marker.scale.x = 0.04;
+  edge_marker.color.r = 240.0 / 255.0;
+  edge_marker.color.g = 230.0 / 255.0;
+  edge_marker.color.b = 130.0/ 255.0;
+  edge_marker.color.a = 1.0;
+  // edge_marker.lifetime = ros::Duration(graph_lifetime);
+  edge_marker.frame_locked = false;
+
+  std::pair<Graph::GraphType::edge_iterator, Graph::GraphType::edge_iterator>
+      ei;
+  g->getEdgeIterator(ei);
+  for (Graph::GraphType::edge_iterator it = ei.first; it != ei.second; ++it) {
+    int src_id, tgt_id;
+    double weight;
+    std::tie(src_id, tgt_id, weight) = g->getEdgeProperty(it);
+
+    geometry_msgs::Point p1;
+    p1.x = v_map[src_id]->state[0];
+    p1.y = v_map[src_id]->state[1];
+    p1.z = v_map[src_id]->state[2];
+    geometry_msgs::Point p2;
+    p2.x = v_map[tgt_id]->state[0];
+    p2.y = v_map[tgt_id]->state[1];
+    p2.z = v_map[tgt_id]->state[2];
+    edge_marker.points.push_back(p1);
+    edge_marker.points.push_back(p2);
+  }
+  marker_array.markers.push_back(edge_marker);
+
+  // Plot all vertices
+  visualization_msgs::Marker vertex_marker;
+  vertex_marker.header.stamp = ros::Time::now();
+  vertex_marker.header.seq = 0;
+  vertex_marker.header.frame_id = "world";
+  vertex_marker.id = 0;
+  vertex_marker.ns = "vertices";
+  vertex_marker.action = visualization_msgs::Marker::ADD;
+  vertex_marker.type = visualization_msgs::Marker::CUBE_LIST;
+  vertex_marker.scale.x = 0.3;
+  vertex_marker.scale.y = 0.3;
+  vertex_marker.scale.z = 0.3;
+  vertex_marker.color.r =  240.0 / 255.0;
+  vertex_marker.color.g = 230.0 / 255.0;
+  vertex_marker.color.b = 130.0 / 255.0;
+  vertex_marker.color.a = 1.0;
+  // vertex_marker.lifetime = ros::Duration(graph_lifetime);
+  vertex_marker.frame_locked = false;
+
+  std::pair<Graph::GraphType::vertex_iterator,
+            Graph::GraphType::vertex_iterator>
+      vi;
+  g->getVertexIterator(vi);
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
+    int id = g->getVertexProperty(it);
+    if (v_map[id]->edges > 2) {
+
+      geometry_msgs::Point p1;
+      p1.x = v_map[id]->state[0];
+      p1.y = v_map[id]->state[1];
+      p1.z = v_map[id]->state[2];
+
+      vertex_marker.points.push_back(p1);
+    }
+  }
+  marker_array.markers.push_back(vertex_marker);
+
+  sparse_Graph_Vis_Pub_.publish(marker_array);
+
+}
+
+
+
 void GraphManager::segmentPath(std::vector<Vertex*> path,
                                  nav_msgs::Path& path_seg) 
 {
@@ -1786,6 +1903,7 @@ void GraphManager::visualize () {
 
   GraphManager::visualizeLocalGraph ();
   GraphManager::visualizeGlobalGraph ();
+  GraphManager::visualizeSparseGraph ();
 }
 
 std_msgs::ColorRGBA GraphManager::heightMapColor(double h) {

@@ -47,7 +47,7 @@ struct Vertex {
     is_local = false;
     is_frontier = false;
     sub_id = 0;
-    neighbours = {};
+    // neighbours = {};
   }
 
   // Unique id for each vertex (root: 0, others: positive number).
@@ -74,7 +74,7 @@ struct Vertex {
   // Sub graph id to keep track while adding to global graph 
   int sub_id;
   // neighbours in x meters radius
-  std::vector<Vertex*> neighbours;
+  // std::vector<Vertex*> neighbours;
 };
 
 
