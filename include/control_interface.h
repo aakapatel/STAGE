@@ -55,6 +55,8 @@ private:
     bool path_exist = false;
     bool point_set = false;
     bool hold_now = false;
+    bool first_path;
+    
 
     double WP_SIZE; // squar radus of wp/point in path
     double ROT_ERROR;

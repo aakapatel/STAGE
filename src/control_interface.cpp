@@ -66,7 +66,15 @@ void ControlInterface::publishCallback(const ros::TimerEvent&){
             if(path_exist){
                 ControlInterface::updatePath();
                 path_pose.header.frame_id = frame_id;
+                geometry_msgs::Point end_pos;
+                end_pos.x = path.poses.back().pose.position.x;
+                end_pos.y = path.poses.back().pose.position.y;
+                end_pos.z = path.poses.back().pose.position.z;
+                if (!atPoint(end_pos)) {
                 ref_pub.publish(path_pose);
+                } else {
+                  ROS_WARN ("Reached end of path, fetching new path.. \n");
+                }         
                 // ROS_INFO_STREAM ("Publishing Reference " << "\n");
             }
             break;
@@ -101,10 +109,11 @@ void ControlInterface::publishCallback(const ros::TimerEvent&){
 }
 
 void ControlInterface::pathCallback(const nav_msgs::PathConstPtr& msg){
+  
     path = *msg;
     index = 0;
     path_exist = true;
-    ROS_INFO ("Path Received");
+    // ROS_INFO ("Path Received");
     ControlInterface::setPose();
     return;
 }
@@ -172,7 +181,7 @@ bool ControlInterface::atPoint(geometry_msgs::Point point){
         pow(odom.pose.position.y - point.y, 2) + pow(odom.pose.position.z - point.z, 2) )  < WP_SIZE;
     } else {
     return sqrt( pow(odom.pose.position.x - point.x, 2) + 
-        pow(odom.pose.position.y - point.y, 2)  + pow(odom.pose.position.z - point.z, 2) ) < WP_SIZE;
+        pow(odom.pose.position.y - point.y, 2)) < WP_SIZE;
     }
     return false;
 }
