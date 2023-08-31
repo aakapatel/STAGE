@@ -78,6 +78,6 @@ private:
 
     // TODO NOT SAFE!!!!!! CHANGE THIS TO HOLD 
 
-    STATE state = PATH; //DEBUG ONLY. IT SHOULD BE HOLD MODE
+    STATE state = HOLD; //DEBUG ONLY. IT SHOULD BE HOLD MODE
 
 };

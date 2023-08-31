@@ -3,8 +3,8 @@
 namespace stage_planner_ui {
 
 stage_planner_panel::stage_planner_panel(QWidget* parent) : rviz::Panel(parent) {
-  planner_client_start_planner = nh.serviceClient<std_srvs::Trigger>(
-      "/planner_control_interface/std_srvs/automatic_planning");
+  planner_client_state = nh.advertise<std_msgs::String>(
+      "/state", 1); 
   planner_client_stop_planner = nh.serviceClient<stage_planner::stopPlanning>(
       "/stop_planner");
   planner_client_homing = nh.serviceClient<stage_planner::homePlanning>(
@@ -12,51 +12,84 @@ stage_planner_panel::stage_planner_panel(QWidget* parent) : rviz::Panel(parent) 
   planner_client_init_motion =
       nh.serviceClient<stage_planner::initializePlanning>(
           "/initialize_planner");
-  planner_client_plan_to_waypoint = nh.serviceClient<std_srvs::Trigger>(
-      "/planner_control_interface/std_srvs/go_to_waypoint");
 
-  QVBoxLayout* v_box_layout = new QVBoxLayout;
 
-  button_start_planner = new QPushButton;
+  QGridLayout* grid_layout = new QGridLayout;
+  
+  button_set_state_path = new QPushButton; 
+  
   button_stop_planner = new QPushButton;
+  
   button_homing = new QPushButton;
+  
   button_init_motion = new QPushButton;
-  button_plan_to_waypoint = new QPushButton;
+  
+  button_set_state_hold = new QPushButton; 
+  
+  // SET TEXT ON BUTTON 
 
-  button_start_planner->setText("Start Planning");
-  button_stop_planner->setText("Stop Planning");
-  button_homing->setText("Return to Base");
   button_init_motion->setText("Initialize");
-  button_plan_to_waypoint->setText("Go to Waypoint");
+  button_init_motion->setStyleSheet("background-color : Yellow");
+  
+  button_set_state_path->setText("PATH");
+  button_set_state_path->setStyleSheet("background-color : Green");
+  
+  button_stop_planner->setText("Stop Planning");
+  button_stop_planner->setStyleSheet("background-color : Orange");
+  
+  button_homing->setText("Return to Base");
+  button_homing->setStyleSheet("background-color : Blue");
+  
+  button_set_state_hold->setText("HOLD");
+  button_set_state_hold->setStyleSheet("background-color : Red");
 
-  v_box_layout->addWidget(button_start_planner);
-  v_box_layout->addWidget(button_stop_planner);
-  v_box_layout->addWidget(button_homing);
-  v_box_layout->addWidget(button_init_motion);
-  v_box_layout->addWidget(button_plan_to_waypoint);
+  grid_layout->addWidget(button_init_motion, 0, 0, 1 ,1);
+  
+  grid_layout->addWidget(button_set_state_path, 0, 1, 1, 1);
+  
+  grid_layout->addWidget(button_stop_planner, 1, 0, 1, 1);
+ 
+  grid_layout->addWidget(button_homing, 1, 1, 1, 1);
 
+  grid_layout->addWidget(button_set_state_hold, 2, 0, 1, 2);
 
-  setLayout(v_box_layout);
+  // setLayout(v_box_layout);
+  setLayout(grid_layout);
 
-  connect(button_start_planner, SIGNAL(clicked()), this,
-          SLOT(on_start_planner_click()));
-  connect(button_stop_planner, SIGNAL(clicked()), this,
-          SLOT(on_stop_planner_click()));
-  connect(button_homing, SIGNAL(clicked()), this, SLOT(on_homing_click()));
   connect(button_init_motion, SIGNAL(clicked()), this,
           SLOT(on_init_motion_click()));
-  connect(button_plan_to_waypoint, SIGNAL(clicked()), this,
-          SLOT(on_plan_to_waypoint_click()));
+
+  connect(button_set_state_path, SIGNAL(clicked()), this,
+          SLOT(on_state_path_click()));
+
+  connect(button_stop_planner, SIGNAL(clicked()), this,
+          SLOT(on_stop_planner_click()));
+
+  connect(button_homing, SIGNAL(clicked()), this, 
+          SLOT(on_homing_click()));
+
+  connect(button_set_state_hold, SIGNAL(clicked()), this,
+          SLOT(on_state_hold_click()));
 
 }
 
-void stage_planner_panel::on_start_planner_click() {
-  std_srvs::Trigger srv;
-  if (!planner_client_start_planner.call(srv)) {
+void stage_planner_panel::on_init_motion_click() {
+  stage_planner::initializePlanning init_planner_srv;
+  init_planner_srv.request.initialize = true;
+  if (!planner_client_init_motion.call(init_planner_srv)) {
     ROS_ERROR("[STAGE_PLANNER-UI] Service call failed: %s",
-              planner_client_start_planner.getService().c_str());
+              planner_client_init_motion.getService().c_str());
   }
 }
+
+void stage_planner_panel::on_state_path_click() {
+  std::string s = "PATH";
+  std_msgs::String state;
+  state.data = s;
+  planner_client_state.publish(state);
+}
+
+
 
 void stage_planner_panel::on_stop_planner_click() {
   stage_planner::stopPlanning stop_planner_srv;
@@ -76,21 +109,11 @@ void stage_planner_panel::on_homing_click() {
   }
 }
 
-void stage_planner_panel::on_init_motion_click() {
-  stage_planner::initializePlanning init_planner_srv;
-  init_planner_srv.request.initialize = true;
-  if (!planner_client_init_motion.call(init_planner_srv)) {
-    ROS_ERROR("[STAGE_PLANNER-UI] Service call failed: %s",
-              planner_client_init_motion.getService().c_str());
-  }
-}
-
-void stage_planner_panel::on_plan_to_waypoint_click() {
-  std_srvs::Trigger srv;
-  if (!planner_client_plan_to_waypoint.call(srv)) {
-    ROS_ERROR("[STAGE_PLANNER-UI] Service call failed: %s",
-              planner_client_plan_to_waypoint.getService().c_str());
-  }
+void stage_planner_panel::on_state_hold_click() {
+  std::string s = "HOLD";
+  std_msgs::String state;
+  state.data = s;
+  planner_client_state.publish(state);
 }
 
 
