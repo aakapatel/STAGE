@@ -638,24 +638,25 @@ void GraphManager::buildSparseGraph(State state)
 
       for (int i = 0; i < nearby_vertices.size(); i++)
       {
-        
-        if (!sparse_graph_->vertices_map_[id]->is_frontier or !nearby_vertices[i]->is_frontier) {
 
-        if (sparse_graph_->vertices_map_[id]->edges < 5 and sparse_graph_->distanceBetweenVertices(sparse_graph_->vertices_map_[id], nearby_vertices[i]) < 1.5 * max_edge_length_)
+        if (!sparse_graph_->vertices_map_[id]->is_frontier or !nearby_vertices[i]->is_frontier)
         {
 
-          Eigen::Vector3d v_n(nearby_vertices[i]->state[0], nearby_vertices[i]->state[1], nearby_vertices[i]->state[2]);
-          MapManager::VoxelStatus vn = map_manager_->getPathStatus(v, v_n, robot_box_size_, true);
-
-          if (MapManager::VoxelStatus::kFree == vn)
+          if (sparse_graph_->vertices_map_[id]->edges < 5 and sparse_graph_->distanceBetweenVertices(sparse_graph_->vertices_map_[id], nearby_vertices[i]) < 1.5 * max_edge_length_)
           {
 
-            sparse_graph_->addEdge(sparse_graph_->vertices_map_[id], nearby_vertices[i],
-                                   sparse_graph_->distanceBetweenVertices(sparse_graph_->vertices_map_[id], nearby_vertices[i]));
-            sparse_graph_->vertices_map_[id]->edges++;
+            Eigen::Vector3d v_n(nearby_vertices[i]->state[0], nearby_vertices[i]->state[1], nearby_vertices[i]->state[2]);
+            MapManager::VoxelStatus vn = map_manager_->getPathStatus(v, v_n, robot_box_size_, true);
+
+            if (MapManager::VoxelStatus::kFree == vn)
+            {
+
+              sparse_graph_->addEdge(sparse_graph_->vertices_map_[id], nearby_vertices[i],
+                                     sparse_graph_->distanceBetweenVertices(sparse_graph_->vertices_map_[id], nearby_vertices[i]));
+              sparse_graph_->vertices_map_[id]->edges++;
+            }
           }
         }
-      }
       }
     }
   }
@@ -677,29 +678,31 @@ void GraphManager::updateSparseGraph()
     ROS_WARN("Frontier graph is empty! can not update sparse graph \n");
     return;
   }
-  
-  ROS_INFO_STREAM ("Before update graph has " << sparse_graph_->getNumVertices() << " vertices & " << sparse_graph_->getNumEdges() << " edges" << "\n");
+
+  ROS_INFO_STREAM("Before update graph has " << sparse_graph_->getNumVertices() << " vertices & " << sparse_graph_->getNumEdges() << " edges"
+                                             << "\n");
   int A = 0;
   int B = 0;
-   std::pair<Graph::GraphType::vertex_iterator,
+  std::pair<Graph::GraphType::vertex_iterator,
             Graph::GraphType::vertex_iterator>
       vb;
   sparse_graph_->graph_->getVertexIterator(vb);
 
   std::vector<int> ids;
   ids.clear();
-  for (Graph::GraphType::vertex_iterator it = vb.first; it != vb.second; ++it) 
+  for (Graph::GraphType::vertex_iterator it = vb.first; it != vb.second; ++it)
   {
     int i = sparse_graph_->graph_->getVertexProperty(it);
-    if (sparse_graph_->vertices_map_[i]->is_frontier) {
+    if (sparse_graph_->vertices_map_[i]->is_frontier)
+    {
       A++;
       ids.push_back(i);
     }
   }
 
-  for (int i : ids) 
+  for (int i : ids)
   {
-    
+
     sparse_graph_->clearVertex(sparse_graph_->vertices_map_[i]->id);
     sparse_graph_->removeVertex(sparse_graph_->vertices_map_[i]->id);
   }
@@ -713,15 +716,16 @@ void GraphManager::updateSparseGraph()
 
     int i = sparse_graph_->graph_->getVertexProperty(it);
 
-    if (sparse_graph_->vertices_map_[i]->is_frontier) {
+    if (sparse_graph_->vertices_map_[i]->is_frontier)
+    {
       B++;
     }
-  
   }
 
-  ROS_INFO_STREAM ("A " << A << " B " << B << "\n");
-  ROS_INFO_STREAM ("After update graph has " << sparse_graph_->getNumVertices() << " vertices & " << sparse_graph_->getNumEdges() << " edges" << "\n");
-  
+  ROS_INFO_STREAM("A " << A << " B " << B << "\n");
+  ROS_INFO_STREAM("After update graph has " << sparse_graph_->getNumVertices() << " vertices & " << sparse_graph_->getNumEdges() << " edges"
+                                            << "\n");
+
   for (int i = 0; i < frontier_graph_->getNumVertices(); ++i)
   {
 
@@ -1956,12 +1960,12 @@ void GraphManager::visualizeSparseGraph()
   for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
   {
     int id = g->getVertexProperty(it);
-      geometry_msgs::Point p1;
-      p1.x = v_map[id]->state[0];
-      p1.y = v_map[id]->state[1];
-      p1.z = v_map[id]->state[2];
+    geometry_msgs::Point p1;
+    p1.x = v_map[id]->state[0];
+    p1.y = v_map[id]->state[1];
+    p1.z = v_map[id]->state[2];
 
-      vertex_marker.points.push_back(p1);
+    vertex_marker.points.push_back(p1);
   }
   marker_array.markers.push_back(vertex_marker);
 
