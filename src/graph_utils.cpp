@@ -34,6 +34,30 @@ void GraphUtils::reset() {
 
 }
 
+bool GraphUtils::edgeExist (int source_id, int target_id) {
+  
+  bool exist = false;
+  std::shared_ptr<Graph> g = graph_;
+  std::unordered_map<int, Vertex*>& v_map = vertices_map_;
+  if (getNumVertices() == 0) return false;
+
+  std::pair<Graph::GraphType::edge_iterator, Graph::GraphType::edge_iterator>
+      ei;
+  g->getEdgeIterator(ei);
+  for (Graph::GraphType::edge_iterator it = ei.first; it != ei.second; ++it) {
+    int src_id, tgt_id;
+    double weight;
+    std::tie(src_id, tgt_id, weight) = g->getEdgeProperty(it);
+    if (tgt_id == source_id and src_id == target_id) {
+      exist = true;
+    } else {
+      exist = false;
+    }
+  }
+  return exist;
+}
+
+
 Vertex* GraphUtils::getVertexBySubId (int s_id) {
   
   Vertex* v;

@@ -94,6 +94,7 @@ public:
   // Generate ID for new vertex.
   int generateVertexID();
 
+  bool edgeExist (int source_id, int target_id);
   // Basic functions on graph including add new vertex and edge.
   void addVertex(Vertex* v);
   void addEdge(Vertex* v, Vertex* u, double weight);
