@@ -695,16 +695,13 @@ void GraphManager::updateSparseGraph()
       A++;
       ids.push_back(i);
     }
-  
   }
 
   for (int i : ids) 
   {
     
-    sparse_graph_->clearVertex(i);
-    sparse_graph_->removeVertex(i);
-    // sparse_graph_->vertices_map_[i]->is_frontier = false;
-  
+    sparse_graph_->clearVertex(sparse_graph_->vertices_map_[i]->id);
+    sparse_graph_->removeVertex(sparse_graph_->vertices_map_[i]->id);
   }
 
   std::pair<Graph::GraphType::vertex_iterator,
@@ -722,7 +719,7 @@ void GraphManager::updateSparseGraph()
   
   }
 
-  ROS_ERROR_STREAM ("A " << A << " B " << B << "\n");
+  ROS_INFO_STREAM ("A " << A << " B " << B << "\n");
   ROS_INFO_STREAM ("After update graph has " << sparse_graph_->getNumVertices() << " vertices & " << sparse_graph_->getNumEdges() << " edges" << "\n");
   
   for (int i = 0; i < frontier_graph_->getNumVertices(); ++i)
