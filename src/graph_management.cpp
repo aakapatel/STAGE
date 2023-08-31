@@ -680,7 +680,10 @@ void GraphManager::updateSparseGraph()
 
   for (auto i = 0; i < sparse_graph_->getNumVertices(); ++i)
   {
-    sparse_graph_->vertices_map_[i]->is_frontier = false;
+    if (sparse_graph_->vertices_map_[i]->is_frontier) {
+      sparse_graph_->removeVertex(sparse_graph_->vertices_map_[i]->id);
+    }
+    // sparse_graph_->vertices_map_[i]->is_frontier = false;
   }
 
   for (int i = 0; i < frontier_graph_->getNumVertices(); ++i)
