@@ -100,6 +100,7 @@ public:
   void addEdge(Vertex* v, Vertex* u, double weight);
   void removeEdge(Vertex* v, Vertex* u);
   void removeVertex(int id);
+  void clearVertex(int id);
 
 
   int getNumVertices() { return graph_->getNumVertices(); }

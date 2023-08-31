@@ -679,16 +679,50 @@ void GraphManager::updateSparseGraph()
   }
   
   ROS_INFO_STREAM ("Before update graph has " << sparse_graph_->getNumVertices() << " vertices & " << sparse_graph_->getNumEdges() << " edges" << "\n");
+  int A = 0;
+  int B = 0;
+   std::pair<Graph::GraphType::vertex_iterator,
+            Graph::GraphType::vertex_iterator>
+      vb;
+  sparse_graph_->graph_->getVertexIterator(vb);
 
-  for (auto i = 0; i < sparse_graph_->getNumVertices(); ++i)
+  std::vector<int> ids;
+  ids.clear();
+  for (Graph::GraphType::vertex_iterator it = vb.first; it != vb.second; ++it) 
   {
+    int i = sparse_graph_->graph_->getVertexProperty(it);
     if (sparse_graph_->vertices_map_[i]->is_frontier) {
-      sparse_graph_->removeVertex(sparse_graph_->vertices_map_[i]->id);
+      A++;
+      ids.push_back(i);
     }
+  
+  }
+
+  for (int i : ids) 
+  {
+    
+    sparse_graph_->clearVertex(i);
+    sparse_graph_->removeVertex(i);
     // sparse_graph_->vertices_map_[i]->is_frontier = false;
   
   }
 
+  std::pair<Graph::GraphType::vertex_iterator,
+            Graph::GraphType::vertex_iterator>
+      vd;
+  sparse_graph_->graph_->getVertexIterator(vd);
+  for (Graph::GraphType::vertex_iterator it = vd.first; it != vd.second; ++it)
+  {
+
+    int i = sparse_graph_->graph_->getVertexProperty(it);
+
+    if (sparse_graph_->vertices_map_[i]->is_frontier) {
+      B++;
+    }
+  
+  }
+
+  ROS_ERROR_STREAM ("A " << A << " B " << B << "\n");
   ROS_INFO_STREAM ("After update graph has " << sparse_graph_->getNumVertices() << " vertices & " << sparse_graph_->getNumEdges() << " edges" << "\n");
   
   for (int i = 0; i < frontier_graph_->getNumVertices(); ++i)
@@ -1925,16 +1959,12 @@ void GraphManager::visualizeSparseGraph()
   for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
   {
     int id = g->getVertexProperty(it);
-    if (v_map[id]->edges > 2)
-    {
-
       geometry_msgs::Point p1;
       p1.x = v_map[id]->state[0];
       p1.y = v_map[id]->state[1];
       p1.z = v_map[id]->state[2];
 
       vertex_marker.points.push_back(p1);
-    }
   }
   marker_array.markers.push_back(vertex_marker);
 

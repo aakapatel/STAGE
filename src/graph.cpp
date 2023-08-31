@@ -40,6 +40,22 @@ void Graph::removeEdge(int u_id, int v_id) {
                      graph_);
 }
 
+void Graph::clearVertex (int u_id) {
+  if (vertex_descriptors_.find(u_id) == vertex_descriptors_.end()) {
+    return;
+  }
+  GraphType::vertex_iterator vi, vi_end, next;
+  std::tie(vi, vi_end) = vertices(graph_);
+  for (next = vi; vi != vi_end; vi = next) {
+    ++next;
+    if (getVertexProperty(vi) == u_id) {
+      std::cout << "START \n" << std::endl;
+      boost::clear_vertex(*vi, graph_);
+      std::cout << "vertex cleared \n " << std::endl;
+    }
+  }
+}
+
 void Graph::removeVertex (int u_id) {
   if (vertex_descriptors_.find(u_id) == vertex_descriptors_.end()) {
     return;
@@ -49,15 +65,11 @@ void Graph::removeVertex (int u_id) {
   for (next = vi; vi != vi_end; vi = next) {
     ++next;
     if (getVertexProperty(vi) == u_id) {
-      // std::cout << "START \n" << std::endl;
-      boost::clear_vertex(*vi, graph_);
-      // std::cout << "vertex cleared \n " << std::endl;
+      std::cout << "START \n" << std::endl;
       boost::remove_vertex(*vi, graph_);
-      // std::cout << "vertex removed \n " << std::endl;
+      std::cout << "vertex removed \n " << std::endl;
     }
   }
-  
-  // boost::remove_vertex(vertex_descriptors_[u_id], graph_);
 }
 
 bool Graph::findDijkstraShortestPaths(int src_id, ShortestPathsReport& rep) {

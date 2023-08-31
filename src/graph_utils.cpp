@@ -111,6 +111,10 @@ void GraphUtils::removeEdge(Vertex* v, Vertex* u) {
   graph_->removeEdge(v->id, u->id);
 }
 
+void GraphUtils::clearVertex (int id) {
+  graph_->clearVertex(id);
+}
+
 void GraphUtils::removeVertex (int id) {
   graph_->removeVertex(id);
 }
