@@ -89,8 +89,6 @@ void stage_planner_panel::on_state_path_click() {
   planner_client_state.publish(state);
 }
 
-
-
 void stage_planner_panel::on_stop_planner_click() {
   stage_planner::stopPlanning stop_planner_srv;
   stop_planner_srv.request.stop = true;
