@@ -677,6 +677,8 @@ void GraphManager::updateSparseGraph()
     ROS_WARN("Frontier graph is empty! can not update sparse graph \n");
     return;
   }
+  
+  ROS_INFO_STREAM ("Before update graph has " << sparse_graph_->getNumVertices() << " vertices & " << sparse_graph_->getNumEdges() << " edges" << "\n");
 
   for (auto i = 0; i < sparse_graph_->getNumVertices(); ++i)
   {
@@ -684,8 +686,11 @@ void GraphManager::updateSparseGraph()
       sparse_graph_->removeVertex(sparse_graph_->vertices_map_[i]->id);
     }
     // sparse_graph_->vertices_map_[i]->is_frontier = false;
+  
   }
 
+  ROS_INFO_STREAM ("After update graph has " << sparse_graph_->getNumVertices() << " vertices & " << sparse_graph_->getNumEdges() << " edges" << "\n");
+  
   for (int i = 0; i < frontier_graph_->getNumVertices(); ++i)
   {
 
