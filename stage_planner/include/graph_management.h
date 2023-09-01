@@ -161,7 +161,7 @@ private:
   int subgraph_ind_ = -1;
   int local_target_vertex_id;
   
-  int latest_sub_graph_index = -1;
+  int latest_sub_graph_id = -1;
 
   std::vector<std::pair<std::vector<Vertex *>, double>> local_paths_;
   std::vector<std::pair<std::vector<Vertex *>, double>> global_paths_;
