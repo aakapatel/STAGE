@@ -344,9 +344,9 @@ void StageInterface::generateTrajectory() {
     init_pose.pose.orientation.z = 0;
     init_pose.pose.orientation.w = 1;
     initialization_path.poses.push_back(init_pose);
-    init_pose.pose.position.x = robotState_[1] + init_x_;
+    init_pose.pose.position.x = robotState_[0] + init_x_;
     init_pose.pose.position.y = robotState_[1] + init_y_;
-    init_pose.pose.position.z = robotState_[1] + init_z_;
+    init_pose.pose.position.z = robotState_[2] + init_z_;
     init_pose.pose.orientation.x = 0;
     init_pose.pose.orientation.y = 0;
     init_pose.pose.orientation.z = 0;
