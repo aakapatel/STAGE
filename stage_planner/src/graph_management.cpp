@@ -80,6 +80,8 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
   local_Paths_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/local_dijkstra_paths", 10);
 
   global_Paths_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/global_dijkstra_paths", 10);
+  
+  overlap_Vis_Pub_ = nh_.advertise<visualization_msgs::Marker>("/overlap_point", 10);
 
   // Services
   m_frontier_client = nh_.serviceClient<stage_planner::frontierRequest>("request_frontier_target");
@@ -809,6 +811,19 @@ void GraphManager::buildLocalGraph()
 {
 
   // high_resolution_clock::time_point start_total = high_resolution_clock::now();
+  
+  if (!init) {
+    previous_root[0] = sub_graph_->vertices_map_[0]->state[0];
+    previous_root[1] = sub_graph_->vertices_map_[0]->state[1];
+    previous_root[2] = sub_graph_->vertices_map_[0]->state[2];
+    init = false;
+  } else {
+
+    previous_root[0] = robotState_[0];
+    previous_root[1] = robotState_[1];
+    previous_root[2] = robotState_[2];
+    init = false;
+  }
 
   GraphManager::resetLocalGraph();
   
@@ -823,6 +838,12 @@ void GraphManager::buildLocalGraph()
   root_vertex->sub_id = root_vertex->id;
   root_vertex->sub_graph_id = latest_sub_graph_id;
   sub_graph_->addVertex(root_vertex);
+  
+  latest_root[0] = root_vertex->state[0];
+  latest_root[1] = root_vertex->state[1];
+  latest_root[2] = root_vertex->state[2];
+  
+
 
   std::vector<node *> nodes;
   nodes.clear();
@@ -1064,7 +1085,41 @@ void GraphManager::buildGlobalGraph()
       ei;
   global_graph_->graph_->getVertexIterator(vi);
   global_graph_->graph_->getEdgeIterator(ei);
+  
+  Eigen::Vector3d direction = latest_root - previous_root;
+  overlap_point = previous_root + (direction/2.0);
 
+  visualization_msgs::Marker vertex_marker;
+  vertex_marker.header.stamp = ros::Time::now();
+  vertex_marker.header.seq = 0;
+  vertex_marker.header.frame_id = "world";
+  vertex_marker.id = 0;
+  vertex_marker.ns = "overlap";
+  vertex_marker.action = visualization_msgs::Marker::ADD;
+  vertex_marker.type = visualization_msgs::Marker::SPHERE;
+  vertex_marker.pose.position.x = overlap_point[0];
+  vertex_marker.pose.position.y = overlap_point[1];
+  vertex_marker.pose.position.z = overlap_point[2];
+  vertex_marker.scale.x = 4;
+  vertex_marker.scale.y = 4;
+  vertex_marker.scale.z = 4;
+  vertex_marker.color.r = 125.0 / 255.0;
+  vertex_marker.color.g = 42.0 / 255.0;
+  vertex_marker.color.b = 104.0 / 255.0;
+  vertex_marker.color.a = 0.6;
+  vertex_marker.frame_locked = false;
+     
+  overlap_Vis_Pub_.publish(vertex_marker);
+
+  std::vector<Vertex *> nearby_vertices;
+  // global_graph_->getNearestVertices(&global_graph_->vertices_map_[id]->state, 1, &nearby_vertices);
+      
+  State s;
+  s[0] = overlap_point[0];
+  s[1] = overlap_point[1];
+  s[2] = overlap_point[2];
+  global_graph_->getNearestVertices(&s, 6, &nearby_vertices);
+  
   for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
   {
 
@@ -1078,14 +1133,8 @@ void GraphManager::buildGlobalGraph()
                         global_graph_->vertices_map_[id]->state[1],
                         global_graph_->vertices_map_[id]->state[2]);
       
-      std::vector<Vertex *> nearby_vertices;
-      global_graph_->getNearestVertices(&global_graph_->vertices_map_[id]->state, 1, &nearby_vertices);
-
+      
       for (int i = 0; i < nearby_vertices.size(); ++i) {
-        
-        // ROS_INFO_STREAM ("global vertex sub g id : " << global_graph_->vertices_map_[id]->sub_graph_id << "\n");
-        // ROS_INFO_STREAM ("nearby vertex sub g id : " << nearby_vertices[i]->sub_graph_id << "\n");
-        // ROS_INFO_STREAM ("latest sub g id : " << latest_sub_graph_id << "\n");
         
         if (nearby_vertices[i]->sub_graph_id == (latest_sub_graph_id - 1)) {
           

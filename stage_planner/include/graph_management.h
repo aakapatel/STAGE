@@ -132,7 +132,11 @@ public:
   bool robot_aerial_ = false;
   double max_graph_height_ = 2;
 
+  Eigen::Vector3d latest_root;
+  Eigen::Vector3d previous_root;
+  Eigen::Vector3d overlap_point;
 
+  bool init = true;
 
 private:
   ros::NodeHandle nh_;
@@ -241,6 +245,7 @@ private:
   ros::Publisher global_Graph_Vis_Pub_;
   ros::Publisher frontier_Graph_Vis_Pub_;
   ros::Publisher sparse_Graph_Vis_Pub_;
+  ros::Publisher overlap_Vis_Pub_;
 
   // Services
   ros::ServiceClient m_frontier_client;
