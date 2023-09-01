@@ -816,7 +816,7 @@ void GraphManager::buildLocalGraph()
   
   // ROS_INFO_STREAM ("Sub graph index : " << sub_graph_->subgraph_ind_ << "\n");
 
-  GraphManager::updateKdtree();
+  // GraphManager::updateKdtree();
 
   Vertex *root_vertex = new Vertex(sub_graph_->generateVertexID(), robotState_);
   root_vertex->is_root = true;
@@ -972,7 +972,7 @@ void GraphManager::planLocalPath()
 
   if (!local_paths_.empty())
   {
-
+    GraphManager::visualizeLocalGraph ();
     GraphManager::visualizeLocalPaths(local_paths_);
   }
   else
@@ -1081,9 +1081,9 @@ void GraphManager::buildGlobalGraph()
 
       for (int i = 0; i < nearby_vertices.size(); ++i) {
         
-        ROS_INFO_STREAM ("global vertex sub g id : " << global_graph_->vertices_map_[id]->sub_graph_id << "\n");
-        ROS_INFO_STREAM ("nearby vertex sub g id : " << nearby_vertices[i]->sub_graph_id << "\n");
-        ROS_INFO_STREAM ("latest sub g id : " << latest_sub_graph_id << "\n");
+        // ROS_INFO_STREAM ("global vertex sub g id : " << global_graph_->vertices_map_[id]->sub_graph_id << "\n");
+        // ROS_INFO_STREAM ("nearby vertex sub g id : " << nearby_vertices[i]->sub_graph_id << "\n");
+        // ROS_INFO_STREAM ("latest sub g id : " << latest_sub_graph_id << "\n");
         
         if (nearby_vertices[i]->sub_graph_id = latest_sub_graph_id - 1) {
           
@@ -1104,8 +1104,7 @@ void GraphManager::buildGlobalGraph()
 
           }
 
-        } else if (global_graph_->vertices_map_[id]->is_frontier) {
-
+        } else if (global_graph_->vertices_map_[id]->is_frontier or nearby_vertices[i]->is_frontier) {
 
             int nearby_vertex_id = nearby_vertices[i]->id;
 
@@ -1228,6 +1227,8 @@ void GraphManager::planGlobalPath()
   if (!global_paths_.empty())
   {
 
+
+    GraphManager::visualizeGlobalGraph();
     GraphManager::visualizeGlobalPaths(global_paths_);
   }
   else
@@ -1488,7 +1489,7 @@ void GraphManager::fetchExplorationTargets()
     }
   }
 
-  GraphManager::updateSparseGraph();
+  // GraphManager::updateSparseGraph();
 }
 
 bool GraphManager::isLastTargetFrontier(geometry_msgs::Point last_target_frontier)
@@ -1956,6 +1957,24 @@ void GraphManager::visualizeGlobalGraph()
   // vertex_marker.lifetime = ros::Duration(graph_lifetime);
   vertex_marker.frame_locked = false;
 
+  visualization_msgs::Marker frontier_vertex_marker;
+  frontier_vertex_marker.header.stamp = ros::Time::now();
+  frontier_vertex_marker.header.seq = 0;
+  frontier_vertex_marker.header.frame_id = "world";
+  frontier_vertex_marker.id = 0;
+  frontier_vertex_marker.ns = "frontier";
+  frontier_vertex_marker.action = visualization_msgs::Marker::ADD;
+  frontier_vertex_marker.type = visualization_msgs::Marker::CUBE_LIST;
+  frontier_vertex_marker.scale.x = 0.4;
+  frontier_vertex_marker.scale.y = 0.4;
+  frontier_vertex_marker.scale.z = 0.4;
+  frontier_vertex_marker.color.r = 255.0 / 255.0;
+  frontier_vertex_marker.color.g = 0.0 / 255.0;
+  frontier_vertex_marker.color.b = 0.0 / 255.0;
+  frontier_vertex_marker.color.a = 1.0;
+  frontier_vertex_marker.frame_locked = false;
+
+
   std::pair<Graph::GraphType::vertex_iterator,
             Graph::GraphType::vertex_iterator>
       vi;
@@ -1963,10 +1982,16 @@ void GraphManager::visualizeGlobalGraph()
   for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
   {
     int id = g->getVertexProperty(it);
+    if (v_map[id]->is_frontier) {
 
-    // std::list<int>::iterator v_it;
-    // v_it = std::find(global_vertices_ids_.begin(), global_vertices_ids_.end(), id);
-    // if (v_it != global_vertices_ids_.end()) {
+    geometry_msgs::Point p1;
+    p1.x = v_map[id]->state[0];
+    p1.y = v_map[id]->state[1];
+    p1.z = v_map[id]->state[2];
+
+    frontier_vertex_marker.points.push_back(p1);
+
+    }
 
     geometry_msgs::Point p1;
     p1.x = v_map[id]->state[0];
@@ -1974,9 +1999,9 @@ void GraphManager::visualizeGlobalGraph()
     p1.z = v_map[id]->state[2];
 
     vertex_marker.points.push_back(p1);
-    // }
   }
   marker_array.markers.push_back(vertex_marker);
+  marker_array.markers.push_back(frontier_vertex_marker);
 
   global_Graph_Vis_Pub_.publish(marker_array);
 }
@@ -2132,8 +2157,8 @@ void GraphManager::segmentPath(std::vector<Vertex *> path,
 void GraphManager::visualize()
 {
 
-  GraphManager::visualizeLocalGraph();
-  GraphManager::visualizeGlobalGraph();
+  // GraphManager::visualizeLocalGraph();
+  // GraphManager::visualizeGlobalGraph();
   GraphManager::visualizeSparseGraph();
 }
 
