@@ -27,7 +27,8 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
       safety_margin(0.5),
       robot_box_x(0.5),
       robot_box_y(0.5),
-      robot_box_z(0.5)
+      robot_box_z(0.5),
+      robot_aerial_(false)
 
 {
   // map_manager_ =
@@ -53,6 +54,7 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
 
   nh_private_.param("safety_margin", safety_margin, safety_margin);
 
+  nh_private_.param("robot_aerial", robot_aerial_, robot_aerial_);
   nh_private_.param("robot_x", robot_box_x, robot_box_x);
   nh_private_.param("robot_y", robot_box_y, robot_box_y);
   nh_private_.param("robot_z", robot_box_z, robot_box_z);
@@ -95,6 +97,11 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
   robot_box_size_[0] = robot_box_x;
   robot_box_size_[1] = robot_box_y;
   robot_box_size_[2] = robot_box_z;
+
+
+  if (!robot_aerial_) {
+    max_graph_height_ = 1;
+  } 
 
   map_manager_->setRobotRadius(robot_box_size_.norm() / 2.0);
 };
@@ -378,9 +385,17 @@ void GraphManager::sampleNodes(std::vector<node *> &nodes, State state, int iter
 
     // Generate a random point
 
+    float z;
     float x = lowest_x + abs(1024 * rand() / (RAND_MAX + 1.0)) * box.x();
     float y = lowest_y + abs(1024 * rand() / (RAND_MAX + 1.0)) * box.y();
-    float z = lowest_z + abs(1024 * rand() / (RAND_MAX + 1.0)) * box.z();
+    
+    if (robot_aerial_) {
+
+      z = lowest_z + abs(1024 * rand() / (RAND_MAX + 1.0)) * box.z();
+    } else {
+
+      z = robotState_[2] + abs(1024 * rand() / (RAND_MAX + 1.0)) * max_graph_height_;
+    }
     ufo::math::Vector3 random_point(x, y, z);
     Eigen::Vector3d random_state(x, y, z);
     if (MapManager::VoxelStatus::kFree ==

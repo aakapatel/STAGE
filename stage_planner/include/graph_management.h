@@ -127,6 +127,11 @@ public:
 
   ros::Timer graph_timer_;
 
+  bool robot_aerial_ = false;
+  double max_graph_height_ = 2;
+
+
+
 private:
   ros::NodeHandle nh_;
   ros::NodeHandle nh_private_;

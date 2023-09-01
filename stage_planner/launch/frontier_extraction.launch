@@ -35,7 +35,14 @@
     
   <node pkg="stage_planner" type="frontiers_extraction_node" name="frontiers_extraction_node" output="screen">
 
-		<param name="xFiltering" value="true" />
+    <!-- VERY IMPORTANT TO SET CORRECT ROBOT TYPE -->
+
+    <param name="robot_aerial" value="false" />
+    
+
+
+
+    <param name="xFiltering" value="true" />
 		<param name="yFiltering" value="true" />
 		<param name="zFiltering" value="true" />
 
@@ -53,6 +60,8 @@
 		<param name="traversability_radius" value="0.5" />
 		<param name="planning_check_depth" value="1" />
 		<param name="volumetric_gain_threashold" value="1" />
+    
+
 
 		<remap from="ufomap" to="/ufomap_mapping_server_node/map" />
 

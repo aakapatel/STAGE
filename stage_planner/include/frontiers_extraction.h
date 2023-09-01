@@ -180,6 +180,8 @@ private:
 
     // variables
     
+    bool robot_aerial_ = false;
+
     State robotState_;
     Eigen::Quaterniond quat_;
     ufo::math::Vector3 m_currentPosition;

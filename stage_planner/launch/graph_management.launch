@@ -4,6 +4,13 @@
   <env name="ROSCONSOLE_FORMAT" value="[${severity}] : ${message}"/>
   
   <arg name="robot_name" default="hummingbird"/>
+
+
+    <!-- VERY IMPORTANT TO SET CORRECT ROBOT TYPE -->
+
+    <param name="robot_aerial" value="false" />
+
+
   <arg name="gbplanner_config_file" default="$(find stage_planner)/config/$(arg robot_name)/gbplanner_config.yaml"/>
   <arg name="pci_file" default="$(find stage_planner)/config/$(arg robot_name)/planner_control_interface_sim_config.yaml"/>
   <arg name="voxblox_config_file" default="$(find stage_planner)/config/$(arg robot_name)/voxblox_sim_config.yaml"/>

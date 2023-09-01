@@ -36,7 +36,8 @@ FrontierExtraction::FrontierExtraction(const ros::NodeHandle& nh, const ros::Nod
       max_allowed_height_(4),
       OBB_RADIUS(0.5),
       mapDepth_(0),
-      VOLUMETRIC_GAIN_THREASHOLD(10)
+      VOLUMETRIC_GAIN_THREASHOLD(10),
+      robot_aerial_(false)
       
 
 {
@@ -63,7 +64,7 @@ FrontierExtraction::FrontierExtraction(const ros::NodeHandle& nh, const ros::Nod
     nh_private_.param("traversability_radius", OBB_RADIUS, OBB_RADIUS);
     nh_private_.param("planning_check_depth", mapDepth_, mapDepth_);
     nh_private_.param("volumetric_gain_threashold", VOLUMETRIC_GAIN_THREASHOLD, VOLUMETRIC_GAIN_THREASHOLD);
-
+    nh_private_.param("robot_aerial", robot_aerial_, robot_aerial_);
     // Filtering parameters.
     nh_private_.param("xFiltering", xFiltering, xFiltering);
     nh_private_.param("yFiltering", yFiltering, yFiltering);
@@ -125,6 +126,12 @@ FrontierExtraction::FrontierExtraction(const ros::NodeHandle& nh, const ros::Nod
 
 
     m_target_query_srv = nh_.advertiseService("query_frontier_target", &FrontierExtraction::queryFrontierTarget, this);
+
+
+    if (!robot_aerial_) {
+      max_allowed_height_ = 2;
+    } 
+
 
 };
 
