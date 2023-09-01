@@ -21,8 +21,8 @@ ControlInterface::ControlInterface(ros::NodeHandle nh, ros::NodeHandle nh_privat
         pub_topic = "/hummingbird/command/pose";
     if(!nh_private_.getParam("frame_id", frame_id))
         frame_id = "world";
-    if(!nh_private_.getParam("use_3D", is3D))
-        is3D = false;
+    if(!nh_private_.getParam("robot_aerial", robot_aerial_))
+        robot_aerial_ = false;
 
     //subscribers
     state_sub = nh_.subscribe<std_msgs::String>(state_topic, 1, &ControlInterface::stateCallback, this);
@@ -176,7 +176,7 @@ geometry_msgs::Quaternion ControlInterface::quartToPoint(geometry_msgs::Point po
 }
 
 bool ControlInterface::atPoint(geometry_msgs::Point point){
-    if (is3D){
+    if (robot_aerial_){
         return sqrt(pow(odom.pose.position.x - point.x, 2) + 
         pow(odom.pose.position.y - point.y, 2) + pow(odom.pose.position.z - point.z, 2) )  < WP_SIZE;
     } else {

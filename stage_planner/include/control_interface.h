@@ -44,7 +44,7 @@ private:
     std::string odom_topic;
 
     std::string frame_id;
-    bool is3D;
+    bool robot_aerial_;
 
     geometry_msgs::PoseStamped odom;
     nav_msgs::Path path;

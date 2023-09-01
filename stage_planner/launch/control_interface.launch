@@ -2,6 +2,10 @@
 <launch>
 	<node name="control_interface" pkg="stage_planner" type="control_interface" output="screen">
 
+    <param name="robot_aerial" type="bool" value="true" />
+
+
+
     <param name="state_topic" type="String" value="/state"/>
     
     <param name="path_topic" type="String" value="/command_path"/>
@@ -18,8 +22,8 @@
     
     <param name="frame_id" type="String" value="world"/>
     
-    <param name="use_3D" type="bool" value="true"/>
-  
+
+
   </node>
 
 </launch>

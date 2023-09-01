@@ -5,13 +5,21 @@
   
   <node pkg="stage_planner" type="stage_interface_node" name="stage_interface_node" output="screen">
 
-		<param name="frame_id" type="string" value="world" />
+    
+    <param name="robot_aerial" type="bool" value="true" />
+
+    <param name="frame_id" type="string" value="world" />
 
 		<param name="odometry" value="/hummingbird/ground_truth/odometry" />
 
     <param name ="reference_topic" value="/hummingbird/command/pose" />
 
 
+    <param name ="init_x" value="2" />
+    <param name ="init_y" value="0" />
+    <param name ="init_z" value="1" />
+
+    <param name ="distance_to_new_path" value="1" />
 
   </node>
 

@@ -6,16 +6,30 @@ StageInterface::StageInterface(const ros::NodeHandle& nh, const ros::NodeHandle&
     : nh_(nh),
       nh_private_(nh_private),
       m_odometry("/hummingbird/ground_truth/odometry"),
-      m_reference_topic("/hummingbird/command/pose")
+      m_reference_topic("/hummingbird/command/pose"),
+      robot_aerial_(false),
+      init_x_(1),
+      init_y_(1),
+      init_z_(1),
+      distance_to_new_path_(1)
 {
 
     // Set variables
     nh_private_.param("odometry", m_odometry, m_odometry);
     nh_private_.param("reference_topic", m_reference_topic, m_reference_topic);
 
+    nh_private_.param("robot_aerial", robot_aerial_, robot_aerial_);
+
+
+    nh_private_.param("init_x", init_x_, init_x_);
+    nh_private_.param("init_y", init_y_, init_y_);
+    nh_private_.param("init_x", init_z_, init_z_);
+
+    nh_private_.param("distance_to_new_path", distance_to_new_path_, distance_to_new_path_);
+
     // Register to the subscriber topic and register it to the callback function
 
-    m_poseSubscriber = nh_.subscribe(m_odometry, 10, &StageInterface::updateCurrentPosition, this);
+    m_poseSubscriber = nh_.subscribe(m_odometry, 10, &StageInterface::odomCallback, this);
     // Timers 
 
     run_loop_timer_ = nh_.createTimer(ros::Duration(1), &StageInterface::mainLoop, this);
@@ -38,6 +52,10 @@ StageInterface::StageInterface(const ros::NodeHandle& nh, const ros::NodeHandle&
     m_planner_stop_srv = nh_.advertiseService ("stop_planner", &StageInterface::stopPlanner, this);
 
     m_planner_homing_srv = nh_.advertiseService ("start_homing_planner", &StageInterface::homingPlanner, this);
+  
+    if (!robot_aerial_) {
+    init_z_ = 0;
+  }
 
 
 };
@@ -95,6 +113,17 @@ bool StageInterface::homingPlanner (stage_planner::homePlanning::Request &req,
 
 }
 
+Eigen::Vector3d StageInterface::quaternion_to_rpy(Eigen::Quaterniond q)
+{
+  const double roll = atan2(2.0 * (q.w() * q.x() + q.y() * q.z()),
+                            1.0 - 2.0 * (q.x() * q.x() + q.y() * q.y()));
+  const double pitch = asin(2.0 * (q.w() * q.y() - q.z() * q.x()));
+  const double yaw = atan2(2.0 * (q.w() * q.z() + q.x() * q.y()),
+                           1.0 - 2.0 * (q.y() * q.y() + q.z() * q.z()));
+
+  return Eigen::Vector3d{roll, pitch, yaw};
+}
+
 Eigen::Quaternion<float> StageInterface::Euler2Quaternion(ufo::math::Vector3 v)
 {
   float roll = v.x();
@@ -110,34 +139,60 @@ Eigen::Quaternion<float> StageInterface::Euler2Quaternion(ufo::math::Vector3 v)
   return q;
 }
 
-void StageInterface::updateCurrentPosition (const nav_msgs::Odometry::ConstPtr &pose)
+void StageInterface::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
 {
 
   if (firstTime)
   {
-    home_position.x() = pose->pose.pose.position.x;
-    home_position.y() = pose->pose.pose.position.y;
-    home_position.z() = pose->pose.pose.position.z;
+
     m_prevPose = *pose;
     firstTime = false;
+
   }
   else
   {
     m_currentPose = *pose;
-    
-  }
 
+    ufo::math::Vector3 newPoint(pose->pose.pose.position.x,
+                                pose->pose.pose.position.y,
+                                pose->pose.pose.position.z);
+    ufo::math::Vector3 oldPoint(m_prevPose.pose.pose.position.x,
+                                m_prevPose.pose.pose.position.y,
+                                m_prevPose.pose.pose.position.z);
+
+    if (calculateDistance(newPoint, oldPoint) > 2)
+    {
+      m_prevPose = *pose;
+
+    }
+  }
   m_currentPosition.x() = m_currentPose.pose.pose.position.x;
   m_currentPosition.y() = m_currentPose.pose.pose.position.y;
   m_currentPosition.z() = m_currentPose.pose.pose.position.z;
- 
-  tf::Quaternion q(pose->pose.pose.orientation.x, pose->pose.pose.orientation.y,
-                   pose->pose.pose.orientation.z,
-                   pose->pose.pose.orientation.w);
+
+  Eigen::Quaterniond attitude{pose->pose.pose.orientation.w, pose->pose.pose.orientation.x,
+                              pose->pose.pose.orientation.y, pose->pose.pose.orientation.z};
+
+  Eigen::Vector3d euler = quaternion_to_rpy(attitude);
+
+  Eigen::Quaterniond Q(Eigen::AngleAxisd(euler.z(), Eigen::Vector3d::UnitZ()));
+
+  quat_ = Q;
+
+  tf::Quaternion q(
+      pose->pose.pose.orientation.x,
+      pose->pose.pose.orientation.y,
+      pose->pose.pose.orientation.z,
+      pose->pose.pose.orientation.w);
   tf::Matrix3x3 m(q);
   double roll, pitch, yaw;
   m.getRPY(roll, pitch, yaw);
-  m_currentHeading = yaw * (180 / 3.14159);
+
+  robotState_[0] = pose->pose.pose.position.x;
+  robotState_[1] = pose->pose.pose.position.y;
+  robotState_[2] = pose->pose.pose.position.z;
+  robotState_[3] = yaw * (180 / M_PI);
+
 }
 
 ufo::math::Vector3 StageInterface::fetchCurrentPosition ()
@@ -149,9 +204,17 @@ double StageInterface::calculateDistance(ufo::math::Vector3 point1,
                                        ufo::math::Vector3 point2)
 {
 
-  double d =
-      sqrt(pow(point1.x() - point2.x(), 2) + pow(point1.y() - point2.y(), 2) +
+  double d;
+  
+  if (robot_aerial_) {
+  
+    d = sqrt(pow(point1.x() - point2.x(), 2) + pow(point1.y() - point2.y(), 2) +
            pow(point1.z() - point2.z(), 2));
+  } else {
+  
+    d = sqrt(pow(point1.x() - point2.x(), 2) + pow(point1.y() - point2.y(), 2));
+  }
+
   return d;
 }
 
@@ -265,25 +328,25 @@ void StageInterface::generateTrajectory() {
     std::vector<geometry_msgs::PoseStamped> initialization_poses;  
     geometry_msgs::PoseStamped init_pose;  
  
-    init_pose.pose.position.x = fetchCurrentPosition().x();
-    init_pose.pose.position.y = fetchCurrentPosition().y();
-    init_pose.pose.position.z = fetchCurrentPosition().z();
+    init_pose.pose.position.x = robotState_[0];
+    init_pose.pose.position.y = robotState_[1];
+    init_pose.pose.position.z = robotState_[2];
     init_pose.pose.orientation.x = 0;
     init_pose.pose.orientation.y = 0;
     init_pose.pose.orientation.z = 0;
     init_pose.pose.orientation.w = 1;
     initialization_path.poses.push_back(init_pose);
-    init_pose.pose.position.x = fetchCurrentPosition().x();
-    init_pose.pose.position.y = fetchCurrentPosition().y();
-    init_pose.pose.position.z = fetchCurrentPosition().z() + 1;
+    init_pose.pose.position.x = robotState_[0];
+    init_pose.pose.position.y = robotState_[1]; 
+    init_pose.pose.position.z = robotState_[2] + init_z_;
     init_pose.pose.orientation.x = 0;
     init_pose.pose.orientation.y = 0;
     init_pose.pose.orientation.z = 0;
     init_pose.pose.orientation.w = 1;
     initialization_path.poses.push_back(init_pose);
-    init_pose.pose.position.x = fetchCurrentPosition().x() + 2;
-    init_pose.pose.position.y = fetchCurrentPosition().y();
-    init_pose.pose.position.z = fetchCurrentPosition().z() + 1;
+    init_pose.pose.position.x = robotState_[1] + init_x_;
+    init_pose.pose.position.y = robotState_[1] + init_y_;
+    init_pose.pose.position.z = robotState_[1] + init_z_;
     init_pose.pose.orientation.x = 0;
     init_pose.pose.orientation.y = 0;
     init_pose.pose.orientation.z = 0;

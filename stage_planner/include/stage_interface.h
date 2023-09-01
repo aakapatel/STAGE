@@ -17,8 +17,9 @@ class StageInterface
     bool homingPlanner (stage_planner::homePlanning::Request &req,
                                         stage_planner::homePlanning::Response &res);
 
+    Eigen::Vector3d quaternion_to_rpy(Eigen::Quaterniond q);
     Eigen::Quaternion<float> Euler2Quaternion(ufo::math::Vector3 v);
-    void updateCurrentPosition(const nav_msgs::Odometry::ConstPtr &pos);
+    void odomCallback(const nav_msgs::Odometry::ConstPtr &pos);
     ufo::math::Vector3 fetchCurrentPosition ();
     double calculateDistance (ufo::math::Vector3 p1, ufo::math::Vector3 p2);
     bool fetchExplorationPath ();
@@ -28,7 +29,8 @@ class StageInterface
     bool reachedEndOfPath ();
     
     void mainLoop(const ros::TimerEvent& event);
-
+    
+    bool robot_aerial_ = false;
 
   private:
     
@@ -36,7 +38,12 @@ class StageInterface
     ros::NodeHandle nh_private_;
    
     ros::Timer run_loop_timer_;
+    
+    
+    State robotState_;
 
+    Eigen::Quaterniond quat_;
+    
     // Subscribers 
     ros::Subscriber new_poseSubscriber;
     ros::Subscriber m_poseSubscriber;
@@ -76,6 +83,9 @@ class StageInterface
 
     bool fetch_new_path_ = true;
     
+    double init_x_, init_y_, init_z_; 
+
+    double distance_to_new_path_;
     //reference tracking utilities
 
   };
