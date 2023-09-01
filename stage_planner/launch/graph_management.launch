@@ -6,9 +6,6 @@
   <arg name="robot_name" default="hummingbird"/>
 
 
-    <!-- VERY IMPORTANT TO SET CORRECT ROBOT TYPE -->
-
-    <param name="robot_aerial" value="false" />
 
 
   <arg name="gbplanner_config_file" default="$(find stage_planner)/config/$(arg robot_name)/gbplanner_config.yaml"/>
@@ -18,7 +15,11 @@
 
   <node pkg="stage_planner" type="graph_management_node" name="graph_management_node" respawn="true" output="screen">
 
-		<param name="frame_id" type="string" value="world" />
+    <!-- VERY IMPORTANT TO SET CORRECT ROBOT TYPE -->
+
+    <param name="robot_aerial" value="false" />
+    
+    <param name="frame_id" type="string" value="world" />
 
 		<param name="odometry" value="/hummingbird/ground_truth/odometry" />
 
