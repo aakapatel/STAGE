@@ -47,7 +47,7 @@ struct Vertex {
     is_local = false;
     is_frontier = false;
     sub_id = 0;
-    // neighbours = {};
+    sub_graph_id = 0;
   }
 
   // Unique id for each vertex (root: 0, others: positive number).
@@ -73,8 +73,8 @@ struct Vertex {
   bool is_frontier;
   // Sub graph id to keep track while adding to global graph 
   int sub_id;
-  // neighbours in x meters radius
-  // std::vector<Vertex*> neighbours;
+  // Sub graph index 
+  int sub_graph_id;
 };
 
 
@@ -143,11 +143,13 @@ public:
   // id:  <neighbor id, edge cost>
   std::map<int, std::vector<std::pair<int, double>>> edge_map_;  
 
+  int subgraph_ind_ = -1;
+
 private:
   
   // IDs are non-negative integer from 0 (root node)
   // and increased as adding new sub-graph or new vertices.
-  int subgraph_ind_;
+  // int subgraph_ind_ = -1;
   int id_count_;
   
   // Kd-tree for nearest neigbor lookup, also keep all vertices.

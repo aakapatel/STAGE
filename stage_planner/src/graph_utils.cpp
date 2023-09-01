@@ -94,6 +94,8 @@ double GraphUtils::distanceBetweenVertices (Vertex*v, Vertex*u) {
 
 void GraphUtils::addVertex(Vertex* v) {
   kd_insert3(kd_tree_, v->state.x(), v->state.y(), v->state.z(), v);
+  v->sub_graph_id = subgraph_ind_;
+  v->sub_id = v->id;
   if (v->id == 0)
     graph_->addSourceVertex(0);
   else

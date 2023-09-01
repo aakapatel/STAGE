@@ -86,9 +86,11 @@ public:
   void resetSparseGraph();
 
   void buildLocalGraph();
+  
+  void insertLatestSubGraph();
 
   void buildGlobalGraph();
-
+  
   void planLocalPath();
 
   void planGlobalPath();
@@ -156,7 +158,10 @@ private:
   ShortestPathsReport sparse_graph_rep_;
 
   int vertex_id_ = -1;
+  int subgraph_ind_ = -1;
   int local_target_vertex_id;
+  
+  int latest_sub_graph_index = -1;
 
   std::vector<std::pair<std::vector<Vertex *>, double>> local_paths_;
   std::vector<std::pair<std::vector<Vertex *>, double>> global_paths_;

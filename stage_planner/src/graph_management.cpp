@@ -168,7 +168,7 @@ void GraphManager::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
     pose_graph_rep_.reset();
 
     GraphManager::resetKdtree();
-    GraphManager::resetLocalGraph();
+    // GraphManager::resetLocalGraph();
     GraphManager::resetGlobalGraph();
     GraphManager::resetFrontierGraph();
     GraphManager::resetSparseGraph();
@@ -460,6 +460,8 @@ void GraphManager::resetLocalGraph()
   }
   sub_graph_.reset(new GraphUtils());
   sub_graph_rep_.reset();
+  ++subgraph_ind_;
+  sub_graph_->subgraph_ind_ = subgraph_ind_;
 }
 
 void GraphManager::resetGlobalGraph()
@@ -806,6 +808,10 @@ void GraphManager::buildLocalGraph()
   // high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
   GraphManager::resetLocalGraph();
+  
+  latest_sub_graph_id = sub_graph_->subgraph_ind_;
+
+  // ROS_INFO_STREAM ("Sub graph index : " << sub_graph_->subgraph_ind_ << "\n");
 
   GraphManager::updateKdtree();
 
@@ -814,7 +820,7 @@ void GraphManager::buildLocalGraph()
 
   GraphManager::sampleNodes(nodes, robotState_, iterations_local_, bounding_box_size_);
 
-  // Add random sampled nodes in local graph
+  // Add randomly sampled nodes in local graph
 
   for (int i = 0; i < nodes.size(); i++)
   {
@@ -837,20 +843,11 @@ void GraphManager::buildLocalGraph()
     if (frontier_graph_->vertices_map_[i]->is_local)
     {
 
-      std::vector<node *> frontier_nodes;
-      frontier_nodes.clear();
-
-      GraphManager::sampleNodes(frontier_nodes, frontier_graph_->vertices_map_[i]->state,
-                                iterations_local_ / 1000, bounding_box_size_ / 4);
-
-      for (int i = 0; i < frontier_nodes.size(); i++)
-      {
-        Vertex *vertex = new Vertex(assignVertexID(), ufoToState(*(frontier_nodes[i]->point)));
-        vertex->is_sampled = true;
-        vertex->is_local = true;
-        vertex->is_frontier = true;
-        GraphManager::insertVertexKdtree(vertex);
-      }
+      Vertex *vertex = new Vertex(assignVertexID(), frontier_graph_->vertices_map_[i]->state);
+      vertex->is_sampled = true;
+      vertex->is_local = true;
+      vertex->is_frontier = true;
+      GraphManager::insertVertexKdtree(vertex);
     }
   }
 
@@ -945,7 +942,7 @@ void GraphManager::buildLocalGraph()
   }
 
   GraphManager::planLocalPath();
-}
+} // buildLocalGraph 
 
 void GraphManager::planLocalPath()
 {
@@ -991,22 +988,67 @@ void GraphManager::planLocalPath()
     return;
   }
 
-} // buildLocalGraph
+} // planLocalPath  
+
+
+void GraphManager::insertLatestSubGraph () {
+
+  
+  std::pair<Graph::GraphType::vertex_iterator,
+            Graph::GraphType::vertex_iterator>
+      vi;
+  
+  std::pair<Graph::GraphType::edge_iterator,
+            Graph::GraphType::edge_iterator>
+      ei;
+  sub_graph_->graph_->getVertexIterator(vi);
+  sub_graph_->graph->getEdgeIterator(ei);
+
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
+  {
+
+    int id = sub_graph_->graph_->getVertexProperty(it);
+    
+    if (!sub_graph_->vertices_map_[id]->is_frontier) {
+
+      Vertex* v = new Vertex (global_graph_->generateVertexID(), sub_graph_->vertices_map_[id]->state);
+      v->sub_graph_id = sub_graph_->vertices_map_[id]->sub_graph_id;
+      v->sub_id = sub_graph_->vertices_map_[id]->sub_id;
+      v->is_frontier = false;
+      global_graph_->addVertex(v);
+    }
+  }
+
+  for (Graph::GraphType::edge_iterator it = ei.first; it != ei.second; ++it)
+  {
+    int src_id, tgt_id;
+    double weight;
+    std::tie(src_id, tgt_id, weight) = sub_graph_->graph_->getEdgeProperty(it);
+    
+    if (!sub_graph_->vertices_map_[src_id]->is_frontier and 
+        !sub_graph_->vertices_map_[tgt_id]->is_frontier) {
+
+      global_graph_->addEdge(global_graph_->getVertexBySubId(src_id),
+                             global_graph_->getVertexBySubId(tgt_id), weight);
+
+    }
+  }
+
+}
 
 void GraphManager::buildGlobalGraph()
 {
 
-  if (all_vertices.empty())
+  if (global_graph_->getNumVertices() !== 0)
   {
-    ROS_INFO("Have not sampled any global nodes yet \n");
+    ROS_INFO("haven't inserted any subgraph into global graph \n");
     return;
   }
   else
   {
     GraphManager::updateKdtree();
-    GraphManager::resetGlobalGraph();
-    // ROS_INFO_STREAM ("sampled " << all_vertices.size() << " nodes\n");
   }
+  
   std::pair<Graph::GraphType::vertex_iterator,
             Graph::GraphType::vertex_iterator>
       vi;
@@ -1018,40 +1060,72 @@ void GraphManager::buildGlobalGraph()
   for (int i = 0; i < frontier_graph_->getNumVertices(); ++i)
   {
 
-    // std::vector<node*> frontier_nodes;
-    // frontier_nodes.clear();
-    //
-    // GraphManager::sampleNodes (frontier_nodes, frontier_graph_->vertices_map_[i]->state,
-    //                             iterations_local_/1000, bounding_box_size_/4);
-    //
-    // for (int i = 0; i < frontier_nodes.size(); i++) {
-    //   Vertex* vertex = new Vertex(assignVertexID(), ufoToState(*(frontier_nodes[i]->point)));
-    //   vertex->is_sampled = true;
-    //   vertex->is_local = false;
-    //   vertex->is_frontier = true;
-    //   GraphManager::insertVertexKdtree(vertex);
-    // }
-
     // Decide if want to include only frontier or also sampled nodes around the frontier
 
-    Vertex *vertex = new Vertex(assignVertexID(), frontier_graph_->vertices_map_[i]->state);
-    vertex->is_sampled = false;
-    vertex->is_local = false;
+    Vertex *vertex = new Vertex(global_graph_->generateVertexID(), frontier_graph_->vertices_map_[i]->state);
     vertex->is_frontier = true;
-    GraphManager::insertVertexKdtree(vertex);
+    global_graph_->addVertex(vertex);
   }
 
-  for (std::list<Vertex *>::iterator it = all_vertices.begin(); it != all_vertices.end(); it++)
+
+  std::pair<Graph::GraphType::vertex_iterator,
+            Graph::GraphType::vertex_iterator>
+      vi;
+  
+  std::pair<Graph::GraphType::edge_iterator,
+            Graph::GraphType::edge_iterator>
+      ei;
+  global_graph_->graph_->getVertexIterator(vi);
+  global_graph_->graph->getEdgeIterator(ei);
+
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
   {
 
-    Vertex *v = new Vertex(global_graph_->generateVertexID(), (*it)->state);
-    v->is_root = (*it)->is_root;
-    v->is_sampled = (*it)->is_sampled;
-    v->is_frontier = (*it)->is_frontier;
-    v->is_local = (*it)->is_local;
-    v->sub_id = (*it)->id;
-    global_graph_->addVertex(v);
+    int id = global_graph_->graph_->getVertexProperty(it);
+    
+    if (global_graph_->vertices_map_[id]->sub_graph_id == latest_sub_graph_id) {
+
+ 
+      Eigen::Vector3d v(global_graph_->vertices_map_[id]->state[0],
+                        global_graph_->vertices_map_[id]->state[1],
+                        global_graph_->vertices_map_[id]->state[2]);
+      
+      std::vector<Vertex *> nearby_vertices;
+      global_graph_->getNearestVertices(&global_graph_->vertices_map_[id]->state, 2, &nearby_vertices);
+
+      for (int i = 0; i < nearby_vertices.size(); ++i) {
+        
+        if (nearby_vertices[i]->sub_graph_id = latest_sub_graph_id - 1) {
+          
+          int nearby_vertex_id = nearby_vertices[i]->id;
+
+          Eigen::Vector3d v_n (global_graph_->vertices_map_[nearby_vertex_id]->state[0],
+                               global_graph_->vertices_map_[nearby_vertex_id]->state[1],
+                               global_graph_->vertices_map_[nearby_vertex_id]->state[2] );  
+
+          MapManager::VoxelStatus vs = map_manager_->getPathStatus(v, v_n, robot_box_size_, true);
+          
+          if (MapManager::VoxelStatus::kFree == vs) {
+
+            global_graph_->addEdge(global_graph_->vertices_map_[id], 
+                                   global_graph_->vertices_map_[nearby_vertex_id],
+                                   global_graph_->distanceBetweenVertices(global_graph_->vertices_map_[id], 
+                                                                          global_graph_->vertices_map_[nearby_vertex_id]));
+
+          }
+
+
+
+        }
+
+      }
+
+    } 
+
   }
+  
+
+
 
   for (int id = 0; id < global_graph_->getNumVertices(); ++id)
   {
@@ -1330,7 +1404,7 @@ void GraphManager::updateGraph(const ros::TimerEvent &event)
 
   if (build_global_graph_)
   {
-    GraphManager::buildGlobalGraph();
+    GraphManager::insertLatestSubGraph();
   }
 }
 
