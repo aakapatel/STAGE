@@ -1,5 +1,9 @@
 #include "graph_utils.h"
 
+#include <iostream>
+#include <ctime>
+#include <ratio>
+#include <chrono>
 GraphUtils::GraphUtils () {
 
   kd_tree_ = NULL;
@@ -20,13 +24,13 @@ void GraphUtils::reset() {
 
   // Vertex mapping.
   // Clear memory for all vertex pointers
-  if (vertices_map_.size() > 0) {
-    for (int i = 0; i < vertices_map_.size(); ++i) {
-      delete vertices_map_[i];
-    }
-  }
-  vertices_map_.clear();
-  edge_map_.clear();
+  // if (vertices_map_.size() > 0) {
+  //   for (int i = 0; i < vertices_map_.size(); ++i) {
+  //     delete vertices_map_[i];
+  //   }
+  // }
+  // vertices_map_.clear();
+  // edge_map_.clear();
 
   // Other params.
   subgraph_ind_ = -1;
@@ -60,6 +64,7 @@ bool GraphUtils::edgeExist (int source_id, int target_id) {
 
 Vertex* GraphUtils::getVertexBySubId (int s_id) {
   
+  // std::chrono::high_resolution_clock::time_point start_total = std::chrono::high_resolution_clock::now();
   Vertex* v;
   if (graph_->getNumVertices() == 0) {
     return NULL;
@@ -74,6 +79,14 @@ Vertex* GraphUtils::getVertexBySubId (int s_id) {
       v = vertices_map_[id]; 
     }
   }
+
+  // std::chrono::high_resolution_clock::time_point stop_total = std::chrono::high_resolution_clock::now();
+  //
+  // auto duration_total = std::chrono::duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+  //
+  // ROS_INFO_STREAM("\033[;34m vertex by sub id time \033[0m "
+  //                 << duration_total.count() << " \033[;34m ms \033[0m\n ");
+
   return v;
 }
 

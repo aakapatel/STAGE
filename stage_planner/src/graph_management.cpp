@@ -570,13 +570,31 @@ void GraphManager::updateKdtree()
       ei;
   global_graph_->graph_->getVertexIterator(vi);
   global_graph_->graph_->getEdgeIterator(ei);
+  std::vector<int> ids;
+  ids.clear();
 
   for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
   {
 
     int id = global_graph_->graph_->getVertexProperty(it);
-    global_graph_->vertices_map_[id]->is_frontier = false;  
+    global_graph_->vertices_map_[id]->is_frontier = false;
   }
+  // for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
+  // {
+  //
+  //   int id = global_graph_->graph_->getVertexProperty(it);
+  //   if (global_graph_->vertices_map_[id]->is_frontier) {
+  //      ids.push_back(id);
+  //   } 
+  // }
+  //
+  // for (int i : ids)
+  // {
+  //
+  //   global_graph_->clearVertex(global_graph_->vertices_map_[i]->id);
+  //   global_graph_->removeVertex(global_graph_->vertices_map_[i]->id);
+  // }
+
 
 }
 
@@ -703,8 +721,6 @@ void GraphManager::updateSparseGraph()
 
   // ROS_INFO_STREAM("Before update graph has " << sparse_graph_->getNumVertices() << " vertices & " << sparse_graph_->getNumEdges() << " edges"
                                              // << "\n");
-  // int A = 0;
-  // int B = 0;
   std::pair<Graph::GraphType::vertex_iterator,
             Graph::GraphType::vertex_iterator>
       vb;
@@ -717,7 +733,6 @@ void GraphManager::updateSparseGraph()
     int i = sparse_graph_->graph_->getVertexProperty(it);
     if (sparse_graph_->vertices_map_[i]->is_frontier)
     {
-      // A++;
       ids.push_back(i);
     }
   }
@@ -729,22 +744,6 @@ void GraphManager::updateSparseGraph()
   //   sparse_graph_->removeVertex(sparse_graph_->vertices_map_[i]->id);
   // }
 
-  // std::pair<Graph::GraphType::vertex_iterator,
-  //           Graph::GraphType::vertex_iterator>
-  //     vd;
-  // sparse_graph_->graph_->getVertexIterator(vd);
-  // for (Graph::GraphType::vertex_iterator it = vd.first; it != vd.second; ++it)
-  // {
-  //
-  //   int i = sparse_graph_->graph_->getVertexProperty(it);
-  //
-  //   if (sparse_graph_->vertices_map_[i]->is_frontier)
-  //   {
-  //     B++;
-  //   }
-  // }
-
-  // ROS_INFO_STREAM("A " << A << " B " << B << "\n");
   // ROS_INFO_STREAM("After update graph has " << sparse_graph_->getNumVertices() << " vertices & " << sparse_graph_->getNumEdges() << " edges"
   //                                           << "\n");
 
@@ -843,8 +842,6 @@ void GraphManager::buildLocalGraph()
   latest_root[1] = root_vertex->state[1];
   latest_root[2] = root_vertex->state[2];
   
-
-
   std::vector<node *> nodes;
   nodes.clear();
 
@@ -944,6 +941,8 @@ void GraphManager::buildLocalGraph()
   // ROS_INFO_STREAM ("Built local graph with " << sub_graph_->getNumVertices() << " nodes & " << sub_graph_->getNumEdges() << " edges\n");
 
   // Fetch shortest path report from root vertex to all vertices in the graph
+
+  graph_vec_.push_back(sub_graph_);
 
   if (sub_graph_->findShortestPaths(root_vertex->id, sub_graph_rep_))
   {
@@ -1063,7 +1062,8 @@ void GraphManager::buildGlobalGraph()
   }
 
   // Add global exploration targets to global graph for simpler direct path
-
+  std::vector<int> ids;
+  ids.clear();
   for (int i = 0; i < frontier_graph_->getNumVertices(); ++i)
   {
     // Decide if want to include only frontier or also sampled nodes around the frontier
@@ -1073,6 +1073,7 @@ void GraphManager::buildGlobalGraph()
     
     vertex->sub_graph_id = latest_sub_graph_id;
     global_graph_->addVertex(vertex);
+    ids.push_back(vertex->id);
   }
 
 
@@ -1080,155 +1081,159 @@ void GraphManager::buildGlobalGraph()
             Graph::GraphType::vertex_iterator>
       vi;
   
-  std::pair<Graph::GraphType::edge_iterator,
-            Graph::GraphType::edge_iterator>
-      ei;
   global_graph_->graph_->getVertexIterator(vi);
-  global_graph_->graph_->getEdgeIterator(ei);
   
-  Eigen::Vector3d direction = latest_root - previous_root;
-  overlap_point = previous_root + (direction/2.0);
+  high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
-  visualization_msgs::Marker vertex_marker;
-  vertex_marker.header.stamp = ros::Time::now();
-  vertex_marker.header.seq = 0;
-  vertex_marker.header.frame_id = "world";
-  vertex_marker.id = 0;
-  vertex_marker.ns = "overlap";
-  vertex_marker.action = visualization_msgs::Marker::ADD;
-  vertex_marker.type = visualization_msgs::Marker::SPHERE;
-  vertex_marker.pose.position.x = overlap_point[0];
-  vertex_marker.pose.position.y = overlap_point[1];
-  vertex_marker.pose.position.z = overlap_point[2];
-  vertex_marker.scale.x = 4;
-  vertex_marker.scale.y = 4;
-  vertex_marker.scale.z = 4;
-  vertex_marker.color.r = 125.0 / 255.0;
-  vertex_marker.color.g = 42.0 / 255.0;
-  vertex_marker.color.b = 104.0 / 255.0;
-  vertex_marker.color.a = 0.6;
-  vertex_marker.frame_locked = false;
-     
-  overlap_Vis_Pub_.publish(vertex_marker);
+  std::pair<Graph::GraphType::vertex_iterator,
+            Graph::GraphType::vertex_iterator>
+      v_it;
+  
+  graph_vec_.back()->graph_->getVertexIterator(v_it);
+
 
   std::vector<Vertex *> nearby_vertices;
-  // global_graph_->getNearestVertices(&global_graph_->vertices_map_[id]->state, 1, &nearby_vertices);
-      
-  State s;
-  s[0] = overlap_point[0];
-  s[1] = overlap_point[1];
-  s[2] = overlap_point[2];
-  global_graph_->getNearestVertices(&s, 6, &nearby_vertices);
   
-  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
-  {
-
-    int id = global_graph_->graph_->getVertexProperty(it);
-
-
-    if (global_graph_->vertices_map_[id]->sub_graph_id == latest_sub_graph_id) {
-
-
-      Eigen::Vector3d v(global_graph_->vertices_map_[id]->state[0],
-                        global_graph_->vertices_map_[id]->state[1],
-                        global_graph_->vertices_map_[id]->state[2]);
-      
-      
-      for (int i = 0; i < nearby_vertices.size(); ++i) {
-        
-        if (nearby_vertices[i]->sub_graph_id == (latest_sub_graph_id - 1)) {
+  for (Graph::GraphType::vertex_iterator it = v_it.first; it != v_it.second; ++it) {
+    
+    int s_id = graph_vec_.back()->graph_->getVertexProperty(it);
+    
+    Vertex* global_graph_vertex = global_graph_->getVertexBySubId(s_id);
+    int id = global_graph_vertex->id;
+    
+    global_graph_->getNearestVertices(&global_graph_vertex->state, 1, &nearby_vertices);
+    if (global_graph_vertex->is_frontier) { 
+    }
+    const Eigen::Vector3d v(global_graph_vertex->state[0],
+                            global_graph_vertex->state[1],
+                            global_graph_vertex->state[2]);
+    
+    for (int i = 0; i < nearby_vertices.size(); ++i) {
+ 
+        if (nearby_vertices[i]->sub_graph_id == (latest_sub_graph_id-1)) {
           
-          int nearby_vertex_id = nearby_vertices[i]->id;
+          int nearby_vertex_id =  nearby_vertices[i]->id;
 
-          Eigen::Vector3d v_n (global_graph_->vertices_map_[nearby_vertex_id]->state[0],
+          const Eigen::Vector3d v_n (global_graph_->vertices_map_[nearby_vertex_id]->state[0],
                                global_graph_->vertices_map_[nearby_vertex_id]->state[1],
                                global_graph_->vertices_map_[nearby_vertex_id]->state[2] );  
 
           MapManager::VoxelStatus vs = map_manager_->getPathStatus(v, v_n, robot_box_size_, true);
           
-          int e1 = global_graph_->vertices_map_[id]->edges;
-          int e2 = global_graph_->vertices_map_[nearby_vertex_id]->edges;
+          const int e1 = global_graph_->vertices_map_[id]->edges;
+          const int e2 = global_graph_->vertices_map_[nearby_vertex_id]->edges;
+          const double weight = global_graph_->distanceBetweenVertices(global_graph_->vertices_map_[id], 
+                                                                          global_graph_->vertices_map_[nearby_vertex_id]);
+          if (weight < 1.5*max_edge_length_) {
 
-          if (e1 < 9 and e2 < 9 and MapManager::VoxelStatus::kFree == vs) {
+            if (e1 < 4) {
+              if (MapManager::VoxelStatus::kFree == vs) {
 
-            global_graph_->addEdge(global_graph_->vertices_map_[id], 
-                                   global_graph_->vertices_map_[nearby_vertex_id],
-                                   global_graph_->distanceBetweenVertices(global_graph_->vertices_map_[id], 
-                                                                          global_graph_->vertices_map_[nearby_vertex_id]));
+                global_graph_->addEdge(global_graph_->vertices_map_[id], 
+                                       global_graph_->vertices_map_[nearby_vertex_id],
+                                       global_graph_->distanceBetweenVertices(global_graph_->vertices_map_[id], 
+                                                                              global_graph_->vertices_map_[nearby_vertex_id]));
 
-            global_graph_->vertices_map_[id]->edges++;
-            global_graph_->vertices_map_[nearby_vertex_id]->edges++;
-          }
-
-        } else if (global_graph_->vertices_map_[id]->is_frontier and !nearby_vertices[i]->is_frontier) {
-
-            int nearby_vertex_id = nearby_vertices[i]->id;
-
-            Eigen::Vector3d v_f (global_graph_->vertices_map_[nearby_vertex_id]->state[0],
-                                 global_graph_->vertices_map_[nearby_vertex_id]->state[1],
-                                 global_graph_->vertices_map_[nearby_vertex_id]->state[2] );  
-
-            int e1 = global_graph_->vertices_map_[id]->edges;
-            int e2 = global_graph_->vertices_map_[nearby_vertex_id]->edges;
-
-            MapManager::VoxelStatus vf = map_manager_->getPathStatus(v, v_f, robot_box_size_, true);
-            if (e1 < 9 and e2 < 9 and MapManager::VoxelStatus::kFree == vf) {
-            
-              global_graph_->addEdge(global_graph_->vertices_map_[id], 
-                                     global_graph_->vertices_map_[nearby_vertex_id],
-                                     global_graph_->distanceBetweenVertices(global_graph_->vertices_map_[id], 
-                                                                            global_graph_->vertices_map_[nearby_vertex_id]));
-
-              global_graph_->vertices_map_[id]->edges++;
-              global_graph_->vertices_map_[nearby_vertex_id]->edges++;
+                global_graph_->vertices_map_[id]->edges++;
+                // global_graph_->vertices_map_[nearby_vertex_id]->edges++;
+              }
             }
-        }
-
-      }
-
-    } 
-
+          }
+        } 
+    }
   }
   
 
+  for (int id : ids) {
+    
+      std::vector<Vertex *> neighbours;
+      global_graph_->getNearestVertices(&global_graph_->vertices_map_[id]->state, 2, &neighbours); 
 
-  // for (int id = 0; id < global_graph_->getNumVertices(); ++id)
+      for (int i = 0; i < neighbours.size(); ++i) {
+
+        if (!neighbours[i]->is_frontier and !global_graph_->edgeExist(global_graph_->vertices_map_[id]->id, neighbours[i]->id)) {
+          int neighbour_id = neighbours[i]->id;
+          global_graph_->addEdge(global_graph_->vertices_map_[id], global_graph_->vertices_map_[neighbour_id],
+                                global_graph_->distanceBetweenVertices(global_graph_->vertices_map_[id], global_graph_->vertices_map_[neighbour_id]));
+
+        }
+      }
+  }
+
+  // for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
   // {
   //
-  //   // Get nearby vertices from the current vertex and connect the them to form local edges
-  //   std::vector<Vertex *> nearby_vertices;
-  //   global_graph_->getNearestVertices(&global_graph_->vertices_map_[id]->state, 4, &nearby_vertices);
+  //   int id = global_graph_->graph_->getVertexProperty(it);
   //
-  //   Eigen::Vector3d v(global_graph_->vertices_map_[id]->state[0],
-  //                     global_graph_->vertices_map_[id]->state[1],
-  //                     global_graph_->vertices_map_[id]->state[2]);
+  //   if (global_graph_->vertices_map_[id]->sub_graph_id == latest_sub_graph_id) {
+  //     global_graph_->getNearestVertices(&global_graph_->vertices_map_[id]->state, 1, &nearby_vertices);
   //
-  //   for (int i = 0; i < nearby_vertices.size(); i++)
-  //   {
-  //     if (!global_graph_->vertices_map_[id]->is_frontier or !nearby_vertices[i]->is_frontier)
-  //     {
+  //     const Eigen::Vector3d v(global_graph_->vertices_map_[id]->state[0],
+  //                       global_graph_->vertices_map_[id]->state[1],
+  //                       global_graph_->vertices_map_[id]->state[2]);
+  //     
+  //     for (int i = 0; i < nearby_vertices.size(); ++i) {
+  //       
+  //       if (nearby_vertices[i]->sub_graph_id == (latest_sub_graph_id-1)) {
+  //         
+  //         int nearby_vertex_id = nearby_vertices[i]->id;
   //
-  //       if (!global_graph_->edgeExist(global_graph_->vertices_map_[id]->id, nearby_vertices[i]->id))
-  //       {
-  //         if (global_graph_->vertices_map_[id]->edges < 6 and global_graph_->distanceBetweenVertices(global_graph_->vertices_map_[id], nearby_vertices[i]) < max_edge_length_)
-  //         {
+  //         const Eigen::Vector3d v_n (global_graph_->vertices_map_[nearby_vertex_id]->state[0],
+  //                              global_graph_->vertices_map_[nearby_vertex_id]->state[1],
+  //                              global_graph_->vertices_map_[nearby_vertex_id]->state[2] );  
   //
-  //           Eigen::Vector3d v_n(nearby_vertices[i]->state[0], nearby_vertices[i]->state[1], nearby_vertices[i]->state[2]);
-  //           MapManager::VoxelStatus vn = map_manager_->getPathStatus(v, v_n, robot_box_size_, true);
+  //         MapManager::VoxelStatus vs = map_manager_->getPathStatus(v, v_n, robot_box_size_, true);
+  //         
+  //         const int e1 = global_graph_->vertices_map_[id]->edges;
+  //         const int e2 = global_graph_->vertices_map_[nearby_vertex_id]->edges;
+  //         const double weight = global_graph_->distanceBetweenVertices(global_graph_->vertices_map_[id], 
+  //                                                                         global_graph_->vertices_map_[nearby_vertex_id]);
+  //         if (weight < 1.5*max_edge_length_) {
   //
-  //           if (MapManager::VoxelStatus::kFree == vn)
-  //           {
+  //           if (e1 < 4) {
+  //             if (MapManager::VoxelStatus::kFree == vs) {
   //
-  //             global_graph_->addEdge(global_graph_->vertices_map_[id], nearby_vertices[i],
-  //                                    global_graph_->distanceBetweenVertices(global_graph_->vertices_map_[id], nearby_vertices[i]));
-  //             global_graph_->vertices_map_[id]->edges++;
+  //               global_graph_->addEdge(global_graph_->vertices_map_[id], 
+  //                                      global_graph_->vertices_map_[nearby_vertex_id],
+  //                                      global_graph_->distanceBetweenVertices(global_graph_->vertices_map_[id], 
+  //                                                                             global_graph_->vertices_map_[nearby_vertex_id]));
+  //
+  //               global_graph_->vertices_map_[id]->edges++;
+  //               // global_graph_->vertices_map_[nearby_vertex_id]->edges++;
+  //             }
   //           }
   //         }
-  //       }
+  //       } 
   //     }
   //   }
+  //
+  //   if (global_graph_->vertices_map_[id]->is_frontier) {
+  //
+  //     std::vector<Vertex *> neighbours;
+  //     global_graph_->getNearestVertices(&global_graph_->vertices_map_[id]->state, 2, &neighbours); 
+  //
+  //     for (int i = 0; i < neighbours.size(); ++i) {
+  //
+  //       if (!neighbours[i]->is_frontier and !global_graph_->edgeExist(global_graph_->vertices_map_[id]->id, neighbours[i]->id)) {
+  //         int neighbour_id = neighbours[i]->id;
+  //         global_graph_->addEdge(global_graph_->vertices_map_[id], global_graph_->vertices_map_[neighbour_id],
+  //                               global_graph_->distanceBetweenVertices(global_graph_->vertices_map_[id], global_graph_->vertices_map_[neighbour_id]));
+  //
+  //       }
+  //
+  //     }
+  //
+  //   }
+  //
   // }
+  
 
+  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+
+  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+
+  ROS_INFO_STREAM("\033[;34m collision check global graph time \033[0m "
+                  << duration_total.count() << " \033[;34m ms \033[0m\n ");
   // ROS_INFO_STREAM ("Built global graph with " << global_graph_->getNumVertices() << " vertices & " << global_graph_->getNumEdges() << " edges\n");
 
   // Dijkstra SP report from root to all vertices in global graph
@@ -1471,15 +1476,15 @@ void GraphManager::updateGraph(const ros::TimerEvent &event)
   if (build_global_graph_)
   {
 
-  high_resolution_clock::time_point start_total = high_resolution_clock::now();
+  // high_resolution_clock::time_point start_total = high_resolution_clock::now();
     GraphManager::insertLatestSubGraph();
     GraphManager::buildGlobalGraph();
-  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+  // high_resolution_clock::time_point stop_total = high_resolution_clock::now();
 
-  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+  // auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
 
-  ROS_INFO_STREAM("\033[;34m global graph time \033[0m "
-                  << duration_total.count() << " \033[;34m ms \033[0m\n ");
+  // ROS_INFO_STREAM("\033[;34m global graph time \033[0m "
+                  // << duration_total.count() << " \033[;34m ms \033[0m\n ");
   }
 }
 

@@ -148,6 +148,8 @@ private:
   std::shared_ptr<GraphUtils> improvement_graph_;
   std::shared_ptr<GraphUtils> pose_graph_;
   std::shared_ptr<GraphUtils> sparse_graph_;
+  
+  std::vector<std::shared_ptr<GraphUtils>> graph_vec_;
 
   MapManagerVoxblox<MapManagerVoxbloxServer,
                     MapManagerVoxbloxVoxel> *map_manager_;
