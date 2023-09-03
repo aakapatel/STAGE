@@ -1053,7 +1053,7 @@ void GraphManager::buildGlobalGraph()
 
     Vertex *vertex = new Vertex(global_graph_->generateVertexID(), frontier_graph_->vertices_map_[i]->state);
     vertex->is_frontier = true;
-    
+    vertex->sub_id = vertex->id; 
     vertex->sub_graph_id = latest_sub_graph_id;
     global_graph_->addVertex(vertex);
     ids.push_back(vertex->id);
@@ -1078,7 +1078,7 @@ void GraphManager::buildGlobalGraph()
   for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
     
     int g_id = global_graph_->graph_->getVertexProperty(it);
-    ROS_INFO_STREAM ("Global ID " << g_id << " \n");
+    ROS_INFO_STREAM ("Global graph sub id " << global_graph_->vertices_map_[g_id]->sub_id << " \n");
 
   }
 
@@ -1087,7 +1087,6 @@ void GraphManager::buildGlobalGraph()
   for (Graph::GraphType::vertex_iterator it = v_it.first; it != v_it.second; ++it) {
     
     int s_id = latest_graph->graph_->getVertexProperty(it);
-    int g_id = global_graph_->graph_->getVertexProperty(it);
     
     Vertex* global_graph_vertex = global_graph_->getVertexBySubId(s_id);
     int id = global_graph_vertex->id;
