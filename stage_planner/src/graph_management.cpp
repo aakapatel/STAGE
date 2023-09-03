@@ -811,19 +811,6 @@ void GraphManager::buildLocalGraph()
 
   // high_resolution_clock::time_point start_total = high_resolution_clock::now();
   
-  if (!init) {
-    previous_root[0] = sub_graph_->vertices_map_[0]->state[0];
-    previous_root[1] = sub_graph_->vertices_map_[0]->state[1];
-    previous_root[2] = sub_graph_->vertices_map_[0]->state[2];
-    init = false;
-  } else {
-
-    previous_root[0] = robotState_[0];
-    previous_root[1] = robotState_[1];
-    previous_root[2] = robotState_[2];
-    init = false;
-  }
-
   GraphManager::resetLocalGraph();
   
   latest_sub_graph_id = sub_graph_->subgraph_ind_;
@@ -837,10 +824,6 @@ void GraphManager::buildLocalGraph()
   root_vertex->sub_id = root_vertex->id;
   root_vertex->sub_graph_id = latest_sub_graph_id;
   sub_graph_->addVertex(root_vertex);
-  
-  latest_root[0] = root_vertex->state[0];
-  latest_root[1] = root_vertex->state[1];
-  latest_root[2] = root_vertex->state[2];
   
   std::vector<node *> nodes;
   nodes.clear();
@@ -1082,27 +1065,40 @@ void GraphManager::buildGlobalGraph()
       vi;
   
   global_graph_->graph_->getVertexIterator(vi);
-  
+ 
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
   std::pair<Graph::GraphType::vertex_iterator,
             Graph::GraphType::vertex_iterator>
       v_it;
-  
-  graph_vec_.back()->graph_->getVertexIterator(v_it);
 
+  std::shared_ptr<GraphUtils> latest_graph = graph_vec_.back();
+
+  latest_graph->graph_->getVertexIterator(v_it);
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
+    
+    int g_id = global_graph_->graph_->getVertexProperty(it);
+    ROS_INFO_STREAM ("Global ID " << g_id << " \n");
+
+  }
 
   std::vector<Vertex *> nearby_vertices;
   
   for (Graph::GraphType::vertex_iterator it = v_it.first; it != v_it.second; ++it) {
     
-    int s_id = graph_vec_.back()->graph_->getVertexProperty(it);
+    int s_id = latest_graph->graph_->getVertexProperty(it);
+    int g_id = global_graph_->graph_->getVertexProperty(it);
     
     Vertex* global_graph_vertex = global_graph_->getVertexBySubId(s_id);
     int id = global_graph_vertex->id;
     
     global_graph_->getNearestVertices(&global_graph_vertex->state, 1, &nearby_vertices);
+
+        ROS_INFO_STREAM ("GG ID " << id << " \n");
     if (global_graph_vertex->is_frontier) { 
+
+        ROS_INFO_STREAM ("Frontier ID " << id << " \n");
+
     }
     const Eigen::Vector3d v(global_graph_vertex->state[0],
                             global_graph_vertex->state[1],
@@ -1144,22 +1140,23 @@ void GraphManager::buildGlobalGraph()
   }
   
 
-  for (int id : ids) {
-    
-      std::vector<Vertex *> neighbours;
-      global_graph_->getNearestVertices(&global_graph_->vertices_map_[id]->state, 2, &neighbours); 
+  // for (int id : ids) {
+  //   
+  //     std::vector<Vertex *> neighbours;
+  //     global_graph_->getNearestVertices(&global_graph_->vertices_map_[id]->state, 2, &neighbours); 
+  //
+  //     for (int i = 0; i < neighbours.size(); ++i) {
+  //
+  //       if (!neighbours[i]->is_frontier and !global_graph_->edgeExist(global_graph_->vertices_map_[id]->id, neighbours[i]->id)) {
+  //         int neighbour_id = neighbours[i]->id;
+  //         global_graph_->addEdge(global_graph_->vertices_map_[id], global_graph_->vertices_map_[neighbour_id],
+  //                               global_graph_->distanceBetweenVertices(global_graph_->vertices_map_[id], global_graph_->vertices_map_[neighbour_id]));
+  //
+  //       }
+  //     }
+  // }
 
-      for (int i = 0; i < neighbours.size(); ++i) {
-
-        if (!neighbours[i]->is_frontier and !global_graph_->edgeExist(global_graph_->vertices_map_[id]->id, neighbours[i]->id)) {
-          int neighbour_id = neighbours[i]->id;
-          global_graph_->addEdge(global_graph_->vertices_map_[id], global_graph_->vertices_map_[neighbour_id],
-                                global_graph_->distanceBetweenVertices(global_graph_->vertices_map_[id], global_graph_->vertices_map_[neighbour_id]));
-
-        }
-      }
-  }
-
+  GraphManager::visualizeGlobalGraph(); 
   // for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
   // {
   //
