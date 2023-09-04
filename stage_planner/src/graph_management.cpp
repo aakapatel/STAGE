@@ -1095,12 +1095,6 @@ void GraphManager::buildGlobalGraph()
     
     global_graph_->getNearestVertices(&global_graph_vertex->state, 1, &nearby_vertices);
 
-        ROS_INFO_STREAM ("GG ID " << id << " \n");
-    if (global_graph_vertex->is_frontier) { 
-
-        ROS_INFO_STREAM ("Frontier ID " << id << " \n");
-
-    }
     const Eigen::Vector3d v(global_graph_vertex->state[0],
                             global_graph_vertex->state[1],
                             global_graph_vertex->state[2]);
@@ -1140,7 +1134,7 @@ void GraphManager::buildGlobalGraph()
     }
   }
   
-
+  ROS_INFO_STREAM ("GLobal graph bas " << global_graph_->getNumEdges() << " edges\n");
   for (int id : ids) {
     
       std::vector<Vertex *> neighbours;
@@ -1148,7 +1142,8 @@ void GraphManager::buildGlobalGraph()
 
       for (int i = 0; i < neighbours.size(); ++i) {
 
-        if (!neighbours[i]->is_frontier and !global_graph_->edgeExist(global_graph_->vertices_map_[id]->id, neighbours[i]->id)) {
+        if (!neighbours[i]->is_frontier ) {
+        // if (!neighbours[i]->is_frontier and !global_graph_->edgeExist(global_graph_->vertices_map_[id]->id, neighbours[i]->id)) {
           int neighbour_id = neighbours[i]->id;
           global_graph_->addEdge(global_graph_->vertices_map_[id], global_graph_->vertices_map_[neighbour_id],
                                 global_graph_->distanceBetweenVertices(global_graph_->vertices_map_[id], global_graph_->vertices_map_[neighbour_id]));
@@ -1157,6 +1152,7 @@ void GraphManager::buildGlobalGraph()
       }
   }
 
+  ROS_INFO_STREAM ("After update GLobal graph bas " << global_graph_->getNumEdges() << " edges\n");
   // GraphManager::visualizeGlobalGraph(); 
 
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
@@ -1204,7 +1200,7 @@ void GraphManager::planGlobalPath()
 
     if (global_graph_->vertices_map_[id]->is_frontier)
     {
-
+      
       std::vector<Vertex *> dijkstra_path;
 
       dijkstra_path.clear();
@@ -1213,7 +1209,6 @@ void GraphManager::planGlobalPath()
 
       if (!dijkstra_path.empty())
       {
-
         std::pair<std::vector<Vertex *>, double> p = std::make_pair(dijkstra_path, getPathLength(dijkstra_path));
 
         global_paths_.push_back(p);
@@ -1223,8 +1218,6 @@ void GraphManager::planGlobalPath()
 
   if (!global_paths_.empty())
   {
-
-
     GraphManager::visualizeGlobalGraph();
     GraphManager::visualizeGlobalPaths(global_paths_);
   }
