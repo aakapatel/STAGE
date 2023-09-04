@@ -280,6 +280,29 @@ ufo::geometry::OBB GraphManager::makeOBB(ufo::math::Vector3 source,
   return obb;
 }
 
+double GraphManager::computeExplorationGain (Eigen::Vector3d v) {
+
+  double step_size = 0.1;
+  Eigen::Vector3d voxel (v[0]+step_size, v[1]+step_size, v[2]+step_size);
+
+  // double occupied, free, unknown = 0;
+  MapManager::VoxelStatus vs = map_manager_->getRayStatus(v, voxel, true);
+  while (MapManager::VoxelStatus::kFree == vs) {
+    step_size = step_size + 0.1;
+    voxel = Eigen::Vector3d(v[0]+step_size, v[1]+step_size, v[2]+step_size);
+    // free++;
+    vs = map_manager_->getRayStatus(v, voxel, true);
+    if (vs != MapManager::VoxelStatus::kFree) {
+      break;
+    }
+  }
+  
+  // ROS_INFO_STREAM ("Free voxels : " << free << "\n");
+  ROS_INFO_STREAM ("Step Size : " << step_size << "\n");
+
+  return step_size;
+}
+
 double GraphManager::computeVolumetricGain(ufo::math::Vector3 frontier,
                                            ufo::map::OccupancyMapColor const &map)
 {
@@ -1258,7 +1281,7 @@ bool GraphManager::setPath(bool local, bool global, bool homing)
   }
 
   double gain, path_length;
-  double my_reward = std::numeric_limits<double>::max();
+  double my_reward = -std::numeric_limits<double>::max();
 
   double reward;
   
@@ -1266,10 +1289,12 @@ bool GraphManager::setPath(bool local, bool global, bool homing)
   for (auto i = 0; i < paths_.size(); i++)
   {
 
-    gain = computeVolumetricGain(stateToUfo((paths_[i].first.back())->state), ufoMAP_);
+    // gain = computeVolumetricGain(stateToUfo((paths_[i].first.back())->state), ufoMAP_);
+    Eigen::Vector3d v ((paths_[i].first.back())->state[0], (paths_[i].first.back())->state[1], (paths_[i].first.back())->state[2]);
+    gain = computeExplorationGain(v);
     path_length = paths_[i].second;
-    reward = ((path_length - gain));
-    if (reward < my_reward)
+    reward = (100*gain) - path_length;
+    if (reward > my_reward)
     {
       my_reward = reward;
       raw_path = paths_[i].first;

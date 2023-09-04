@@ -126,7 +126,8 @@ public:
   void buildSparseGraph(State state);
 
   void updateSparseGraph();
-
+  double computeExplorationGain (Eigen::Vector3d v);
+  
   ros::Timer graph_timer_;
 
   bool robot_aerial_ = false;

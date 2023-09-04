@@ -128,9 +128,9 @@ FrontierExtraction::FrontierExtraction(const ros::NodeHandle& nh, const ros::Nod
     m_target_query_srv = nh_.advertiseService("query_frontier_target", &FrontierExtraction::queryFrontierTarget, this);
 
 
-    if (!robot_aerial_) {
-      max_allowed_height_ = 2;
-    } 
+    // if (!robot_aerial_) {
+    //   max_allowed_height_ = 2;
+    // } 
 
 
 };
@@ -330,7 +330,7 @@ void FrontierExtraction::extractFrontiers(const tf::Point &sensorOriginTf, const
 
                     double z_diff = abs(m_currentPose.pose.pose.position.z - pt.z());
 
-                    if ((z_diff < max_allowed_height_))
+                    if (z_diff < max_allowed_height_)
                     // if ((z_diff < 8))
                     {
 
