@@ -37,7 +37,7 @@
 
     <!-- VERY IMPORTANT TO SET CORRECT ROBOT TYPE -->
 
-    <param name="robot_aerial" value="false" />
+    <param name="robot_aerial" value="true" />
     
 
 
@@ -56,7 +56,7 @@
 		<param name="number_of_unknowns" value="4" />
 		<param name="local_sliding_space" value="12" />
 		<param name="local_field_of_view" value="40" />
-		<param name="safety_height" value = "5" />
+		<param name="safety_height" value = "10" />
 		<param name="traversability_radius" value="0.5" />
 		<param name="planning_check_depth" value="1" />
 		<param name="volumetric_gain_threashold" value="1" />

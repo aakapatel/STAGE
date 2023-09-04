@@ -304,9 +304,14 @@ double GraphManager::computeVolumetricGain(ufo::math::Vector3 frontier,
     }
   }
 
-  // double volumetric_gain = 10 * (log(unknown_cells + free_cells / (2*occupied_cells + 1)));
+  double volumetric_gain = 0.0000001*(unknown_cells/(occupied_cells + 1));
 
-  double volumetric_gain = (log(unknown_cells));
+  // double volumetric_gain = int((unknown_cells));
+
+  ROS_INFO_STREAM ("path selection gain : " << volumetric_gain << "\n");
+  // ROS_INFO_STREAM ("path selection UNKNOWNS : " << unknown_cells << "\n");
+  // ROS_INFO_STREAM ("path selection OCCUPIED : " << occupied_cells << "\n");
+  // ROS_INFO_STREAM ("path selection FREE : " << free_cells << "\n");
   if (std::isnan(volumetric_gain))
   {
     volumetric_gain = 0;
@@ -852,7 +857,7 @@ void GraphManager::buildLocalGraph()
     // {
 
       Vertex *vertex = new Vertex(sub_graph_->generateVertexID(), frontier_graph_->vertices_map_[i]->state);
-      vertex->is_local = true;
+      vertex->is_local = frontier_graph_->vertices_map_[i]->is_local;
       vertex->is_frontier = true;
       vertex->sub_id = vertex->id;
       vertex->sub_graph_id = latest_sub_graph_id;
@@ -1101,7 +1106,7 @@ void GraphManager::buildGlobalGraph()
     
     for (int i = 0; i < nearby_vertices.size(); ++i) {
  
-        if (nearby_vertices[i]->sub_graph_id == (latest_sub_graph_id-1)) {
+        if (nearby_vertices[i]->sub_graph_id != (latest_sub_graph_id)) {
           
           int nearby_vertex_id =  nearby_vertices[i]->id;
 
@@ -1117,7 +1122,7 @@ void GraphManager::buildGlobalGraph()
                                                                           global_graph_->vertices_map_[nearby_vertex_id]);
           if (weight < 1.5*max_edge_length_) {
 
-            if (e1 < 4) {
+            if (e1 < 7) {
               if (MapManager::VoxelStatus::kFree == vs) {
 
                 global_graph_->addEdge(global_graph_->vertices_map_[id], 
@@ -1138,7 +1143,7 @@ void GraphManager::buildGlobalGraph()
   for (int id : ids) {
     
       std::vector<Vertex *> neighbours;
-      global_graph_->getNearestVertices(&global_graph_->vertices_map_[id]->state, 2, &neighbours); 
+      global_graph_->getNearestVertices(&global_graph_->vertices_map_[id]->state, 5, &neighbours); 
 
       for (int i = 0; i < neighbours.size(); ++i) {
 
@@ -1169,7 +1174,7 @@ void GraphManager::buildGlobalGraph()
 
   GraphManager::planGlobalPath();
 
-  GraphManager::updateKdtree();
+  // GraphManager::updateKdtree();
 } // buildGlobalGraph
 
 void GraphManager::planGlobalPath()
@@ -1198,7 +1203,7 @@ void GraphManager::planGlobalPath()
 
     int id = global_graph_->graph_->getVertexProperty(it);
 
-    if (global_graph_->vertices_map_[id]->is_frontier)
+    if (!global_graph_->vertices_map_[id]->is_local and global_graph_->vertices_map_[id]->is_frontier)
     {
       
       std::vector<Vertex *> dijkstra_path;
@@ -1253,24 +1258,25 @@ bool GraphManager::setPath(bool local, bool global, bool homing)
   }
 
   double gain, path_length;
-  double my_reward = -std::numeric_limits<double>::max();
+  double my_reward = std::numeric_limits<double>::max();
 
-  double reward = exp(gain - path_length);
+  double reward;
+  
 
   for (auto i = 0; i < paths_.size(); i++)
   {
 
     gain = computeVolumetricGain(stateToUfo((paths_[i].first.back())->state), ufoMAP_);
-
     path_length = paths_[i].second;
-
-    if (reward > my_reward)
+    reward = ((path_length - gain));
+    if (reward < my_reward)
     {
       my_reward = reward;
       raw_path = paths_[i].first;
     }
   }
 
+  ROS_INFO_STREAM ("path selection reward : " << reward << "\n");
   if (raw_path.empty())
   {
     ROS_WARN("Local Dijkstra SP -> Empty :( \n");
@@ -1403,8 +1409,9 @@ void GraphManager::updateGraph(const ros::TimerEvent &event)
   {
 
   // high_resolution_clock::time_point start_total = high_resolution_clock::now();
-    // GraphManager::insertLatestSubGraph();
-    // GraphManager::buildGlobalGraph();
+    GraphManager::insertLatestSubGraph();
+    GraphManager::buildGlobalGraph();
+    GraphManager::updateKdtree();
   // high_resolution_clock::time_point stop_total = high_resolution_clock::now();
 
   // auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
@@ -1530,15 +1537,15 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
     GraphManager::buildLocalGraph();
 
-    GraphManager::insertLatestSubGraph();
+    // GraphManager::insertLatestSubGraph();
     if (GraphManager::setPath(true, false, false))
     {
       ROS_INFO_STREAM("Running Local exploration \n");
     }
     else
     {
-      GraphManager::insertLatestSubGraph();
-      GraphManager::buildGlobalGraph();
+      // GraphManager::insertLatestSubGraph();
+      // GraphManager::buildGlobalGraph();
       if (GraphManager::setPath(false, true, false))
       {
 
@@ -1553,8 +1560,8 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
   }
   else if (!global_repos_targets_.empty())
   {
-    GraphManager::insertLatestSubGraph();
-    GraphManager::buildGlobalGraph();
+    // GraphManager::insertLatestSubGraph();
+    // GraphManager::buildGlobalGraph();
     if (GraphManager::setPath(false, true, false))
     {
       ROS_INFO("Global planner triggered \n");
