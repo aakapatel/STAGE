@@ -280,9 +280,10 @@ ufo::geometry::OBB GraphManager::makeOBB(ufo::math::Vector3 source,
   return obb;
 }
 
-double GraphManager::computeExplorationGain (Eigen::Vector3d v) {
+double GraphManager::computeExplorationGain (State state) {
 
   double step_size = 0.1;
+  Eigen::Vector3d v (state[0], state[1], state[2]);
   Eigen::Vector3d voxel (v[0]+step_size, v[1]+step_size, v[2]+step_size);
 
   // double occupied, free, unknown = 0;
@@ -298,7 +299,7 @@ double GraphManager::computeExplorationGain (Eigen::Vector3d v) {
   }
   
   // ROS_INFO_STREAM ("Free voxels : " << free << "\n");
-  ROS_INFO_STREAM ("Step Size : " << step_size << "\n");
+  // ROS_INFO_STREAM ("Step Size : " << step_size << "\n");
 
   return step_size;
 }
@@ -601,27 +602,29 @@ void GraphManager::updateKdtree()
   std::vector<int> ids;
   ids.clear();
 
-  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
-  {
-
-    int id = global_graph_->graph_->getVertexProperty(it);
-    global_graph_->vertices_map_[id]->is_frontier = false;
-  }
   // for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
   // {
   //
   //   int id = global_graph_->graph_->getVertexProperty(it);
-  //   if (global_graph_->vertices_map_[id]->is_frontier) {
-  //      ids.push_back(id);
-  //   } 
+  //   global_graph_->vertices_map_[id]->is_frontier = false;
   // }
-  //
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
+  {
+
+    int id = global_graph_->graph_->getVertexProperty(it);
+    if (global_graph_->vertices_map_[id]->is_frontier) {
+        global_graph_->vertices_map_[id]->is_frontier = false;
+       ids.push_back(id);
+    } 
+  }
+
   // for (int i : ids)
   // {
   //
   //   global_graph_->clearVertex(global_graph_->vertices_map_[i]->id);
-  //   global_graph_->removeVertex(global_graph_->vertices_map_[i]->id);
+  //   // global_graph_->removeVertex(global_graph_->vertices_map_[i]->id);
   // }
+  // global_graph_rep_.reset();
 
 
 }
@@ -876,16 +879,17 @@ void GraphManager::buildLocalGraph()
   for (int i = 0; i < frontier_graph_->getNumVertices(); ++i)
   {
 
-    // if (frontier_graph_->vertices_map_[i]->is_local)
-    // {
+    if (frontier_graph_->vertices_map_[i]->gain > average_gain/2)
+    {
 
       Vertex *vertex = new Vertex(sub_graph_->generateVertexID(), frontier_graph_->vertices_map_[i]->state);
       vertex->is_local = frontier_graph_->vertices_map_[i]->is_local;
       vertex->is_frontier = true;
       vertex->sub_id = vertex->id;
+      vertex->gain = frontier_graph_->vertices_map_[i]->gain;
       vertex->sub_graph_id = latest_sub_graph_id;
       sub_graph_->addVertex(vertex);
-    // }
+    }
   }
 
   std::pair<Graph::GraphType::vertex_iterator,
@@ -1075,18 +1079,6 @@ void GraphManager::buildGlobalGraph()
   // Add global exploration targets to global graph for simpler direct path
   std::vector<int> ids;
   ids.clear();
-  // for (int i = 0; i < frontier_graph_->getNumVertices(); ++i)
-  // {
-  //   // Decide if want to include only frontier or also sampled nodes around the frontier
-  //
-  //   Vertex *vertex = new Vertex(global_graph_->generateVertexID(), frontier_graph_->vertices_map_[i]->state);
-  //   vertex->is_frontier = true;
-  //   vertex->sub_id = vertex->id; 
-  //   vertex->sub_graph_id = latest_sub_graph_id;
-  //   global_graph_->addVertex(vertex);
-  //   ids.push_back(vertex->id);
-  // }
-
 
   std::pair<Graph::GraphType::vertex_iterator,
             Graph::GraphType::vertex_iterator>
@@ -1103,14 +1095,6 @@ void GraphManager::buildGlobalGraph()
   std::shared_ptr<GraphUtils> latest_graph = graph_vec_.back();
 
   latest_graph->graph_->getVertexIterator(v_it);
-  // for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
-  //   
-  //   int g_id = global_graph_->graph_->getVertexProperty(it);
-  //   if (global_graph_->vertices_map_[g_id]->is_frontier) {
-  //     ids.push_back(g_id);
-  //   }
-  //
-  // }
 
   std::vector<Vertex *> nearby_vertices;
   
@@ -1154,7 +1138,7 @@ void GraphManager::buildGlobalGraph()
                                                                               global_graph_->vertices_map_[nearby_vertex_id]));
 
                 global_graph_->vertices_map_[id]->edges++;
-                // global_graph_->vertices_map_[nearby_vertex_id]->edges++;
+                global_graph_->vertices_map_[nearby_vertex_id]->edges++;
               }
             }
           }
@@ -1162,7 +1146,6 @@ void GraphManager::buildGlobalGraph()
     }
   }
   
-  ROS_INFO_STREAM ("GLobal graph bas " << global_graph_->getNumEdges() << " edges\n");
   for (int id : ids) {
     
       std::vector<Vertex *> neighbours;
@@ -1180,15 +1163,14 @@ void GraphManager::buildGlobalGraph()
       }
   }
 
-  ROS_INFO_STREAM ("After update GLobal graph bas " << global_graph_->getNumEdges() << " edges\n");
   // GraphManager::visualizeGlobalGraph(); 
 
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
 
   auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
 
-  ROS_INFO_STREAM("\033[;34m collision check global graph time \033[0m "
-                  << duration_total.count() << " \033[;34m ms \033[0m\n ");
+  // ROS_INFO_STREAM("\033[;34m collision check global graph time \033[0m "
+  //                 << duration_total.count() << " \033[;34m ms \033[0m\n ");
   // ROS_INFO_STREAM ("Built global graph with " << global_graph_->getNumVertices() << " vertices & " << global_graph_->getNumEdges() << " edges\n");
 
   // Dijkstra SP report from root to all vertices in global graph
@@ -1290,8 +1272,7 @@ bool GraphManager::setPath(bool local, bool global, bool homing)
   {
 
     // gain = computeVolumetricGain(stateToUfo((paths_[i].first.back())->state), ufoMAP_);
-    Eigen::Vector3d v ((paths_[i].first.back())->state[0], (paths_[i].first.back())->state[1], (paths_[i].first.back())->state[2]);
-    gain = computeExplorationGain(v);
+    gain = computeExplorationGain(paths_[i].first.back()->state);
     path_length = paths_[i].second;
     reward = (100*gain) - path_length;
     if (reward > my_reward)
@@ -1491,7 +1472,8 @@ void GraphManager::fetchExplorationTargets()
       {
         return;
       }
-
+      std::vector<double> gains;
+      gains.clear();
       if (!local_exploration_targets_.empty())
       {
 
@@ -1499,7 +1481,9 @@ void GraphManager::fetchExplorationTargets()
         {
           Vertex *frontier_vertex = new Vertex(frontier_graph_->generateVertexID(), ufoToState(i));
           frontier_vertex->is_local = true;
+          frontier_vertex->gain = 10 * computeExplorationGain(ufoToState(i));
           frontier_graph_->addVertex(frontier_vertex);
+          gains.push_back(frontier_vertex->gain);
         }
       }
 
@@ -1510,9 +1494,14 @@ void GraphManager::fetchExplorationTargets()
         {
           Vertex *frontier_vertex = new Vertex(frontier_graph_->generateVertexID(), ufoToState(i));
           frontier_vertex->is_local = false;
+          frontier_vertex->gain = 10 * computeExplorationGain(ufoToState(i));
+          // ROS_INFO_STREAM ("Frontier vertex gain : " << frontier_vertex->gain << "\n");
           frontier_graph_->addVertex(frontier_vertex);
+          gains.push_back(frontier_vertex->gain);
         }
       }
+
+      average_gain = std::accumulate(gains.begin(), gains.end(), 0.0) / gains.size();
 
       // ROS_INFO_STREAM ("Fetched " << local_exploration_targets_.size() << " Local & "
       // << global_repos_targets_.size() << " Global frontiers \n");
@@ -1997,7 +1986,7 @@ void GraphManager::visualizeGlobalGraph()
   frontier_vertex_marker.id = 0;
   frontier_vertex_marker.ns = "frontier";
   frontier_vertex_marker.action = visualization_msgs::Marker::ADD;
-  frontier_vertex_marker.type = visualization_msgs::Marker::CUBE_LIST;
+  frontier_vertex_marker.type = visualization_msgs::Marker::SPHERE_LIST;
   frontier_vertex_marker.scale.x = 0.4;
   frontier_vertex_marker.scale.y = 0.4;
   frontier_vertex_marker.scale.z = 0.4;

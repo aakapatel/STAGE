@@ -33,7 +33,7 @@ FrontierExtraction::FrontierExtraction(const ros::NodeHandle& nh, const ros::Nod
       LOCAL_SPACE(10),
       LOCAL_FOV(40),
       m_ufomap("/ufomap_mapping_server_node/map"),
-      max_allowed_height_(4),
+      max_allowed_height_(10),
       OBB_RADIUS(0.5),
       mapDepth_(0),
       VOLUMETRIC_GAIN_THREASHOLD(10),
@@ -128,9 +128,9 @@ FrontierExtraction::FrontierExtraction(const ros::NodeHandle& nh, const ros::Nod
     m_target_query_srv = nh_.advertiseService("query_frontier_target", &FrontierExtraction::queryFrontierTarget, this);
 
 
-    // if (!robot_aerial_) {
-    //   max_allowed_height_ = 2;
-    // } 
+    if (!robot_aerial_) {
+      max_allowed_height_ = 2;
+    } 
 
 
 };
@@ -329,7 +329,7 @@ void FrontierExtraction::extractFrontiers(const tf::Point &sensorOriginTf, const
                     pt.z() = point.z();
 
                     double z_diff = abs(m_currentPose.pose.pose.position.z - pt.z());
-
+                    
                     if (z_diff < max_allowed_height_)
                     // if ((z_diff < 8))
                     {

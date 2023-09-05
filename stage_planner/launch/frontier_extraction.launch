@@ -37,10 +37,8 @@
 
     <!-- VERY IMPORTANT TO SET CORRECT ROBOT TYPE -->
 
-    <param name="robot_aerial" value="true" />
+    <param name="robot_aerial" value="false" />
     
-
-
 
     <param name="xFiltering" value="true" />
 		<param name="yFiltering" value="true" />
@@ -53,11 +51,11 @@
 		<param name="sensor_model/max_range" value="10" />
 		<param name="odometry" value="/hummingbird/ground_truth/odometry" />
 		<remap from="cloud_in" to="/hummingbird/velodyne_points" />
-		<param name="number_of_unknowns" value="4" />
+		<param name="number_of_unknowns" value="12" />
 		<param name="local_sliding_space" value="12" />
 		<param name="local_field_of_view" value="40" />
 		<param name="safety_height" value = "6" />
-		<param name="traversability_radius" value="0.5" />
+		<param name="traversability_radius" value="1" />
 		<param name="planning_check_depth" value="1" />
 		<param name="volumetric_gain_threashold" value="1" />
     

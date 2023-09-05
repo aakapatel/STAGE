@@ -189,7 +189,7 @@ private:
     double LOCAL_FOV;
     bool map_received;
     std::string m_ufomap;
-    bool max_allowed_height_;
+    double max_allowed_height_;
     double OBB_RADIUS;
     int mapDepth_;
     double VOLUMETRIC_GAIN_THREASHOLD;

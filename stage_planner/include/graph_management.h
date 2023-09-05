@@ -126,9 +126,11 @@ public:
   void buildSparseGraph(State state);
 
   void updateSparseGraph();
-  double computeExplorationGain (Eigen::Vector3d v);
+  double computeExplorationGain (State v);
   
   ros::Timer graph_timer_;
+  
+  double average_gain;
 
   bool robot_aerial_ = false;
   double max_graph_height_ = 2;
