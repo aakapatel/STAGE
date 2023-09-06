@@ -75,6 +75,9 @@ struct Vertex {
   int sub_id;
   // Sub graph index 
   int sub_graph_id;
+  // Neighbours 
+  std::vector<Vertex *> neighbours;
+
 };
 
 
@@ -136,6 +139,8 @@ public:
   
   int getNumNeighbours (Vertex* v);
 
+  void clearStateHistory ();
+
   // Boost graph 
   std::shared_ptr<Graph> graph_;
   // Mapping from vertex id to vertex property.
@@ -144,6 +149,8 @@ public:
   std::map<int, std::vector<std::pair<int, double>>> edge_map_;  
 
   int subgraph_ind_ = -1;
+  
+  std::vector<State> state_history_;
 
 private:
   

@@ -55,7 +55,6 @@ public:
                      bool occupied_space, bool free_space,
                      bool unknown_space, ufo::map::DepthType min_depth);
   ufo::geometry::OBB makeOBB(ufo::math::Vector3 source, ufo::math::Vector3 goal, float radius);
-  double computeVolumetricGain(ufo::math::Vector3 frontier, ufo::map::OccupancyMapColor const &map);
   ufo::math::Vector3 tunePlanningSpace(State state, double bounding_box_size);
   void sampleNodes(std::vector<node *> &nodes, State state, int iterations_max, double bounding_box_size);
   ufo::math::Vector3 pointToUfo(geometry_msgs::Point p);
@@ -83,7 +82,6 @@ public:
   void resetLocalGraph();
   void resetGlobalGraph();
   void resetFrontierGraph();
-  void resetSparseGraph();
 
   void buildLocalGraph();
   
@@ -99,8 +97,6 @@ public:
 
   void visualizeGlobalGraph();
 
-  void visualizeSparseGraph();
-
   void visualize();
 
   double getPathLength(std::vector<Vertex *> path);
@@ -110,6 +106,8 @@ public:
   void visualizeGlobalPaths(std::vector<std::pair<std::vector<Vertex *>, double>> global_paths);
 
   void visualizeFrontierGraph();
+  
+  void visualizeSparseGraph ();
 
   bool getNeighbours(const State *state, double range, std::vector<Vertex *> *v_res);
   void insertVertexKdtree(Vertex *v);
@@ -123,9 +121,6 @@ public:
 
   bool setPath(bool local, bool global, bool homing);
 
-  void buildSparseGraph(State state);
-
-  void updateSparseGraph();
   double computeExplorationGain (State v);
   
   ros::Timer graph_timer_;
