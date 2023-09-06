@@ -24,13 +24,13 @@ void GraphUtils::reset() {
 
   // Vertex mapping.
   // Clear memory for all vertex pointers
-  // if (vertices_map_.size() > 0) {
-  //   for (int i = 0; i < vertices_map_.size(); ++i) {
-  //     delete vertices_map_[i];
-  //   }
-  // }
-  // vertices_map_.clear();
-  // edge_map_.clear();
+  if (vertices_map_.size() > 0) {
+    for (int i = 0; i < vertices_map_.size(); ++i) {
+      delete vertices_map_[i];
+    }
+  }
+  vertices_map_.clear();
+  edge_map_.clear();
 
   // Other params.
   subgraph_ind_ = -1;

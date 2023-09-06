@@ -76,7 +76,7 @@ struct Vertex {
   // Sub graph index 
   int sub_graph_id;
   // Neighbours 
-  std::vector<Vertex *> neighbours;
+  // std::vector<Vertex *> neighbours;
 
 };
 
@@ -151,6 +151,9 @@ public:
   int subgraph_ind_ = -1;
   
   std::vector<State> state_history_;
+  
+  std::vector<int> state_ids_;
+  std::vector<int> frontier_ids_;
 
 private:
   

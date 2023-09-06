@@ -57,6 +57,8 @@ public:
   ufo::geometry::OBB makeOBB(ufo::math::Vector3 source, ufo::math::Vector3 goal, float radius);
   ufo::math::Vector3 tunePlanningSpace(State state, double bounding_box_size);
   void sampleNodes(std::vector<node *> &nodes, State state, int iterations_max, double bounding_box_size);
+  void sampleNodesOBB (std::vector<node *>* nodes, int iterations_max, State root, State goal, double radius);
+  std::pair<Eigen::Vector3d, Eigen::Vector3d> tuneBounds (State root, State goal, double radius);
   ufo::math::Vector3 pointToUfo(geometry_msgs::Point p);
   std::vector<ufo::math::Vector3> pointsToUfo(std::vector<geometry_msgs::Point> points);
   void fetchExplorationTargets();
@@ -85,8 +87,6 @@ public:
 
   void buildLocalGraph();
   
-  void insertLatestSubGraph();
-
   void buildGlobalGraph();
   
   void planLocalPath();
