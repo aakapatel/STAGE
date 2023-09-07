@@ -110,6 +110,8 @@ public:
   int getNumEdges() { return graph_->getNumEdges(); }
 
   Vertex* getVertex(int id) { return vertices_map_[id]; }
+  
+  int getIdCount ();
 
   bool findShortestPaths(ShortestPathsReport& rep);
   bool findShortestPaths(int source_id, ShortestPathsReport& rep);

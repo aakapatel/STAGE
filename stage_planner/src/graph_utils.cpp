@@ -61,6 +61,9 @@ bool GraphUtils::edgeExist (int source_id, int target_id) {
   return exist;
 }
 
+int GraphUtils::getIdCount () {
+  return id_count_;
+}
 
 Vertex* GraphUtils::getVertexBySubId (int s_id) {
   

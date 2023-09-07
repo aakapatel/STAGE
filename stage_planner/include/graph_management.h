@@ -107,7 +107,7 @@ public:
 
   void visualizeFrontierGraph();
   
-  void visualizeSparseGraph ();
+  void visualizePoseGraph ();
 
   bool getNeighbours(const State *state, double range, std::vector<Vertex *> *v_res);
   void insertVertexKdtree(Vertex *v);
@@ -122,7 +122,11 @@ public:
   bool setPath(bool local, bool global, bool homing);
 
   double computeExplorationGain (State v);
+ 
+  void expandGraph (int iterations_max, Vertex* root, Vertex* goal, double radius);
   
+  int global_root_id = 0;
+
   ros::Timer graph_timer_;
   
   double average_gain;
@@ -244,7 +248,7 @@ private:
   ros::Publisher local_Graph_Vis_Pub_;
   ros::Publisher global_Graph_Vis_Pub_;
   ros::Publisher frontier_Graph_Vis_Pub_;
-  ros::Publisher sparse_Graph_Vis_Pub_;
+  ros::Publisher pose_Graph_Vis_Pub_;
   ros::Publisher overlap_Vis_Pub_;
 
   // Services
