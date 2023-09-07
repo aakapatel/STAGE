@@ -615,7 +615,7 @@ void GraphManager::expandGraph (int iterations_max, Vertex* root, Vertex* goal, 
             double weight = global_graph_->distanceBetweenVertices(new_vertex, v);
             global_graph_->addEdge(new_vertex, v, weight);
             v->edges++;
-            break;
+            // break;
           }
         }
 
