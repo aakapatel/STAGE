@@ -913,7 +913,12 @@ void GraphManager::buildGlobalGraph()
   if (global_graph_->state_history_.empty())
   {
     ROS_WARN("No state history to build global graph \n");
-    return;
+    if (global_graph_->getNumVertices() != 0) {
+        GraphManager::planGlobalPath();
+      } else {
+        ROS_WARN ("Global graph is empty \n");
+        return;
+      }
   } else {
 
     GraphManager::updateKdtree();
@@ -921,12 +926,17 @@ void GraphManager::buildGlobalGraph()
   
   std::vector<State> state_history = global_graph_->state_history_;
 
-  for (int i = 0; i < state_history.size(); ++i) {
+  for (int i = 0; i < state_history.size()-1; ++i) {
 
     Vertex* vertex = new Vertex(global_graph_->generateVertexID(), state_history[i]);
     vertex->is_root = true;
     global_graph_->addVertex(vertex);
+
+    Vertex* next_vertex = new Vertex(global_graph_->generateVertexID(), state_history[i+1]);
+    next_vertex->is_root = true;
+    global_graph_->addVertex(next_vertex);
     global_graph_->state_ids_.push_back(vertex->id);
+    global_graph_->addEdge(vertex, next_vertex, global_graph_->distanceBetweenVertices(vertex, next_vertex));
     std::vector<Vertex*> nearest_neighbours;
     sub_graph_->getNearestVertices(&state_history[i], 2, &nearest_neighbours);
     Eigen::Vector3d v_s (vertex->state[0], vertex->state[1], vertex->state[2]);
@@ -958,33 +968,41 @@ void GraphManager::buildGlobalGraph()
       Vertex* closest_state_vertex;
       for (int id : global_graph_->state_ids_) {
         distance = global_graph_->distanceBetweenVertices(global_graph_->vertices_map_[id], frontier_vertex);
-        if (distance < my_distance) {
-          my_distance = distance;
           closest_state_vertex = global_graph_->vertices_map_[id];
-        }
-      }
-      std::vector<node *> nodes;
-      GraphManager::sampleNodesOBB(&nodes, 10, frontier_vertex->state, closest_state_vertex->state, 2);
-      for (int i_r = 0; i_r < nodes.size(); ++i_r)
-      {
-        Vertex *vertex_sampled = new Vertex(global_graph_->generateVertexID(), ufoToState(*(nodes[i_r]->point)));
-      
-        global_graph_->addVertex(vertex_sampled);
-        Eigen::Vector3d v_sampled (vertex_sampled->state[0], vertex_sampled->state[1], vertex_sampled->state[2]);
+          
+
         Eigen::Vector3d v_state (closest_state_vertex->state[0], closest_state_vertex->state[1], closest_state_vertex->state[2]);
         Eigen::Vector3d v_frontier (frontier_vertex->state[0], frontier_vertex->state[1], frontier_vertex->state[2]);
 
-        MapManager::VoxelStatus v_sampled_to_state = map_manager_->getPathStatus (v_sampled, v_state, robot_box_size_, true);
-        MapManager::VoxelStatus v_sampled_to_frontier = map_manager_->getPathStatus (v_sampled, v_frontier, robot_box_size_, true);
-        
-        if (MapManager::VoxelStatus::kFree == v_sampled_to_state) {
-          global_graph_->addEdge(vertex_sampled, closest_state_vertex, global_graph_->distanceBetweenVertices(vertex_sampled, closest_state_vertex));
-        }
+        MapManager::VoxelStatus v_state_to_frontier = map_manager_->getPathStatus (v_state, v_frontier, robot_box_size_, true);
 
-        if (MapManager::VoxelStatus::kFree == v_sampled_to_frontier) {
-          global_graph_->addEdge(vertex_sampled, frontier_vertex, global_graph_->distanceBetweenVertices(vertex_sampled, frontier_vertex));
+        if (MapManager::VoxelStatus::kFree == v_state_to_frontier) {
+          global_graph_->addEdge(global_graph_->vertices_map_[id], frontier_vertex, global_graph_->distanceBetweenVertices(global_graph_->vertices_map_[id], frontier_vertex));
         }
       }
+      // std::vector<node *> nodes;
+      // GraphManager::sampleNodesOBB(&nodes, 500, closest_state_vertex->state, frontier_vertex->state, 2);
+      // for (int i_r = 0; i_r < nodes.size(); ++i_r)
+      // {
+      //   Vertex *vertex_sampled = new Vertex(global_graph_->generateVertexID(), ufoToState(*(nodes[i_r]->point)));
+      // 
+      //   global_graph_->addVertex(vertex_sampled);
+      //   Eigen::Vector3d v_sampled (vertex_sampled->state[0], vertex_sampled->state[1], vertex_sampled->state[2]);
+      //   Eigen::Vector3d v_state (closest_state_vertex->state[0], closest_state_vertex->state[1], closest_state_vertex->state[2]);
+      //   Eigen::Vector3d v_frontier (frontier_vertex->state[0], frontier_vertex->state[1], frontier_vertex->state[2]);
+      //
+      //   MapManager::VoxelStatus v_sampled_to_state = map_manager_->getPathStatus (v_sampled, v_state, robot_box_size_, true);
+      //   MapManager::VoxelStatus v_sampled_to_frontier = map_manager_->getPathStatus (v_sampled, v_frontier, robot_box_size_, true);
+      //   double weight_s_s = global_graph_->distanceBetweenVertices(vertex_sampled, closest_state_vertex); 
+      //   double weight_s_f = global_graph_->distanceBetweenVertices(vertex_sampled, frontier_vertex); 
+      //   if (weight_s_s < 4*max_edge_length_ and MapManager::VoxelStatus::kFree == v_sampled_to_state) {
+      //     global_graph_->addEdge(vertex_sampled, closest_state_vertex, global_graph_->distanceBetweenVertices(vertex_sampled, closest_state_vertex));
+      //   }
+      //
+      //   if (weight_s_f < 4*max_edge_length_ and MapManager::VoxelStatus::kFree == v_sampled_to_frontier) {
+      //     global_graph_->addEdge(vertex_sampled, frontier_vertex, global_graph_->distanceBetweenVertices(vertex_sampled, frontier_vertex));
+      //   }
+      // }
     }
   } 
 
@@ -1678,7 +1696,7 @@ void GraphManager::visualizeGlobalPaths(std::vector<std::pair<std::vector<Vertex
   edge_marker.ns = "edges";
   edge_marker.action = visualization_msgs::Marker::ADD;
   edge_marker.type = visualization_msgs::Marker::LINE_LIST;
-  edge_marker.scale.x = 0.04;
+  edge_marker.scale.x = 0.08;
   edge_marker.color.r = 255.0 / 255.0;
   edge_marker.color.g = 0 / 255.0;
   edge_marker.color.b = 255.0 / 255.0;
@@ -1693,9 +1711,9 @@ void GraphManager::visualizeGlobalPaths(std::vector<std::pair<std::vector<Vertex
   vertex_marker.ns = "vertices";
   vertex_marker.action = visualization_msgs::Marker::ADD;
   vertex_marker.type = visualization_msgs::Marker::SPHERE_LIST;
-  vertex_marker.scale.x = 0.3;
-  vertex_marker.scale.y = 0.3;
-  vertex_marker.scale.z = 0.3;
+  vertex_marker.scale.x = 0.5;
+  vertex_marker.scale.y = 0.5;
+  vertex_marker.scale.z = 0.5;
   vertex_marker.color.r = 255.0 / 255.0;
   vertex_marker.color.g = 0 / 255.0;
   vertex_marker.color.b = 255.0 / 255.0;
