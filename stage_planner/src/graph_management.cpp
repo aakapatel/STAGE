@@ -603,12 +603,12 @@ void GraphManager::expandGraph (int iterations_max, Vertex* root, Vertex* goal, 
   {
 
     // Generate a random point
-    float x = root->state[0] + abs(1024 * rand() / (RAND_MAX + 1.0)) * (root->state[0] - goal->state[0]);
-    float y = root->state[1] + abs(1024 * rand() / (RAND_MAX + 1.0)) * (root->state[1] - goal->state[1]);
+    float x = root->state[0] + abs(1024 * rand() / (RAND_MAX + 1.0)) * (goal->state[0] - root->state[0]);
+    float y = root->state[1] + abs(1024 * rand() / (RAND_MAX + 1.0)) * (goal->state[1] - root->state[1]);
     float z;
     
     if (robot_aerial_) {
-      z = root->state[2] + abs(1024 * rand() / (RAND_MAX + 1.0)) * (root->state[2] - goal->state[2]);
+      z = root->state[2] + abs(1024 * rand() / (RAND_MAX + 1.0)) * (goal->state[2] - root->state[2]);
     } else {
       z = robotState_[2] + abs(1024 * rand() / (RAND_MAX + 1.0)) * max_graph_height_;
     }
@@ -634,7 +634,7 @@ void GraphManager::expandGraph (int iterations_max, Vertex* root, Vertex* goal, 
         }
       };
       Eigen::Vector3d start_pos(parent->point->x(), parent->point->y(), parent->point->z());
-      if ( calculateDistance(*parent->point, random_point) > 0.5 and MapManager::VoxelStatus::kFree ==
+      if ( (start_pos-random_state).norm() > 0.5 and MapManager::VoxelStatus::kFree ==
           map_manager_->getPathStatus(random_state, start_pos, robot_box_size_, true))
       {
         State previous_state = ufoToState(*parent->point);
@@ -656,12 +656,14 @@ void GraphManager::expandGraph (int iterations_max, Vertex* root, Vertex* goal, 
         std::vector<Vertex *> neighbours;
         global_graph_->getNearestVertices(&new_state, 2, &neighbours);
         for (Vertex * v : neighbours) {
-          if (v->is_frontier and v->edges < 2) {
+          if (v == goal) {
             
             double weight = global_graph_->distanceBetweenVertices(new_vertex, v);
             global_graph_->addEdge(new_vertex, v, weight);
-            v->edges++;
+            // v->edges++;
+            ROS_WARN_STREAM ("Found Frontier \n");
             // break;
+
           }
         }
 
@@ -1118,6 +1120,10 @@ void GraphManager::buildGlobalGraph()
       
       for (int id : latest_root_ids) {
         GraphManager::expandGraph(10, global_graph_->vertices_map_[id], frontier_vertex, 2);
+      
+
+
+
       }
     }
   } 
