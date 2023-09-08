@@ -109,6 +109,8 @@ public:
   
   void visualizePoseGraph ();
 
+  void visualizeRandomNodes ();
+  
   bool getNeighbours(const State *state, double range, std::vector<Vertex *> *v_res);
   void insertVertexKdtree(Vertex *v);
   void resetKdtree();
@@ -139,6 +141,8 @@ public:
   Eigen::Vector3d overlap_point;
 
   bool init = true;
+  
+  Vertex * local_goal_vertex;
 
 private:
   ros::NodeHandle nh_;
@@ -250,7 +254,7 @@ private:
   ros::Publisher frontier_Graph_Vis_Pub_;
   ros::Publisher pose_Graph_Vis_Pub_;
   ros::Publisher overlap_Vis_Pub_;
-
+  ros::Publisher random_Nodes_Vis_Pub_;
   // Services
   ros::ServiceClient m_frontier_client;
   ros::ServiceClient m_target_query_client;

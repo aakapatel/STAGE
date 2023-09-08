@@ -21,6 +21,7 @@ Panels:
         - /MarkerArray8
         - /Marker1
         - /MarkerArray9
+        - /MarkerArray10
       Splitter Ratio: 0.5
     Tree Height: 420
   - Class: rviz/Selection
@@ -208,8 +209,8 @@ Visualization Manager:
     - Alpha: 0.30000001192092896
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: -9999
-        Min Value: 9999
+        Max Value: 12.90000057220459
+        Min Value: -3.9000000953674316
         Value: true
       Axis: Z
       Channel Name: intensity
@@ -270,6 +271,14 @@ Visualization Manager:
       Marker Topic: /pose_graph
       Name: MarkerArray
       Namespaces:
+        vertices: true
+      Queue Size: 100
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /random_nodes
+      Name: MarkerArray
+      Namespaces:
         {}
       Queue Size: 100
       Value: true
@@ -309,17 +318,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 2.4143927097320557
-        Y: -0.5456274747848511
-        Z: -0.16408118605613708
+        X: 0.7475027441978455
+        Y: -0.46352052688598633
+        Z: -0.16574804484844208
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.3197966814041138
+      Pitch: 1.5697963237762451
       Target Frame: hummingbird/base_link
-      Yaw: 3.133633852005005
+      Yaw: 3.1536335945129395
     Saved: ~
 Window Geometry:
   Displays:
