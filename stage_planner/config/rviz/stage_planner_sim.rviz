@@ -22,6 +22,7 @@ Panels:
         - /Marker1
         - /MarkerArray9
         - /MarkerArray10
+        - /MarkerArray11
       Splitter Ratio: 0.5
     Tree Height: 420
   - Class: rviz/Selection
@@ -277,6 +278,14 @@ Visualization Manager:
     - Class: rviz/MarkerArray
       Enabled: true
       Marker Topic: /random_nodes
+      Name: MarkerArray
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /debug_graph
       Name: MarkerArray
       Namespaces:
         {}

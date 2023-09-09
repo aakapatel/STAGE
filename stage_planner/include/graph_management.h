@@ -84,6 +84,7 @@ public:
   void resetLocalGraph();
   void resetGlobalGraph();
   void resetFrontierGraph();
+  void resetDebugGraph();
 
   void buildLocalGraph();
   
@@ -127,6 +128,10 @@ public:
  
   void expandGraph (int iterations_max, Vertex* root, Vertex* goal, double radius);
   
+  State generateRandomState (State root, State goal);
+  
+  void debugGraph();
+
   int global_root_id = 0;
 
   ros::Timer graph_timer_;
@@ -153,7 +158,7 @@ private:
   std::shared_ptr<GraphUtils> frontier_graph_;
   std::shared_ptr<GraphUtils> improvement_graph_;
   std::shared_ptr<GraphUtils> pose_graph_;
-  std::shared_ptr<GraphUtils> sparse_graph_;
+  std::shared_ptr<GraphUtils> debug_graph_;
   
   std::vector<std::shared_ptr<GraphUtils>> graph_vec_;
 
@@ -167,7 +172,7 @@ private:
   ShortestPathsReport improvement_graph_rep_;
   ShortestPathsReport frontier_graph_rep_;
   ShortestPathsReport pose_graph_rep_;
-  ShortestPathsReport sparse_graph_rep_;
+  ShortestPathsReport debug_graph_rep_;
 
   int vertex_id_ = -1;
   int subgraph_ind_ = -1;
@@ -255,7 +260,10 @@ private:
   ros::Publisher pose_Graph_Vis_Pub_;
   ros::Publisher overlap_Vis_Pub_;
   ros::Publisher random_Nodes_Vis_Pub_;
-  // Services
+  ros::Publisher debug_Graph_Vis_Pub_;
+
+
+    // Services
   ros::ServiceClient m_frontier_client;
   ros::ServiceClient m_target_query_client;
   ros::ServiceServer m_exploration_path_srv;

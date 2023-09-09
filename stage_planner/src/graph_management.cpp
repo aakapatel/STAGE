@@ -85,6 +85,10 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
   
   random_Nodes_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/random_nodes", 10);
 
+  debug_Graph_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/debug_graph", 10);
+  
+
+
   // Services
   m_frontier_client = nh_.serviceClient<stage_planner::frontierRequest>("request_frontier_target");
 
@@ -171,6 +175,7 @@ void GraphManager::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
     pose_graph_.reset(new GraphUtils());
     pose_graph_rep_.reset();
 
+    
     GraphManager::resetKdtree();
     // GraphManager::resetLocalGraph();
     GraphManager::resetGlobalGraph();
@@ -208,6 +213,7 @@ void GraphManager::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
       
       global_graph_->state_history_.push_back(robotState_);
       // GraphManager::visualizeRandomNodes();
+      GraphManager::debugGraph();
     }
   }
   m_currentPosition.x() = m_currentPose.pose.pose.position.x;
@@ -558,30 +564,171 @@ void GraphManager::sampleNodesOBB (std::vector<node *>* nodes, int iterations_ma
 
 }
 
-// void GraphManager::expandGraph (int iterations_max, Vertex* root, Vertex* goal) {
-//
-//   int it = 0;
-//   srand(time(0));
-//   
-//   while (it < iterations_max) {
-//
-//     float x = root->state[0] + abs(1024 * rand() / (RAND_MAX + 1.0)) * goal->state[0];
-//     float y = root->state[1] + abs(1024 * rand() / (RAND_MAX + 1.0)) * goal->state[1];
-//     float z;
-//
-//     if (robot_aerial_) {
-//       z = root->state[2] + abs(1024 * rand() / (RAND_MAX + 1.0)) * goal->state[2];
-//     } else {
-//       z = robotState_[2] + abs(1024 * rand() / (RAND_MAX + 1.0)) * max_graph_height_;
-//     }
-//   
-//     
-//     
-//
-//   }
-//
-//
-// }
+State GraphManager::generateRandomState (State root, State goal) {
+
+  State random_state;
+  
+  srand(time(0));
+  
+    float x = root[0] + abs(1024 * rand() / (RAND_MAX + 1.0)) * goal[0] - root[0];
+    float y = root[1] + abs(1024 * rand() / (RAND_MAX + 1.0)) * goal[1] - root[1];
+    float z;
+
+    if (robot_aerial_) {
+      z = root[2] + abs(1024 * rand() / (RAND_MAX + 1.0)) * goal[2] - root[2];
+    } else {
+      z = robotState_[2] + abs(1024 * rand() / (RAND_MAX + 1.0)) * max_graph_height_;
+    }
+  
+    random_state[0] = x;
+    random_state[1] = y;
+    random_state[2] = z;
+  
+  return random_state;
+}
+
+void GraphManager::debugGraph () {
+    
+  GraphManager::resetDebugGraph ();
+
+  int it = 0;
+  bool allow_once = true;
+
+  Vertex* v_root = new Vertex(debug_graph_->generateVertexID(), robotState_);
+  debug_graph_->addVertex(v_root);
+  
+  State s = robotState_;
+  s[0] = robotState_[0] + 5;
+  
+  Vertex* v_goal = new Vertex(debug_graph_->generateVertexID(), s);
+  debug_graph_->addVertex(v_goal);
+  Vertex* v_random = nullptr;
+
+  if (allow_once) {
+    State random_state = GraphManager::generateRandomState(v_root->state, v_goal->state);
+    v_random = new Vertex (debug_graph_->generateVertexID(), random_state);
+    debug_graph_->addVertex(v_random);
+    debug_graph_->addEdge(v_root, v_random, debug_graph_->distanceBetweenVertices(v_root, v_random));
+    allow_once = false;
+  }
+  
+  bool debug_while = true;
+  while (debug_while) {
+    Vertex* v_previous = v_random;
+    std::vector<Vertex *> neighbours;
+    neighbours.clear();
+    debug_graph_->getNearestVertices(&v_random->state, 1, &neighbours);
+    for (Vertex* vert : neighbours) {
+      if (debug_graph_->distanceBetweenVertices(vert, v_goal) < 1) {
+        // debug_graph_->addEdge(v_random, vert, debug_graph_->distanceBetweenVertices(v_random, vert));
+        debug_while = false;
+        break;
+      }
+    }
+    if (!debug_while) {
+      break;
+    }
+    
+    State random_state = GraphManager::generateRandomState(v_random->state, v_goal->state);
+    v_random = new Vertex (debug_graph_->generateVertexID(), random_state);
+    debug_graph_->addVertex(v_random);
+    debug_graph_->addEdge(v_previous, v_random, debug_graph_->distanceBetweenVertices(v_previous, v_random));
+
+  }
+
+
+  // VISUALIZE DEBUG GRAPH 
+
+
+  std::shared_ptr<Graph> g = debug_graph_->graph_;
+  std::unordered_map<int, Vertex *> &v_map = debug_graph_->vertices_map_;
+
+  if (debug_graph_->getNumVertices() == 0)
+    return;
+
+  visualization_msgs::MarkerArray marker_array;
+
+  // Plot all edges
+  visualization_msgs::Marker edge_marker;
+  edge_marker.header.stamp = ros::Time::now();
+  edge_marker.header.seq = 0;
+  edge_marker.header.frame_id = "world";
+  edge_marker.id = 0;
+  edge_marker.ns = "edges";
+  edge_marker.action = visualization_msgs::Marker::ADD;
+  edge_marker.type = visualization_msgs::Marker::LINE_LIST;
+  edge_marker.scale.x = 0.04;
+  edge_marker.color.r = 0 / 255.0;
+  edge_marker.color.g = 200.0 / 255.0;
+  edge_marker.color.b = 200.0/ 255.0;
+  edge_marker.color.a = 0.8;
+  // edge_marker.lifetime = ros::Duration(graph_lifetime);
+  edge_marker.frame_locked = false;
+
+  std::pair<Graph::GraphType::edge_iterator, Graph::GraphType::edge_iterator>
+      ei;
+  g->getEdgeIterator(ei);
+  for (Graph::GraphType::edge_iterator it = ei.first; it != ei.second; ++it)
+  {
+    int src_id, tgt_id;
+    double weight;
+    std::tie(src_id, tgt_id, weight) = g->getEdgeProperty(it);
+
+    geometry_msgs::Point p1;
+    p1.x = v_map[src_id]->state[0];
+    p1.y = v_map[src_id]->state[1];
+    p1.z = v_map[src_id]->state[2];
+    geometry_msgs::Point p2;
+    p2.x = v_map[tgt_id]->state[0];
+    p2.y = v_map[tgt_id]->state[1];
+    p2.z = v_map[tgt_id]->state[2];
+    edge_marker.points.push_back(p1);
+    edge_marker.points.push_back(p2);
+  }
+  marker_array.markers.push_back(edge_marker);
+
+  // Plot all vertices
+  visualization_msgs::Marker vertex_marker;
+  vertex_marker.header.stamp = ros::Time::now();
+  vertex_marker.header.seq = 0;
+  vertex_marker.header.frame_id = "world";
+  vertex_marker.id = 0;
+  vertex_marker.ns = "vertices";
+  vertex_marker.action = visualization_msgs::Marker::ADD;
+  vertex_marker.type = visualization_msgs::Marker::SPHERE_LIST;
+  vertex_marker.scale.x = 0.3;
+  vertex_marker.scale.y = 0.3;
+  vertex_marker.scale.z = 0.3;
+  vertex_marker.color.r = 0.0 / 255.0;
+  vertex_marker.color.g = 200.0 / 255.0;
+  vertex_marker.color.b = 200.0 / 255.0;
+  vertex_marker.color.a = 0.8;
+  // vertex_marker.lifetime = ros::Duration(graph_lifetime);
+  vertex_marker.frame_locked = false;
+
+
+  std::pair<Graph::GraphType::vertex_iterator,
+            Graph::GraphType::vertex_iterator>
+      vi;
+  g->getVertexIterator(vi);
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
+  {
+    int id = g->getVertexProperty(it);
+
+    geometry_msgs::Point p1;
+    p1.x = v_map[id]->state[0];
+    p1.y = v_map[id]->state[1];
+    p1.z = v_map[id]->state[2];
+
+    vertex_marker.points.push_back(p1);
+  }
+  marker_array.markers.push_back(vertex_marker);
+
+  debug_Graph_Vis_Pub_.publish(marker_array);
+
+
+
+}
 
 
 void GraphManager::expandGraph (int iterations_max, Vertex* root, Vertex* goal, double radius) {
@@ -748,6 +895,17 @@ void GraphManager::resetFrontierGraph()
   }
   frontier_graph_.reset(new GraphUtils());
   frontier_graph_rep_.reset();
+}
+
+void GraphManager::resetDebugGraph()
+{
+
+    if (debug_graph_ != NULL)
+    {
+      debug_graph_->reset();
+    }
+    debug_graph_.reset(new GraphUtils());
+    debug_graph_rep_.reset();
 }
 
 void GraphManager::insertVertexKdtree(Vertex *v)
@@ -1511,7 +1669,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
   {
 
     GraphManager::buildLocalGraph();
-    GraphManager::buildGlobalGraph();
+    // GraphManager::buildGlobalGraph();
     if (GraphManager::setPath(true, false, false))
     {
       ROS_INFO_STREAM("Running Local exploration \n");
@@ -1519,7 +1677,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
     else
     {
       
-      GraphManager::buildGlobalGraph();
+      // GraphManager::buildGlobalGraph();
       if (GraphManager::setPath(false, true, false))
       {
 
@@ -1535,7 +1693,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
   else if (!global_repos_targets_.empty())
   {
     
-    GraphManager::buildGlobalGraph();
+    // GraphManager::buildGlobalGraph();
     if (GraphManager::setPath(false, true, false))
     {
       ROS_INFO("Global planner triggered \n");
