@@ -28,7 +28,7 @@
 #include <QWidget>
 #include "QSlider"
 #include <QCheckBox>
-
+#include <QFont>
 
 #include <rviz/panel.h>
 #endif
@@ -54,19 +54,18 @@ class stage_planner_panel : public rviz::Panel {
   
   void on_homing_click();
 
-  void on_state_hold_click();
-  
   void on_state_change_click(int state);
 
 protected Q_SLOTS:
 
  protected:
   
+  QFont* font;
+
   QSlider* button_select_state;
   ros::Publisher planner_client_set_state;
 
-  QLabel* minLabel;
-  QLabel* maxLabel;
+  QLabel* stateLabel;
 
   QPushButton* button_init_motion;
   ros::ServiceClient planner_client_init_motion;
@@ -80,7 +79,6 @@ protected Q_SLOTS:
   QPushButton* button_homing;
   ros::ServiceClient planner_client_homing;
 
-  QPushButton* button_set_state_hold;
 
   ros::NodeHandle nh;
 };
