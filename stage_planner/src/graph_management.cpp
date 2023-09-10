@@ -24,7 +24,7 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
       iterations_local_(2000),
       iterations_global_(6000),
       max_edge_length_(4),
-      safety_margin(0.5),
+      safety_margin(0.8),
       robot_box_x(0.5),
       robot_box_y(0.5),
       robot_box_z(0.5),
@@ -213,7 +213,6 @@ void GraphManager::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
       
       global_graph_->state_history_.push_back(robotState_);
       // GraphManager::visualizeRandomNodes();
-      GraphManager::debugGraph();
     }
   }
   m_currentPosition.x() = m_currentPose.pose.pose.position.x;
@@ -587,20 +586,17 @@ State GraphManager::generateRandomState (State root, State goal) {
   return random_state;
 }
 
-void GraphManager::debugGraph () {
+void GraphManager::debugGraph (State root, State goal) {
     
   GraphManager::resetDebugGraph ();
 
   int it = 0;
   bool allow_once = true;
 
-  Vertex* v_root = new Vertex(debug_graph_->generateVertexID(), robotState_);
+  Vertex* v_root = new Vertex(debug_graph_->generateVertexID(), root);
   debug_graph_->addVertex(v_root);
   
-  State s = robotState_;
-  s[0] = robotState_[0] + 5;
-  
-  Vertex* v_goal = new Vertex(debug_graph_->generateVertexID(), s);
+  Vertex* v_goal = new Vertex(debug_graph_->generateVertexID(), goal);
   debug_graph_->addVertex(v_goal);
   Vertex* v_random = nullptr;
 
@@ -613,10 +609,10 @@ void GraphManager::debugGraph () {
   }
   
   bool debug_while = true;
-  while (debug_while) {
+  while (it < 100 and debug_while) {
     Vertex* v_previous = v_random;
     std::vector<Vertex *> neighbours;
-    neighbours.clear();
+    // neighbours.clear();
     debug_graph_->getNearestVertices(&v_random->state, 1, &neighbours);
     for (Vertex* vert : neighbours) {
       if (debug_graph_->distanceBetweenVertices(vert, v_goal) < 1) {
@@ -633,7 +629,7 @@ void GraphManager::debugGraph () {
     v_random = new Vertex (debug_graph_->generateVertexID(), random_state);
     debug_graph_->addVertex(v_random);
     debug_graph_->addEdge(v_previous, v_random, debug_graph_->distanceBetweenVertices(v_previous, v_random));
-
+    it++;
   }
 
 
@@ -1400,8 +1396,10 @@ bool GraphManager::setPath(bool local, bool global, bool homing)
     }
   }
   
-  local_goal_vertex = raw_path.front(); 
-
+  // local_goal_vertex = raw_path.front(); 
+  
+  Vertex* v_g = raw_path[0];
+  GraphManager::debugGraph(robotState_, v_g->state);
   ROS_INFO_STREAM ("path selection reward : " << reward << "\n");
   if (raw_path.empty())
   {

@@ -130,7 +130,7 @@ public:
   
   State generateRandomState (State root, State goal);
   
-  void debugGraph();
+  void debugGraph(State root, State goal);
 
   int global_root_id = 0;
 
