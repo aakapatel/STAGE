@@ -16,6 +16,11 @@ stage_planner_panel::stage_planner_panel(QWidget* parent) : rviz::Panel(parent) 
 
   QGridLayout* grid_layout = new QGridLayout;
   
+  button_select_state = new QSlider(Qt::Horizontal, this);
+  minLabel = new QLabel;
+  maxLabel = new QLabel;
+
+
   button_set_state_path = new QPushButton; 
   
   button_stop_planner = new QPushButton;
@@ -27,6 +32,19 @@ stage_planner_panel::stage_planner_panel(QWidget* parent) : rviz::Panel(parent) 
   button_set_state_hold = new QPushButton; 
   
   // SET TEXT ON BUTTON 
+  
+  button_select_state->setRange(0,1);
+  button_select_state->setMinimum(0);
+  button_select_state->setMaximum(1);
+  button_select_state->setFixedSize(50, 100);
+
+
+  minLabel->setText("HOLD");
+  maxLabel->setText("PATH");
+
+
+  // button_select_state->setStyleSheet("background-color : Purple");
+  // button_select_state->setStyleSheet("QRadioButton::indicator{width: 20px; height: 20px;}");
 
   button_init_motion->setText("Initialize");
   button_init_motion->setStyleSheet("background-color : Yellow");
@@ -42,7 +60,7 @@ stage_planner_panel::stage_planner_panel(QWidget* parent) : rviz::Panel(parent) 
   
   button_set_state_hold->setText("HOLD");
   button_set_state_hold->setStyleSheet("background-color : Red");
-
+  
   grid_layout->addWidget(button_init_motion, 0, 0, 1 ,1);
   
   grid_layout->addWidget(button_set_state_path, 0, 1, 1, 1);
@@ -51,8 +69,12 @@ stage_planner_panel::stage_planner_panel(QWidget* parent) : rviz::Panel(parent) 
  
   grid_layout->addWidget(button_homing, 1, 1, 1, 1);
 
-  grid_layout->addWidget(button_set_state_hold, 2, 0, 1, 2);
+  grid_layout->addWidget(button_set_state_hold, 2, 0, 1, 1);
 
+  grid_layout->addWidget(button_select_state, 2, 2, 1, 1);
+  grid_layout->addWidget(minLabel, 2, 1, 1, 1);
+  grid_layout->addWidget(maxLabel, 2, 3, 1, 1);
+  
   // setLayout(v_box_layout);
   setLayout(grid_layout);
 
@@ -71,6 +93,8 @@ stage_planner_panel::stage_planner_panel(QWidget* parent) : rviz::Panel(parent) 
   connect(button_set_state_hold, SIGNAL(clicked()), this,
           SLOT(on_state_hold_click()));
 
+  connect(button_select_state, SIGNAL(valueChanged(int)), this,
+          SLOT(on_state_change_click(int)));
 }
 
 void stage_planner_panel::on_init_motion_click() {
@@ -108,12 +132,32 @@ void stage_planner_panel::on_homing_click() {
 }
 
 void stage_planner_panel::on_state_hold_click() {
+  
+
   std::string s = "HOLD";
   std_msgs::String state;
   state.data = s;
   planner_client_state.publish(state);
+
 }
 
+void stage_planner_panel::on_state_change_click(int state) {
+  
+  if (state == 1) {
+
+    std::string s = "PATH";
+    std_msgs::String state;
+    state.data = s;
+    planner_client_state.publish(state);
+  } else if (state == 0) {
+
+    std::string s = "HOLD";
+    std_msgs::String state;
+    state.data = s;
+    planner_client_state.publish(state);
+  }
+
+}
 
 void stage_planner_panel::save(rviz::Config config) const {
   rviz::Panel::save(config);
