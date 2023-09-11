@@ -96,6 +96,8 @@ public:
   int generateSubgraphIndex();
   // Generate ID for new vertex.
   int generateVertexID();
+  
+  void insertVertexKdtree (Vertex* v);
 
   bool edgeExist (int source_id, int target_id);
   // Basic functions on graph including add new vertex and edge.

@@ -108,6 +108,13 @@ double GraphUtils::distanceBetweenVertices (Vertex*v, Vertex*u) {
 
 }
 
+void GraphUtils::insertVertexKdtree (Vertex* v) {
+
+  
+  kd_insert3(kd_tree_, v->state.x(), v->state.y(), v->state.z(), v);
+
+}
+
 void GraphUtils::addVertex(Vertex* v) {
   kd_insert3(kd_tree_, v->state.x(), v->state.y(), v->state.z(), v);
   // v->sub_graph_id = subgraph_ind_;

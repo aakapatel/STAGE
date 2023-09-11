@@ -1049,7 +1049,6 @@ void GraphManager::buildLocalGraph()
   for (int i = 0; i < nodes.size(); i++)
   {
     Vertex *vertex = new Vertex(sub_graph_->generateVertexID(), ufoToState(*(nodes[i]->point)));
-    vertex->is_sampled = true;
     vertex->is_local = true;
     vertex->is_frontier = false;
     vertex->sub_id = vertex->id;
@@ -1059,21 +1058,36 @@ void GraphManager::buildLocalGraph()
 
   // Add local exploration targets to graph
 
+
   for (int i = 0; i < frontier_graph_->getNumVertices(); ++i)
   {
 
     if (frontier_graph_->vertices_map_[i]->gain > average_gain/2)
     {
-
-      Vertex *vertex = new Vertex(sub_graph_->generateVertexID(), frontier_graph_->vertices_map_[i]->state);
-      vertex->is_local = frontier_graph_->vertices_map_[i]->is_local;
-      vertex->is_frontier = true;
-      vertex->sub_id = vertex->id;
-      vertex->gain = frontier_graph_->vertices_map_[i]->gain;
-      vertex->sub_graph_id = latest_sub_graph_id;
-      sub_graph_->addVertex(vertex);
+      Vertex* temp_vert = frontier_graph_->vertices_map_[i];
+      
+      sub_graph_->insertVertexKdtree(temp_vert);
+      temp_vert->is_sampled = true;
+      if (frontier_graph_->vertices_map_[i]->is_local) {
+        temp_vert->is_local = true;
+      }
     }
   }
+
+
+  for (int i = 0; i < sub_graph_->getNumVertices(); ++i) {
+
+    std::vector<Vertex *> knn;
+    sub_graph_->getNearestVertices(&sub_graph_->vertices_map_[i]->state, 1, &knn);
+
+    for (Vertex* v : knn) {
+      if (v->is_sampled and v->is_local) {
+        sub_graph_->vertices_map_[i]->is_frontier = true;
+        sub_graph_->vertices_map_[i]->is_local = true;
+      }
+    }
+  }
+
 
   std::pair<Graph::GraphType::vertex_iterator,
             Graph::GraphType::vertex_iterator>
@@ -1105,11 +1119,11 @@ void GraphManager::buildLocalGraph()
 
     // Get nearby vertices from the current vertex and connect the them to form local edges
     std::vector<Vertex *> nearby_vertices;
-    sub_graph_->getNearestVertices(&sub_graph_->vertices_map_[id]->state, 4, &nearby_vertices);
+    sub_graph_->getNearestVertices(&sub_graph_->vertices_map_[id]->state, 2, &nearby_vertices);
 
     for (int i = 0; i < nearby_vertices.size(); i++)
     {
-
+      if (!nearby_vertices[i]->is_sampled) {
       // VOXBLOX CHECK
       if (!sub_graph_->vertices_map_[id]->is_frontier or !nearby_vertices[i]->is_frontier)
       {
@@ -1117,7 +1131,7 @@ void GraphManager::buildLocalGraph()
         if (!sub_graph_->edgeExist(sub_graph_->vertices_map_[id]->id, nearby_vertices[i]->id))
         {
 
-          if (sub_graph_->vertices_map_[id]->edges < 5 and sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], nearby_vertices[i]) < max_edge_length_)
+          if (sub_graph_->vertices_map_[id]->edges < 5 and sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], nearby_vertices[i]) < 1.5*max_edge_length_)
           {
 
             Eigen::Vector3d v_n(nearby_vertices[i]->state[0], nearby_vertices[i]->state[1], nearby_vertices[i]->state[2]);
@@ -1133,6 +1147,8 @@ void GraphManager::buildLocalGraph()
           }
         }
       }
+      }
+
     }
   }
 
@@ -1250,7 +1266,6 @@ void GraphManager::buildReservedGraph() {
   // Add global exploration targets to global graph for simpler direct path
   std::vector<int> ids;
   ids.clear();
-
 
   std::pair<Graph::GraphType::vertex_iterator,
             Graph::GraphType::vertex_iterator>
