@@ -1500,54 +1500,59 @@ bool GraphManager::setGlobalPath()
   
   std::vector<Vertex *> path_seg;
   path_seg.clear();
-  if (!calculateDistance(stateToUfo(robotState_), stateToUfo(best_global_path_[best_global_path_.size()-1]->state) ) < 1) {
+  if (path_iterator_ < best_global_path_.size()) {
     Vertex* root_vertex = new Vertex (path_iterator_, robotState_);
     path_seg.push_back(root_vertex);
     path_seg.push_back(best_global_path_[path_iterator_]);
     path_iterator_ = path_iterator_ + 1;
     reached_end_of_improved_path_ = false;
     following_global_path_segment_ = true;
-    ROS_INFO_STREAM ("best global path back " << best_global_path_[best_global_path_.size()-1]->state[0] << " " <<  best_global_path_[best_global_path_.size()-1]->state[1] << "\n");
+    ROS_INFO_STREAM ("best global path back " << best_global_path_[best_global_path_.size()-1]->state[0] << " " 
+                     <<  best_global_path_[best_global_path_.size()-1]->state[1] << "\n");
   } else {
+    ROS_INFO_STREAM("Reached end of path \n");
     reached_end_of_improved_path_ = true;
     following_global_path_segment_ = false;
     path_iterator_ = 0;
+    return false;
   }
 
-  exploration_path_.poses.clear();
-  geometry_msgs::PoseStamped p;
+  if (!reached_end_of_improved_path_) {
 
-  nav_msgs::Path new_path;
-  new_path.poses.clear();
-  GraphManager::segmentPath(path_seg, new_path);
+    exploration_path_.poses.clear();
+    geometry_msgs::PoseStamped p;
 
-  for (int i = 0; i < new_path.poses.size() - 1; i++)
-  {
+    nav_msgs::Path new_path;
+    new_path.poses.clear();
+    GraphManager::segmentPath(path_seg, new_path);
 
-    float angle = atan2(new_path.poses[i + 1].pose.position.y - new_path.poses[i].pose.position.y,
-                        new_path.poses[i + 1].pose.position.x - new_path.poses[i].pose.position.x);
-    ufo::math::Vector3 v(0, 0, angle);
-    Eigen::Quaternion<float> q = Euler2Quaternion(v);
+    for (int i = 0; i < new_path.poses.size() - 1; i++)
+    {
 
-    p.pose.position.x = new_path.poses[i].pose.position.x;
-    p.pose.position.y = new_path.poses[i].pose.position.y;
-    p.pose.position.z = new_path.poses[i].pose.position.z;
-    p.pose.orientation.x = q.x();
-    p.pose.orientation.y = q.y();
-    p.pose.orientation.z = q.z();
-    p.pose.orientation.w = q.w();
-    exploration_path_.poses.push_back(p);
+      float angle = atan2(new_path.poses[i + 1].pose.position.y - new_path.poses[i].pose.position.y,
+                          new_path.poses[i + 1].pose.position.x - new_path.poses[i].pose.position.x);
+      ufo::math::Vector3 v(0, 0, angle);
+      Eigen::Quaternion<float> q = Euler2Quaternion(v);
+
+      p.pose.position.x = new_path.poses[i].pose.position.x;
+      p.pose.position.y = new_path.poses[i].pose.position.y;
+      p.pose.position.z = new_path.poses[i].pose.position.z;
+      p.pose.orientation.x = q.x();
+      p.pose.orientation.y = q.y();
+      p.pose.orientation.z = q.z();
+      p.pose.orientation.w = q.w();
+      exploration_path_.poses.push_back(p);
+    }
+    if (exploration_path_.poses.empty())
+    {
+
+      ROS_WARN("Exploration path empty \n ");
+    }
+    else
+    {
+      path_set = true;
+    }
   }
-  if (exploration_path_.poses.empty())
-  {
-
-    ROS_WARN("Exploration path empty \n ");
-  }
-  else
-  {
-    path_set = true;
-  }
-
   return path_set;
 }
 
@@ -1862,13 +1867,6 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
   
-  if (following_global_path_segment_ and !reached_end_of_improved_path_) {
-    if (GraphManager::setGlobalPath()) {
-
-      ROS_INFO_STREAM("Following global re-positioning segment \n");
-    }
-  }
-  
   if (!following_global_path_segment_ and reached_end_of_improved_path_) {
   
 
@@ -1915,6 +1913,19 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
     }
   
   }
+
+
+  if (following_global_path_segment_ and !reached_end_of_improved_path_) {
+    if (GraphManager::setGlobalPath()) {
+
+      ROS_INFO_STREAM("Following global re-positioning segment \n");
+    } else {
+      ROS_INFO ("Re-position complete \n");
+    }
+  }
+
+
+
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
 
   auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
