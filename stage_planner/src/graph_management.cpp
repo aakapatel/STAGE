@@ -1116,7 +1116,7 @@ void GraphManager::buildLocalGraph()
 
     if (MapManager::VoxelStatus::kFree == vs)
     {
-      if (sub_graph_->vertices_map_[id]->edges < 5 and sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], root_vertex) < 1.5 * max_edge_length_)
+      if (sub_graph_->vertices_map_[id]->edges < 9 and sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], root_vertex) < 2*max_edge_length_)
 
       {
         sub_graph_->addEdge(sub_graph_->vertices_map_[id], root_vertex,
@@ -1139,7 +1139,7 @@ void GraphManager::buildLocalGraph()
         if (!sub_graph_->edgeExist(sub_graph_->vertices_map_[id]->id, nearby_vertices[i]->id))
         {
 
-          if (sub_graph_->vertices_map_[id]->edges < 5 and sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], nearby_vertices[i]) < 1.5*max_edge_length_)
+          if (sub_graph_->vertices_map_[id]->edges < 9 and sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], nearby_vertices[i]) < 2*max_edge_length_)
           {
 
             Eigen::Vector3d v_n(nearby_vertices[i]->state[0], nearby_vertices[i]->state[1], nearby_vertices[i]->state[2]);
@@ -1443,6 +1443,44 @@ void GraphManager::planGlobalPath()
   {
     // GraphManager::visualizeGlobalGraph();
     GraphManager::visualizeGlobalPaths(global_paths_);
+  
+
+    std::vector<Vertex *> path;
+
+    std::vector<std::pair<std::vector<Vertex *>, double>> paths_;
+
+    paths_ = global_paths_;
+
+    double gain, path_length;
+    double my_reward = -std::numeric_limits<double>::max();
+    double reward;
+  
+
+    for (auto i = 0; i < paths_.size(); i++)
+    {
+
+      gain = computeExplorationGain(paths_[i].first.back()->state);
+    
+      path_length = paths_[i].second;
+      if (100*gain < 100000 and 100*gain > -100000 and path_length < 10000) {
+
+        path_length = paths_[i].second;
+  
+    // ROS_INFO_STREAM ("path length : " << path_length << "\n");
+        reward = (100*gain) - path_length;
+          if (reward > my_reward)
+          {
+            my_reward = reward;
+            path = paths_[i].first;
+          }
+      } else {
+          i++;
+        }
+    }
+
+  GraphManager::improvePath(path, best_global_path_);
+  GraphManager::setGlobalPath();
+
   }
   else
   {
@@ -1454,77 +1492,31 @@ void GraphManager::planGlobalPath()
 
 
 
-bool GraphManager::setGlobalPath(bool local, bool global, bool homing)
+bool GraphManager::setGlobalPath()
 {
 
   bool path_set = false;
-
-  std::vector<Vertex *> path;
-
-  std::vector<Vertex *> raw_path;
-  std::vector<std::pair<std::vector<Vertex *>, double>> paths_;
-
-  if (local)
-  {
-    paths_ = local_paths_;
-  }
-  else if (global)
-  {
-    paths_ = global_paths_;
-  }
-  else if (homing)
-  {
-    ROS_INFO("Trying homing ! \n");
-  }
-
-  double gain, path_length;
-  double my_reward = -std::numeric_limits<double>::max();
-
-  double reward;
   
+  std::vector<Vertex *> path_seg;
+  path_seg.clear();
+  if (!calculateDistance(stateToUfo(robotState_), stateToUfo(best_global_path_.back()->state) ) < 0.5) {
+    Vertex* root_vertex = new root_vertex(0, robotState_);
+    path_seg.push_back(root_vertex);
+    path_seg.push_back(best_global_path_[path_iterator_]);
+    ++path_iterator_;
+    reached_end_of_improved_path_ = false;
 
-  for (auto i = 0; i < paths_.size(); i++)
-  {
-
-    gain = computeExplorationGain(paths_[i].first.back()->state);
-    
-    path_length = paths_[i].second;
-    if (100*gain < 100000 and 100*gain > -100000 and path_length < 10000) {
-
-    path_length = paths_[i].second;
-  
-    // ROS_INFO_STREAM ("path length : " << path_length << "\n");
-    reward = (100*gain) - path_length;
-    if (reward > my_reward)
-    {
-      my_reward = reward;
-      raw_path = paths_[i].first;
-    }
-    } else {
-      i++;
-    }
-  
-
+  } else {
+    reached_end_of_improved_path_ = true;
+    path_iterator_ = 0;
   }
-  
-  // local_goal_vertex = raw_path.front(); 
-  
-  // Vertex* v_g = raw_path[0];
-  // GraphManager::debugGraph(robotState_, v_g->state);
-  if (raw_path.empty())
-  {
-    ROS_WARN("Local Dijkstra SP -> Empty :( \n");
-    return false;
-  }
-
-  GraphManager::improvePath(raw_path, path);
 
   exploration_path_.poses.clear();
   geometry_msgs::PoseStamped p;
 
   nav_msgs::Path new_path;
   new_path.poses.clear();
-  GraphManager::segmentPath(path, new_path);
+  GraphManager::segmentPath(path_seg, new_path);
 
   for (int i = 0; i < new_path.poses.size() - 1; i++)
   {
@@ -1557,7 +1549,7 @@ bool GraphManager::setGlobalPath(bool local, bool global, bool homing)
 }
 
 
-bool GraphManager::setLocalPath(bool local, bool global, bool homing)
+bool GraphManager::setLocalPath()
 {
 
   bool path_set = false;
@@ -1567,18 +1559,7 @@ bool GraphManager::setLocalPath(bool local, bool global, bool homing)
   std::vector<Vertex *> raw_path;
   std::vector<std::pair<std::vector<Vertex *>, double>> paths_;
 
-  if (local)
-  {
-    paths_ = local_paths_;
-  }
-  else if (global)
-  {
-    paths_ = global_paths_;
-  }
-  else if (homing)
-  {
-    ROS_INFO("Trying homing ! \n");
-  }
+  paths_ = local_paths_;
 
   double gain, path_length;
   double my_reward = -std::numeric_limits<double>::max();
@@ -1716,9 +1697,11 @@ void GraphManager::improvePath(std::vector<Vertex *> raw_path, std::vector<Verte
       Eigen::Vector3d v2(nearby_vertices[i]->state[0], nearby_vertices[i]->state[1], nearby_vertices[i]->state[2]);
       MapManager::VoxelStatus vn = map_manager_->getPathStatus(v1, v2, robot_box_size_, true);
 
-      if (MapManager::VoxelStatus::kFree == vn)
-      {
+      double edge_length = improvement_graph_->distanceBetweenVertices(improvement_graph_->vertices_map_[id], nearby_vertices[i]);
 
+      if (edge_length < 3*max_edge_length_ and MapManager::VoxelStatus::kFree == vn)
+      {
+        
         improvement_graph_->addEdge(improvement_graph_->vertices_map_[id], nearby_vertices[i],
                                     improvement_graph_->distanceBetweenVertices(improvement_graph_->vertices_map_[id], nearby_vertices[i]));
       }
@@ -1872,27 +1855,45 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
                                        stage_planner::explorationPath::Response &res)
 
 {
+  
+  if (!following_global_path_segment_) {
+  
 
-  high_resolution_clock::time_point start_total = high_resolution_clock::now();
-  GraphManager::fetchExplorationTargets();
-  ++planning_iteration_;
-  GraphManager::buildLocalGraph();
-  GraphManager::insertLatestSubGraph();
-  GraphManager::buildReservedGraph();
-  if (!local_exploration_targets_.empty())
-  {
+    ++planning_iteration_;
+    high_resolution_clock::time_point start_total = high_resolution_clock::now();
+    GraphManager::fetchExplorationTargets();
+    GraphManager::buildLocalGraph();
+    GraphManager::insertLatestSubGraph();
+    GraphManager::buildReservedGraph();
+  
+    if (!local_exploration_targets_.empty())
+    {
 
-    if (GraphManager::setLocalPath(true, false, false))
-    {
-      ROS_INFO_STREAM( "\e[92m {Planning Iteration : " << planning_iteration_ << "} \e[92m Running Local exploration \n");
-    }
-    else
-    {
-      
-      if (GraphManager::setGlobalPath(false, true, false))
+      if (GraphManager::setLocalPath())
       {
+        ROS_INFO_STREAM( "\e[92m {Planning Iteration : " << planning_iteration_ << "} \e[92m Running Local exploration \n");
+      }
+      else
+      {
+      
+        if (GraphManager::setGlobalPath())
+        {
 
-        ROS_INFO(" \e[93m No local paths, triggering global planner \n");
+          ROS_INFO(" \e[93m No local paths, triggering global planner \n");
+        }
+        else
+        {
+
+          ROS_WARN(" \e[5m No feasible exploration paths, trigger homing.. \n");
+        }
+      }
+    }
+    else if (!global_repos_targets_.empty())
+    {
+    
+      if (GraphManager::setGlobalPath())
+      {
+        ROS_INFO_STREAM( "\e[93m {Planning Iteration : " << planning_iteration_ << "} \e[93m Global planner triggered \n");
       }
       else
       {
@@ -1900,20 +1901,14 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
         ROS_WARN(" \e[5m No feasible exploration paths, trigger homing.. \n");
       }
     }
+  
   }
-  else if (!global_repos_targets_.empty())
-  {
-    
-    if (GraphManager::setGlobalPath(false, true, false))
-    {
-      ROS_INFO_STREAM( "\e[93m {Planning Iteration : " << planning_iteration_ << "} \e[93m Global planner triggered \n");
-    }
-    else
-    {
-
-      ROS_WARN(" \e[5m No feasible exploration paths, trigger homing.. \n");
-    }
+  
+  if (following_global_path_segment_) {
+    GraphManager::setGlobalPath();
+    ROS_INFO_STREAM("Following global re-positioning segment \n");
   }
+  
 
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
 

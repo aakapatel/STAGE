@@ -120,8 +120,8 @@ public:
 
   void updateGraph(const ros::TimerEvent &event);
 
-  bool setLocalPath(bool local, bool global, bool homing);
-  bool setGlobalPath(bool local, bool global, bool homing);
+  bool setLocalPath();
+  bool setGlobalPath();
 
   double computeExplorationGain (State v);
  
@@ -206,6 +206,16 @@ private:
   double robot_box_z;
 
   bool build_global_graph_ = false;
+ 
+  // Global re-positioning in presence of unknown change in environment variables
+
+  bool reached_end_of_improved_path_ = false;
+  int path_iterator_ = 0;
+  bool following_global_path_segment_ = false;
+  std::vector<Vertex *> best_global_path_;
+
+
+  //
 
   Eigen::Quaterniond quat_;
   bool firstTime = true;
