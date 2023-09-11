@@ -1477,9 +1477,10 @@ void GraphManager::planGlobalPath()
           i++;
         }
     }
+  
+  best_global_path_.clear();
 
   GraphManager::improvePath(path, best_global_path_);
-  GraphManager::setGlobalPath();
 
   }
   else
@@ -1499,15 +1500,17 @@ bool GraphManager::setGlobalPath()
   
   std::vector<Vertex *> path_seg;
   path_seg.clear();
-  if (!calculateDistance(stateToUfo(robotState_), stateToUfo(best_global_path_.back()->state) ) < 0.5) {
-    Vertex* root_vertex = new root_vertex(0, robotState_);
+  if (!calculateDistance(stateToUfo(robotState_), stateToUfo(best_global_path_[best_global_path_.size()-1]->state) ) < 1) {
+    Vertex* root_vertex = new Vertex (path_iterator_, robotState_);
     path_seg.push_back(root_vertex);
     path_seg.push_back(best_global_path_[path_iterator_]);
-    ++path_iterator_;
+    path_iterator_ = path_iterator_ + 1;
     reached_end_of_improved_path_ = false;
-
+    following_global_path_segment_ = true;
+    ROS_INFO_STREAM ("best global path back " << best_global_path_[best_global_path_.size()-1]->state[0] << " " <<  best_global_path_[best_global_path_.size()-1]->state[1] << "\n");
   } else {
     reached_end_of_improved_path_ = true;
+    following_global_path_segment_ = false;
     path_iterator_ = 0;
   }
 
@@ -1856,11 +1859,20 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
 {
   
-  if (!following_global_path_segment_) {
+  high_resolution_clock::time_point start_total = high_resolution_clock::now();
+
+  
+  if (following_global_path_segment_ and !reached_end_of_improved_path_) {
+    if (GraphManager::setGlobalPath()) {
+
+      ROS_INFO_STREAM("Following global re-positioning segment \n");
+    }
+  }
+  
+  if (!following_global_path_segment_ and reached_end_of_improved_path_) {
   
 
     ++planning_iteration_;
-    high_resolution_clock::time_point start_total = high_resolution_clock::now();
     GraphManager::fetchExplorationTargets();
     GraphManager::buildLocalGraph();
     GraphManager::insertLatestSubGraph();
@@ -1903,13 +1915,6 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
     }
   
   }
-  
-  if (following_global_path_segment_) {
-    GraphManager::setGlobalPath();
-    ROS_INFO_STREAM("Following global re-positioning segment \n");
-  }
-  
-
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
 
   auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);

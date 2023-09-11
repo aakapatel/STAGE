@@ -209,7 +209,7 @@ private:
  
   // Global re-positioning in presence of unknown change in environment variables
 
-  bool reached_end_of_improved_path_ = false;
+  bool reached_end_of_improved_path_ = true;
   int path_iterator_ = 0;
   bool following_global_path_segment_ = false;
   std::vector<Vertex *> best_global_path_;
