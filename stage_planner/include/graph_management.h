@@ -133,6 +133,8 @@ public:
   
   void buildReservedGraph();
   void insertLatestSubGraph();
+  
+  bool setPath();
 
   int global_root_id = 0;
 
@@ -209,10 +211,18 @@ private:
  
   // Global re-positioning in presence of unknown change in environment variables
 
-  bool reached_end_of_improved_path_ = true;
-  int path_iterator_ = 0;
-  bool following_global_path_segment_ = false;
+  bool reached_end_of_local_path_ = true;
+  bool reached_end_of_global_path_ = true;
+  int local_path_iterator_ = 0;
+  int global_path_iterator_ = 0;
+  std::vector<Vertex *> best_local_path_;
   std::vector<Vertex *> best_global_path_;
+
+
+
+  bool reached_end_of_path_ = true;
+  int path_iterator_ = 0;
+  std::vector<Vertex *> best_path_;
 
 
   //

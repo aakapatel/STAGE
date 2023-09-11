@@ -1174,8 +1174,9 @@ void GraphManager::buildLocalGraph()
   {
     ROS_WARN("Could not find dijkstra shortest paths \n");
   }
-
+  
   GraphManager::planLocalPath();
+
 } // buildLocalGraph 
 
 void GraphManager::planLocalPath()
@@ -1214,8 +1215,43 @@ void GraphManager::planLocalPath()
 
   if (!local_paths_.empty())
   {
-    GraphManager::visualizeLocalGraph ();
+    GraphManager::visualizeLocalGraph();
     GraphManager::visualizeLocalPaths(local_paths_);
+
+    std::vector<Vertex *> path;
+
+    std::vector<std::pair<std::vector<Vertex *>, double>> paths_;
+
+    paths_ = local_paths_;
+
+    double gain, path_length, reward;
+    double my_reward = -std::numeric_limits<double>::max();
+
+    for (auto i = 0; i < paths_.size(); i++)
+    {
+
+      gain = computeExplorationGain(paths_[i].first.back()->state);
+    
+      path_length = paths_[i].second;
+      if (100*gain < 100000 and 100*gain > -100000 and path_length < 10000) {
+
+        path_length = paths_[i].second;
+  
+    // ROS_INFO_STREAM ("path length : " << path_length << "\n");
+        reward = (100*gain) - path_length;
+          if (reward > my_reward)
+          {
+            my_reward = reward;
+            path = paths_[i].first;
+          }
+      } else {
+          i++;
+        }
+    }
+  
+    best_path_.clear();
+    GraphManager::improvePath(path, best_path_);
+
   }
   else
   {
@@ -1223,6 +1259,56 @@ void GraphManager::planLocalPath()
   }
 
 } // planLocalPath  
+
+
+
+bool GraphManager::setPath()
+{
+
+  bool path_set = false;
+  
+  std::vector<Vertex *> path_seg;
+  path_seg.clear();
+  if (path_iterator_ < best_path_.size()) {
+    Vertex* root_vertex = new Vertex (path_iterator_, robotState_);
+    path_seg.push_back(root_vertex);
+    path_seg.push_back(best_path_[path_iterator_]);
+    path_iterator_ = path_iterator_ + 1;
+    reached_end_of_path_ = false;
+    
+    exploration_path_.poses.clear();
+    geometry_msgs::PoseStamped p;
+
+    nav_msgs::Path new_path;
+    new_path.poses.clear();
+    GraphManager::segmentPath(path_seg, new_path);
+
+    for (int i = 0; i < new_path.poses.size() - 1; i++)
+    {
+
+      float angle = atan2(new_path.poses[i + 1].pose.position.y - new_path.poses[i].pose.position.y,
+                          new_path.poses[i + 1].pose.position.x - new_path.poses[i].pose.position.x);
+      ufo::math::Vector3 v(0, 0, angle);
+      Eigen::Quaternion<float> q = Euler2Quaternion(v);
+
+      p.pose.position.x = new_path.poses[i].pose.position.x;
+      p.pose.position.y = new_path.poses[i].pose.position.y;
+      p.pose.position.z = new_path.poses[i].pose.position.z;
+      p.pose.orientation.x = q.x();
+      p.pose.orientation.y = q.y();
+      p.pose.orientation.z = q.z();
+      p.pose.orientation.w = q.w();
+      exploration_path_.poses.push_back(p);
+    }
+  } else {
+    ROS_INFO_STREAM("Reached end of path \n");
+    reached_end_of_path_ = true;
+    path_iterator_ = 0;
+  }
+
+  return true;
+}
+
 
 void GraphManager::insertLatestSubGraph () {
 
@@ -1387,11 +1473,11 @@ void GraphManager::buildReservedGraph() {
   // Dijkstra SP report from root to all vertices in global graph
 
   build_global_graph_ = false;
-
-  GraphManager::planGlobalPath();
+  
+  // GraphManager::planGlobalPath();
 
   GraphManager::updateKdtree();
-
+  
 }
 
 void GraphManager::planGlobalPath()
@@ -1441,9 +1527,7 @@ void GraphManager::planGlobalPath()
 
   if (!global_paths_.empty())
   {
-    // GraphManager::visualizeGlobalGraph();
     GraphManager::visualizeGlobalPaths(global_paths_);
-  
 
     std::vector<Vertex *> path;
 
@@ -1451,10 +1535,8 @@ void GraphManager::planGlobalPath()
 
     paths_ = global_paths_;
 
-    double gain, path_length;
+    double gain, path_length, reward;
     double my_reward = -std::numeric_limits<double>::max();
-    double reward;
-  
 
     for (auto i = 0; i < paths_.size(); i++)
     {
@@ -1478,10 +1560,8 @@ void GraphManager::planGlobalPath()
         }
     }
   
-  best_global_path_.clear();
-
-  GraphManager::improvePath(path, best_global_path_);
-
+    best_path_.clear();
+    GraphManager::improvePath(path, best_path_);
   }
   else
   {
@@ -1491,162 +1571,6 @@ void GraphManager::planGlobalPath()
 
 } // planGlobalPaths
 
-
-
-bool GraphManager::setGlobalPath()
-{
-
-  bool path_set = false;
-  
-  std::vector<Vertex *> path_seg;
-  path_seg.clear();
-  if (path_iterator_ < best_global_path_.size()) {
-    Vertex* root_vertex = new Vertex (path_iterator_, robotState_);
-    path_seg.push_back(root_vertex);
-    path_seg.push_back(best_global_path_[path_iterator_]);
-    path_iterator_ = path_iterator_ + 1;
-    reached_end_of_improved_path_ = false;
-    following_global_path_segment_ = true;
-    ROS_INFO_STREAM ("best global path back " << best_global_path_[best_global_path_.size()-1]->state[0] << " " 
-                     <<  best_global_path_[best_global_path_.size()-1]->state[1] << "\n");
-  } else {
-    ROS_INFO_STREAM("Reached end of path \n");
-    reached_end_of_improved_path_ = true;
-    following_global_path_segment_ = false;
-    path_iterator_ = 0;
-    return false;
-  }
-
-  if (!reached_end_of_improved_path_) {
-
-    exploration_path_.poses.clear();
-    geometry_msgs::PoseStamped p;
-
-    nav_msgs::Path new_path;
-    new_path.poses.clear();
-    GraphManager::segmentPath(path_seg, new_path);
-
-    for (int i = 0; i < new_path.poses.size() - 1; i++)
-    {
-
-      float angle = atan2(new_path.poses[i + 1].pose.position.y - new_path.poses[i].pose.position.y,
-                          new_path.poses[i + 1].pose.position.x - new_path.poses[i].pose.position.x);
-      ufo::math::Vector3 v(0, 0, angle);
-      Eigen::Quaternion<float> q = Euler2Quaternion(v);
-
-      p.pose.position.x = new_path.poses[i].pose.position.x;
-      p.pose.position.y = new_path.poses[i].pose.position.y;
-      p.pose.position.z = new_path.poses[i].pose.position.z;
-      p.pose.orientation.x = q.x();
-      p.pose.orientation.y = q.y();
-      p.pose.orientation.z = q.z();
-      p.pose.orientation.w = q.w();
-      exploration_path_.poses.push_back(p);
-    }
-    if (exploration_path_.poses.empty())
-    {
-
-      ROS_WARN("Exploration path empty \n ");
-    }
-    else
-    {
-      path_set = true;
-    }
-  }
-  return path_set;
-}
-
-
-bool GraphManager::setLocalPath()
-{
-
-  bool path_set = false;
-
-  std::vector<Vertex *> path;
-
-  std::vector<Vertex *> raw_path;
-  std::vector<std::pair<std::vector<Vertex *>, double>> paths_;
-
-  paths_ = local_paths_;
-
-  double gain, path_length;
-  double my_reward = -std::numeric_limits<double>::max();
-
-  double reward;
-  
-
-  for (auto i = 0; i < paths_.size(); i++)
-  {
-
-    gain = computeExplorationGain(paths_[i].first.back()->state);
-    
-    path_length = paths_[i].second;
-    if (100*gain < 100000 and 100*gain > -100000 and path_length < 10000) {
-
-    path_length = paths_[i].second;
-  
-    // ROS_INFO_STREAM ("path length : " << path_length << "\n");
-    reward = (100*gain) - path_length;
-    if (reward > my_reward)
-    {
-      my_reward = reward;
-      raw_path = paths_[i].first;
-    }
-    } else {
-      i++;
-    }
-  
-
-  }
-  
-  // local_goal_vertex = raw_path.front(); 
-  
-  // Vertex* v_g = raw_path[0];
-  // GraphManager::debugGraph(robotState_, v_g->state);
-  if (raw_path.empty())
-  {
-    ROS_WARN("Local Dijkstra SP -> Empty :( \n");
-    return false;
-  }
-
-  GraphManager::improvePath(raw_path, path);
-
-  exploration_path_.poses.clear();
-  geometry_msgs::PoseStamped p;
-
-  nav_msgs::Path new_path;
-  new_path.poses.clear();
-  GraphManager::segmentPath(path, new_path);
-
-  for (int i = 0; i < new_path.poses.size() - 1; i++)
-  {
-
-    float angle = atan2(new_path.poses[i + 1].pose.position.y - new_path.poses[i].pose.position.y,
-                        new_path.poses[i + 1].pose.position.x - new_path.poses[i].pose.position.x);
-    ufo::math::Vector3 v(0, 0, angle);
-    Eigen::Quaternion<float> q = Euler2Quaternion(v);
-
-    p.pose.position.x = new_path.poses[i].pose.position.x;
-    p.pose.position.y = new_path.poses[i].pose.position.y;
-    p.pose.position.z = new_path.poses[i].pose.position.z;
-    p.pose.orientation.x = q.x();
-    p.pose.orientation.y = q.y();
-    p.pose.orientation.z = q.z();
-    p.pose.orientation.w = q.w();
-    exploration_path_.poses.push_back(p);
-  }
-  if (exploration_path_.poses.empty())
-  {
-
-    ROS_WARN("Exploration path empty \n ");
-  }
-  else
-  {
-    path_set = true;
-  }
-
-  return path_set;
-}
 
 void GraphManager::improvePath(std::vector<Vertex *> raw_path, std::vector<Vertex *> &path)
 {
@@ -1867,7 +1791,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
   
-  if (!following_global_path_segment_ and reached_end_of_improved_path_) {
+  if (reached_end_of_path_) {
   
 
     ++planning_iteration_;
@@ -1878,53 +1802,38 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
   
     if (!local_exploration_targets_.empty())
     {
-
-      if (GraphManager::setLocalPath())
+      // GraphManager::planLocalPath();
+      if (GraphManager::setPath())
       {
         ROS_INFO_STREAM( "\e[92m {Planning Iteration : " << planning_iteration_ << "} \e[92m Running Local exploration \n");
       }
       else
       {
-      
-        if (GraphManager::setGlobalPath())
+        GraphManager::planGlobalPath(); 
+        if (GraphManager::setPath())
         {
 
           ROS_INFO(" \e[93m No local paths, triggering global planner \n");
-        }
-        else
-        {
-
-          ROS_WARN(" \e[5m No feasible exploration paths, trigger homing.. \n");
         }
       }
     }
     else if (!global_repos_targets_.empty())
     {
-    
-      if (GraphManager::setGlobalPath())
+      GraphManager::planGlobalPath(); 
+      if (GraphManager::setPath())
       {
         ROS_INFO_STREAM( "\e[93m {Planning Iteration : " << planning_iteration_ << "} \e[93m Global planner triggered \n");
       }
-      else
-      {
-
-        ROS_WARN(" \e[5m No feasible exploration paths, trigger homing.. \n");
-      }
     }
   
-  }
+  } else {
+    if (GraphManager::setPath()) {
 
-
-  if (following_global_path_segment_ and !reached_end_of_improved_path_) {
-    if (GraphManager::setGlobalPath()) {
-
-      ROS_INFO_STREAM("Following global re-positioning segment \n");
+      ROS_INFO_STREAM("Following path segment \n");
     } else {
-      ROS_INFO ("Re-position complete \n");
+      ROS_INFO ("path complete \n");
     }
-  }
-
-
+  } 
 
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
 
