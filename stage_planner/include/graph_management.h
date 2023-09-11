@@ -88,8 +88,6 @@ public:
 
   void buildLocalGraph();
   
-  void buildGlobalGraph();
-  
   void planLocalPath();
 
   void planGlobalPath();
@@ -131,6 +129,9 @@ public:
   State generateRandomState (State root, State goal);
   
   void debugGraph(State root, State goal);
+  
+  void buildReservedGraph();
+  void insertLatestSubGraph();
 
   int global_root_id = 0;
 
