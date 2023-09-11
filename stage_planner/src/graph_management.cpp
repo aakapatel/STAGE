@@ -1175,7 +1175,7 @@ void GraphManager::buildLocalGraph()
     ROS_WARN("Could not find dijkstra shortest paths \n");
   }
   
-  GraphManager::planLocalPath();
+  // GraphManager::planLocalPath();
 
 } // buildLocalGraph 
 
@@ -1248,10 +1248,9 @@ void GraphManager::planLocalPath()
           i++;
         }
     }
-  
+      
     best_path_.clear();
     GraphManager::improvePath(path, best_path_);
-
   }
   else
   {
@@ -1262,7 +1261,7 @@ void GraphManager::planLocalPath()
 
 
 
-bool GraphManager::setPath()
+void GraphManager::setPath()
 {
 
   bool path_set = false;
@@ -1299,14 +1298,15 @@ bool GraphManager::setPath()
       p.pose.orientation.z = q.z();
       p.pose.orientation.w = q.w();
       exploration_path_.poses.push_back(p);
+
     }
   } else {
     ROS_INFO_STREAM("Reached end of path \n");
     reached_end_of_path_ = true;
     path_iterator_ = 0;
+    best_path_.clear();
   }
 
-  return true;
 }
 
 
@@ -1476,7 +1476,7 @@ void GraphManager::buildReservedGraph() {
   
   // GraphManager::planGlobalPath();
 
-  GraphManager::updateKdtree();
+  // GraphManager::updateKdtree();
   
 }
 
@@ -1559,11 +1559,13 @@ void GraphManager::planGlobalPath()
           i++;
         }
     }
-  
-    best_path_.clear();
-    GraphManager::improvePath(path, best_path_);
+    if (reached_end_of_path_) {
+      best_path_.clear();
+      GraphManager::improvePath(path, best_path_);
+    } 
+  GraphManager::updateKdtree();
   }
-  else
+   else
   {
     ROS_WARN("No global dijkstra paths .. NOT READY! \n");
     return;
@@ -1793,48 +1795,33 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
   
   if (reached_end_of_path_) {
   
-
     ++planning_iteration_;
     GraphManager::fetchExplorationTargets();
-    GraphManager::buildLocalGraph();
-    GraphManager::insertLatestSubGraph();
-    GraphManager::buildReservedGraph();
   
     if (!local_exploration_targets_.empty())
     {
-      // GraphManager::planLocalPath();
-      if (GraphManager::setPath())
-      {
-        ROS_INFO_STREAM( "\e[92m {Planning Iteration : " << planning_iteration_ << "} \e[92m Running Local exploration \n");
-      }
-      else
-      {
-        GraphManager::planGlobalPath(); 
-        if (GraphManager::setPath())
-        {
-
-          ROS_INFO(" \e[93m No local paths, triggering global planner \n");
-        }
-      }
+      GraphManager::buildLocalGraph();
+      GraphManager::planLocalPath();
+      GraphManager::insertLatestSubGraph();
+      GraphManager::buildReservedGraph();
+      GraphManager::setPath();
+      GraphManager::planGlobalPath(); 
+      ROS_INFO_STREAM( "\e[92m {Planning Iteration : " << planning_iteration_ << "} \e[92m Running Local exploration \n");
     }
     else if (!global_repos_targets_.empty())
     {
+      GraphManager::buildLocalGraph();
+      GraphManager::insertLatestSubGraph();
+      GraphManager::buildReservedGraph();
       GraphManager::planGlobalPath(); 
-      if (GraphManager::setPath())
-      {
-        ROS_INFO_STREAM( "\e[93m {Planning Iteration : " << planning_iteration_ << "} \e[93m Global planner triggered \n");
-      }
+      GraphManager::setPath();
+      ROS_INFO_STREAM( "\e[93m {Planning Iteration : " << planning_iteration_ << "} \e[93m Global planner triggered \n");  
     }
-  
+
   } else {
-    if (GraphManager::setPath()) {
-
-      ROS_INFO_STREAM("Following path segment \n");
-    } else {
-      ROS_INFO ("path complete \n");
-    }
-  } 
-
+    GraphManager::setPath();
+    ROS_INFO_STREAM("Following path segment \n");
+  }
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
 
   auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);

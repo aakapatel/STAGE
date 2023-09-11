@@ -134,7 +134,7 @@ public:
   void buildReservedGraph();
   void insertLatestSubGraph();
   
-  bool setPath();
+  void setPath();
 
   int global_root_id = 0;
 
