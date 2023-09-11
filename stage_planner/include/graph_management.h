@@ -179,6 +179,8 @@ private:
   int subgraph_ind_ = -1;
   int local_target_vertex_id;
   
+  int planning_iteration_ = -1;
+
   int temp_id = -1;
 
   int latest_sub_graph_id = 0;

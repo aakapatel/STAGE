@@ -6,8 +6,6 @@
   <arg name="robot_name" default="hummingbird"/>
 
 
-
-
   <arg name="gbplanner_config_file" default="$(find stage_planner)/config/$(arg robot_name)/gbplanner_config.yaml"/>
   <arg name="pci_file" default="$(find stage_planner)/config/$(arg robot_name)/planner_control_interface_sim_config.yaml"/>
   <arg name="voxblox_config_file" default="$(find stage_planner)/config/$(arg robot_name)/voxblox_sim_config.yaml"/>
@@ -17,7 +15,7 @@
 
     <!-- VERY IMPORTANT TO SET CORRECT ROBOT TYPE -->
 
-    <param name="robot_aerial" value="false" />
+    <param name="robot_aerial" value="true" />
     
     <param name="frame_id" type="string" value="world" />
 
@@ -41,9 +39,9 @@
 
     <param name="graph_density_coefficient" value="0.3" />
 
-    <param name="maximum_edge_length" value="2" /> 
+    <param name="maximum_edge_length" value="3" /> 
 
-    <param name ="maximum_iterations_local" value="500" />
+    <param name ="maximum_iterations_local" value="1200" />
 
     <param name ="safety_margin" value="0.8" />
     <param name ="robot_x" value="0.8" />

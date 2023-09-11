@@ -37,7 +37,7 @@
 
     <!-- VERY IMPORTANT TO SET CORRECT ROBOT TYPE -->
 
-    <param name="robot_aerial" value="false" />
+    <param name="robot_aerial" value="true" />
     
 
     <param name="xFiltering" value="true" />
