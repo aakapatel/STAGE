@@ -120,7 +120,8 @@ public:
 
   void updateGraph(const ros::TimerEvent &event);
 
-  bool setPath(bool local, bool global, bool homing);
+  bool setLocalPath(bool local, bool global, bool homing);
+  bool setGlobalPath(bool local, bool global, bool homing);
 
   double computeExplorationGain (State v);
  

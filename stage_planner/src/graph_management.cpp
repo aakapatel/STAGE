@@ -1452,7 +1452,112 @@ void GraphManager::planGlobalPath()
 
 } // planGlobalPaths
 
-bool GraphManager::setPath(bool local, bool global, bool homing)
+
+
+bool GraphManager::setGlobalPath(bool local, bool global, bool homing)
+{
+
+  bool path_set = false;
+
+  std::vector<Vertex *> path;
+
+  std::vector<Vertex *> raw_path;
+  std::vector<std::pair<std::vector<Vertex *>, double>> paths_;
+
+  if (local)
+  {
+    paths_ = local_paths_;
+  }
+  else if (global)
+  {
+    paths_ = global_paths_;
+  }
+  else if (homing)
+  {
+    ROS_INFO("Trying homing ! \n");
+  }
+
+  double gain, path_length;
+  double my_reward = -std::numeric_limits<double>::max();
+
+  double reward;
+  
+
+  for (auto i = 0; i < paths_.size(); i++)
+  {
+
+    gain = computeExplorationGain(paths_[i].first.back()->state);
+    
+    path_length = paths_[i].second;
+    if (100*gain < 100000 and 100*gain > -100000 and path_length < 10000) {
+
+    path_length = paths_[i].second;
+  
+    // ROS_INFO_STREAM ("path length : " << path_length << "\n");
+    reward = (100*gain) - path_length;
+    if (reward > my_reward)
+    {
+      my_reward = reward;
+      raw_path = paths_[i].first;
+    }
+    } else {
+      i++;
+    }
+  
+
+  }
+  
+  // local_goal_vertex = raw_path.front(); 
+  
+  // Vertex* v_g = raw_path[0];
+  // GraphManager::debugGraph(robotState_, v_g->state);
+  if (raw_path.empty())
+  {
+    ROS_WARN("Local Dijkstra SP -> Empty :( \n");
+    return false;
+  }
+
+  GraphManager::improvePath(raw_path, path);
+
+  exploration_path_.poses.clear();
+  geometry_msgs::PoseStamped p;
+
+  nav_msgs::Path new_path;
+  new_path.poses.clear();
+  GraphManager::segmentPath(path, new_path);
+
+  for (int i = 0; i < new_path.poses.size() - 1; i++)
+  {
+
+    float angle = atan2(new_path.poses[i + 1].pose.position.y - new_path.poses[i].pose.position.y,
+                        new_path.poses[i + 1].pose.position.x - new_path.poses[i].pose.position.x);
+    ufo::math::Vector3 v(0, 0, angle);
+    Eigen::Quaternion<float> q = Euler2Quaternion(v);
+
+    p.pose.position.x = new_path.poses[i].pose.position.x;
+    p.pose.position.y = new_path.poses[i].pose.position.y;
+    p.pose.position.z = new_path.poses[i].pose.position.z;
+    p.pose.orientation.x = q.x();
+    p.pose.orientation.y = q.y();
+    p.pose.orientation.z = q.z();
+    p.pose.orientation.w = q.w();
+    exploration_path_.poses.push_back(p);
+  }
+  if (exploration_path_.poses.empty())
+  {
+
+    ROS_WARN("Exploration path empty \n ");
+  }
+  else
+  {
+    path_set = true;
+  }
+
+  return path_set;
+}
+
+
+bool GraphManager::setLocalPath(bool local, bool global, bool homing)
 {
 
   bool path_set = false;
@@ -1777,14 +1882,14 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
   if (!local_exploration_targets_.empty())
   {
 
-    if (GraphManager::setPath(true, false, false))
+    if (GraphManager::setLocalPath(true, false, false))
     {
       ROS_INFO_STREAM( "\e[92m {Planning Iteration : " << planning_iteration_ << "} \e[92m Running Local exploration \n");
     }
     else
     {
       
-      if (GraphManager::setPath(false, true, false))
+      if (GraphManager::setGlobalPath(false, true, false))
       {
 
         ROS_INFO(" \e[93m No local paths, triggering global planner \n");
@@ -1799,7 +1904,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
   else if (!global_repos_targets_.empty())
   {
     
-    if (GraphManager::setPath(false, true, false))
+    if (GraphManager::setGlobalPath(false, true, false))
     {
       ROS_INFO_STREAM( "\e[93m {Planning Iteration : " << planning_iteration_ << "} \e[93m Global planner triggered \n");
     }
