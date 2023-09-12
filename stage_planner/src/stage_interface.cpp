@@ -23,7 +23,7 @@ StageInterface::StageInterface(const ros::NodeHandle& nh, const ros::NodeHandle&
 
     nh_private_.param("init_x", init_x_, init_x_);
     nh_private_.param("init_y", init_y_, init_y_);
-    nh_private_.param("init_x", init_z_, init_z_);
+    nh_private_.param("init_z", init_z_, init_z_);
 
     nh_private_.param("distance_to_new_path", distance_to_new_path_, distance_to_new_path_);
 
