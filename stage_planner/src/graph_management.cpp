@@ -1758,6 +1758,8 @@ void GraphManager::fetchExplorationTargets()
       local_exploration_targets_ = pointsToUfo(frontier_srv.response.local_targets);
 
       global_repos_targets_ = pointsToUfo(frontier_srv.response.global_targets);
+      
+      ROS_INFO_STREAM ("Local frontiers " << local_exploration_targets_.size() << " & global " << global_repos_targets_.size() << "\n");
 
       GraphManager::resetFrontierGraph();
       if (global_repos_targets_.empty() and local_exploration_targets_.empty())
@@ -1835,7 +1837,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 {
   bool return_value; 
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
-
+  ROS_INFO("REQUESTED PATH \n");
   
   if (reached_end_of_path_) {
 

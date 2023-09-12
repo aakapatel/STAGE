@@ -224,10 +224,11 @@ bool StageInterface::fetchExplorationPath () {
 
   stage_planner::explorationPath exploration_path_srv;
   
-  // ROS_INFO ("fetching exploration path \n");
+  ROS_INFO ("fetching exploration path \n");
 
   if (explore) {
 
+  ROS_INFO ("requested exploration path \n");
     exploration_path_srv.request.exploration = true;
     exploration_path_srv.request.homing = false; 
 
@@ -235,6 +236,7 @@ bool StageInterface::fetchExplorationPath () {
   
   if (return_home and !explore) {
     
+  ROS_INFO ("return home enabled \n");
     exploration_path_srv.request.exploration = false;
     exploration_path_srv.request.homing = true;
 
@@ -242,8 +244,10 @@ bool StageInterface::fetchExplorationPath () {
 
   if (m_exploration_path_client.call(exploration_path_srv)) {
     
+    ROS_INFO ("calling service \n");
     if (!exploration_path_srv.response.path.poses.empty()) {
       got_new_path = true;
+    ROS_INFO ("valid service \n");
       exploration_path_ = exploration_path_srv.response.path;
     } else {
       got_new_path = false;
@@ -424,8 +428,10 @@ bool StageInterface::reachedEndOfPath () {
   end_of_path.z() = command_path.poses.back().pose.position.z;
   
   double d = calculateDistance(fetchCurrentPosition(), end_of_path);
+  
+  ROS_INFO_STREAM ("distance to new " << d << "\n");
 
-  if (d < 1) {
+  if (d < distance_to_new_path_) {
     fetch_new_path_ = true;
     return true;
   } else {
@@ -440,10 +446,12 @@ void StageInterface::mainLoop (const ros::TimerEvent &event)
 
   if (explore) {
 
+    ROS_INFO ("exploration start \n");
     if (reachedEndOfPath() and !stop_planning ) {
 
       if (fetchExplorationPath ()) {
 
+    ROS_INFO ("req success :) \n");
         generateTrajectory ();
     
         m_command_Path_Publisher.publish(command_path);

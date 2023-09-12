@@ -19,7 +19,7 @@
     <param name ="init_y" value="0" />
     <param name ="init_z" value="0" />
 
-    <param name ="distance_to_new_path" value="0.5" />
+    <param name ="distance_to_new_path" value="1" />
 
   </node>
 
