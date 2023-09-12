@@ -64,30 +64,6 @@ protected Q_SLOTS:
   QLabel* stateLabel;
 
   
-  QPushButton* button_spot_claim;
-  ros::ServiceClient spot_claim;
-
-  QPushButton* button_spot_power_on;
-  ros::ServiceClient spot_power_on;
-  
-  QPushButton* button_spot_stand;
-  ros::ServiceClient spot_stand;
-
-  QPushButton* button_spot_sit;
-  ros::ServiceClient spot_sit;
-
-  QPushButton* button_spot_power_off;
-  ros::ServiceClient spot_power_off;
-
-  QPushButton* button_spot_release;
-  ros::ServiceClient spot_release;
-
-  QPushButton* button_spot_estop_gentle;
-  ros::ServiceClient spot_estop_gentle;
-
-  QPushButton* button_spot_estop_hard;
-  ros::ServiceClient spot_estop_hard;
-
 
   QPushButton* button_init_motion;
   ros::ServiceClient planner_client_init_motion;
@@ -95,14 +71,6 @@ protected Q_SLOTS:
   
   QPushButton* button_stop_planner;
   ros::ServiceClient planner_client_stop_planner;
-
-  bool claimed = false;
-  bool powered_on = false;
-  bool standing = false;
-  bool sitting = false;
-  bool poweref_off = false;
-  bool released = false;
-
 
  
   ros::NodeHandle nh;
