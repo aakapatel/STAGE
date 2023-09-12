@@ -1302,6 +1302,7 @@ void GraphManager::setPath()
     }
   } else {
     ROS_INFO_STREAM("Reached end of path \n");
+    exploration_path_.poses.clear();
     reached_end_of_path_ = true;
     path_iterator_ = 0;
     best_path_.clear();
@@ -1794,7 +1795,9 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
   
   if (reached_end_of_path_) {
-  
+    
+    exploration_path_.poses.clear();
+
     ++planning_iteration_;
     GraphManager::fetchExplorationTargets();
   
@@ -1807,6 +1810,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
       GraphManager::setPath();
       GraphManager::planGlobalPath(); 
       ROS_INFO_STREAM( "\e[92m {Planning Iteration : " << planning_iteration_ << "} \e[92m Running Local exploration \n");
+      res.path = exploration_path_;
     }
     else if (!global_repos_targets_.empty())
     {
@@ -1816,11 +1820,13 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
       GraphManager::planGlobalPath(); 
       GraphManager::setPath();
       ROS_INFO_STREAM( "\e[93m {Planning Iteration : " << planning_iteration_ << "} \e[93m Global planner triggered \n");  
+      res.path = exploration_path_;
     }
 
   } else {
     GraphManager::setPath();
     ROS_INFO_STREAM("Following path segment \n");
+    res.path = exploration_path_;
   }
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
 
@@ -1831,28 +1837,28 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
   // TODO Homing path to be included in this ros service
 
-  if (req.exploration)
-  {
-    res.path = exploration_path_;
-    if (local_exploration)
-    {
-      res.planning_status_local = true;
-      res.planning_status_global = false;
-    }
-    else if (global_exploration)
-    {
-      res.planning_status_global = true;
-      res.planning_status_local = false;
-    }
-  }
-
-  if (req.homing)
-  {
-    // res.path = homing_path_;
-    res.planning_status_local = false;
-    res.planning_status_global = false;
-    res.planning_status_homing = true;
-  }
+  // if (req.exploration)
+  // {
+  //   res.path = exploration_path_;
+  //   if (local_exploration)
+  //   {
+  //     res.planning_status_local = true;
+  //     res.planning_status_global = false;
+  //   }
+  //   else if (global_exploration)
+  //   {
+  //     res.planning_status_global = true;
+  //     res.planning_status_local = false;
+  //   }
+  // }
+  //
+  // if (req.homing)
+  // {
+  //   // res.path = homing_path_;
+  //   res.planning_status_local = false;
+  //   res.planning_status_global = false;
+  //   res.planning_status_homing = true;
+  // }
 
   GraphManager::visualize();
   
