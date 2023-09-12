@@ -2,7 +2,7 @@
 <launch>
 	<node name="control_interface" pkg="stage_planner" type="control_interface" output="screen">
 
-    <param name="robot_aerial" type="bool" value="true" />
+    <param name="robot_aerial" type="bool" value="false" />
 
 
 
