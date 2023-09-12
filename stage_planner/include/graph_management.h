@@ -134,7 +134,7 @@ public:
   void buildReservedGraph();
   void insertLatestSubGraph();
   
-  void setPath();
+  bool setPath();
 
   void visualizeRepositionPath();
 

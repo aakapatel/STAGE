@@ -14,6 +14,7 @@ Panels:
         - /MarkerArray1/Namespaces1
         - /MarkerArray2
         - /MarkerArray3
+        - /Path1
         - /MarkerArray4
         - /MarkerArray5
         - /PointCloud22
@@ -177,7 +178,7 @@ Visualization Manager:
       Head Length: 0.10000000149011612
       Length: 0.30000001192092896
       Line Style: Billboards
-      Line Width: 0.25
+      Line Width: 0.009999999776482582
       Name: Path
       Offset:
         X: 0
@@ -211,8 +212,8 @@ Visualization Manager:
     - Alpha: 0.30000001192092896
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 10.90000057220459
-        Min Value: -0.9000000953674316
+        Max Value: 10.700000762939453
+        Min Value: -0.2999999523162842
         Value: true
       Axis: Z
       Channel Name: intensity
@@ -328,7 +329,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 36.660606384277344
+      Distance: 35.988746643066406
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -336,9 +337,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 0.494631826877594
-        Y: -3.3640260696411133
-        Z: -0.36547350883483887
+        X: 2.8365368843078613
+        Y: -2.740873098373413
+        Z: -0.3631689250469208
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -346,7 +347,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: hummingbird/base_link
-      Yaw: 3.128636360168457
+      Yaw: 3.1186366081237793
     Saved: ~
 Window Geometry:
   Displays:

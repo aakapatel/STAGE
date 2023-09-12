@@ -1263,11 +1263,12 @@ void GraphManager::planLocalPath()
 
 
 
-void GraphManager::setPath()
+bool GraphManager::setPath()
 {
 
   bool path_set = false;
-  
+  if (!best_path_.empty()) { 
+
   GraphManager::visualizeRepositionPath();
   std::vector<Vertex *> path_seg;
   path_seg.clear();
@@ -1309,14 +1310,28 @@ void GraphManager::setPath()
       p.pose.orientation.w = q.w();
       exploration_path_.poses.push_back(p);
     }
+    return true;
   } else {
       ROS_ERROR_STREAM ("Path segment in UNTRAVERSABLE zone \n");
 
+      // int u_id;
+      // u_id = best_path_[path_iterator_]->id;
+      // int num_of_edges;
+      // num_of_edges = global_graph_->edge_map_[u_id].size();
+      // 
+      // ROS_INFO_STREAM ("Vertex has " << num_of_edges << " edges\n");
+      //  
+      // global_graph_->clearVertex(u_id);
+      // 
+      // num_of_edges = global_graph_->edge_map_[u_id].size();
+      // ROS_INFO_STREAM ("After update Vertex has " << num_of_edges << " edges\n");
+      
       ROS_INFO_STREAM("Terminating path here .. \n");
       exploration_path_.poses.clear();
       reached_end_of_path_ = true;
       path_iterator_ = 0;
       best_path_.clear();
+      return false;
     }
 
 
@@ -1327,6 +1342,13 @@ void GraphManager::setPath()
     reached_end_of_path_ = true;
     path_iterator_ = 0;
     best_path_.clear();
+    return false;
+  }
+  
+  } else {
+
+  ROS_WARN_STREAM ("Best path length " << best_path_.size() << "\n");
+  return false;
   }
 
 }
@@ -1811,7 +1833,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
                                        stage_planner::explorationPath::Response &res)
 
 {
-  
+  bool return_value; 
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
   
@@ -1828,7 +1850,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
       GraphManager::planLocalPath();
       GraphManager::insertLatestSubGraph();
       GraphManager::buildReservedGraph();
-      GraphManager::setPath();
+      return_value = GraphManager::setPath();
       GraphManager::planGlobalPath(); 
       ROS_INFO_STREAM( "\e[92m {Planning Iteration : " << planning_iteration_ << "} \e[92m Running Local exploration \n");
       res.path = exploration_path_;
@@ -1839,23 +1861,32 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
       GraphManager::insertLatestSubGraph();
       GraphManager::buildReservedGraph();
       GraphManager::planGlobalPath(); 
-      GraphManager::setPath();
+      ROS_INFO_STREAM ("Exploration path length " << exploration_path_.poses.size() << "\n");
+      return_value = GraphManager::setPath();
+      ROS_INFO_STREAM ("After Exploration path length " << exploration_path_.poses.size() << "\n");
+      
       ROS_INFO_STREAM( "\e[93m {Planning Iteration : " << planning_iteration_ << "} \e[93m Global planner triggered \n");  
       res.path = exploration_path_;
     }
 
-  } else {
-    GraphManager::setPath();
-    ROS_INFO_STREAM("Following path segment \n");
-    res.path = exploration_path_;
+  } 
+
+  else {
+    return_value = GraphManager::setPath();
+    if (!reached_end_of_path_) {
+      res.path = exploration_path_;
+      ROS_INFO_STREAM("Following path segment \n");
+    }
   }
+  
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
 
   auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
 
   ROS_INFO_STREAM("\033[;34m Total Execution time \033[0m "
                   << duration_total.count() << " \033[;34m ms \033[0m\n ");
-
+    return return_value;
+  // }
   // TODO Homing path to be included in this ros service
 
   // if (req.exploration)
@@ -1881,11 +1912,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
   //   res.planning_status_homing = true;
   // }
 
-  GraphManager::visualize();
-  
-  build_global_graph_ = true;
-
-  return true;
+  // return true;
 }
 
 // Visualization of navigation graphs
