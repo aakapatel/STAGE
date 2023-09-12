@@ -103,6 +103,7 @@ public:
   void visualizeLocalPaths(std::vector<std::pair<std::vector<Vertex *>, double>> local_paths);
 
   void visualizeGlobalPaths(std::vector<std::pair<std::vector<Vertex *>, double>> global_paths);
+  void visualizeImprovedGlobalPaths(std::vector<std::pair<std::vector<Vertex *>, double>> global_paths);
 
   void visualizeFrontierGraph();
   
@@ -282,6 +283,7 @@ private:
   ros::Publisher command_pub;
   ros::Publisher local_Paths_Vis_Pub_;
   ros::Publisher global_Paths_Vis_Pub_;
+  ros::Publisher improved_global_Paths_Vis_Pub_;
   ros::Publisher reposition_Path_Vis_Pub_;
   ros::Publisher local_Graph_Vis_Pub_;
   ros::Publisher global_Graph_Vis_Pub_;
