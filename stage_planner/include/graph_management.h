@@ -136,6 +136,8 @@ public:
   
   void setPath();
 
+  void visualizeRepositionPath();
+
   int global_root_id = 0;
 
   ros::Timer graph_timer_;
@@ -280,6 +282,7 @@ private:
   ros::Publisher command_pub;
   ros::Publisher local_Paths_Vis_Pub_;
   ros::Publisher global_Paths_Vis_Pub_;
+  ros::Publisher reposition_Path_Vis_Pub_;
   ros::Publisher local_Graph_Vis_Pub_;
   ros::Publisher global_Graph_Vis_Pub_;
   ros::Publisher frontier_Graph_Vis_Pub_;

@@ -81,6 +81,8 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
 
   global_Paths_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/global_dijkstra_paths", 10);
   
+  reposition_Path_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/global_repos_path", 10);
+  
   overlap_Vis_Pub_ = nh_.advertise<visualization_msgs::Marker>("/overlap_point", 10);
   
   random_Nodes_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/random_nodes", 10);
@@ -1266,9 +1268,17 @@ void GraphManager::setPath()
 
   bool path_set = false;
   
+  GraphManager::visualizeRepositionPath();
   std::vector<Vertex *> path_seg;
   path_seg.clear();
   if (path_iterator_ < best_path_.size()) {
+
+    Eigen::Vector3d v_root (robotState_[0], robotState_[1], robotState_[2]);
+    Eigen::Vector3d v_vert (best_path_[path_iterator_]->state[0], best_path_[path_iterator_]->state[1], best_path_[path_iterator_]->state[2]);
+    MapManager::VoxelStatus vs = map_manager_->getPathStatus(v_root, v_vert, robot_box_size_, true);
+
+    if (MapManager::VoxelStatus::kFree == vs or MapManager::VoxelStatus::kUnknown == vs ) {
+
     Vertex* root_vertex = new Vertex (path_iterator_, robotState_);
     path_seg.push_back(root_vertex);
     path_seg.push_back(best_path_[path_iterator_]);
@@ -1298,8 +1308,19 @@ void GraphManager::setPath()
       p.pose.orientation.z = q.z();
       p.pose.orientation.w = q.w();
       exploration_path_.poses.push_back(p);
-
     }
+  } else {
+      ROS_ERROR_STREAM ("Path segment in UNTRAVERSABLE zone \n");
+
+      ROS_INFO_STREAM("Terminating path here .. \n");
+      exploration_path_.poses.clear();
+      reached_end_of_path_ = true;
+      path_iterator_ = 0;
+      best_path_.clear();
+    }
+
+
+
   } else {
     ROS_INFO_STREAM("Reached end of path \n");
     exploration_path_.poses.clear();
@@ -1795,7 +1816,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
   
   if (reached_end_of_path_) {
-    
+
     exploration_path_.poses.clear();
 
     ++planning_iteration_;
@@ -2150,6 +2171,73 @@ void GraphManager::visualizeGlobalPaths(std::vector<std::pair<std::vector<Vertex
 
   global_Paths_Vis_Pub_.publish(marker_array);
 }
+
+
+
+void GraphManager::visualizeRepositionPath()
+{
+
+  visualization_msgs::MarkerArray marker_array;
+
+  visualization_msgs::Marker edge_marker;
+  visualization_msgs::Marker vertex_marker;
+  edge_marker.header.stamp = ros::Time::now();
+  edge_marker.header.seq = 0;
+  edge_marker.header.frame_id = "world";
+  edge_marker.id = 0;
+  edge_marker.ns = "edges";
+  edge_marker.action = visualization_msgs::Marker::ADD;
+  edge_marker.type = visualization_msgs::Marker::LINE_LIST;
+  edge_marker.scale.x = 0.3;
+  edge_marker.color.r = 50.0 / 255.0;
+  edge_marker.color.g = 130.0 / 255.0;
+  edge_marker.color.b = 150.0 / 255.0;
+  edge_marker.color.a = 1.0;
+  // edge_marker.lifetime = ros::Duration(graph_lifetime);
+  edge_marker.frame_locked = false;
+
+  vertex_marker.header.stamp = ros::Time::now();
+  vertex_marker.header.seq = 0;
+  vertex_marker.header.frame_id = "world";
+  vertex_marker.id = 0;
+  vertex_marker.ns = "vertices";
+  vertex_marker.action = visualization_msgs::Marker::ADD;
+  vertex_marker.type = visualization_msgs::Marker::SPHERE_LIST;
+  vertex_marker.scale.x = 0.5;
+  vertex_marker.scale.y = 0.5;
+  vertex_marker.scale.z = 0.5;
+  vertex_marker.color.r = 50.0 / 255.0;
+  vertex_marker.color.g = 150.0 / 255.0;
+  vertex_marker.color.b = 130.0 / 255.0;
+  vertex_marker.color.a = 1.0;
+  // vertex_marker.lifetime = ros::Duration(graph_lifetime);
+  vertex_marker.frame_locked = false;
+
+  for (int i = 0; i < best_path_.size() - 1; ++i)
+  {
+    int it = i +1;
+
+      geometry_msgs::Point p1;
+      geometry_msgs::Point p2;
+      p1.x = best_path_[i]->state[0];
+      p1.y = best_path_[i]->state[1];
+      p1.z = best_path_[i]->state[2];
+      
+      p2.x = best_path_[it]->state[0];
+      p2.y = best_path_[it]->state[1];
+      p2.z = best_path_[it]->state[2];
+
+      edge_marker.points.push_back(p1);
+      edge_marker.points.push_back(p2);
+      vertex_marker.points.push_back(p1);
+      vertex_marker.points.push_back(p2);
+  }
+  marker_array.markers.push_back(edge_marker);
+  marker_array.markers.push_back(vertex_marker);
+
+  reposition_Path_Vis_Pub_.publish(marker_array);
+}
+
 
 void GraphManager::visualizeRandomNodes () {
   

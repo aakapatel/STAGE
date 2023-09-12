@@ -23,6 +23,7 @@ Panels:
         - /MarkerArray9
         - /MarkerArray10
         - /MarkerArray11
+        - /MarkerArray12
       Splitter Ratio: 0.5
     Tree Height: 459
   - Class: rviz/Selection
@@ -210,8 +211,8 @@ Visualization Manager:
     - Alpha: 0.30000001192092896
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 10.700000762939453
-        Min Value: -0.2999999523162842
+        Max Value: 10.90000057220459
+        Min Value: -0.9000000953674316
         Value: true
       Axis: Z
       Channel Name: intensity
@@ -286,6 +287,14 @@ Visualization Manager:
     - Class: rviz/MarkerArray
       Enabled: true
       Marker Topic: /debug_graph
+      Name: MarkerArray
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /global_repos_path
       Name: MarkerArray
       Namespaces:
         {}
