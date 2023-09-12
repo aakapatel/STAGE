@@ -81,8 +81,6 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
 
   global_Paths_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/global_dijkstra_paths", 10);
   
-  reposition_Path_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/global_repos_path", 10);
-  
   overlap_Vis_Pub_ = nh_.advertise<visualization_msgs::Marker>("/overlap_point", 10);
   
   random_Nodes_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/random_nodes", 10);
@@ -650,7 +648,7 @@ void GraphManager::debugGraph (State root, State goal) {
   visualization_msgs::Marker edge_marker;
   edge_marker.header.stamp = ros::Time::now();
   edge_marker.header.seq = 0;
-  edge_marker.header.frame_id = "world";
+  edge_marker.header.frame_id = m_worldFrameId;
   edge_marker.id = 0;
   edge_marker.ns = "edges";
   edge_marker.action = visualization_msgs::Marker::ADD;
@@ -689,7 +687,7 @@ void GraphManager::debugGraph (State root, State goal) {
   visualization_msgs::Marker vertex_marker;
   vertex_marker.header.stamp = ros::Time::now();
   vertex_marker.header.seq = 0;
-  vertex_marker.header.frame_id = "world";
+  vertex_marker.header.frame_id = m_worldFrameId;
   vertex_marker.id = 0;
   vertex_marker.ns = "vertices";
   vertex_marker.action = visualization_msgs::Marker::ADD;
@@ -1118,7 +1116,7 @@ void GraphManager::buildLocalGraph()
 
     if (MapManager::VoxelStatus::kFree == vs)
     {
-      if (sub_graph_->vertices_map_[id]->edges < 9 and sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], root_vertex) < 2*max_edge_length_)
+      if (sub_graph_->vertices_map_[id]->edges < 5 and sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], root_vertex) < 1.5 * max_edge_length_)
 
       {
         sub_graph_->addEdge(sub_graph_->vertices_map_[id], root_vertex,
@@ -1141,7 +1139,7 @@ void GraphManager::buildLocalGraph()
         if (!sub_graph_->edgeExist(sub_graph_->vertices_map_[id]->id, nearby_vertices[i]->id))
         {
 
-          if (sub_graph_->vertices_map_[id]->edges < 9 and sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], nearby_vertices[i]) < 2*max_edge_length_)
+          if (sub_graph_->vertices_map_[id]->edges < 5 and sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], nearby_vertices[i]) < 1.5*max_edge_length_)
           {
 
             Eigen::Vector3d v_n(nearby_vertices[i]->state[0], nearby_vertices[i]->state[1], nearby_vertices[i]->state[2]);
@@ -1176,9 +1174,8 @@ void GraphManager::buildLocalGraph()
   {
     ROS_WARN("Could not find dijkstra shortest paths \n");
   }
-  
-  // GraphManager::planLocalPath();
 
+  GraphManager::planLocalPath();
 } // buildLocalGraph 
 
 void GraphManager::planLocalPath()
@@ -1217,42 +1214,8 @@ void GraphManager::planLocalPath()
 
   if (!local_paths_.empty())
   {
-    GraphManager::visualizeLocalGraph();
+    GraphManager::visualizeLocalGraph ();
     GraphManager::visualizeLocalPaths(local_paths_);
-
-    std::vector<Vertex *> path;
-
-    std::vector<std::pair<std::vector<Vertex *>, double>> paths_;
-
-    paths_ = local_paths_;
-
-    double gain, path_length, reward;
-    double my_reward = -std::numeric_limits<double>::max();
-
-    for (auto i = 0; i < paths_.size(); i++)
-    {
-
-      gain = computeExplorationGain(paths_[i].first.back()->state);
-    
-      path_length = paths_[i].second;
-      if (100*gain < 100000 and 100*gain > -100000 and path_length < 10000) {
-
-        path_length = paths_[i].second;
-  
-    // ROS_INFO_STREAM ("path length : " << path_length << "\n");
-        reward = (100*gain) - path_length;
-          if (reward > my_reward)
-          {
-            my_reward = reward;
-            path = paths_[i].first;
-          }
-      } else {
-          i++;
-        }
-    }
-      
-    best_path_.clear();
-    GraphManager::improvePath(path, best_path_);
   }
   else
   {
@@ -1260,99 +1223,6 @@ void GraphManager::planLocalPath()
   }
 
 } // planLocalPath  
-
-
-
-bool GraphManager::setPath()
-{
-
-  bool path_set = false;
-  if (!best_path_.empty()) { 
-
-  GraphManager::visualizeRepositionPath();
-  std::vector<Vertex *> path_seg;
-  path_seg.clear();
-  if (path_iterator_ < best_path_.size()) {
-
-    Eigen::Vector3d v_root (robotState_[0], robotState_[1], robotState_[2]);
-    Eigen::Vector3d v_vert (best_path_[path_iterator_]->state[0], best_path_[path_iterator_]->state[1], best_path_[path_iterator_]->state[2]);
-    MapManager::VoxelStatus vs = map_manager_->getPathStatus(v_root, v_vert, robot_box_size_, true);
-
-    if (MapManager::VoxelStatus::kFree == vs or MapManager::VoxelStatus::kUnknown == vs ) {
-
-    Vertex* root_vertex = new Vertex (path_iterator_, robotState_);
-    path_seg.push_back(root_vertex);
-    path_seg.push_back(best_path_[path_iterator_]);
-    path_iterator_ = path_iterator_ + 1;
-    reached_end_of_path_ = false;
-    
-    exploration_path_.poses.clear();
-    geometry_msgs::PoseStamped p;
-
-    nav_msgs::Path new_path;
-    new_path.poses.clear();
-    GraphManager::segmentPath(path_seg, new_path);
-
-    for (int i = 0; i < new_path.poses.size() - 1; i++)
-    {
-
-      float angle = atan2(new_path.poses[i + 1].pose.position.y - new_path.poses[i].pose.position.y,
-                          new_path.poses[i + 1].pose.position.x - new_path.poses[i].pose.position.x);
-      ufo::math::Vector3 v(0, 0, angle);
-      Eigen::Quaternion<float> q = Euler2Quaternion(v);
-
-      p.pose.position.x = new_path.poses[i].pose.position.x;
-      p.pose.position.y = new_path.poses[i].pose.position.y;
-      p.pose.position.z = new_path.poses[i].pose.position.z;
-      p.pose.orientation.x = q.x();
-      p.pose.orientation.y = q.y();
-      p.pose.orientation.z = q.z();
-      p.pose.orientation.w = q.w();
-      exploration_path_.poses.push_back(p);
-    }
-    return true;
-  } else {
-      ROS_ERROR_STREAM ("Path segment in UNTRAVERSABLE zone \n");
-
-      // int u_id;
-      // u_id = best_path_[path_iterator_]->id;
-      // int num_of_edges;
-      // num_of_edges = global_graph_->edge_map_[u_id].size();
-      // 
-      // ROS_INFO_STREAM ("Vertex has " << num_of_edges << " edges\n");
-      //  
-      // global_graph_->clearVertex(u_id);
-      // 
-      // num_of_edges = global_graph_->edge_map_[u_id].size();
-      // ROS_INFO_STREAM ("After update Vertex has " << num_of_edges << " edges\n");
-      
-      ROS_INFO_STREAM("Terminating path here .. \n");
-      exploration_path_.poses.clear();
-      reached_end_of_path_ = true;
-      path_iterator_ = 0;
-      best_path_.clear();
-      return false;
-    }
-
-
-
-  } else {
-    ROS_INFO_STREAM("Reached end of path \n");
-    exploration_path_.poses.clear();
-    reached_end_of_path_ = true;
-    path_iterator_ = 0;
-    best_path_.clear();
-    return false;
-  }
-  
-  } else {
-
-  ROS_WARN_STREAM ("Best path length " << best_path_.size() << "\n");
-  return false;
-  }
-
-}
-
 
 void GraphManager::insertLatestSubGraph () {
 
@@ -1517,11 +1387,11 @@ void GraphManager::buildReservedGraph() {
   // Dijkstra SP report from root to all vertices in global graph
 
   build_global_graph_ = false;
-  
-  // GraphManager::planGlobalPath();
 
-  // GraphManager::updateKdtree();
-  
+  GraphManager::planGlobalPath();
+
+  GraphManager::updateKdtree();
+
 }
 
 void GraphManager::planGlobalPath()
@@ -1571,45 +1441,10 @@ void GraphManager::planGlobalPath()
 
   if (!global_paths_.empty())
   {
+    // GraphManager::visualizeGlobalGraph();
     GraphManager::visualizeGlobalPaths(global_paths_);
-
-    std::vector<Vertex *> path;
-
-    std::vector<std::pair<std::vector<Vertex *>, double>> paths_;
-
-    paths_ = global_paths_;
-
-    double gain, path_length, reward;
-    double my_reward = -std::numeric_limits<double>::max();
-
-    for (auto i = 0; i < paths_.size(); i++)
-    {
-
-      gain = computeExplorationGain(paths_[i].first.back()->state);
-    
-      path_length = paths_[i].second;
-      if (100*gain < 100000 and 100*gain > -100000 and path_length < 10000) {
-
-        path_length = paths_[i].second;
-  
-    // ROS_INFO_STREAM ("path length : " << path_length << "\n");
-        reward = (100*gain) - path_length;
-          if (reward > my_reward)
-          {
-            my_reward = reward;
-            path = paths_[i].first;
-          }
-      } else {
-          i++;
-        }
-    }
-    if (reached_end_of_path_) {
-      best_path_.clear();
-      GraphManager::improvePath(path, best_path_);
-    } 
-  GraphManager::updateKdtree();
   }
-   else
+  else
   {
     ROS_WARN("No global dijkstra paths .. NOT READY! \n");
     return;
@@ -1617,6 +1452,107 @@ void GraphManager::planGlobalPath()
 
 } // planGlobalPaths
 
+bool GraphManager::setPath(bool local, bool global, bool homing)
+{
+
+  bool path_set = false;
+
+  std::vector<Vertex *> path;
+
+  std::vector<Vertex *> raw_path;
+  std::vector<std::pair<std::vector<Vertex *>, double>> paths_;
+
+  if (local)
+  {
+    paths_ = local_paths_;
+  }
+  else if (global)
+  {
+    paths_ = global_paths_;
+  }
+  else if (homing)
+  {
+    ROS_INFO("Trying homing ! \n");
+  }
+
+  double gain, path_length;
+  double my_reward = -std::numeric_limits<double>::max();
+
+  double reward;
+  
+
+  for (auto i = 0; i < paths_.size(); i++)
+  {
+
+    gain = computeExplorationGain(paths_[i].first.back()->state);
+    
+    path_length = paths_[i].second;
+    if (100*gain < 100000 and 100*gain > -100000 and path_length < 10000) {
+
+    path_length = paths_[i].second;
+  
+    // ROS_INFO_STREAM ("path length : " << path_length << "\n");
+    reward = (100*gain) - path_length;
+    if (reward > my_reward)
+    {
+      my_reward = reward;
+      raw_path = paths_[i].first;
+    }
+    } else {
+      i++;
+    }
+  
+
+  }
+  
+  // local_goal_vertex = raw_path.front(); 
+  
+  // Vertex* v_g = raw_path[0];
+  // GraphManager::debugGraph(robotState_, v_g->state);
+  if (raw_path.empty())
+  {
+    ROS_WARN("Local Dijkstra SP -> Empty :( \n");
+    return false;
+  }
+
+  GraphManager::improvePath(raw_path, path);
+
+  exploration_path_.poses.clear();
+  geometry_msgs::PoseStamped p;
+
+  nav_msgs::Path new_path;
+  new_path.poses.clear();
+  GraphManager::segmentPath(path, new_path);
+
+  for (int i = 0; i < new_path.poses.size() - 1; i++)
+  {
+
+    float angle = atan2(new_path.poses[i + 1].pose.position.y - new_path.poses[i].pose.position.y,
+                        new_path.poses[i + 1].pose.position.x - new_path.poses[i].pose.position.x);
+    ufo::math::Vector3 v(0, 0, angle);
+    Eigen::Quaternion<float> q = Euler2Quaternion(v);
+
+    p.pose.position.x = new_path.poses[i].pose.position.x;
+    p.pose.position.y = new_path.poses[i].pose.position.y;
+    p.pose.position.z = new_path.poses[i].pose.position.z;
+    p.pose.orientation.x = q.x();
+    p.pose.orientation.y = q.y();
+    p.pose.orientation.z = q.z();
+    p.pose.orientation.w = q.w();
+    exploration_path_.poses.push_back(p);
+  }
+  if (exploration_path_.poses.empty())
+  {
+
+    ROS_WARN("Exploration path empty \n ");
+  }
+  else
+  {
+    path_set = true;
+  }
+
+  return path_set;
+}
 
 void GraphManager::improvePath(std::vector<Vertex *> raw_path, std::vector<Vertex *> &path)
 {
@@ -1675,11 +1611,9 @@ void GraphManager::improvePath(std::vector<Vertex *> raw_path, std::vector<Verte
       Eigen::Vector3d v2(nearby_vertices[i]->state[0], nearby_vertices[i]->state[1], nearby_vertices[i]->state[2]);
       MapManager::VoxelStatus vn = map_manager_->getPathStatus(v1, v2, robot_box_size_, true);
 
-      double edge_length = improvement_graph_->distanceBetweenVertices(improvement_graph_->vertices_map_[id], nearby_vertices[i]);
-
-      if (edge_length < 3*max_edge_length_ and MapManager::VoxelStatus::kFree == vn)
+      if (MapManager::VoxelStatus::kFree == vn)
       {
-        
+
         improvement_graph_->addEdge(improvement_graph_->vertices_map_[id], nearby_vertices[i],
                                     improvement_graph_->distanceBetweenVertices(improvement_graph_->vertices_map_[id], nearby_vertices[i]));
       }
@@ -1833,86 +1767,86 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
                                        stage_planner::explorationPath::Response &res)
 
 {
-  bool return_value; 
+
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
+  GraphManager::fetchExplorationTargets();
+  ++planning_iteration_;
+  GraphManager::buildLocalGraph();
+  GraphManager::insertLatestSubGraph();
+  GraphManager::buildReservedGraph();
+  if (!local_exploration_targets_.empty())
+  {
 
-  
-  if (reached_end_of_path_) {
-
-    exploration_path_.poses.clear();
-
-    ++planning_iteration_;
-    GraphManager::fetchExplorationTargets();
-  
-    if (!local_exploration_targets_.empty())
+    if (GraphManager::setPath(true, false, false))
     {
-      GraphManager::buildLocalGraph();
-      GraphManager::planLocalPath();
-      GraphManager::insertLatestSubGraph();
-      GraphManager::buildReservedGraph();
-      return_value = GraphManager::setPath();
-      GraphManager::planGlobalPath(); 
       ROS_INFO_STREAM( "\e[92m {Planning Iteration : " << planning_iteration_ << "} \e[92m Running Local exploration \n");
-      res.path = exploration_path_;
     }
-    else if (!global_repos_targets_.empty())
+    else
     {
-      GraphManager::buildLocalGraph();
-      GraphManager::insertLatestSubGraph();
-      GraphManager::buildReservedGraph();
-      GraphManager::planGlobalPath(); 
-      ROS_INFO_STREAM ("Exploration path length " << exploration_path_.poses.size() << "\n");
-      return_value = GraphManager::setPath();
-      ROS_INFO_STREAM ("After Exploration path length " << exploration_path_.poses.size() << "\n");
       
-      ROS_INFO_STREAM( "\e[93m {Planning Iteration : " << planning_iteration_ << "} \e[93m Global planner triggered \n");  
-      res.path = exploration_path_;
-    }
+      if (GraphManager::setPath(false, true, false))
+      {
 
-  } 
+        ROS_INFO(" \e[93m No local paths, triggering global planner \n");
+      }
+      else
+      {
 
-  else {
-    return_value = GraphManager::setPath();
-    if (!reached_end_of_path_) {
-      res.path = exploration_path_;
-      ROS_INFO_STREAM("Following path segment \n");
+        ROS_WARN(" \e[5m No feasible exploration paths, trigger homing.. \n");
+      }
     }
   }
-  
+  else if (!global_repos_targets_.empty())
+  {
+    
+    if (GraphManager::setPath(false, true, false))
+    {
+      ROS_INFO_STREAM( "\e[93m {Planning Iteration : " << planning_iteration_ << "} \e[93m Global planner triggered \n");
+    }
+    else
+    {
+
+      ROS_WARN(" \e[5m No feasible exploration paths, trigger homing.. \n");
+    }
+  }
+
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
 
   auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
 
   ROS_INFO_STREAM("\033[;34m Total Execution time \033[0m "
                   << duration_total.count() << " \033[;34m ms \033[0m\n ");
-    return return_value;
-  // }
+
   // TODO Homing path to be included in this ros service
 
-  // if (req.exploration)
-  // {
-  //   res.path = exploration_path_;
-  //   if (local_exploration)
-  //   {
-  //     res.planning_status_local = true;
-  //     res.planning_status_global = false;
-  //   }
-  //   else if (global_exploration)
-  //   {
-  //     res.planning_status_global = true;
-  //     res.planning_status_local = false;
-  //   }
-  // }
-  //
-  // if (req.homing)
-  // {
-  //   // res.path = homing_path_;
-  //   res.planning_status_local = false;
-  //   res.planning_status_global = false;
-  //   res.planning_status_homing = true;
-  // }
+  if (req.exploration)
+  {
+    res.path = exploration_path_;
+    if (local_exploration)
+    {
+      res.planning_status_local = true;
+      res.planning_status_global = false;
+    }
+    else if (global_exploration)
+    {
+      res.planning_status_global = true;
+      res.planning_status_local = false;
+    }
+  }
 
-  // return true;
+  if (req.homing)
+  {
+    // res.path = homing_path_;
+    res.planning_status_local = false;
+    res.planning_status_global = false;
+    res.planning_status_homing = true;
+  }
+
+  GraphManager::visualize();
+  
+  build_global_graph_ = true;
+
+  return true;
 }
 
 // Visualization of navigation graphs
@@ -1929,7 +1863,7 @@ void GraphManager::visualizeFrontierGraph()
   visualization_msgs::Marker vertex_marker;
   vertex_marker.header.stamp = ros::Time::now();
   vertex_marker.header.seq = 0;
-  vertex_marker.header.frame_id = "world";
+  vertex_marker.header.frame_id = m_worldFrameId;
   vertex_marker.id = 0;
   vertex_marker.ns = "vertices";
   vertex_marker.action = visualization_msgs::Marker::ADD;
@@ -1976,7 +1910,7 @@ void GraphManager::visualizeLocalGraph()
   visualization_msgs::Marker edge_marker;
   edge_marker.header.stamp = ros::Time::now();
   edge_marker.header.seq = 0;
-  edge_marker.header.frame_id = "world";
+  edge_marker.header.frame_id = m_worldFrameId;
   edge_marker.id = 0;
   edge_marker.ns = "edges";
   edge_marker.action = visualization_msgs::Marker::ADD;
@@ -2013,7 +1947,7 @@ void GraphManager::visualizeLocalGraph()
   visualization_msgs::Marker vertex_marker;
   vertex_marker.header.stamp = ros::Time::now();
   vertex_marker.header.seq = 0;
-  vertex_marker.header.frame_id = "world";
+  vertex_marker.header.frame_id = m_worldFrameId;
   vertex_marker.id = 0;
   vertex_marker.ns = "vertices";
   vertex_marker.action = visualization_msgs::Marker::ADD;
@@ -2076,7 +2010,7 @@ void GraphManager::visualizeLocalPaths(std::vector<std::pair<std::vector<Vertex 
   visualization_msgs::Marker vertex_marker;
   edge_marker.header.stamp = ros::Time::now();
   edge_marker.header.seq = 0;
-  edge_marker.header.frame_id = "world";
+  edge_marker.header.frame_id = m_worldFrameId;
   edge_marker.id = 0;
   edge_marker.ns = "edges";
   edge_marker.action = visualization_msgs::Marker::ADD;
@@ -2091,7 +2025,7 @@ void GraphManager::visualizeLocalPaths(std::vector<std::pair<std::vector<Vertex 
 
   vertex_marker.header.stamp = ros::Time::now();
   vertex_marker.header.seq = 0;
-  vertex_marker.header.frame_id = "world";
+  vertex_marker.header.frame_id = m_worldFrameId;
   vertex_marker.id = 0;
   vertex_marker.ns = "vertices";
   vertex_marker.action = visualization_msgs::Marker::ADD;
@@ -2142,7 +2076,7 @@ void GraphManager::visualizeGlobalPaths(std::vector<std::pair<std::vector<Vertex
   visualization_msgs::Marker vertex_marker;
   edge_marker.header.stamp = ros::Time::now();
   edge_marker.header.seq = 0;
-  edge_marker.header.frame_id = "world";
+  edge_marker.header.frame_id = m_worldFrameId;
   edge_marker.id = 0;
   edge_marker.ns = "edges";
   edge_marker.action = visualization_msgs::Marker::ADD;
@@ -2157,7 +2091,7 @@ void GraphManager::visualizeGlobalPaths(std::vector<std::pair<std::vector<Vertex
 
   vertex_marker.header.stamp = ros::Time::now();
   vertex_marker.header.seq = 0;
-  vertex_marker.header.frame_id = "world";
+  vertex_marker.header.frame_id = m_worldFrameId;
   vertex_marker.id = 0;
   vertex_marker.ns = "vertices";
   vertex_marker.action = visualization_msgs::Marker::ADD;
@@ -2199,73 +2133,6 @@ void GraphManager::visualizeGlobalPaths(std::vector<std::pair<std::vector<Vertex
   global_Paths_Vis_Pub_.publish(marker_array);
 }
 
-
-
-void GraphManager::visualizeRepositionPath()
-{
-
-  visualization_msgs::MarkerArray marker_array;
-
-  visualization_msgs::Marker edge_marker;
-  visualization_msgs::Marker vertex_marker;
-  edge_marker.header.stamp = ros::Time::now();
-  edge_marker.header.seq = 0;
-  edge_marker.header.frame_id = "world";
-  edge_marker.id = 0;
-  edge_marker.ns = "edges";
-  edge_marker.action = visualization_msgs::Marker::ADD;
-  edge_marker.type = visualization_msgs::Marker::LINE_LIST;
-  edge_marker.scale.x = 0.3;
-  edge_marker.color.r = 50.0 / 255.0;
-  edge_marker.color.g = 130.0 / 255.0;
-  edge_marker.color.b = 150.0 / 255.0;
-  edge_marker.color.a = 1.0;
-  // edge_marker.lifetime = ros::Duration(graph_lifetime);
-  edge_marker.frame_locked = false;
-
-  vertex_marker.header.stamp = ros::Time::now();
-  vertex_marker.header.seq = 0;
-  vertex_marker.header.frame_id = "world";
-  vertex_marker.id = 0;
-  vertex_marker.ns = "vertices";
-  vertex_marker.action = visualization_msgs::Marker::ADD;
-  vertex_marker.type = visualization_msgs::Marker::SPHERE_LIST;
-  vertex_marker.scale.x = 0.5;
-  vertex_marker.scale.y = 0.5;
-  vertex_marker.scale.z = 0.5;
-  vertex_marker.color.r = 50.0 / 255.0;
-  vertex_marker.color.g = 150.0 / 255.0;
-  vertex_marker.color.b = 130.0 / 255.0;
-  vertex_marker.color.a = 1.0;
-  // vertex_marker.lifetime = ros::Duration(graph_lifetime);
-  vertex_marker.frame_locked = false;
-
-  for (int i = 0; i < best_path_.size() - 1; ++i)
-  {
-    int it = i +1;
-
-      geometry_msgs::Point p1;
-      geometry_msgs::Point p2;
-      p1.x = best_path_[i]->state[0];
-      p1.y = best_path_[i]->state[1];
-      p1.z = best_path_[i]->state[2];
-      
-      p2.x = best_path_[it]->state[0];
-      p2.y = best_path_[it]->state[1];
-      p2.z = best_path_[it]->state[2];
-
-      edge_marker.points.push_back(p1);
-      edge_marker.points.push_back(p2);
-      vertex_marker.points.push_back(p1);
-      vertex_marker.points.push_back(p2);
-  }
-  marker_array.markers.push_back(edge_marker);
-  marker_array.markers.push_back(vertex_marker);
-
-  reposition_Path_Vis_Pub_.publish(marker_array);
-}
-
-
 void GraphManager::visualizeRandomNodes () {
   
   if (local_goal_vertex == nullptr) {
@@ -2306,7 +2173,7 @@ void GraphManager::visualizeRandomNodes () {
   visualization_msgs::Marker vertex_marker;
   vertex_marker.header.stamp = ros::Time::now();
   vertex_marker.header.seq = 0;
-  vertex_marker.header.frame_id = "world";
+  vertex_marker.header.frame_id = m_worldFrameId;
   vertex_marker.id = 0;
   vertex_marker.ns = "vertices";
   vertex_marker.action = visualization_msgs::Marker::ADD;
@@ -2363,7 +2230,7 @@ void GraphManager::visualizeRandomNodes () {
   visualization_msgs::Marker vertex_marker;
   vertex_marker.header.stamp = ros::Time::now();
   vertex_marker.header.seq = 0;
-  vertex_marker.header.frame_id = "world";
+  vertex_marker.header.frame_id = m_worldFrameId;
   vertex_marker.id = 0;
   vertex_marker.ns = "vertices";
   vertex_marker.action = visualization_msgs::Marker::ADD;
@@ -2410,7 +2277,7 @@ void GraphManager::visualizeGlobalGraph()
   visualization_msgs::Marker edge_marker;
   edge_marker.header.stamp = ros::Time::now();
   edge_marker.header.seq = 0;
-  edge_marker.header.frame_id = "world";
+  edge_marker.header.frame_id = m_worldFrameId;
   edge_marker.id = 0;
   edge_marker.ns = "edges";
   edge_marker.action = visualization_msgs::Marker::ADD;
@@ -2449,7 +2316,7 @@ void GraphManager::visualizeGlobalGraph()
   visualization_msgs::Marker vertex_marker;
   vertex_marker.header.stamp = ros::Time::now();
   vertex_marker.header.seq = 0;
-  vertex_marker.header.frame_id = "world";
+  vertex_marker.header.frame_id = m_worldFrameId;
   vertex_marker.id = 0;
   vertex_marker.ns = "vertices";
   vertex_marker.action = visualization_msgs::Marker::ADD;
@@ -2467,7 +2334,7 @@ void GraphManager::visualizeGlobalGraph()
   visualization_msgs::Marker frontier_vertex_marker;
   frontier_vertex_marker.header.stamp = ros::Time::now();
   frontier_vertex_marker.header.seq = 0;
-  frontier_vertex_marker.header.frame_id = "world";
+  frontier_vertex_marker.header.frame_id = m_worldFrameId;
   frontier_vertex_marker.id = 0;
   frontier_vertex_marker.ns = "frontier";
   frontier_vertex_marker.action = visualization_msgs::Marker::ADD;
@@ -2527,7 +2394,7 @@ void GraphManager::visualizePoseGraph()
   visualization_msgs::Marker edge_marker;
   edge_marker.header.stamp = ros::Time::now();
   edge_marker.header.seq = 0;
-  edge_marker.header.frame_id = "world";
+  edge_marker.header.frame_id = m_worldFrameId;
   edge_marker.id = 0;
   edge_marker.ns = "edges";
   edge_marker.action = visualization_msgs::Marker::ADD;
@@ -2566,7 +2433,7 @@ void GraphManager::visualizePoseGraph()
   visualization_msgs::Marker vertex_marker;
   vertex_marker.header.stamp = ros::Time::now();
   vertex_marker.header.seq = 0;
-  vertex_marker.header.frame_id = "world";
+  vertex_marker.header.frame_id = m_worldFrameId;
   vertex_marker.id = 0;
   vertex_marker.ns = "vertices";
   vertex_marker.action = visualization_msgs::Marker::ADD;

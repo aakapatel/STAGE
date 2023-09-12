@@ -120,8 +120,7 @@ public:
 
   void updateGraph(const ros::TimerEvent &event);
 
-  bool setLocalPath();
-  bool setGlobalPath();
+  bool setPath(bool local, bool global, bool homing);
 
   double computeExplorationGain (State v);
  
@@ -133,10 +132,6 @@ public:
   
   void buildReservedGraph();
   void insertLatestSubGraph();
-  
-  bool setPath();
-
-  void visualizeRepositionPath();
 
   int global_root_id = 0;
 
@@ -210,24 +205,6 @@ private:
   double robot_box_z;
 
   bool build_global_graph_ = false;
- 
-  // Global re-positioning in presence of unknown change in environment variables
-
-  bool reached_end_of_local_path_ = true;
-  bool reached_end_of_global_path_ = true;
-  int local_path_iterator_ = 0;
-  int global_path_iterator_ = 0;
-  std::vector<Vertex *> best_local_path_;
-  std::vector<Vertex *> best_global_path_;
-
-
-
-  bool reached_end_of_path_ = true;
-  int path_iterator_ = 0;
-  std::vector<Vertex *> best_path_;
-
-
-  //
 
   Eigen::Quaterniond quat_;
   bool firstTime = true;
@@ -282,7 +259,6 @@ private:
   ros::Publisher command_pub;
   ros::Publisher local_Paths_Vis_Pub_;
   ros::Publisher global_Paths_Vis_Pub_;
-  ros::Publisher reposition_Path_Vis_Pub_;
   ros::Publisher local_Graph_Vis_Pub_;
   ros::Publisher global_Graph_Vis_Pub_;
   ros::Publisher frontier_Graph_Vis_Pub_;

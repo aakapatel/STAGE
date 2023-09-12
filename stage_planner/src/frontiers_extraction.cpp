@@ -857,7 +857,7 @@ void FrontierExtraction::visualize () {
   for (auto i : fetchFrontiers()) {
   
   int info_gain = int(computeVolumetricGain(i, ufoMAP_));
-  frontiers_marker.header.frame_id = "world";
+  frontiers_marker.header.frame_id = m_worldFrameId;
   frontiers_marker.header.stamp = ros::Time::now();
   frontiers_marker.ns = "frontier";
   frontiers_marker.id = 0;
@@ -872,7 +872,7 @@ void FrontierExtraction::visualize () {
   frontiers_marker.color.g = 0.0;
   frontiers_marker.color.b = 0.0;
 
-  info_gain_marker.header.frame_id = "world";
+  info_gain_marker.header.frame_id = m_worldFrameId;
   info_gain_marker.header.stamp = ros::Time::now();
   info_gain_marker.ns = "info_gain";
   info_gain_marker.id = marker_id++;
