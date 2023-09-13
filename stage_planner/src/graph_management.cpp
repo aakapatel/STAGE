@@ -304,27 +304,37 @@ ufo::geometry::OBB GraphManager::makeOBB(ufo::math::Vector3 source,
 }
 
 double GraphManager::computeExplorationGain (State state) {
+  
+  // Eigen::Vector3d center (state[0], state[1], state[2]);
+  // Eigen::Vector3d box (5,5,5);
+  // std::vector<Eigen::Vector3d> occupied;
+  // std::vector<Eigen::Vector3d> free;
+  // map_manager_->extractLocalMap(center, box, occupied, free);
+  // ROS_INFO_STREAM ("Free voxels size  : " << free.size());
+  
 
   double step_size = 0.1;
-  Eigen::Vector3d v (state[0], state[1], state[2]);
-  Eigen::Vector3d voxel (v[0]+step_size, v[1]+step_size, v[2]+step_size);
+  Eigen::Vector3d check_state (state[0], state[1], state[2]);
+  Eigen::Vector3d increment (step_size, step_size, step_size/2);
 
   // double occupied, free, unknown = 0;
-  MapManager::VoxelStatus vs = map_manager_->getRayStatus(v, voxel, true);
+  MapManager::VoxelStatus vs = map_manager_->getBoxStatus(check_state, increment, true);
   while (MapManager::VoxelStatus::kFree == vs) {
     step_size = step_size + 0.1;
-    voxel = Eigen::Vector3d(v[0]+step_size, v[1]+step_size, v[2]+step_size);
+    Eigen::Vector3d increment (step_size, step_size, step_size/2);
     // free++;
-    vs = map_manager_->getRayStatus(v, voxel, true);
-    if (vs != MapManager::VoxelStatus::kFree) {
+    MapManager::VoxelStatus vs = map_manager_->getBoxStatus(check_state, increment, true);
+    if (vs == MapManager::VoxelStatus::kUnknown) {
+      step_size = 4*step_size;
+      break;
+    } else if (vs == MapManager::VoxelStatus::kOccupied) {
+      step_size = step_size/2;
       break;
     }
   }
   
-  // ROS_INFO_STREAM ("Free voxels : " << free << "\n");
-  // ROS_INFO_STREAM ("Step Size : " << step_size << "\n");
-
   return step_size;
+  // return free.size();
 }
 
 
@@ -1046,12 +1056,8 @@ void GraphManager::buildLocalGraph()
 
   latest_sub_graph_id = sub_graph_->subgraph_ind_;
   
-  // global_graph_->state_history_.clear();
-
   global_graph_->state_history_.push_back(robotState_);
   
-  // ROS_INFO_STREAM ("Sub graph index : " << sub_graph_->subgraph_ind_ << "\n");
-
   Vertex *root_vertex = new Vertex(sub_graph_->generateVertexID(), robotState_);
   root_vertex->is_root = true;
   root_vertex->sub_id = root_vertex->id;
@@ -1083,15 +1089,12 @@ void GraphManager::buildLocalGraph()
   for (int i = 0; i < frontier_graph_->getNumVertices(); ++i)
   {
 
-    if (frontier_graph_->vertices_map_[i]->gain > average_gain/2)
-    {
-      Vertex* temp_vert = frontier_graph_->vertices_map_[i];
+    Vertex* temp_vert = frontier_graph_->vertices_map_[i];
       
-      sub_graph_->insertVertexKdtree(temp_vert);
-      temp_vert->is_sampled = true;
-      if (frontier_graph_->vertices_map_[i]->is_local) {
-        temp_vert->is_local = true;
-      }
+    sub_graph_->insertVertexKdtree(temp_vert);
+    temp_vert->is_sampled = true;
+    if (frontier_graph_->vertices_map_[i]->is_local) {
+      temp_vert->is_local = true;
     }
   }
 
@@ -1173,7 +1176,7 @@ void GraphManager::buildLocalGraph()
     }
   }
 
-  // ROS_INFO_STREAM ("Built local graph with " << sub_graph_->getNumVertices() << " nodes & " << sub_graph_->getNumEdges() << " edges\n");
+  ROS_INFO_STREAM ("Built local graph with " << sub_graph_->getNumVertices() << " nodes & " << sub_graph_->getNumEdges() << " edges\n");
 
   // Fetch shortest path report from root vertex to all vertices in the graph
 
@@ -1393,14 +1396,11 @@ void GraphManager::insertLatestSubGraph () {
   for (int i = 0; i < frontier_graph_->getNumVertices(); ++i)
   {
 
-    if (frontier_graph_->vertices_map_[i]->gain > average_gain/2)
-    {
-      Vertex* temp_vert = new Vertex (++temp_id, frontier_graph_->vertices_map_[i]->state);
+    Vertex* temp_vert = new Vertex (++temp_id, frontier_graph_->vertices_map_[i]->state);
       
-      if (!frontier_graph_->vertices_map_[i]->is_local) {
-        global_graph_->insertVertexKdtree(temp_vert);
-        temp_vert->is_sampled = true;
-      }
+    if (!frontier_graph_->vertices_map_[i]->is_local) {
+      global_graph_->insertVertexKdtree(temp_vert);
+      temp_vert->is_sampled = true;
     }
   }
   
@@ -1728,20 +1728,8 @@ void GraphManager::improvePath(std::vector<Vertex *> raw_path, std::vector<Verte
 void GraphManager::updateGraph(const ros::TimerEvent &event)
 {
 
-  if (build_global_graph_)
-  {
+  // Can off load some repetitive stuff here 
 
-  // high_resolution_clock::time_point start_total = high_resolution_clock::now();
-    // GraphManager::insertLatestSubGraph();
-    // GraphManager::buildGlobalGraph();
-    // GraphManager::updateKdtree();
-  // high_resolution_clock::time_point stop_total = high_resolution_clock::now();
-
-  // auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-
-  // ROS_INFO_STREAM("\033[;34m global graph time \033[0m "
-                  // << duration_total.count() << " \033[;34m ms \033[0m\n ");
-  }
 }
 
 ufo::math::Vector3 GraphManager::pointToUfo(geometry_msgs::Point p)
@@ -1784,9 +1772,8 @@ void GraphManager::fetchExplorationTargets()
 
       global_repos_targets_ = pointsToUfo(frontier_srv.response.global_targets);
       
-      ROS_INFO_STREAM ("Local frontiers " << local_exploration_targets_.size() << " & global " << global_repos_targets_.size() << "\n");
-
       GraphManager::resetFrontierGraph();
+
       if (global_repos_targets_.empty() and local_exploration_targets_.empty())
       {
         return;
@@ -2064,12 +2051,14 @@ void GraphManager::visualizeLocalGraph()
 
     int id = g->getVertexProperty(it);
     if (v_map[id]->gain > maxZ)
+    // if (v_map[id]->state[2] > maxZ)
     {
       // maxZ = v_map[id]->state[2];
       maxZ = v_map[id]->gain;
     }
 
     if (v_map[id]->gain < minZ)
+    // if (v_map[id]->state[2] < minZ)
     {
       // minZ = v_map[id]->state[2];
       minZ = v_map[id]->gain;

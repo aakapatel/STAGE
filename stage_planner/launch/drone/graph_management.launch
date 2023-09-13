@@ -15,7 +15,7 @@
 
     <!-- VERY IMPORTANT TO SET CORRECT ROBOT TYPE -->
 
-    <param name="robot_aerial" value="false" />
+    <param name="robot_aerial" value="true" />
     
     <param name="frame_id" type="string" value="world" />
 
@@ -23,7 +23,7 @@
 
 		<remap from="ufomap" to="/ufomap_mapping_server_node/map" />
 
-    <param name="local_sliding_space" value="12" />
+    <param name="local_sliding_space" value="6" />
 
     <param name="max_global_planning_space" value="20" />
     
@@ -43,9 +43,9 @@
 
     <param name ="maximum_iterations_local" value="1200" />
 
-    <param name ="safety_margin" value="0.8" />
-    <param name ="robot_x" value="0.8" />
-    <param name ="robot_y" value="0.8" />
+    <param name ="safety_margin" value="0.4" />
+    <param name ="robot_x" value="0.4" />
+    <param name ="robot_y" value="0.4" />
     <param name ="robot_z" value="0.4" />
 
     <remap from="odometry" to="/hummingbird/ground_truth/odometry" />

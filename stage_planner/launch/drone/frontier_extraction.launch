@@ -17,7 +17,7 @@
 		  <remap from="cloud_in" to="/hummingbird/velodyne_points" />
       <param name="robot_frame_id" value="hummingbird/base_link" />
 		  <param name="num_workers" value="$(arg num_workers)" />
-		  <param name="max_range" value="10" />
+		  <param name="max_range" value="5" />
 		  <param name="min_range" value="0.5" />
 		  <param name="robot_radius" value="0.5" />
 		  <param name="robot_height" value="0.5" />
@@ -37,7 +37,7 @@
 
     <!-- VERY IMPORTANT TO SET CORRECT ROBOT TYPE -->
 
-    <param name="robot_aerial" value="false" />
+    <param name="robot_aerial" value="true" />
     
 
     <param name="xFiltering" value="true" />
@@ -46,9 +46,9 @@
 
 		<param name="resolution" value="0.5" />
 		<param name="cloud_in" value="/hummingbird/velodyne_points" />
-		<param name="distance" value="8" />
+		<param name="distance" value="4" />
 		<param name="frame_id" type="string" value="world" />
-		<param name="sensor_model/max_range" value="10" />
+		<param name="sensor_model/max_range" value="5" />
 		<param name="odometry" value="/hummingbird/ground_truth/odometry" />
 		<remap from="cloud_in" to="/hummingbird/velodyne_points" />
 		<param name="number_of_unknowns" value="12" />
