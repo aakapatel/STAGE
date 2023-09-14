@@ -2,7 +2,7 @@
 
 using namespace std;
 
-StageInterface::StageInterface(const ros::NodeHandle& nh, const ros::NodeHandle& nh_private)
+StageInterface::StageInterface(const ros::NodeHandle &nh, const ros::NodeHandle &nh_private)
     : nh_(nh),
       nh_private_(nh_private),
       m_odometry("/hummingbird/ground_truth/odometry"),
@@ -14,103 +14,100 @@ StageInterface::StageInterface(const ros::NodeHandle& nh, const ros::NodeHandle&
       distance_to_new_path_(1)
 {
 
-    // Set variables
-    nh_private_.param("odometry", m_odometry, m_odometry);
-    nh_private_.param("reference_topic", m_reference_topic, m_reference_topic);
+  // Set variables
+  nh_private_.param("odometry", m_odometry, m_odometry);
+  nh_private_.param("reference_topic", m_reference_topic, m_reference_topic);
 
-    nh_private_.param("robot_aerial", robot_aerial_, robot_aerial_);
+  nh_private_.param("robot_aerial", robot_aerial_, robot_aerial_);
 
+  nh_private_.param("init_x", init_x_, init_x_);
+  nh_private_.param("init_y", init_y_, init_y_);
+  nh_private_.param("init_z", init_z_, init_z_);
 
-    nh_private_.param("init_x", init_x_, init_x_);
-    nh_private_.param("init_y", init_y_, init_y_);
-    nh_private_.param("init_z", init_z_, init_z_);
+  nh_private_.param("distance_to_new_path", distance_to_new_path_, distance_to_new_path_);
 
-    nh_private_.param("distance_to_new_path", distance_to_new_path_, distance_to_new_path_);
+  // Register to the subscriber topic and register it to the callback function
 
-    // Register to the subscriber topic and register it to the callback function
+  m_poseSubscriber = nh_.subscribe(m_odometry, 10, &StageInterface::odomCallback, this);
+  // Timers
 
-    m_poseSubscriber = nh_.subscribe(m_odometry, 10, &StageInterface::odomCallback, this);
-    // Timers 
+  run_loop_timer_ = nh_.createTimer(ros::Duration(1), &StageInterface::mainLoop, this);
 
-    run_loop_timer_ = nh_.createTimer(ros::Duration(1), &StageInterface::mainLoop, this);
+  // Register publishers
 
-    // Register publishers
+  m_trajectory_Publisher = nh_.advertise<trajectory_msgs::MultiDOFJointTrajectory>("/hummingbird/command/trajectory", 1, true);
 
-    m_trajectory_Publisher = nh_.advertise<trajectory_msgs::MultiDOFJointTrajectory>("/hummingbird/command/trajectory", 1, true);
+  m_command_Path_Publisher = nh_.advertise<nav_msgs::Path>("/command_path", 1, true);
 
-    m_command_Path_Publisher = nh_.advertise<nav_msgs::Path>("/command_path", 1, true);
+  m_reference_Publisher = nh_.advertise<geometry_msgs::PoseStamped>(m_reference_topic, 1, true);
 
-    m_reference_Publisher = nh_.advertise<geometry_msgs::PoseStamped> (m_reference_topic ,1, true);
+  // Ros services
 
-    // Ros services 
-  
-    m_exploration_path_client = nh_.serviceClient<stage_planner::explorationPath>(
+  m_exploration_path_client = nh_.serviceClient<stage_planner::explorationPath>(
       "next_exploration_path");
 
-    m_planner_initialization_srv = nh_.advertiseService("initialize_planner", &StageInterface::initializePlanner, this);
+  m_planner_initialization_srv = nh_.advertiseService("initialize_planner", &StageInterface::initializePlanner, this);
 
-    m_planner_stop_srv = nh_.advertiseService ("stop_planner", &StageInterface::stopPlanner, this);
+  m_planner_stop_srv = nh_.advertiseService("stop_planner", &StageInterface::stopPlanner, this);
 
-    m_planner_homing_srv = nh_.advertiseService ("start_homing_planner", &StageInterface::homingPlanner, this);
-  
-    if (!robot_aerial_) {
+  m_planner_homing_srv = nh_.advertiseService("start_homing_planner", &StageInterface::homingPlanner, this);
+
+  if (!robot_aerial_)
+  {
     init_z_ = 1;
   }
-
-
 };
 
-
-bool StageInterface::initializePlanner (stage_planner::initializePlanning::Request &req,
-                                        stage_planner::initializePlanning::Response &res)
+bool StageInterface::initializePlanner(stage_planner::initializePlanning::Request &req,
+                                       stage_planner::initializePlanning::Response &res)
 
 {
-  
-  if (req.initialize) {
+
+  if (req.initialize)
+  {
     initialization = true;
     explore = true;
     StageInterface::generateTrajectory();
 
     m_command_Path_Publisher.publish(command_path);
-    
+
     // if (reachedEndOfPath()) {
-      res.success = true;
-      ROS_INFO ("Initialization Successful : Ready ");
+    res.success = true;
+    ROS_INFO("Initialization Successful : Ready ");
     // }
   }
-  
-  return true;
 
+  return true;
 }
 
-bool StageInterface::stopPlanner (stage_planner::stopPlanning::Request &req,
-                                        stage_planner::stopPlanning::Response &res)
+bool StageInterface::stopPlanner(stage_planner::stopPlanning::Request &req,
+                                 stage_planner::stopPlanning::Response &res)
 
 {
-  
-  if (req.stop) {
+
+  if (req.stop)
+  {
     stop_planning = true;
     explore = false;
     res.success = true;
   }
-  ROS_INFO ("Stop Success ^_^");
+  ROS_INFO("Stop Success ^_^");
   return true;
-
 }
 
-bool StageInterface::homingPlanner (stage_planner::homePlanning::Request &req,
-                                        stage_planner::homePlanning::Response &res)
+bool StageInterface::homingPlanner(stage_planner::homePlanning::Request &req,
+                                   stage_planner::homePlanning::Response &res)
 
 {
-  
-  if (req.homing) {
+
+  if (req.homing)
+  {
     return_home = true;
     explore = false;
     res.success = true;
   }
-  ROS_INFO ("Return to home requested ");
+  ROS_INFO("Return to home requested ");
   return true;
-
 }
 
 Eigen::Vector3d StageInterface::quaternion_to_rpy(Eigen::Quaterniond q)
@@ -147,7 +144,6 @@ void StageInterface::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
 
     m_prevPose = *pose;
     firstTime = false;
-
   }
   else
   {
@@ -163,7 +159,6 @@ void StageInterface::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
     if (calculateDistance(newPoint, oldPoint) > 2)
     {
       m_prevPose = *pose;
-
     }
   }
   m_currentPosition.x() = m_currentPose.pose.pose.position.x;
@@ -192,92 +187,99 @@ void StageInterface::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
   robotState_[1] = pose->pose.pose.position.y;
   robotState_[2] = pose->pose.pose.position.z;
   robotState_[3] = yaw * (180 / M_PI);
-
 }
 
-ufo::math::Vector3 StageInterface::fetchCurrentPosition ()
+ufo::math::Vector3 StageInterface::fetchCurrentPosition()
 {
   return m_currentPosition;
 }
 
 double StageInterface::calculateDistance(ufo::math::Vector3 point1,
-                                       ufo::math::Vector3 point2)
+                                         ufo::math::Vector3 point2)
 {
 
   double d;
-  
-  if (robot_aerial_) {
-  
+
+  if (robot_aerial_)
+  {
+
     d = sqrt(pow(point1.x() - point2.x(), 2) + pow(point1.y() - point2.y(), 2) +
-           pow(point1.z() - point2.z(), 2));
-  } else {
-  
+             pow(point1.z() - point2.z(), 2));
+  }
+  else
+  {
+
     d = sqrt(pow(point1.x() - point2.x(), 2) + pow(point1.y() - point2.y(), 2));
   }
 
   return d;
 }
 
-bool StageInterface::fetchExplorationPath () {
-  
-  bool got_new_path = false; 
+bool StageInterface::fetchExplorationPath()
+{
+
+  bool got_new_path = false;
 
   stage_planner::explorationPath exploration_path_srv;
-  
-  ROS_INFO ("fetching exploration path \n");
 
-  if (explore) {
+  ROS_INFO("fetching exploration path \n");
 
-  ROS_INFO ("requested exploration path \n");
+  if (explore)
+  {
+
+    ROS_INFO("requested exploration path \n");
     exploration_path_srv.request.exploration = true;
-    exploration_path_srv.request.homing = false; 
-
-  } 
-  
-  if (return_home and !explore) {
-    
-  ROS_INFO ("return home enabled \n");
-    exploration_path_srv.request.exploration = false;
-    exploration_path_srv.request.homing = true;
-
+    exploration_path_srv.request.homing = false;
   }
 
-  if (m_exploration_path_client.call(exploration_path_srv)) {
-    
-    ROS_INFO ("calling service \n");
-    if (!exploration_path_srv.response.path.poses.empty()) {
+  if (return_home and !explore)
+  {
+
+    ROS_INFO("return home enabled \n");
+    exploration_path_srv.request.exploration = false;
+    exploration_path_srv.request.homing = true;
+  }
+
+  if (m_exploration_path_client.call(exploration_path_srv))
+  {
+
+    ROS_INFO("calling service \n");
+    if (!exploration_path_srv.response.path.poses.empty())
+    {
       got_new_path = true;
-    ROS_INFO ("valid service \n");
+      ROS_INFO("valid service \n");
       exploration_path_ = exploration_path_srv.response.path;
-    } else {
+    }
+    else
+    {
       got_new_path = false;
     }
 
-    
-    ROS_INFO_COND (exploration_path_.poses.size() > 1, "Exploration Path Received :) ");
+    ROS_INFO_COND(exploration_path_.poses.size() > 1, "Exploration Path Received :) ");
 
     planning_status_local = exploration_path_srv.response.planning_status_local;
-    planning_status_global = exploration_path_srv.response.planning_status_global;    
-    planning_status_homing = exploration_path_srv.response.planning_status_homing; 
-    
-    // TODO Add a ros_info_cond to log planning status 
-  
-  }
-  
-  return got_new_path;
+    planning_status_global = exploration_path_srv.response.planning_status_global;
+    planning_status_homing = exploration_path_srv.response.planning_status_homing;
 
+    // TODO Add a ros_info_cond to log planning status
+  }
+
+  return got_new_path;
 }
 
-void StageInterface::segmentPath(const nav_msgs::Path& path,
-                                 nav_msgs::Path& path_seg) 
+void StageInterface::segmentPath(const nav_msgs::Path &path,
+                                 nav_msgs::Path &path_seg)
 {
   path_seg.poses.clear();
   double v_max_ = 1.5;
   double yaw_rate_max_ = 1;
-  if (path.poses.size() == 0) return;
-  if (path.poses.size() == 1) path_seg.poses.push_back(path.poses[0]);
+  if (path.poses.size() == 0)
+    return;
+  if (path.poses.size() == 1)
+    path_seg.poses.push_back(path.poses[0]);
 
-  for (int i = 0; i < (path.poses.size() - 1); ++i) {
+  for (int i = 0; i < (path.poses.size() - 1); ++i)
+  {
     // Interpolate each segment.
     Eigen::Vector3d start(path.poses[i].pose.position.x, path.poses[i].pose.position.y,
                           path.poses[i].pose.position.z);
@@ -287,10 +289,12 @@ void StageInterface::segmentPath(const nav_msgs::Path& path,
     double yaw_start = tf::getYaw(path.poses[i].pose.orientation);
     double yaw_end = tf::getYaw(path.poses[i + 1].pose.orientation);
     double yaw_direction = yaw_end - yaw_start;
-    if (yaw_direction > M_PI) {
+    if (yaw_direction > M_PI)
+    {
       yaw_direction -= 2.0 * M_PI;
     }
-    if (yaw_direction < -M_PI) {
+    if (yaw_direction < -M_PI)
+    {
       yaw_direction += 2.0 * M_PI;
     }
 
@@ -300,14 +304,18 @@ void StageInterface::segmentPath(const nav_msgs::Path& path,
 
     bool int_flag = true;
 
-    if (int_flag) {
-      for (double it = 0.0; it <= 1.0; it += disc) {
+    if (int_flag)
+    {
+      for (double it = 0.0; it <= 1.0; it += disc)
+      {
         tf::Vector3 origin((1.0 - it) * start[0] + it * end[0],
                            (1.0 - it) * start[1] + it * end[1],
                            (1.0 - it) * start[2] + it * end[2]);
         double yaw = yaw_start + yaw_direction * it;
-        if (yaw > M_PI) yaw -= 2.0 * M_PI;
-        if (yaw < -M_PI) yaw += 2.0 * M_PI;
+        if (yaw > M_PI)
+          yaw -= 2.0 * M_PI;
+        if (yaw < -M_PI)
+          yaw += 2.0 * M_PI;
         tf::Quaternion quat;
         quat.setEuler(0.0, 0.0, yaw);
         tf::Pose poseTF(quat, origin);
@@ -322,16 +330,18 @@ void StageInterface::segmentPath(const nav_msgs::Path& path,
   }
 } // segmentPath
 
-void StageInterface::generateTrajectory() {
+void StageInterface::generateTrajectory()
+{
 
-    nav_msgs::Path raw_path;  
+  nav_msgs::Path raw_path;
 
-    if (initialization) {
+  if (initialization)
+  {
 
-    nav_msgs::Path initialization_path;  
-    std::vector<geometry_msgs::PoseStamped> initialization_poses;  
-    geometry_msgs::PoseStamped init_pose;  
- 
+    nav_msgs::Path initialization_path;
+    std::vector<geometry_msgs::PoseStamped> initialization_poses;
+    geometry_msgs::PoseStamped init_pose;
+
     init_pose.pose.position.x = robotState_[0];
     init_pose.pose.position.y = robotState_[1];
     init_pose.pose.position.z = robotState_[2];
@@ -341,7 +351,7 @@ void StageInterface::generateTrajectory() {
     init_pose.pose.orientation.w = 1;
     initialization_path.poses.push_back(init_pose);
     init_pose.pose.position.x = robotState_[0];
-    init_pose.pose.position.y = robotState_[1]; 
+    init_pose.pose.position.y = robotState_[1];
     init_pose.pose.position.z = init_z_;
     init_pose.pose.orientation.x = 0;
     init_pose.pose.orientation.y = 0;
@@ -358,107 +368,108 @@ void StageInterface::generateTrajectory() {
     initialization_path.poses.push_back(init_pose);
     raw_path = initialization_path;
     initialization = false;
-  
-  } else {
+  }
+  else
+  {
 
     raw_path = exploration_path_;
   }
-  
+
   // TODO Insert current position at the begining of exploration path to get smooth start of next path following action.
 
-    nav_msgs::Path new_path;
-    new_path.poses.clear();
-    segmentPath(raw_path, new_path);
+  nav_msgs::Path new_path;
+  new_path.poses.clear();
+  segmentPath(raw_path, new_path);
 
+  n_seq_++;
+  trajectory_msgs::MultiDOFJointTrajectory trajectory_array_;
+  mav_msgs::EigenTrajectoryPoint trajectory_point_;
+  trajectory_msgs::MultiDOFJointTrajectoryPoint trajectory_point_msg_;
+  std::vector<geometry_msgs::Pose> executing_path_;
 
-    n_seq_++;
-    trajectory_msgs::MultiDOFJointTrajectory trajectory_array_;
-    mav_msgs::EigenTrajectoryPoint trajectory_point_;
-    trajectory_msgs::MultiDOFJointTrajectoryPoint trajectory_point_msg_;
-    std::vector<geometry_msgs::Pose> executing_path_;
-    
-    trajectory_array_.header.seq = n_seq_;
-    trajectory_array_.header.stamp = ros::Time::now();
-    trajectory_array_.header.frame_id = "world";
-    trajectory_array_.points.clear();
-    double time_sum = 0;
-    
-    geometry_msgs::PoseStamped pose_ref;
-    command_path.poses.clear();
-    pose_ref.header.frame_id = "world";
-    command_path.header.frame_id = "world";
+  trajectory_array_.header.seq = n_seq_;
+  trajectory_array_.header.stamp = ros::Time::now();
+  trajectory_array_.header.frame_id = "world";
+  trajectory_array_.points.clear();
+  double time_sum = 0;
 
-    for (int i = 0; i < new_path.poses.size(); i++) {
-      
+  geometry_msgs::PoseStamped pose_ref;
+  command_path.poses.clear();
+  pose_ref.header.frame_id = "world";
+  command_path.header.frame_id = "world";
 
-      double yaw = tf::getYaw(new_path.poses[i].pose.orientation);
-      Eigen::Vector3d p(new_path.poses[i].pose.position.x, new_path.poses[i].pose.position.y,
-                        new_path.poses[i].pose.position.z);
-      trajectory_point_.position_W.x() = p.x();
-      trajectory_point_.position_W.y() = p.y();
-      trajectory_point_.position_W.z() = p.z();
-      trajectory_point_.setFromYaw(yaw);
-      pose_ref = new_path.poses[i];
-      
-      mav_msgs::msgMultiDofJointTrajectoryPointFromEigen(
-          trajectory_point_, &trajectory_point_msg_);
-      time_sum += dt_;
-      trajectory_point_msg_.time_from_start = ros::Duration(time_sum);
-      // trajectory_array_.points.insert(trajectory_array_.points.begin(),trajectory_point_msg_);
-      trajectory_array_.points.push_back(trajectory_point_msg_);
-      
-      // TODO Need to optimize this insertion! may be assign new_path directly to command path?
+  for (int i = 0; i < new_path.poses.size(); i++)
+  {
 
-      command_path.poses.push_back(pose_ref);
+    double yaw = tf::getYaw(new_path.poses[i].pose.orientation);
+    Eigen::Vector3d p(new_path.poses[i].pose.position.x, new_path.poses[i].pose.position.y,
+                      new_path.poses[i].pose.position.z);
+    trajectory_point_.position_W.x() = p.x();
+    trajectory_point_.position_W.y() = p.y();
+    trajectory_point_.position_W.z() = p.z();
+    trajectory_point_.setFromYaw(yaw);
+    pose_ref = new_path.poses[i];
 
-    }
-    // m_trajectory_Publisher.publish(trajectory_array_);
-    // m_command_Path_Publisher.publish(command_path);
+    mav_msgs::msgMultiDofJointTrajectoryPointFromEigen(
+        trajectory_point_, &trajectory_point_msg_);
+    time_sum += dt_;
+    trajectory_point_msg_.time_from_start = ros::Duration(time_sum);
+    // trajectory_array_.points.insert(trajectory_array_.points.begin(),trajectory_point_msg_);
+    trajectory_array_.points.push_back(trajectory_point_msg_);
+
+    // TODO Need to optimize this insertion! may be assign new_path directly to command path?
+
+    command_path.poses.push_back(pose_ref);
+  }
+  // m_trajectory_Publisher.publish(trajectory_array_);
+  // m_command_Path_Publisher.publish(command_path);
 
 } // generateTrajectory
 
-// TODO Add path truncation function to assure safety in case of UAV. 
+// TODO Add path truncation function to assure safety in case of UAV.
 
+bool StageInterface::reachedEndOfPath()
+{
 
-bool StageInterface::reachedEndOfPath () {
-  
-  ufo::math::Vector3 end_of_path; 
+  ufo::math::Vector3 end_of_path;
   end_of_path.x() = command_path.poses.back().pose.position.x;
   end_of_path.y() = command_path.poses.back().pose.position.y;
   end_of_path.z() = command_path.poses.back().pose.position.z;
-  
-  double d = calculateDistance(fetchCurrentPosition(), end_of_path);
-  
-  ROS_INFO_STREAM ("distance to new " << d << "\n");
 
-  if (d < distance_to_new_path_) {
+  double d = calculateDistance(fetchCurrentPosition(), end_of_path);
+
+  ROS_INFO_STREAM("distance to new " << d << "\n");
+
+  if (d < distance_to_new_path_)
+  {
     fetch_new_path_ = true;
     return true;
-  } else {
+  }
+  else
+  {
     fetch_new_path_ = false;
     return false;
   }
-
 }
 
-void StageInterface::mainLoop (const ros::TimerEvent &event) 
+void StageInterface::mainLoop(const ros::TimerEvent &event)
 {
 
-  if (explore) {
+  if (explore)
+  {
 
-    ROS_INFO ("exploration start \n");
-    if (reachedEndOfPath() and !stop_planning ) {
+    ROS_INFO("exploration start \n");
+    if (reachedEndOfPath() and !stop_planning)
+    {
 
-      if (fetchExplorationPath ()) {
+      if (fetchExplorationPath())
+      {
 
-    ROS_INFO ("req success :) \n");
-        generateTrajectory ();
-    
+        ROS_INFO("req success :) \n");
+        generateTrajectory();
+
         m_command_Path_Publisher.publish(command_path);
-    
       }
     }
   }
-
 }
-

@@ -7,9 +7,12 @@ Panels:
         - /Global Options1
         - /Status1
         - /Axes1
+        - /UFOMap1
         - /UFOMap1/Voxel Rendering1
         - /UFOMap1/Voxel Rendering1/Occupied1
         - /UFOMap1/Voxel Rendering1/Occupied1/Coloring1
+        - /UFOMap1/Voxel Rendering1/Free1
+        - /UFOMap1/Voxel Rendering1/Free1/Coloring1
         - /MarkerArray1
         - /MarkerArray1/Namespaces1
         - /MarkerArray2
@@ -18,15 +21,14 @@ Panels:
         - /Path1
         - /MarkerArray4
         - /MarkerArray5
-        - /PointCloud22
-        - /MarkerArray7
-        - /MarkerArray8
+        - /PointCloud21
         - /Marker1
         - /MarkerArray9
         - /MarkerArray10
         - /MarkerArray11
         - /MarkerArray12
         - /MarkerArray13
+        - /PointCloud22
       Splitter Ratio: 0.5
     Tree Height: 459
   - Class: rviz/Selection
@@ -59,19 +61,19 @@ Visualization Manager:
     - Alpha: 1
       Class: rviz/Axes
       Enabled: true
-      Length: 1
+      Length: 3
       Name: Axes
-      Radius: 0.10000000149011612
+      Radius: 0.6000000238418579
       Reference Frame: hummingbird/base_link
       Show Trail: false
       Value: true
     - Class: UFOMap
-      Enabled: false
+      Enabled: true
       Information:
-        "# Inner Nodes": 18 129
-        "# Leaf Nodes": 50 824
+        "# Inner Nodes": 72 105
+        "# Leaf Nodes": 203 728
         Resolution: 30 cm
-        Size: 821,96 KiB
+        Size: 3,20 MiB
       Min. Depth: 0
       Name: UFOMap
       Occupancy Thresholds:
@@ -90,23 +92,23 @@ Visualization Manager:
           Y: -1000
           Z: -1000
         Value: true
-      Value: false
+      Value: true
       Voxel Rendering:
         Free:
-          Alpha: 0.029999999329447746
+          Alpha: 0.019999999552965164
           Coloring:
-            Color: 0; 255; 0
+            Color: 186; 189; 182
             Factor: 0.800000011920929
             Value: Fixed
           Scale: 1
           Style: Flat Squares
           Value: false
         Occupied:
-          Alpha: 0.05000000074505806
+          Alpha: 0.11999999731779099
           Coloring:
-            Color: 114; 159; 207
+            Color: 186; 189; 182
             Factor: 1
-            Value: Z-Axis
+            Value: Cell Probability
           Scale: 1
           Style: Boxes
           Value: true
@@ -119,34 +121,6 @@ Visualization Manager:
           Scale: 1
           Style: Flat Squares
           Value: false
-    - Alpha: 0.10000000149011612
-      Autocompute Intensity Bounds: true
-      Autocompute Value Bounds:
-        Max Value: 12.894028663635254
-        Min Value: -3.7854833602905273
-        Value: true
-      Axis: Z
-      Channel Name: intensity
-      Class: rviz/PointCloud2
-      Color: 62; 176; 236
-      Color Transformer: AxisColor
-      Decay Time: 999999986991104
-      Enabled: false
-      Invert Rainbow: false
-      Max Color: 255; 255; 255
-      Min Color: 0; 0; 0
-      Name: PointCloud2
-      Position Transformer: XYZ
-      Queue Size: 10
-      Selectable: true
-      Size (Pixels): 1
-      Size (m): 0.009999999776482582
-      Style: Flat Squares
-      Topic: /hummingbird/velodyne_points
-      Unreliable: false
-      Use Fixed Frame: true
-      Use rainbow: true
-      Value: false
     - Class: rviz/MarkerArray
       Enabled: false
       Marker Topic: /frontiers
@@ -164,14 +138,13 @@ Visualization Manager:
       Queue Size: 100
       Value: false
     - Class: rviz/MarkerArray
-      Enabled: true
+      Enabled: false
       Marker Topic: /local_planning_graph
       Name: MarkerArray
       Namespaces:
-        edges: false
-        vertices: true
+        {}
       Queue Size: 100
-      Value: true
+      Value: false
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
@@ -205,18 +178,19 @@ Visualization Manager:
       Queue Size: 100
       Value: false
     - Class: rviz/MarkerArray
-      Enabled: false
+      Enabled: true
       Marker Topic: /global_dijkstra_paths
       Name: MarkerArray
       Namespaces:
-        {}
+        edges: true
+        vertices: true
       Queue Size: 100
-      Value: false
-    - Alpha: 0.30000001192092896
+      Value: true
+    - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 8.5
-        Min Value: -1.0999999046325684
+        Max Value: 12.100000381469727
+        Min Value: -0.9000000953674316
         Value: true
       Axis: Z
       Channel Name: intensity
@@ -224,7 +198,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: AxisColor
       Decay Time: 0
-      Enabled: true
+      Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Min Color: 0; 0; 0
@@ -233,13 +207,13 @@ Visualization Manager:
       Queue Size: 10
       Selectable: true
       Size (Pixels): 3
-      Size (m): 0.03999999910593033
-      Style: Flat Squares
+      Size (m): 0.05999999865889549
+      Style: Spheres
       Topic: /graph_management_node/surface_pointcloud
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: true
+      Value: false
     - Class: rviz/MarkerArray
       Enabled: false
       Marker Topic: /graph_management_node/occupied_nodes
@@ -249,13 +223,13 @@ Visualization Manager:
       Queue Size: 100
       Value: false
     - Class: rviz/MarkerArray
-      Enabled: true
+      Enabled: false
       Marker Topic: /frontier_graph
       Name: MarkerArray
       Namespaces:
         {}
       Queue Size: 100
-      Value: true
+      Value: false
     - Class: rviz/MarkerArray
       Enabled: false
       Marker Topic: /sparse_planning_graph
@@ -315,6 +289,34 @@ Visualization Manager:
         vertices: true
       Queue Size: 100
       Value: true
+    - Alpha: 0.10000000149011612
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 9.844927787780762
+        Min Value: -0.0007915496826171875
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/PointCloud2
+      Color: 255; 255; 255
+      Color Transformer: AxisColor
+      Decay Time: 99999997952
+      Enabled: false
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Min Color: 0; 0; 0
+      Name: PointCloud2
+      Position Transformer: XYZ
+      Queue Size: 10
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.004999999888241291
+      Style: Flat Squares
+      Topic: /hummingbird/velodyne_points
+      Unreliable: false
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: false
   Enabled: true
   Global Options:
     Background Color: 0; 0; 0
@@ -343,7 +345,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 23.255680084228516
+      Distance: 69.25635528564453
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -351,9 +353,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 4.447558403015137
-        Y: -1.3855687379837036
-        Z: -0.16540265083312988
+        X: -27.410415649414062
+        Y: -5.3459601402282715
+        Z: -4.494290828704834
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -361,7 +363,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: hummingbird/base_link
-      Yaw: 3.108644485473633
+      Yaw: 4.718694686889648
     Saved: ~
 Window Geometry:
   Displays:
