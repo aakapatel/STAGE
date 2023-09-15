@@ -2,6 +2,7 @@
 #define FRONTIERS_EXTRACTION_H
 
 #include <geometry_msgs/Point.h>
+#include "std_msgs/Int64.h"
 #include <ros/message_traits.h>
 #include <ros/serialization.h>
 #include <stdio.h>
@@ -117,6 +118,8 @@ public:
     
     virtual void odomCallback(const nav_msgs::Odometry::ConstPtr &pos);
     
+    void voxbloxCallback(visualization_msgs::MarkerArray msg);
+
     void wrt_Body (Eigen::Vector3d frontier_W, Eigen::Vector3d& frontier_B);
     
     double findAngle (ufo::math::Vector3 fpoint);
@@ -254,12 +257,14 @@ private:
 
     ros::Subscriber m_poseSubscriber;
     ros::Subscriber m_ufoMapSubscriber;
+    ros::Subscriber m_voxblox_sub;
 
     // Publisher
     ros::Publisher m_frontierPub;
     ros::Publisher m_frontierSelectionPub;
     ros::Publisher command_pub;
     ros::Publisher frontiersVisPub_;
+    ros::Publisher m_volume_pub;
 
 
 protected:

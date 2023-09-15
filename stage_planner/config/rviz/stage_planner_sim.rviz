@@ -68,12 +68,12 @@ Visualization Manager:
       Show Trail: false
       Value: true
     - Class: UFOMap
-      Enabled: true
+      Enabled: false
       Information:
-        "# Inner Nodes": 72 105
-        "# Leaf Nodes": 203 728
+        "# Inner Nodes": 10 817
+        "# Leaf Nodes": 22 808
         Resolution: 30 cm
-        Size: 3,20 MiB
+        Size: 431,71 KiB
       Min. Depth: 0
       Name: UFOMap
       Occupancy Thresholds:
@@ -92,7 +92,7 @@ Visualization Manager:
           Y: -1000
           Z: -1000
         Value: true
-      Value: true
+      Value: false
       Voxel Rendering:
         Free:
           Alpha: 0.019999999552965164
@@ -104,7 +104,7 @@ Visualization Manager:
           Style: Flat Squares
           Value: false
         Occupied:
-          Alpha: 0.11999999731779099
+          Alpha: 0.18000000715255737
           Coloring:
             Color: 186; 189; 182
             Factor: 1
@@ -138,13 +138,14 @@ Visualization Manager:
       Queue Size: 100
       Value: false
     - Class: rviz/MarkerArray
-      Enabled: false
+      Enabled: true
       Marker Topic: /local_planning_graph
       Name: MarkerArray
       Namespaces:
-        {}
+        edges: true
+        vertices: true
       Queue Size: 100
-      Value: false
+      Value: true
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
@@ -182,15 +183,14 @@ Visualization Manager:
       Marker Topic: /global_dijkstra_paths
       Name: MarkerArray
       Namespaces:
-        edges: true
-        vertices: true
+        {}
       Queue Size: 100
       Value: true
-    - Alpha: 1
+    - Alpha: 0.5
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 12.100000381469727
-        Min Value: -0.9000000953674316
+        Max Value: 7.800000190734863
+        Min Value: -1
         Value: true
       Axis: Z
       Channel Name: intensity
@@ -198,7 +198,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: AxisColor
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Min Color: 0; 0; 0
@@ -213,7 +213,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Class: rviz/MarkerArray
       Enabled: false
       Marker Topic: /graph_management_node/occupied_nodes
@@ -281,14 +281,13 @@ Visualization Manager:
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
-      Enabled: true
+      Enabled: false
       Marker Topic: /improved_global_dijkstra_paths
       Name: MarkerArray
       Namespaces:
-        edges: true
-        vertices: true
+        {}
       Queue Size: 100
-      Value: true
+      Value: false
     - Alpha: 0.10000000149011612
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -345,7 +344,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 69.25635528564453
+      Distance: 93.8509292602539
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -353,16 +352,16 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -27.410415649414062
-        Y: -5.3459601402282715
-        Z: -4.494290828704834
+        X: 22.59186553955078
+        Y: -2.6944260597229004
+        Z: -0.4823428988456726
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
-      Target Frame: hummingbird/base_link
+      Target Frame: <Fixed Frame>
       Yaw: 4.718694686889648
     Saved: ~
 Window Geometry:

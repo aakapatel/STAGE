@@ -109,12 +109,18 @@ FrontierExtraction::FrontierExtraction(const ros::NodeHandle &nh, const ros::Nod
 
     m_ufoMapSubscriber = nh_.subscribe(m_ufomap, 5, &FrontierExtraction::mapCallback, this);
 
+    m_voxblox_sub = nh_.subscribe("/graph_management_node/occupied_nodes", 1, &FrontierExtraction::voxbloxCallback, this);
+
+
+
     // Publishers
 
     m_frontierPub = nh_.advertise<visualization_msgs::MarkerArray>("/frontier_nodes_vis", 10);
 
     frontiersVisPub_ = nh_.advertise<visualization_msgs::MarkerArray>("/frontiers", 10);
 
+    m_volume_pub = nh_.advertise<std_msgs::Int64>("/stage_explored_volume", 1);
+    
     // Services
 
     m_frontier_srv = nh_.advertiseService("request_frontier_target", &FrontierExtraction::exportFrontierTargets, this);
@@ -377,6 +383,19 @@ Eigen::Vector3d FrontierExtraction::quaternion_to_rpy(Eigen::Quaterniond q)
                              1.0 - 2.0 * (q.y() * q.y() + q.z() * q.z()));
 
     return Eigen::Vector3d{roll, pitch, yaw};
+}
+
+void FrontierExtraction::voxbloxCallback (visualization_msgs::MarkerArray msg) {
+
+    std_msgs::Int64 volume;
+    
+    volume.data = int (msg.markers[0].points.size() * (0.4*0.4*0.4));
+
+    ROS_INFO_STREAM("calculated volume : " << volume.data << "\n");
+
+    m_volume_pub.publish(volume);
+
+
 }
 
 void FrontierExtraction::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)

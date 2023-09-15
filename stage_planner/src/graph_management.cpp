@@ -1,6 +1,7 @@
 #include "graph_management.h"
 #include <std_msgs/ColorRGBA.h>
 
+
 using namespace std;
 using namespace std::chrono;
 using namespace std::this_thread;
@@ -90,6 +91,9 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
   random_Nodes_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/random_nodes", 10);
 
   debug_Graph_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/debug_graph", 10);
+
+  execution_Time_Pub_ = nh_.advertise<std_msgs::Int64>("/stage_execution_time", 1);
+
 
   // Services
   m_frontier_client = nh_.serviceClient<stage_planner::frontierRequest>("request_frontier_target");
@@ -1276,8 +1280,12 @@ void GraphManager::planLocalPath()
     }
 
     best_path_.clear();
-    ROS_INFO_STREAM("Before improvement path size " << path.size() << "\n");
+    ROS_INFO_STREAM("L : Before improvement path size " << path.size() << "\n");
     GraphManager::improvePath(path, best_path_);
+    ROS_INFO_STREAM("L : Improved path size " << best_path_.size() << "\n");
+    if (best_path_.empty()) {
+      return;
+    }
   }
   else
   {
@@ -1312,8 +1320,9 @@ bool GraphManager::setPath()
 
       if (MapManager::VoxelStatus::kFree == vs or MapManager::VoxelStatus::kUnknown == vs)
       {
+        State s = Eigen::Vector4d(v_root[0], v_root[1], v_root[2], 0);
 
-        Vertex *root_vertex = new Vertex(path_iterator_, robotState_);
+        Vertex *root_vertex = new Vertex(path_iterator_, s);
         path_seg.push_back(root_vertex);
         path_seg.push_back(best_path_[path_iterator_]);
         path_iterator_ = path_iterator_ + 1;
@@ -1464,6 +1473,9 @@ void GraphManager::buildReservedGraph()
     return;
   }
 
+  if (latest_sub_graph_id == 0) {
+    return;
+  }
   // Add global exploration targets to global graph for simpler direct path
   std::vector<int> ids;
   ids.clear();
@@ -1645,7 +1657,7 @@ void GraphManager::planGlobalPath()
         path_length = paths_[i].second;
 
         // ROS_INFO_STREAM ("path length : " << path_length << "\n");
-        reward = (100 * gain) - path_length;
+        reward = (100 * gain) - 10*path_length;
         if (reward > my_reward)
         {
           my_reward = reward;
@@ -1657,12 +1669,24 @@ void GraphManager::planGlobalPath()
         i++;
       }
     }
-    if (reached_end_of_path_)
-    {
-      best_path_.clear();
-      GraphManager::improvePath(path, best_path_);
-    }
+    // // if (reached_end_of_path_)
+    // // {
+    //   best_path_.clear();
+    //   GraphManager::improvePath(path, best_path_);
+    // // }
+    // GraphManager::updateKdtree();
+    // if (best_path_.empty()) {
+    //   return;
+    // }
+
+    best_path_.clear();
+    ROS_INFO_STREAM("G : Before improvement path size " << path.size() << "\n");
+    GraphManager::improvePath(path, best_path_);
     GraphManager::updateKdtree();
+    ROS_INFO_STREAM("G : Improved path size " << best_path_.size() << "\n");
+    if (best_path_.empty()) {
+      return;
+    }  
   }
   else
   {
@@ -1892,7 +1916,9 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
       GraphManager::insertLatestSubGraph();
       GraphManager::buildReservedGraph();
       return_value = GraphManager::setPath();
+      if (latest_sub_graph_id != 0) {
       GraphManager::planGlobalPath();
+      }
       ROS_INFO_STREAM("\e[92m {Planning Iteration : " << planning_iteration_ << "} \e[92m Running Local exploration \n");
       res.path = exploration_path_;
     }
@@ -1925,6 +1951,14 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
   ROS_INFO_STREAM("\033[;34m Total Execution time \033[0m "
                   << duration_total.count() << " \033[;34m ms \033[0m\n ");
+
+  std_msgs::Int64 exec_time;
+
+  exec_time.data = int(duration_total.count());
+  if (exec_time.data != 0) {
+    execution_Time_Pub_.publish(exec_time);
+  }
+
   return return_value;
   // }
   // TODO Homing path to be included in this ros service

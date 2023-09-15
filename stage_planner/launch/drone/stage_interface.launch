@@ -14,10 +14,12 @@
 
     <param name ="reference_topic" value="/hummingbird/command/pose" />
 
+    <!-- <param name ="reference_topic" value="/hummingbird/reference" /> -->
 
-    <param name ="init_x" value="3" />
+
+    <param name ="init_x" value="6" />
     <param name ="init_y" value="0" />
-    <param name ="init_z" value="1" />
+    <param name ="init_z" value="2" />
 
     <param name ="distance_to_new_path" value="0.5" />
 

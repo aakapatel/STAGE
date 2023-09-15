@@ -39,13 +39,13 @@
 
     <param name="graph_density_coefficient" value="0.3" />
 
-    <param name="maximum_edge_length" value="5" /> 
+    <param name="maximum_edge_length" value="3" /> 
 
-    <param name ="maximum_iterations_local" value="2500" />
+    <param name ="maximum_iterations_local" value="2000" />
 
-    <param name ="safety_margin" value="0.5" />
-    <param name ="robot_x" value="0.4" />
-    <param name ="robot_y" value="0.4" />
+    <param name ="safety_margin" value="0.3" />
+    <param name ="robot_x" value="0.5" />
+    <param name ="robot_y" value="0.5" />
     <param name ="robot_z" value="0.2" />
 
     <remap from="odometry" to="/hummingbird/ground_truth/odometry" />

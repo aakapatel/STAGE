@@ -292,6 +292,7 @@ private:
   ros::Publisher overlap_Vis_Pub_;
   ros::Publisher random_Nodes_Vis_Pub_;
   ros::Publisher debug_Graph_Vis_Pub_;
+  ros::Publisher execution_Time_Pub_;
 
 
     // Services
