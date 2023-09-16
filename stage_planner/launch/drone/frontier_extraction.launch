@@ -50,6 +50,9 @@
 		<param name="frame_id" type="string" value="world" />
 		<param name="sensor_model/max_range" value="15" />
 		<param name="odometry" value="/hummingbird/ground_truth/odometry" />
+
+		<param name="voxblox_topic" value="/graph_management_node/occupied_nodes" />
+
 		<remap from="cloud_in" to="/hummingbird/velodyne_points" />
 		<param name="number_of_unknowns" value="10" />
 		<param name="local_sliding_space" value="16" />

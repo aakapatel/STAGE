@@ -1279,7 +1279,7 @@ void GraphManager::planLocalPath()
       }
     }
 
-    best_path_.clear();
+    // best_path_.clear();
     ROS_INFO_STREAM("L : Before improvement path size " << path.size() << "\n");
     GraphManager::improvePath(path, best_path_);
     ROS_INFO_STREAM("L : Improved path size " << best_path_.size() << "\n");
@@ -1657,7 +1657,7 @@ void GraphManager::planGlobalPath()
         path_length = paths_[i].second;
 
         // ROS_INFO_STREAM ("path length : " << path_length << "\n");
-        reward = (100 * gain) - 10*path_length;
+        reward = (100 * gain) - 50*path_length;
         if (reward > my_reward)
         {
           my_reward = reward;
@@ -1679,7 +1679,7 @@ void GraphManager::planGlobalPath()
     //   return;
     // }
 
-    best_path_.clear();
+    // best_path_.clear();
     ROS_INFO_STREAM("G : Before improvement path size " << path.size() << "\n");
     GraphManager::improvePath(path, best_path_);
     GraphManager::updateKdtree();
@@ -1916,13 +1916,27 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
       GraphManager::insertLatestSubGraph();
       GraphManager::buildReservedGraph();
       return_value = GraphManager::setPath();
-      if (latest_sub_graph_id != 0) {
+      if (best_path_.empty() and latest_sub_graph_id != 0 and !local_exploration_targets_.empty()) {
       GraphManager::planGlobalPath();
       }
       ROS_INFO_STREAM("\e[92m {Planning Iteration : " << planning_iteration_ << "} \e[92m Running Local exploration \n");
       res.path = exploration_path_;
+      high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+
+      auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+
+      ROS_INFO_STREAM("\033[;34m Total Execution time \033[0m "
+                      << duration_total.count() << " \033[;34m ms \033[0m\n ");
+
+      std_msgs::Int64 exec_time;
+
+      exec_time.data = int(duration_total.count());
+      if (exec_time.data != 0) {
+        execution_Time_Pub_.publish(exec_time);
+      }
+      return return_value;
     }
-    else if (!global_repos_targets_.empty())
+    else if (!global_repos_targets_.empty() and local_exploration_targets_.empty())
     {
       GraphManager::buildLocalGraph();
       GraphManager::insertLatestSubGraph();
@@ -1932,6 +1946,20 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
       ROS_INFO_STREAM("\e[93m {Planning Iteration : " << planning_iteration_ << "} \e[93m Global planner triggered \n");
       res.path = exploration_path_;
+      high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+
+      auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+
+      ROS_INFO_STREAM("\033[;34m Total Execution time \033[0m "
+                      << duration_total.count() << " \033[;34m ms \033[0m\n ");
+
+      std_msgs::Int64 exec_time;
+
+      exec_time.data = int(duration_total.count());
+      if (exec_time.data != 0) {
+        execution_Time_Pub_.publish(exec_time);
+      }
+      return return_value;
     }
   }
 
@@ -1945,19 +1973,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
     }
   }
 
-  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
 
-  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-
-  ROS_INFO_STREAM("\033[;34m Total Execution time \033[0m "
-                  << duration_total.count() << " \033[;34m ms \033[0m\n ");
-
-  std_msgs::Int64 exec_time;
-
-  exec_time.data = int(duration_total.count());
-  if (exec_time.data != 0) {
-    execution_Time_Pub_.publish(exec_time);
-  }
 
   return return_value;
   // }

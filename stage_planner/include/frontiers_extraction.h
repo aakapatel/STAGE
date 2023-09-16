@@ -204,6 +204,7 @@ private:
     tf::TransformListener m_tfListener;
     std::string m_worldFrameId; // the map frame
     std::string m_odometry;
+    std::string m_voxblox_topic;
     std::string cloud_in;
     std::string m_baseFrameId; // base of the robot for ground plane filtering
     OcTreeT *m_octree;

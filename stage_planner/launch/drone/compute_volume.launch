@@ -1,0 +1,42 @@
+<?xml version="1.0" ?>
+<launch>
+
+  <env name="ROSCONSOLE_FORMAT" value="[${severity}] : ${message}"/>
+  
+
+  <node pkg="stage_planner" type="frontiers_extraction_node" name="frontiers_extraction_node" output="screen">
+
+    <!-- VERY IMPORTANT TO SET CORRECT ROBOT TYPE -->
+
+    <param name="robot_aerial" value="true" />
+    
+
+    <param name="xFiltering" value="true" />
+		<param name="yFiltering" value="true" />
+		<param name="zFiltering" value="true" />
+
+		<param name="resolution" value="0.5" />
+		<param name="cloud_in" value="/hummingbird/velodyne_points" />
+		<param name="distance" value="14" />
+		<param name="frame_id" type="string" value="world" />
+		<param name="sensor_model/max_range" value="15" />
+		<param name="odometry" value="/hummingbird/ground_truth/odometry" />
+
+		<param name="voxblox_topic" value="/gbplanner_node/occupied_nodes" />
+
+		<remap from="cloud_in" to="/hummingbird/velodyne_points" />
+		<param name="number_of_unknowns" value="10" />
+		<param name="local_sliding_space" value="16" />
+		<param name="local_field_of_view" value="40" />
+		<param name="safety_height" value = "4" />
+		<param name="traversability_radius" value="1" />
+		<param name="planning_check_depth" value="1" />
+		<param name="volumetric_gain_threashold" value="1" />
+    
+
+
+		<remap from="ufomap" to="/ufomap_mapping_server_node/map" />
+
+
+  </node>
+</launch>

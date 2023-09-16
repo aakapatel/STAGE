@@ -33,6 +33,7 @@ FrontierExtraction::FrontierExtraction(const ros::NodeHandle &nh, const ros::Nod
       LOCAL_SPACE(10),
       LOCAL_FOV(40),
       m_ufomap("/ufomap_mapping_server_node/map"),
+      m_voxblox_topic("/graph_management_node/occupied_nodes"),
       max_allowed_height_(10),
       OBB_RADIUS(0.5),
       mapDepth_(0),
@@ -43,6 +44,7 @@ FrontierExtraction::FrontierExtraction(const ros::NodeHandle &nh, const ros::Nod
     double probHit, probMiss, thresMin, thresMax;
     // Set variables
     nh_private_.param("frame_id", m_worldFrameId, m_worldFrameId);
+    nh_private_.param("voxblox_topic", m_voxblox_topic, m_voxblox_topic);
     nh_private_.param("resolution", m_res, m_res);
     nh_private_.param("sensor_model/hit", probHit, 0.7);
     nh_private_.param("sensor_model/miss", probMiss, 0.4);
@@ -109,7 +111,7 @@ FrontierExtraction::FrontierExtraction(const ros::NodeHandle &nh, const ros::Nod
 
     m_ufoMapSubscriber = nh_.subscribe(m_ufomap, 5, &FrontierExtraction::mapCallback, this);
 
-    m_voxblox_sub = nh_.subscribe("/graph_management_node/occupied_nodes", 1, &FrontierExtraction::voxbloxCallback, this);
+    m_voxblox_sub = nh_.subscribe(m_voxblox_topic, 1, &FrontierExtraction::voxbloxCallback, this);
 
 
 
@@ -389,7 +391,7 @@ void FrontierExtraction::voxbloxCallback (visualization_msgs::MarkerArray msg) {
 
     std_msgs::Int64 volume;
     
-    volume.data = int (msg.markers[0].points.size() * (0.4*0.4*0.4));
+    volume.data = int (msg.markers[0].points.size() * (0.25*0.25*0.25));
 
     ROS_INFO_STREAM("calculated volume : " << volume.data << "\n");
 
