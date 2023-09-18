@@ -1,7 +1,6 @@
 #include "graph_management.h"
 #include <std_msgs/ColorRGBA.h>
 
-
 using namespace std;
 using namespace std::chrono;
 using namespace std::this_thread;
@@ -93,7 +92,6 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
   debug_Graph_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/debug_graph", 10);
 
   execution_Time_Pub_ = nh_.advertise<std_msgs::Int64>("/stage_execution_time", 1);
-
 
   // Services
   m_frontier_client = nh_.serviceClient<stage_planner::frontierRequest>("request_frontier_target");
@@ -1046,7 +1044,7 @@ void GraphManager::printVoxelStatus(MapManager::VoxelStatus vs)
 
 bool GraphManager::buildLocalGraph()
 {
-  
+
   bool graph_status = false;
   // high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
@@ -1067,7 +1065,8 @@ bool GraphManager::buildLocalGraph()
   nodes.clear();
 
   GraphManager::sampleNodes(nodes, robotState_, iterations_local_, bounding_box_size_);
-  if (nodes.empty()) {
+  if (nodes.empty())
+  {
     graph_status = false;
     ROS_WARN("Could not sample nodes in traversable space \n");
     return graph_status;
@@ -1157,43 +1156,46 @@ bool GraphManager::buildLocalGraph()
         // if (!sub_graph_->vertices_map_[id]->is_frontier or !nearby_vertices[i]->is_frontier)
         // {
 
-          // if (!sub_graph_->edgeExist(sub_graph_->vertices_map_[id]->id, nearby_vertices[i]->id))
-          // {
+        // if (!sub_graph_->edgeExist(sub_graph_->vertices_map_[id]->id, nearby_vertices[i]->id))
+        // {
 
-            if (sub_graph_->vertices_map_[id]->edges < 9 and sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], nearby_vertices[i]) < max_edge_length_)
-            {
+        if (sub_graph_->vertices_map_[id]->edges < 9 and sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], nearby_vertices[i]) < max_edge_length_)
+        {
 
-              Eigen::Vector3d v_n(nearby_vertices[i]->state[0], nearby_vertices[i]->state[1], nearby_vertices[i]->state[2]);
-              MapManager::VoxelStatus vn = map_manager_->getPathStatus(v, v_n, robot_box_size_, true);
+          Eigen::Vector3d v_n(nearby_vertices[i]->state[0], nearby_vertices[i]->state[1], nearby_vertices[i]->state[2]);
+          MapManager::VoxelStatus vn = map_manager_->getPathStatus(v, v_n, robot_box_size_, true);
 
-              if (MapManager::VoxelStatus::kFree == vn)
-              {
+          if (MapManager::VoxelStatus::kFree == vn)
+          {
 
-                sub_graph_->addEdge(sub_graph_->vertices_map_[id], nearby_vertices[i],
-                                    sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], nearby_vertices[i]));
-                sub_graph_->vertices_map_[id]->edges++;
-              }
-            }
-          // }
+            sub_graph_->addEdge(sub_graph_->vertices_map_[id], nearby_vertices[i],
+                                sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], nearby_vertices[i]));
+            sub_graph_->vertices_map_[id]->edges++;
+          }
+        }
+        // }
         // }
       }
     }
   }
-  
-  if (sub_graph_->getNumEdges() > 2) {
+
+  if (sub_graph_->getNumEdges() > 2)
+  {
     graph_vec_.push_back(sub_graph_);
-    graph_status = true; 
-  } else {
+    graph_status = true;
+  }
+  else
+  {
     ROS_WARN_STREAM("Sub graph has " << sub_graph_->getNumVertices() << " nodes & " << sub_graph_->getNumEdges() << " edges\n");
   }
 
   return graph_status;
-  
+
 } // buildLocalGraph
 
 bool GraphManager::planLocalPath()
 {
-  
+
   bool path_status = true;
   // Fetch shortest path report from root vertex to all vertices in the graph
   if (sub_graph_->findShortestPaths(root_vertex->id, sub_graph_rep_))
@@ -1206,7 +1208,7 @@ bool GraphManager::planLocalPath()
     ROS_WARN("Could not find dijkstra shortest paths on sub graph \n");
     return path_status;
   }
-  
+
   local_paths_.clear();
 
   std::pair<Graph::GraphType::vertex_iterator,
@@ -1278,7 +1280,8 @@ bool GraphManager::planLocalPath()
 
     // best_path_.clear();
     GraphManager::improvePath(path, best_path_);
-    if (best_path_.empty()) {
+    if (best_path_.empty())
+    {
       ROS_WARN("Improved local path is empty \n");
       path_status = false;
       return path_status;
@@ -1286,7 +1289,7 @@ bool GraphManager::planLocalPath()
   }
   else
   {
-    ROS_WARN ("SG : Could not find shortest paths to frontier vertices \n");
+    ROS_WARN("SG : Could not find shortest paths to frontier vertices \n");
     path_status = false;
     return path_status;
   }
@@ -1308,14 +1311,16 @@ bool GraphManager::setPath()
     Eigen::Vector3d v_root;
     if (path_iterator_ < best_path_.size())
     {
-      
-      if (path_iterator_ == 0) {
-         v_root = Eigen::Vector3d(robotState_[0], robotState_[1], robotState_[2]);
 
-      } else {
-        v_root = Eigen::Vector3d(best_path_[path_iterator_-1]->state[0], best_path_[path_iterator_-1]->state[1], best_path_[path_iterator_-1]->state[2]);
+      if (path_iterator_ == 0)
+      {
+        v_root = Eigen::Vector3d(robotState_[0], robotState_[1], robotState_[2]);
       }
-      
+      else
+      {
+        v_root = Eigen::Vector3d(best_path_[path_iterator_ - 1]->state[0], best_path_[path_iterator_ - 1]->state[1], best_path_[path_iterator_ - 1]->state[2]);
+      }
+
       Eigen::Vector3d v_vert(best_path_[path_iterator_]->state[0], best_path_[path_iterator_]->state[1], best_path_[path_iterator_]->state[2]);
       MapManager::VoxelStatus vs = map_manager_->getPathStatus(v_root, v_vert, robot_box_size_, true);
 
@@ -1353,7 +1358,7 @@ bool GraphManager::setPath()
           p.pose.orientation.w = q.w();
           exploration_path_.poses.push_back(p);
         }
-        return true;
+        path_set =  true;
       }
       else
       {
@@ -1376,7 +1381,7 @@ bool GraphManager::setPath()
         reached_end_of_path_ = true;
         path_iterator_ = 0;
         best_path_.clear();
-        return false;
+        path_set =  false;
       }
     }
     else
@@ -1386,21 +1391,25 @@ bool GraphManager::setPath()
       reached_end_of_path_ = true;
       path_iterator_ = 0;
       best_path_.clear();
-      return false;
+      path_set =  false;
     }
   }
   else
   {
 
     ROS_WARN_STREAM("Best path length " << best_path_.size() << "\n");
-    return false;
+    path_set =  false;
   }
+
+  return path_set;
+
 }
 
 bool GraphManager::insertLatestSubGraph()
 {
   bool insertion_status = true;
-  if (sub_graph_->getNumVertices() == 0) {
+  if (sub_graph_->getNumVertices() == 0)
+  {
     insertion_status = false;
     return insertion_status;
   }
@@ -1426,8 +1435,9 @@ bool GraphManager::insertLatestSubGraph()
   }
 
   // Iterate though latest global frontiers and add them to global kd tree for nearest neighbours lookup
-  if (frontier_graph_->getNumVertices() == 0) {
-    ROS_WARN ("No incoming frontiers!! \n");
+  if (frontier_graph_->getNumVertices() == 0)
+  {
+    ROS_WARN("No incoming frontiers!! \n");
     insertion_status = false;
     return insertion_status;
   }
@@ -1473,7 +1483,7 @@ bool GraphManager::insertLatestSubGraph()
 
   return insertion_status;
 
-} // insertLatestSubGraph 
+} // insertLatestSubGraph
 
 bool GraphManager::buildReservedGraph()
 {
@@ -1485,8 +1495,9 @@ bool GraphManager::buildReservedGraph()
     return graph_status;
   }
 
-  if (latest_sub_graph_id == 0) {
-    ROS_WARN ("Only one sub-graph. Can not find overlap \n");
+  if (latest_sub_graph_id == 0)
+  {
+    ROS_WARN("Only one sub-graph. Can not find overlap \n");
     graph_status = false;
     return graph_status;
   }
@@ -1523,7 +1534,8 @@ bool GraphManager::buildReservedGraph()
     for (int i = 0; i < nearby_vertices.size(); ++i)
     {
 
-      if (!nearby_vertices[i]->is_sampled and nearby_vertices[i]->sub_graph_id == (latest_sub_graph_id - 1))
+      // if (!nearby_vertices[i]->is_sampled and nearby_vertices[i]->sub_graph_id == (latest_sub_graph_id - 1))
+      if (!nearby_vertices[i]->is_sampled and nearby_vertices[i]->sub_graph_id != latest_sub_graph_id)
       {
 
         int nearby_vertex_id = nearby_vertices[i]->id;
@@ -1560,21 +1572,24 @@ bool GraphManager::buildReservedGraph()
   }
 
   GraphManager::visualizeGlobalGraph();
-  if (global_graph_->getNumEdges() > 2) {
+  if (global_graph_->getNumEdges() > 2)
+  {
     graph_status = true;
-  } else {
+  }
+  else
+  {
     graph_status = false;
-    ROS_INFO_STREAM ("Built global graph with " << global_graph_->getNumVertices() << " vertices & " << global_graph_->getNumEdges() << " edges\n");
+    ROS_INFO_STREAM("Built global graph with " << global_graph_->getNumVertices() << " vertices & " << global_graph_->getNumEdges() << " edges\n");
     return graph_status;
   }
-  
+
   return graph_status;
 
-} // buildGlobalGraph 
+} // buildGlobalGraph
 
 bool GraphManager::planGlobalPath()
 {
-  
+
   bool path_status = true;
 
   // Dijkstra SP report from root to all vertices in global graph
@@ -1658,7 +1673,7 @@ bool GraphManager::planGlobalPath()
         path_length = paths_[i].second;
 
         // ROS_INFO_STREAM ("path length : " << path_length << "\n");
-        reward = (100 * gain) - 50*path_length;
+        reward = (100 * gain) - 50 * path_length;
         if (reward > my_reward)
         {
           my_reward = reward;
@@ -1670,16 +1685,17 @@ bool GraphManager::planGlobalPath()
     // best_path_.clear();
     GraphManager::improvePath(path, best_path_);
     GraphManager::updateKdtree();
-    if (best_path_.empty()) {
+    if (best_path_.empty())
+    {
       path_status = false;
-      ROS_WARN ("GG : Improved path is empty");
-        return path_status;
-    }  
+      ROS_WARN("GG : Improved path is empty");
+      return path_status;
+    }
   }
   else
   {
     path_status = false;
-    ROS_WARN ("GG : No shortest paths to frontiers \n");
+    ROS_WARN("GG : No shortest paths to frontiers \n");
     return path_status;
   }
 
@@ -1885,6 +1901,63 @@ bool GraphManager::isLastTargetFrontier(geometry_msgs::Point last_target_frontie
   return is_last_target_frontier;
 }
 
+bool GraphManager::runLocalPlanner()
+{
+  bool local_planner_success = true;
+  high_resolution_clock::time_point start_total = high_resolution_clock::now();
+  if (GraphManager::buildLocalGraph())
+  {
+    if (GraphManager::planLocalPath())
+    {
+      if (GraphManager::setPath())
+      {
+        ROS_INFO_STREAM("\e[92m [Planning Iteration : " << planning_iteration_ << "] \e[92m Running Local exploration \n");
+        high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+
+        auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+
+        ROS_INFO_STREAM("\033[;34m Total Execution time \033[0m "
+                        << duration_total.count() << " \033[;34m ms \033[0m\n ");
+
+        std_msgs::Int64 exec_time;
+
+        exec_time.data = int(duration_total.count());
+        if (exec_time.data != 0)
+        {
+          execution_Time_Pub_.publish(exec_time);
+        }
+        if (GraphManager::insertLatestSubGraph())
+        {
+          if (!GraphManager::buildReservedGraph())
+          {
+            ROS_WARN("Err : Global graph building \n");
+          }
+        }
+        else
+        {
+          ROS_WARN("Err : sub-graph insertion fail \n");
+        }
+        local_planner_success = true;
+      } else {
+          re_plan_attempt = re_plan_attempt + 1;
+          if (re_plan_attempt < 5)
+          {  
+            runLocalPlanner();
+          }
+          else
+          {
+            local_planner_success = false;
+            ROS_ERROR_STREAM("Local planner failure.. switch to global planner \n");
+          }
+      }
+    }
+  }
+
+  re_plan_attempt = 0;
+
+  return local_planner_success;
+}
+
 bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &req,
                                        stage_planner::explorationPath::Response &res)
 
@@ -1894,58 +1967,52 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
   if (reached_end_of_path_)
   {
-
     exploration_path_.poses.clear();
-
     ++planning_iteration_;
     GraphManager::fetchExplorationTargets();
 
     if (!local_exploration_targets_.empty())
     {
-      if (GraphManager::buildLocalGraph()) 
+      if (runLocalPlanner())
       {
-        ROS_INFO ("Succesfully built sub_graph \n");
-        if (GraphManager::planLocalPath()) 
+        res.path = exploration_path_;
+        run_global_planner = false;
+        return true;
+      }
+      else
+      {
+        run_global_planner = true;
+      }
+    }
+    else
+    {
+      run_global_planner = true;
+    }
+    if (run_global_planner and !global_repos_targets_.empty())
+    {
+      if (buildLocalGraph())
+      {
+        if (GraphManager::insertLatestSubGraph())
         {
-          ROS_INFO ("Succesfully planned local path \n");
-          if (GraphManager::setPath()) 
+          if (!GraphManager::buildReservedGraph())
           {
-            ROS_INFO_STREAM("\e[92m [Planning Iteration : " << planning_iteration_ << "] \e[92m Running Local exploration \n");
-            res.path = exploration_path_;
-            high_resolution_clock::time_point stop_total = high_resolution_clock::now();
-
-            auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-
-            ROS_INFO_STREAM("\033[;34m Total Execution time \033[0m "
-                            << duration_total.count() << " \033[;34m ms \033[0m\n ");
-
-            std_msgs::Int64 exec_time;
-
-            exec_time.data = int(duration_total.count());
-            if (exec_time.data != 0) 
-            {
-              execution_Time_Pub_.publish(exec_time);
-            }
-            if(GraphManager::insertLatestSubGraph()) 
-            {   
-              if (!GraphManager::buildReservedGraph()) 
-                {
-                  ROS_WARN ("Err : Global graph building \n");
-                }
-            } else {
-                ROS_WARN ("Err : sub-graph insertion fail \n");
-              }
-            return true;
+            ROS_WARN("Err : Global graph building \n");
           }
         }
-      } 
-    }
-    else if (!global_repos_targets_.empty())
-    { 
-      if (GraphManager::planGlobalPath()) 
+        else
+        {
+          ROS_WARN("Err : sub-graph insertion fail \n");
+        }
+      }
+      else
       {
-        ROS_INFO ("Succesfully planned Global path \n");
-        if (GraphManager::setPath()) 
+        return false;
+      }
+
+      if (GraphManager::planGlobalPath())
+      {
+        ROS_INFO("Succesfully planned Global path \n");
+        if (GraphManager::setPath())
         {
           ROS_INFO_STREAM("\e[92m [Planning Iteration : " << planning_iteration_ << "] \e[92m Running Local exploration \n");
           res.path = exploration_path_;
@@ -1959,7 +2026,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
           std_msgs::Int64 exec_time;
 
           exec_time.data = int(duration_total.count());
-          if (exec_time.data != 0) 
+          if (exec_time.data != 0)
           {
             execution_Time_Pub_.publish(exec_time);
           }
@@ -1975,40 +2042,10 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
     if (!reached_end_of_path_)
     {
       res.path = exploration_path_;
-      ROS_INFO_STREAM("Following path segment \n");
     }
   }
 
-
-
   return return_value;
-  // }
-  // TODO Homing path to be included in this ros service
-
-  // if (req.exploration)
-  // {
-  //   res.path = exploration_path_;
-  //   if (local_exploration)
-  //   {
-  //     res.planning_status_local = true;
-  //     res.planning_status_global = false;
-  //   }
-  //   else if (global_exploration)
-  //   {
-  //     res.planning_status_global = true;
-  //     res.planning_status_local = false;
-  //   }
-  // }
-  //
-  // if (req.homing)
-  // {
-  //   // res.path = homing_path_;
-  //   res.planning_status_local = false;
-  //   res.planning_status_global = false;
-  //   res.planning_status_homing = true;
-  // }
-
-  // return true;
 }
 
 // Visualization of navigation graphs

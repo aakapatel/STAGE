@@ -91,6 +91,8 @@ public:
   bool planLocalPath();
 
   bool planGlobalPath();
+  
+  bool runLocalPlanner ();
 
   void visualizeLocalGraph();
 
@@ -186,7 +188,8 @@ private:
   int vertex_id_ = -1;
   int subgraph_ind_ = -1;
   int local_target_vertex_id;
-  
+  int re_plan_attempt = 0;
+
   int planning_iteration_ = -1;
 
   int temp_id = -1;

@@ -189,7 +189,7 @@ Visualization Manager:
     - Alpha: 0.5
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 7.800000190734863
+        Max Value: 9.800000190734863
         Min Value: -1
         Value: true
       Axis: Z
@@ -208,7 +208,7 @@ Visualization Manager:
       Selectable: true
       Size (Pixels): 3
       Size (m): 0.05999999865889549
-      Style: Spheres
+      Style: Flat Squares
       Topic: /graph_management_node/surface_pointcloud
       Unreliable: false
       Use Fixed Frame: true
@@ -344,7 +344,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 93.8509292602539
+      Distance: 73.20172119140625
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -352,9 +352,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 22.59186553955078
-        Y: -2.6944260597229004
-        Z: -0.4823428988456726
+        X: 17.679309844970703
+        Y: -3.8585002422332764
+        Z: -0.4802457392215729
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -362,7 +362,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
-      Yaw: 4.718694686889648
+      Yaw: 3.133694887161255
     Saved: ~
 Window Geometry:
   Displays:
