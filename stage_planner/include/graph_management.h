@@ -86,11 +86,11 @@ public:
   void resetFrontierGraph();
   void resetDebugGraph();
 
-  void buildLocalGraph();
+  bool buildLocalGraph();
   
-  void planLocalPath();
+  bool planLocalPath();
 
-  void planGlobalPath();
+  bool planGlobalPath();
 
   void visualizeLocalGraph();
 
@@ -132,8 +132,8 @@ public:
   
   void debugGraph(State root, State goal);
   
-  void buildReservedGraph();
-  void insertLatestSubGraph();
+  bool buildReservedGraph();
+  bool insertLatestSubGraph();
   
   bool setPath();
 
@@ -155,6 +155,8 @@ public:
   bool init = true;
   
   Vertex * local_goal_vertex;
+  Vertex* root_vertex;
+
 
 private:
   ros::NodeHandle nh_;

@@ -39,7 +39,7 @@
 
     <param name="graph_density_coefficient" value="0.3" />
 
-    <param name="maximum_edge_length" value="3" /> 
+    <param name="maximum_edge_length" value="4" /> 
 
     <param name ="maximum_iterations_local" value="2000" />
 
