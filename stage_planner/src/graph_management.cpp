@@ -329,7 +329,7 @@ double GraphManager::computeExplorationGain(State state)
     }
   }
 
-  return exp(step_size);
+  return 10*(step_size);
   // return free.size();
 }
 
@@ -1301,9 +1301,11 @@ bool GraphManager::planLocalPath()
 bool GraphManager::setPath()
 {
 
-  bool path_set = false;
-  if (!best_path_.empty())
-  {
+  bool path_set = true;
+  if (best_path_.empty()) {
+    path_set = false;
+    return path_set;
+  } else {
 
     GraphManager::visualizeRepositionPath();
     std::vector<Vertex *> path_seg;
@@ -1358,7 +1360,7 @@ bool GraphManager::setPath()
           p.pose.orientation.w = q.w();
           exploration_path_.poses.push_back(p);
         }
-        path_set =  true;
+        
       }
       else
       {
@@ -1382,6 +1384,7 @@ bool GraphManager::setPath()
         path_iterator_ = 0;
         best_path_.clear();
         path_set =  false;
+        return path_set;
       }
     }
     else
@@ -1392,13 +1395,8 @@ bool GraphManager::setPath()
       path_iterator_ = 0;
       best_path_.clear();
       path_set =  false;
+      return path_set;
     }
-  }
-  else
-  {
-
-    ROS_WARN_STREAM("Best path length " << best_path_.size() << "\n");
-    path_set =  false;
   }
 
   return path_set;
