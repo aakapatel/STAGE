@@ -1902,7 +1902,6 @@ bool GraphManager::isLastTargetFrontier(geometry_msgs::Point last_target_frontie
 bool GraphManager::runLocalPlanner()
 {
   bool local_planner_success = true;
-  high_resolution_clock::time_point start_total = high_resolution_clock::now();
   if (GraphManager::buildLocalGraph())
   {
     if (GraphManager::planLocalPath())
@@ -1910,20 +1909,7 @@ bool GraphManager::runLocalPlanner()
       if (GraphManager::setPath())
         {
           ROS_INFO_STREAM("\e[92m [Planning Iteration : " << planning_iteration_ << "] \e[92m Running Local exploration \n");
-          high_resolution_clock::time_point stop_total = high_resolution_clock::now();
 
-          auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-
-          ROS_INFO_STREAM("\033[;34m Total Execution time \033[0m "
-                          << duration_total.count() << " \033[;34m ms \033[0m\n ");
-
-          std_msgs::Int64 exec_time;
-
-          exec_time.data = int(duration_total.count());
-          if (exec_time.data != 0)
-          {
-            execution_Time_Pub_.publish(exec_time);
-          }
           if (GraphManager::insertLatestSubGraph())
             {
               if (!GraphManager::buildReservedGraph())
@@ -1937,9 +1923,9 @@ bool GraphManager::runLocalPlanner()
           }
           local_planner_success = true;
         } else {
-        re_plan_attempt = re_plan_attempt + 1;
         if (re_plan_attempt < 5)
           {  
+            re_plan_attempt = re_plan_attempt + 1;
             runLocalPlanner();
           }
         else
