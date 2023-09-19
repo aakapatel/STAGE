@@ -79,7 +79,7 @@ bool SensorParamsBase::loadParams(std::string ns) {
   }
   rotations << param_val[0], param_val[1], param_val[2];
   std::cout << ns << " " << rotations[0] << ", " << rotations[1] << ", "
-            << rotations[2] << std::endl;
+    << rotations[2] << std::endl;
 
   param_val.clear();
   param_name = ns + "/fov";
@@ -140,8 +140,8 @@ bool SensorParamsBase::loadParams(std::string ns) {
   // Precompute some const parameters to be used later.
   // Rotation from B to S.
   rot_B2S = Eigen::AngleAxisd(rotations[0], Eigen::Vector3d::UnitZ()) *
-            Eigen::AngleAxisd(rotations[1], Eigen::Vector3d::UnitY()) *
-            Eigen::AngleAxisd(rotations[2], Eigen::Vector3d::UnitX());
+    Eigen::AngleAxisd(rotations[1], Eigen::Vector3d::UnitY()) *
+    Eigen::AngleAxisd(rotations[2], Eigen::Vector3d::UnitX());
   rot_S2B = rot_B2S.inverse();
 
   double v_res, h_res;
@@ -199,9 +199,9 @@ bool SensorParamsBase::loadParams(std::string ns) {
       }
       height = h;
       ROS_INFO_COND(global_verbosity >= Verbosity::INFO, 
-          "Computed multiray_endpoints for volumetric gain [kCamera]: [%d] "
-          "points.",
-          frustum_endpoints_B.size());
+                    "Computed multiray_endpoints for volumetric gain [kCamera]: [%d] "
+                    "points.",
+                    frustum_endpoints_B.size());
     }
   } else if (type == SensorType::kLidar) {
     // Frustum endpoints in (S) for gain calculation.
@@ -232,9 +232,9 @@ bool SensorParamsBase::loadParams(std::string ns) {
     }
     height = h;
     ROS_INFO_COND(global_verbosity >= Verbosity::INFO, 
-        "Computed multiray_endpoints for volumetric gain [kLidar]: [%d] "
-        "points.",
-        frustum_endpoints_B.size());
+                  "Computed multiray_endpoints for volumetric gain [kLidar]: [%d] "
+                  "points.",
+                  frustum_endpoints_B.size());
   }
 
   // Compute a number to compare to check for frontier.
@@ -250,8 +250,8 @@ void SensorParamsBase::getFrustumEndpoints(StateVec& state,
   Eigen::Vector3d origin(state[0], state[1], state[2]);
   Eigen::Matrix3d rot_W2B;
   rot_W2B = Eigen::AngleAxisd(state[3], Eigen::Vector3d::UnitZ()) *
-            Eigen::AngleAxisd(0.0, Eigen::Vector3d::UnitY()) *
-            Eigen::AngleAxisd(0.0, Eigen::Vector3d::UnitX());
+    Eigen::AngleAxisd(0.0, Eigen::Vector3d::UnitY()) *
+    Eigen::AngleAxisd(0.0, Eigen::Vector3d::UnitX());
   ep.clear();
   for (auto& p : frustum_endpoints_B) {
     Eigen::Vector3d p_tf = origin + rot_W2B * p;
@@ -266,8 +266,8 @@ void SensorParamsBase::getFrustumEndpoints(StateVec& state,
   Eigen::Vector3d origin(state[0], state[1], state[2]);
   Eigen::Matrix3d rot_W2B;
   rot_W2B = Eigen::AngleAxisd(state[3], Eigen::Vector3d::UnitZ()) *
-            Eigen::AngleAxisd(0.0, Eigen::Vector3d::UnitY()) *
-            Eigen::AngleAxisd(0.0, Eigen::Vector3d::UnitX());
+    Eigen::AngleAxisd(0.0, Eigen::Vector3d::UnitY()) *
+    Eigen::AngleAxisd(0.0, Eigen::Vector3d::UnitX());
   ep.clear();
   for (auto& p : frustum_endpoints_B) {
     Eigen::Vector3d p_tf = origin + rot_W2B * p * darkness_range;
@@ -319,9 +319,9 @@ void SensorParamsBase::updateFrustumEndpoints() {
       }
     }
     ROS_INFO_COND(global_verbosity >= Verbosity::INFO, 
-        "Computed multiray_endpoints for volumetric gain [kCamera]: [%d] "
-        "points.",
-        frustum_endpoints_B.size());
+                  "Computed multiray_endpoints for volumetric gain [kCamera]: [%d] "
+                  "points.",
+                  frustum_endpoints_B.size());
   } else if (type == SensorType::kLidar) {
     // Frustum endpoints in (S) for gain calculation.
     frustum_endpoints.clear();
@@ -340,23 +340,23 @@ void SensorParamsBase::updateFrustumEndpoints() {
       }
     }
     ROS_INFO_COND(global_verbosity >= Verbosity::INFO, 
-        "Computed multiray_endpoints for volumetric gain [kLidar]: [%d] "
-        "points.",
-        (int)frustum_endpoints_B.size());
+                  "Computed multiray_endpoints for volumetric gain [kLidar]: [%d] "
+                  "points.",
+                  (int)frustum_endpoints_B.size());
   }
 }
 
 void SensorParamsBase::convertBodyToSensor(
-    pcl::PointCloud<pcl::PointXYZ>::Ptr ep,
-    pcl::PointCloud<pcl::PointXYZ>::Ptr ep_s) {
+  pcl::PointCloud<pcl::PointXYZ>::Ptr ep,
+  pcl::PointCloud<pcl::PointXYZ>::Ptr ep_s) {
   ep_s->points.clear();
 
   // Sensor in ROS coordinate, if want to transform to real camera coordinate,
   // apply this TF
   Eigen::Matrix3d rot_S2Cam;
   rot_S2Cam = Eigen::AngleAxisd(M_PI / 2, Eigen::Vector3d::UnitZ()) *
-              Eigen::AngleAxisd(-M_PI / 2, Eigen::Vector3d::UnitY()) *
-              Eigen::AngleAxisd(0, Eigen::Vector3d::UnitX());
+    Eigen::AngleAxisd(-M_PI / 2, Eigen::Vector3d::UnitY()) *
+    Eigen::AngleAxisd(0, Eigen::Vector3d::UnitX());
 
   for (auto p : ep->points) {
     Eigen::Vector3d ip_p(p.x, p.y, p.z);
@@ -375,8 +375,8 @@ void SensorParamsBase::getFrustumEdges(StateVec& state,
   Eigen::Vector3d origin(state[0], state[1], state[2]);
   Eigen::Matrix3d rot_W2B;
   rot_W2B = Eigen::AngleAxisd(state[3], Eigen::Vector3d::UnitZ()) *
-            Eigen::AngleAxisd(0.0, Eigen::Vector3d::UnitY()) *
-            Eigen::AngleAxisd(0.0, Eigen::Vector3d::UnitX());
+    Eigen::AngleAxisd(0.0, Eigen::Vector3d::UnitY()) *
+    Eigen::AngleAxisd(0.0, Eigen::Vector3d::UnitX());
   edges.clear();
   for (int i = 0; i < 4; ++i) {
     edges.push_back(origin + rot_W2B * edge_points_B.col(i));
@@ -395,9 +395,9 @@ bool SensorParamsBase::isInsideFOV(StateVec& state, Eigen::Vector3d& pos) {
   // Transform to sensor coordinate.
   Eigen::Vector3d origin(state[0], state[1], state[2]);
   Eigen::Vector3d pos_S =
-      rot_S2B * Eigen::AngleAxisd(-state[3], Eigen::Vector3d::UnitZ()) *
-          (pos - origin) -
-      center_offset;
+    rot_S2B * Eigen::AngleAxisd(-state[3], Eigen::Vector3d::UnitZ()) *
+    (pos - origin) -
+    center_offset;
   float pos_S_norm = pos_S.norm();
 
   // Check range.
@@ -414,7 +414,7 @@ bool SensorParamsBase::isInsideFOV(StateVec& state, Eigen::Vector3d& pos) {
     float h_angle = std::atan2((float)pos_S.y(), (float)pos_S.x());
     float v_angle = std::asin((float)pos_S.z() / pos_S_norm);
     if ((std::abs(h_angle) > (fov[0] / 2)) ||
-        (std::abs(v_angle) > (fov[1] / 2)))
+      (std::abs(v_angle) > (fov[1] / 2)))
       return false;
   } else {
     // Unsupported sensor.
@@ -425,7 +425,7 @@ bool SensorParamsBase::isInsideFOV(StateVec& state, Eigen::Vector3d& pos) {
 
 bool SensorParamsBase::isFrontier(double num_unknown_voxels_normalized) {
   double unknown_percentage =
-      num_unknown_voxels_normalized / num_voxels_full_fov;
+    num_unknown_voxels_normalized / num_voxels_full_fov;
   if (unknown_percentage >= frontier_percentage_threshold)
     return true;
   else
@@ -496,15 +496,15 @@ bool RobotParams::loadParams(std::string ns) {
   param_val.clear();
   param_name = ns + "/size_extension";
   if ((!ros::param::get(param_name, param_val)) || (param_val.size() != 3) ||
-      (param_val[0] < size_extension_min[0]) ||
-      (param_val[1] < size_extension_min[1]) ||
-      (param_val[2] < size_extension_min[2])) {
+    (param_val[0] < size_extension_min[0]) ||
+    (param_val[1] < size_extension_min[1]) ||
+    (param_val[2] < size_extension_min[2])) {
     param_val.resize(3);
     param_val[0] = size_extension_min[0];
     param_val[1] = size_extension_min[1];
     param_val[2] = size_extension_min[2];
     ROSPARAM_WARN(param_name, "{" << param_val[0] << "," << param_val[1] << ","
-                                  << param_val[2] << "}");
+                  << param_val[2] << "}");
   }
   size_extension << param_val[0], param_val[1], param_val[2];
 
@@ -584,7 +584,7 @@ void RobotParams::getPlanningSize(Eigen::Vector3d& psize) {
       break;
     case BoundModeType::kRelaxedBound:
       psize = size + relax_ratio * size_extension_min +
-              (1 - relax_ratio) * size_extension;
+        (1 - relax_ratio) * size_extension;
       break;
     case BoundModeType::kMinBound:
       psize = size + size_extension_min;
@@ -703,8 +703,8 @@ void BoundedSpaceParams::setCenter(StateVec& state, bool use_extension) {
   }
   Eigen::Matrix3d rot_W2B;
   rot_W2B = Eigen::AngleAxisd(rotations[0], Eigen::Vector3d::UnitZ()) *
-            Eigen::AngleAxisd(rotations[1], Eigen::Vector3d::UnitY()) *
-            Eigen::AngleAxisd(rotations[2], Eigen::Vector3d::UnitX());
+    Eigen::AngleAxisd(rotations[1], Eigen::Vector3d::UnitY()) *
+    Eigen::AngleAxisd(rotations[2], Eigen::Vector3d::UnitX());
   rot_B2W = rot_W2B.transpose();
 }
 
@@ -721,8 +721,8 @@ void BoundedSpaceParams::setCenter(Eigen::Vector3d& root, bool use_extension) {
   }
   Eigen::Matrix3d rot_W2B;
   rot_W2B = Eigen::AngleAxisd(rotations[0], Eigen::Vector3d::UnitZ()) *
-            Eigen::AngleAxisd(rotations[1], Eigen::Vector3d::UnitY()) *
-            Eigen::AngleAxisd(rotations[2], Eigen::Vector3d::UnitX());
+    Eigen::AngleAxisd(rotations[1], Eigen::Vector3d::UnitY()) *
+    Eigen::AngleAxisd(rotations[2], Eigen::Vector3d::UnitX());
   rot_B2W = rot_W2B.transpose();
 }
 
@@ -737,8 +737,8 @@ void BoundedSpaceParams::setRotation(Eigen::Vector3d& rotations_in) {
 
   Eigen::Matrix3d rot_W2B;
   rot_W2B = Eigen::AngleAxisd(rotations[0], Eigen::Vector3d::UnitZ()) *
-            Eigen::AngleAxisd(rotations[1], Eigen::Vector3d::UnitY()) *
-            Eigen::AngleAxisd(rotations[2], Eigen::Vector3d::UnitX());
+    Eigen::AngleAxisd(rotations[1], Eigen::Vector3d::UnitY()) *
+    Eigen::AngleAxisd(rotations[2], Eigen::Vector3d::UnitX());
   rot_B2W = rot_W2B.transpose();
 }
 
@@ -1197,8 +1197,8 @@ bool DarpaGateParams::loadParams(std::string ns) {
   param_name = ns + "/darpa_frame_offset";
   if ((!ros::param::get(param_name, param_val)) || (param_val.size() != 3)) {
     ROSPARAM_WARN(param_name, darpa_frame_offset[0]
-                                  << "," << darpa_frame_offset[1] << ","
-                                  << darpa_frame_offset[2]);
+                  << "," << darpa_frame_offset[1] << ","
+                  << darpa_frame_offset[2]);
   } else {
     darpa_frame_offset << param_val[0], param_val[1], param_val[2];
   }
