@@ -10,19 +10,21 @@ int main(int argc, char **argv)
     
     ros::NodeHandle nh;
     ros::NodeHandle nh_private("~");
+    
+    MapManagerVoxblox<MapManagerVoxbloxServer, MapManagerVoxbloxVoxel>* map_manager = 
+        new MapManagerVoxblox<MapManagerVoxbloxServer, MapManagerVoxbloxVoxel> (nh, nh_private);   
+    FrontierExtraction frontierExtraction(nh, nh_private, map_manager);
 
-    FrontierExtraction frontierExtraction(nh, nh_private);
-
-    ros::spinOnce();
-    try
-    {
-        ros::spin();
-    }
-    catch (std::runtime_error &e)
-    {
-        ROS_ERROR("octree exception: %s", e.what());
-        return -1;
-    }
+    ros::spin();
+    // try
+    // {
+    //     ros::spin();
+    // }
+    // catch (std::runtime_error &e)
+    // {
+    //     ROS_ERROR("Graph Building Error: %s", e.what());
+    //     return -1;
+    // }
 
     return 0;
 }

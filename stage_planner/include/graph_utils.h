@@ -32,7 +32,7 @@
 #include <tf/transform_datatypes.h>
 #include <tf/transform_listener.h>
 
-typedef Eigen::Vector4d State; // x, y, z, yaw
+typedef Eigen::Vector3d State; // x, y, z
 
 struct Vertex {
   Vertex(int v_id, State v_state) {
@@ -125,9 +125,9 @@ public:
   void getShortestPath(int target_id, const ShortestPathsReport& rep,
                        bool source_to_target_order,
                        std::vector<Eigen::Vector3d>& path);
-  void getShortestPath(int target_id, const ShortestPathsReport& rep,
-                       bool source_to_target_order,
-                       std::vector<State>& path);
+  // void getShortestPath(int target_id, const ShortestPathsReport& rep,
+  //                      bool source_to_target_order,
+  //                      std::vector<State>& path);
   double getShortestDistance(int target_id, const ShortestPathsReport& rep);
   int getParentIDFromShortestPath(int target_id,
                                   const ShortestPathsReport& rep);

@@ -4,9 +4,6 @@
 #include "frontiers_extraction.h"
 #include "graph_utils.h"
 
-#include "map_manager.h"
-#include "map_manager_voxblox_impl.h"
-#include "params.h"
 
 struct node
 {
@@ -49,20 +46,17 @@ public:
   virtual void odomCallback(const nav_msgs::Odometry::ConstPtr &pos);
   Eigen::Vector3d quaternion_to_rpy(Eigen::Quaterniond q);
   virtual void mapCallback(ufomap_msgs::UFOMapStamped::ConstPtr const &map);
-  double calculateDistance(Eigen::Vector3d point1, Eigen::Vector3d point2);
-  double calculateDistance(State point1, State point2);
+  double calculateDistance(State s1, State s2);
   Eigen::Vector3d tunePlanningSpace(State state, double bounding_box_size);
   void sampleNodes(std::vector<node *> &nodes, State state, int iterations_max, double bounding_box_size);
-  Eigen::Vector3d pointToUfo(geometry_msgs::Point p);
-  std::vector<Eigen::Vector3d> pointsToUfo(std::vector<geometry_msgs::Point> points);
+  std::vector<Eigen::Vector3d> pointsToEigen(std::vector<geometry_msgs::Point> points);
   void fetchExplorationTargets();
   bool isLastTargetFrontier(geometry_msgs::Point last_target_frontier);
   bool nextExplorationPath(stage_planner::explorationPath::Request &req,
                            stage_planner::explorationPath::Response &res);
   Eigen::Quaternion<float> Euler2Quaternion(Eigen::Vector3d v);
 
-  State ufoToState(Eigen::Vector3d v);
-  Eigen::Vector3d stateToUfo(State s);
+  State eigenToState(Eigen::Vector3d v);
 
   void segmentPath(std::vector<Vertex *> path,
                    nav_msgs::Path &path_seg);
@@ -141,8 +135,6 @@ public:
 
   bool robot_aerial_ = false;
   double truncate_sample_Z_ = 1;
-  std::vector<double> safety_margin;
-  std::vector<double> robot_box_size;
   
 
   Eigen::Vector3d latest_root;
@@ -159,6 +151,7 @@ private:
   ros::NodeHandle nh_;
   ros::NodeHandle nh_private_;
 
+  Eigen::Vector3d robotState_;
   std::shared_ptr<GraphUtils> sub_graph_;
   std::shared_ptr<GraphUtils> global_graph_;
   std::shared_ptr<GraphUtils> frontier_graph_;
@@ -201,7 +194,8 @@ private:
   std::list<Vertex *> sparse_vertices;
   // variables
   
-  Eigen::Vector3d robotState_;
+  std::vector<double> safety_margin;
+  std::vector<double> robot_box_size;
   Eigen::Vector3d robot_box_size_;
   Eigen::Vector3d safety_margin_;
 

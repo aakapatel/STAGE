@@ -93,13 +93,18 @@
 #include "stage_planner/stopPlanning.h"
 #include "stage_planner/homePlanning.h"
 
+#include "map_manager.h"
+#include "map_manager_voxblox_impl.h"
+#include "params.h"
+#include "graph_utils.h"
+
 // Track computation time for different processes
 
 typedef ros::Time TIMER;
 #define START_TIMER(x) (x = ros::Time::now())
 #define GET_ELAPSED_TIME(x) (float)((ros::Time::now() - x).toSec())
 
-typedef Eigen::Vector3d State; // x, y, z
+// typedef Eigen::Vector3d State; // x, y, z
 
 
 class FrontierExtraction
@@ -112,7 +117,7 @@ public:
     typedef octomap::OcTree OcTreeT;
     typedef octomap::KeySet KeySet;
 
-    FrontierExtraction(const ros::NodeHandle& nh, const ros::NodeHandle& nh_private);
+    FrontierExtraction(const ros::NodeHandle &nh, const ros::NodeHandle &nh_private, MapManagerVoxblox<MapManagerVoxbloxServer, MapManagerVoxbloxVoxel> *map_manager);
 
     Eigen::Vector3d quaternion_to_rpy(Eigen::Quaterniond q);
     
@@ -157,7 +162,7 @@ public:
     bool queryFrontierTarget(stage_planner::isFrontier::Request &req,
                              stage_planner::isFrontier::Response &res);
 
-    geometry_msgs::Point ufoToPoint(Eigen::Vector3d v);
+    geometry_msgs::Point eigenToPoint(Eigen::Vector3d v);
     
     std::vector<geometry_msgs::Point> fetchLocalTargets ();
     
@@ -167,13 +172,19 @@ private:
 
     ros::NodeHandle nh_;
     ros::NodeHandle nh_private_;
-    
-
+  
+    MapManagerVoxblox<MapManagerVoxbloxServer,
+                      MapManagerVoxbloxVoxel> *map_manager_;
 
     // variables
     
-    bool robot_aerial_ = false;
+    std::string robot_type_ = "kAerial";
 
+    std::vector<double> safety_margin;
+    std::vector<double> robot_box_size;
+    Eigen::Vector3d robot_box_size_;
+    Eigen::Vector3d safety_margin_;
+    
     Eigen::Vector3d robotState_;
     Eigen::Quaterniond quat_;
     Eigen::Vector3d m_currentPosition;

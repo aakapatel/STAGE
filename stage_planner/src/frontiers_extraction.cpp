@@ -5,12 +5,13 @@ using namespace std;
 using namespace std::chrono;
 using namespace std::this_thread;
 
-FrontierExtraction::FrontierExtraction(const ros::NodeHandle &nh, const ros::NodeHandle &nh_private)
+FrontierExtraction::FrontierExtraction(const ros::NodeHandle &nh, const ros::NodeHandle &nh_private,
+                                       MapManagerVoxblox<MapManagerVoxbloxServer, MapManagerVoxbloxVoxel> *map_manager)
     : nh_(nh),
       nh_private_(nh_private),
+      map_manager_(map_manager),
       m_maxRange(10.0),
       m_filterGroundPlane(false),
-      m_colorFactor(0.8),
       m_pointcloudMinX(-std::numeric_limits<double>::max()),
       m_pointcloudMaxX(std::numeric_limits<double>::max()),
       m_pointcloudMinY(-std::numeric_limits<double>::max()),
@@ -26,9 +27,9 @@ FrontierExtraction::FrontierExtraction(const ros::NodeHandle &nh, const ros::Nod
       m_res(0.5),
       m_treeDepth(0),
       m_maxTreeDepth(0),
-      xFiltering(false),
-      yFiltering(false),
-      zFiltering(false),
+      xFiltering(true),
+      yFiltering(true),
+      zFiltering(true),
       m_distance_deletion(8.0),
       LOCAL_SPACE(10),
       LOCAL_FOV(40),
@@ -38,39 +39,31 @@ FrontierExtraction::FrontierExtraction(const ros::NodeHandle &nh, const ros::Nod
       OBB_RADIUS(0.5),
       mapDepth_(0),
       VOLUMETRIC_GAIN_THREASHOLD(10),
-      robot_aerial_(false)
+      robot_type_("kAerial")
 
 {
     double probHit, probMiss, thresMin, thresMax;
     // Set variables
     nh_private_.param("frame_id", m_worldFrameId, m_worldFrameId);
-    nh_private_.param("voxblox_topic", m_voxblox_topic, m_voxblox_topic);
-    nh_private_.param("resolution", m_res, m_res);
+    nh_private_.param("octree_resolution", m_res, m_res);
     nh_private_.param("sensor_model/hit", probHit, 0.7);
     nh_private_.param("sensor_model/miss", probMiss, 0.4);
     nh_private_.param("sensor_model/min", thresMin, 0.12);
     nh_private_.param("sensor_model/max", thresMax, 0.97);
     nh_private_.param("sensor_model/max_range", m_maxRange, m_maxRange);
-    nh_private_.param("occupancy_min_z", m_occupancyMinZ, m_occupancyMinZ);
-    nh_private_.param("occupancy_max_z", m_occupancyMaxZ, m_occupancyMaxZ);
-    nh_private_.param("color_factor", m_colorFactor, m_colorFactor);
-    nh_private_.param("cloud_in", cloud_in, cloud_in);
-    nh_private_.param("distance", m_distance_deletion, m_distance_deletion);
-    nh_private_.param("odometry", m_odometry, m_odometry);
-    nh_private_.param("number_of_unknowns", numberOfUnknowns, numberOfUnknowns);
-    nh_private_.param("local_sliding_space", LOCAL_SPACE, LOCAL_SPACE);
-    nh_private_.param("local_field_of_view", LOCAL_FOV, LOCAL_SPACE);
-    nh_private_.param("ufomap", m_ufomap, m_ufomap);
-    nh_private_.param("safety_height", max_allowed_height_, max_allowed_height_);
-    nh_private_.param("traversability_radius", OBB_RADIUS, OBB_RADIUS);
-    nh_private_.param("planning_check_depth", mapDepth_, mapDepth_);
-    nh_private_.param("volumetric_gain_threashold", VOLUMETRIC_GAIN_THREASHOLD, VOLUMETRIC_GAIN_THREASHOLD);
-    nh_private_.param("robot_aerial", robot_aerial_, robot_aerial_);
-    // Filtering parameters.
-    nh_private_.param("xFiltering", xFiltering, xFiltering);
-    nh_private_.param("yFiltering", yFiltering, yFiltering);
-    nh_private_.param("zFiltering", zFiltering, zFiltering);
+    nh_private_.param("point_cloud_topic", cloud_in, cloud_in);
+    nh_private_.param("frontier_clearing_range", m_distance_deletion, m_distance_deletion);
+    nh_private_.param("odometry_topic", m_odometry, m_odometry);
+    nh_private_.param("unknowns_threashold", numberOfUnknowns, numberOfUnknowns);
+    nh_private_.param("local_AABB_size", LOCAL_SPACE, LOCAL_SPACE);
+    nh_private_.param("local_FOV", LOCAL_FOV, LOCAL_SPACE);
+    nh_private_.param("truncate_frontiers_Z", max_allowed_height_, max_allowed_height_);
+    nh_private_.param("robot_type", robot_type_, robot_type_);
+    
+    nh_private_.param("safety_margin", safety_margin, safety_margin);
+    nh_private_.param("robot_size", robot_box_size, robot_box_size);
 
+    
     // Setting up octree
     m_octree = new OcTreeT(m_res);
     m_octree->setProbHit(probHit);
@@ -81,24 +74,6 @@ FrontierExtraction::FrontierExtraction(const ros::NodeHandle &nh, const ros::Nod
     m_treeDepth = m_octree->getTreeDepth();
     m_maxTreeDepth = m_treeDepth;
 
-    // Visualization parameters. TODO Port alla visuzlization to a dediacted file.
-    double r, g, b, a;
-    nh_private_.param("color/r", r, 0.0);
-    nh_private_.param("color/g", g, 0.0);
-    nh_private_.param("color/b", b, 1.0);
-    nh_private_.param("color/a", a, 1.0);
-    m_color.r = r;
-    m_color.g = g;
-    m_color.b = b;
-    m_color.a = a;
-    nh_private_.param("color_free/r", r, 0.0);
-    nh_private_.param("color_free/g", g, 1.0);
-    nh_private_.param("color_free/b", b, 0.0);
-    nh_private_.param("color_free/a", a, 1.0);
-    m_colorFree.r = r;
-    m_colorFree.g = g;
-    m_colorFree.b = b;
-    m_colorFree.a = a;
 
     // Subscribers
 
@@ -125,9 +100,14 @@ FrontierExtraction::FrontierExtraction(const ros::NodeHandle &nh, const ros::Nod
 
     m_target_query_srv = nh_.advertiseService("query_frontier_target", &FrontierExtraction::queryFrontierTarget, this);
 
-    if (!robot_aerial_)
+    robot_box_size_ << robot_box_size[0], robot_box_size[1], robot_box_size[2];
+    safety_margin_ << safety_margin[0], safety_margin[1], safety_margin[2];
+    
+    map_manager_->setRobotRadius(robot_box_size_.norm() / 2.0);
+    
+    if (robot_type_ == "kLegged")
     {
-        max_allowed_height_ = 2;
+        max_allowed_height_ = 1;
     }
 };
 
@@ -309,7 +289,6 @@ void FrontierExtraction::extractFrontiers(const tf::Point &sensorOriginTf, const
                     double z_diff = abs(m_currentPose.pose.pose.position.z - pt.z());
 
                     if (z_diff < max_allowed_height_)
-                    // if ((z_diff < 8))
                     {
 
                         if (FrontierExtraction::verifyFrontier(x, y, z, sensorOrigin) && !(m_octree->isNodeOccupied(me)))
@@ -330,24 +309,26 @@ std::vector<Eigen::Vector3d> FrontierExtraction::fetchFrontiers()
 
     // ROS_INFO_STREAM ("raw frontiers : " << frontierPointList.size() << "\n");
 
-    std::vector<Eigen::Vector3d> unfiltered_frontiers;
+    std::vector<Eigen::Vector3d> frontiers;
 
     for (auto i = frontierPointList.begin(); i != frontierPointList.end(); i++)
     {
 
         Eigen::Vector3d frontier_pt(i->x(), i->y(), i->z());
-
-        ufo::geometry::Sphere sphere(frontier_pt, 1);
       
         // VOXBLOX BOX STATUS FOR COLLISION CHECK
+      
+        if (MapManager::VoxelStatus::kFree ==
+            map_manager_->getBoxStatus(frontier_pt + safety_margin_, robot_box_size_, true))
+        {
+          frontiers.push_back(frontier_pt);
+        }
 
-
-            unfiltered_frontiers.push_back(frontier_pt);
     }
 
     // ROS_INFO_STREAM ("Unfiltered frontiers size : " << unfiltered_frontiers.size() << "\n");
 
-    return unfiltered_frontiers;
+    return frontiers;
 }
 
 Eigen::Vector3d FrontierExtraction::quaternion_to_rpy(Eigen::Quaterniond q)

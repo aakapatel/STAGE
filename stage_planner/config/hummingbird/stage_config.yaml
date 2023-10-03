@@ -1,12 +1,31 @@
 frame_id: "world"
 odometry_topic: "/hummingbird/ground_truth/odometry"
-local_AABB_size: 15
-local_FOV: 40
+point_cloud_topic: "/hummingbird/velodyne_points"
 ufoMAP_topic: "/ufomap_mapping_server_node/map"
 ufoMAP_depth: 1
+local_AABB_size: 15
+local_FOV: 40
 max_edge_length: 2
 sampling_iterations: 1200
 robot_type: "kAerial" #"kLegged" 
 safety_margin: [0.5, 0.5, 0.5]
 robot_size: [0.5, 0.5, 0.5]
+octree_resolution: 0.5
+frontier_detection_range: 15
+frontier_clearing_range: 14
+unknowns_threashold: 4 
+truncate_frontier_Z: 6 
 
+
+
+
+
+
+
+
+########## DO NOT TOUCH ############
+
+sensor_model_hits: 0.7
+sensor_model_miss: 0.4
+sensor_model_min: 0.12
+sensor_model_max: 0.97

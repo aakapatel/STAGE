@@ -226,16 +226,16 @@ void GraphUtils::getShortestPath(int target_id,
   }
 }
 
-void GraphUtils::getShortestPath(int target_id,
-                                   const ShortestPathsReport& rep,
-                                   bool source_to_target_order,
-                                   std::vector<State>& path) {
-  std::vector<int> path_id;
-  getShortestPath(target_id, rep, source_to_target_order, path_id);
-  for (auto p = path_id.begin(); p != path_id.end(); ++p) {
-    path.emplace_back(vertices_map_[*p]->state);
-  }
-}
+// void GraphUtils::getShortestPath(int target_id,
+//                                    const ShortestPathsReport& rep,
+//                                    bool source_to_target_order,
+//                                    std::vector<State>& path) {
+//   std::vector<int> path_id;
+//   getShortestPath(target_id, rep, source_to_target_order, path_id);
+//   for (auto p = path_id.begin(); p != path_id.end(); ++p) {
+//     path.emplace_back(vertices_map_[*p]->state);
+//   }
+// }
 
 void GraphUtils::getShortestPath(int target_id,
                                    const ShortestPathsReport& rep,

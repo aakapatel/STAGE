@@ -125,7 +125,7 @@ Eigen::Vector3d GraphManager::quaternion_to_rpy(Eigen::Quaterniond q)
   return Eigen::Vector3d{roll, pitch, yaw};
 }
 
-Eigen::Quaternion<float> GraphManager::Euler2Quaternion(ufo::math::Vector3 v)
+Eigen::Quaternion<float> GraphManager::Euler2Quaternion(Eigen::Vector3d v)
 {
   float roll = v.x();
   float pitch = v.y();
@@ -176,10 +176,10 @@ void GraphManager::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
   {
     m_currentPose = *pose;
 
-    ufo::math::Vector3 newPoint(pose->pose.pose.position.x,
+    State newPoint(pose->pose.pose.position.x,
                                 pose->pose.pose.position.y,
                                 pose->pose.pose.position.z);
-    ufo::math::Vector3 oldPoint(m_prevPose.pose.pose.position.x,
+    State oldPoint(m_prevPose.pose.pose.position.x,
                                 m_prevPose.pose.pose.position.y,
                                 m_prevPose.pose.pose.position.z);
 
@@ -229,17 +229,7 @@ double GraphManager::calculateDistance(State s1,
 
   double d =
     sqrt(pow(s1.x() - s2.x(), 2) + pow(s1.y() - s2.y(), 2) +
-         pow(s.z() - s2.z(), 2));
-  return d;
-}
-
-double GraphManager::calculateDistance(Eigen::Vector3d point1,
-                                       Eigen::Vector3d point2)
-{
-
-  double d =
-    sqrt(pow(point1.x() - point2.x(), 2) + pow(point1.y() - point2.y(), 2) +
-         pow(point1.z() - point2.z(), 2));
+         pow(s1.z() - s2.z(), 2));
   return d;
 }
 
@@ -274,7 +264,7 @@ double GraphManager::computeExplorationGain(State state)
   // return free.size();
 }
 
-ufo::math::Vector3 GraphManager::tunePlanningSpace(State state, double bounding_box_size)
+Eigen::Vector3d GraphManager::tunePlanningSpace(State state, double bounding_box_size)
 {
 
   highest_x = -std::numeric_limits<float>::max();
@@ -322,7 +312,7 @@ ufo::math::Vector3 GraphManager::tunePlanningSpace(State state, double bounding_
     }
   }
 
-  ufo::math::Vector3 planning_space_scaler(
+  Eigen::Vector3d planning_space_scaler(
     highest_x - lowest_x, highest_y - lowest_y, highest_z - lowest_z);
 
   return planning_space_scaler;
@@ -340,7 +330,7 @@ void GraphManager::sampleNodes(std::vector<node *> &nodes, State state, int iter
   srand(time(0));
   int itterations = 0;
 
-  ufo::math::Vector3 box = tunePlanningSpace(state, bounding_box_size);
+  Eigen::Vector3d box = tunePlanningSpace(state, bounding_box_size);
 
   while (itterations < iterations_max)
   {
@@ -348,20 +338,20 @@ void GraphManager::sampleNodes(std::vector<node *> &nodes, State state, int iter
     // Generate a random point
 
     float z;
-    float x = lowest_x + abs(1024 * rand() / (RAND_MAX + 1.0)) * box.x();
-    float y = lowest_y + abs(1024 * rand() / (RAND_MAX + 1.0)) * box.y();
+    float x = lowest_x + abs(1024 * rand() / (RAND_MAX + 1.0)) * box[0];
+    float y = lowest_y + abs(1024 * rand() / (RAND_MAX + 1.0)) * box[1];
 
     if (robot_aerial_)
       {
 
-        z = lowest_z + abs(1024 * rand() / (RAND_MAX + 1.0)) * box.z();
+        z = lowest_z + abs(1024 * rand() / (RAND_MAX + 1.0)) * box[2];
       }
     else
     {
 
       z = robotState_[2] + abs(1024 * rand() / (RAND_MAX + 1.0)) * truncate_sample_Z_;
     }
-    ufo::math::Vector3 random_point(x, y, z);
+    Eigen::Vector3d random_point(x, y, z);
     Eigen::Vector3d random_state(x, y, z);
     if (MapManager::VoxelStatus::kFree ==
       map_manager_->getBoxStatus(random_state + safety_margin_, robot_box_size_, true))
@@ -373,7 +363,7 @@ void GraphManager::sampleNodes(std::vector<node *> &nodes, State state, int iter
       for (it_node = nodes.begin(); it_node != nodes.end();
       it_node++)
       {
-        ufo::math::Vector3 direction = random_point - *((*it_node)->point);
+        Eigen::Vector3d direction = random_point - *((*it_node)->point);
         double new_distance = abs(direction.norm());
         if (new_distance < distance)
         {
@@ -567,22 +557,13 @@ void GraphManager::debugGraph(State root, State goal)
 }
 
 
-State GraphManager::ufoToState(ufo::math::Vector3 v)
+State GraphManager::eigenToState(Eigen::Vector3d v)
 {
   State s;
   s.x() = v.x();
   s.y() = v.y();
   s.z() = v.z();
   return s;
-}
-
-ufo::math::Vector3 GraphManager::stateToUfo(State s)
-{
-  ufo::math::Vector3 v;
-  v.x() = s.x();
-  v.y() = s.y();
-  v.z() = s.z();
-  return v;
 }
 
 void GraphManager::resetLocalGraph()
@@ -726,17 +707,8 @@ void GraphManager::updateKdtree()
         v->is_sampled = false;
       }
 
-      // ids.push_back(id);
     }
   }
-
-  // for (int i : ids)
-  // {
-  //
-  //   global_graph_->clearVertex(global_graph_->vertices_map_[i]->id);
-  //   // global_graph_->removeVertex(global_graph_->vertices_map_[i]->id);
-  // }
-  // global_graph_rep_.reset();
 }
 
 double GraphManager::getPathLength(std::vector<Vertex *> path)
@@ -804,7 +776,7 @@ bool GraphManager::buildLocalGraph()
 
   for (int i = 0; i < nodes.size(); i++)
   {
-    Vertex *vertex = new Vertex(sub_graph_->generateVertexID(), ufoToState(*(nodes[i]->point)));
+    Vertex *vertex = new Vertex(sub_graph_->generateVertexID(), eigenToState(*(nodes[i]->point)));
     vertex->is_local = true;
     vertex->is_frontier = false;
     vertex->sub_id = vertex->id;
@@ -1056,7 +1028,7 @@ bool GraphManager::setPath()
 
         if (MapManager::VoxelStatus::kFree == vs or MapManager::VoxelStatus::kUnknown == vs)
           {
-            State s = Eigen::Vector4d(v_root[0], v_root[1], v_root[2], 0);
+            State s = Eigen::Vector3d(v_root[0], v_root[1], v_root[2]);
 
             Vertex *root_vertex = new Vertex(path_iterator_, s);
             path_seg.push_back(root_vertex);
@@ -1076,7 +1048,7 @@ bool GraphManager::setPath()
 
               float angle = atan2(new_path.poses[i + 1].pose.position.y - new_path.poses[i].pose.position.y,
                                   new_path.poses[i + 1].pose.position.x - new_path.poses[i].pose.position.x);
-              ufo::math::Vector3 v(0, 0, angle);
+              Eigen::Vector3d v(0, 0, angle);
               Eigen::Quaternion<float> q = Euler2Quaternion(v);
 
               p.pose.position.x = new_path.poses[i].pose.position.x;
@@ -1517,23 +1489,18 @@ void GraphManager::updateGraph(const ros::TimerEvent &event)
   // Can off load some repetitive stuff here
 }
 
-ufo::math::Vector3 GraphManager::pointToUfo(geometry_msgs::Point p)
-{
-  ufo::math::Vector3 v(p.x, p.y, p.z);
-  return v;
-}
-
-std::vector<ufo::math::Vector3> GraphManager::pointsToUfo(std::vector<geometry_msgs::Point> points)
+std::vector<Eigen::Vector3d> GraphManager::pointsToEigen(std::vector<geometry_msgs::Point> points)
 {
 
-  std::vector<ufo::math::Vector3> ufo_vec;
+  std::vector<Eigen::Vector3d> vec;
 
   for (geometry_msgs::Point p : points)
   {
-    ufo_vec.push_back(ufo::math::Vector3(p.x, p.y, p.z));
+    Eigen::Vector3d v(p.x, p.y, p.z);
+    vec.push_back(v);
   }
 
-  return ufo_vec;
+  return vec;
 }
 
 void GraphManager::fetchExplorationTargets()
@@ -1553,9 +1520,9 @@ void GraphManager::fetchExplorationTargets()
     {
 
       // get a frontier target in local FOV
-      local_exploration_targets_ = pointsToUfo(frontier_srv.response.local_targets);
+      local_exploration_targets_ = pointsToEigen(frontier_srv.response.local_targets);
 
-      global_repos_targets_ = pointsToUfo(frontier_srv.response.global_targets);
+      global_repos_targets_ = pointsToEigen(frontier_srv.response.global_targets);
 
       GraphManager::resetFrontierGraph();
 
@@ -1570,9 +1537,9 @@ void GraphManager::fetchExplorationTargets()
 
         for (auto i : local_exploration_targets_)
         {
-          Vertex *frontier_vertex = new Vertex(frontier_graph_->generateVertexID(), ufoToState(i));
+          Vertex *frontier_vertex = new Vertex(frontier_graph_->generateVertexID(), eigenToState(i));
           frontier_vertex->is_local = true;
-          frontier_vertex->gain = 10 * computeExplorationGain(ufoToState(i));
+          frontier_vertex->gain = 10 * computeExplorationGain(eigenToState(i));
           frontier_graph_->addVertex(frontier_vertex);
           gains.push_back(frontier_vertex->gain);
         }
@@ -1583,9 +1550,9 @@ void GraphManager::fetchExplorationTargets()
 
         for (auto i : global_repos_targets_)
         {
-          Vertex *frontier_vertex = new Vertex(frontier_graph_->generateVertexID(), ufoToState(i));
+          Vertex *frontier_vertex = new Vertex(frontier_graph_->generateVertexID(), eigenToState(i));
           frontier_vertex->is_local = false;
-          frontier_vertex->gain = 10 * computeExplorationGain(ufoToState(i));
+          frontier_vertex->gain = 10 * computeExplorationGain(eigenToState(i));
           // ROS_INFO_STREAM ("Frontier vertex gain : " << frontier_vertex->gain << "\n");
           frontier_graph_->addVertex(frontier_vertex);
           gains.push_back(frontier_vertex->gain);
