@@ -148,7 +148,10 @@ public:
   double average_gain;
 
   bool robot_aerial_ = false;
-  double max_graph_height_ = 2;
+  double truncate_sample_Z_ = 1;
+  std::vector<double> safety_margin;
+  std::vector<double> robot_box_size;
+  
 
   Eigen::Vector3d latest_root;
   Eigen::Vector3d previous_root;
@@ -210,11 +213,6 @@ private:
   Eigen::Vector3d robot_box_size_;
   Eigen::Vector3d safety_margin_;
 
-  double safety_margin;
-  double robot_box_x;
-  double robot_box_y;
-  double robot_box_z;
-
   bool build_global_graph_ = false;
  
   // Global re-positioning in presence of unknown change in environment variables
@@ -234,7 +232,9 @@ private:
 
 
   //
+  
 
+  std::string robot_type_ = "kAerial";
   Eigen::Quaterniond quat_;
   bool firstTime = true;
   ufo::math::Vector3 m_currentPosition;

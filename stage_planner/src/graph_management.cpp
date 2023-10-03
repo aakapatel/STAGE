@@ -24,11 +24,7 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
   iterations_local_(2000),
   iterations_global_(6000),
   max_edge_length_(4),
-  safety_margin(0.8),
-  robot_box_x(0.5),
-  robot_box_y(0.5),
-  robot_box_z(0.5),
-  robot_aerial_(false)
+  robot_type_("kAerial")
 
 {
   // map_manager_ =
@@ -36,28 +32,16 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
   //        nh_, nh_private_);
   // Set variables
   nh_private_.param("frame_id", m_worldFrameId, m_worldFrameId);
-  nh_private_.param("odometry", m_odometry, m_odometry);
+  nh_private_.param("odometry_topic", m_odometry, m_odometry);
 
-  nh_private_.param("local_sliding_space", bounding_box_size_, bounding_box_size_);
-  nh_private_.param("local_field_of_view", m_local_fov, m_local_fov);
-  nh_private_.param("ufomap", m_ufomap, m_ufomap);
-  nh_private_.param("safety_height", m_max_allowed_Z, m_max_allowed_Z);
-  nh_private_.param("traversability_radius", obb_radius_, obb_radius_);
-  nh_private_.param("planning_check_depth", mapDepth_, mapDepth_);
-  nh_private_.param("volumetric_gain_threashold", m_volumetric_gain_threashold,
-                    m_volumetric_gain_threashold);
-  nh_private_.param("graph_density_coefficient", m_min_dist_bw_nodes,
-                    m_min_dist_bw_nodes);
-  nh_private_.param("maximum_edge_length", max_edge_length_, max_edge_length_);
-  nh_private_.param("maximum_iterations_local", iterations_local_, iterations_local_);
-  nh_private_.param("maximum_iterations_global", iterations_global_, iterations_global_);
-
+  nh_private_.param("local_AABB_size", bounding_box_size_, bounding_box_size_);
+  nh_private_.param("local_FOV", m_local_fov, m_local_fov);
+  nh_private_.param("ufoMAP_topic", m_ufomap, m_ufomap);
+  nh_private_.param("ufoMAP_depth", mapDepth_, mapDepth_);
+  nh_private_.param("max_edge_length", max_edge_length_, max_edge_length_);
+  nh_private_.param("sampling_iterations", iterations_local_, iterations_local_);
   nh_private_.param("safety_margin", safety_margin, safety_margin);
-
-  nh_private_.param("robot_aerial", robot_aerial_, robot_aerial_);
-  nh_private_.param("robot_x", robot_box_x, robot_box_x);
-  nh_private_.param("robot_y", robot_box_y, robot_box_y);
-  nh_private_.param("robot_z", robot_box_z, robot_box_z);
+  nh_private_.param("robot_size", robot_box_size, robot_box_size);
 
   // Subscribers
 
@@ -102,17 +86,12 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
 
   graph_timer_ = nh_.createTimer(ros::Duration(1), &GraphManager::updateGraph, this);
 
-  safety_margin_[0] = safety_margin;
-  safety_margin_[1] = safety_margin;
-  safety_margin_[2] = safety_margin;
+  robot_box_size_ << robot_box_size[0], robot_box_size[1], robot_box_size[2];
+  safety_margin_ << safety_margin[0], safety_margin[1], safety_margin[2];
 
-  robot_box_size_[0] = robot_box_x;
-  robot_box_size_[1] = robot_box_y;
-  robot_box_size_[2] = robot_box_z;
-
-  if (!robot_aerial_)
+  if (robot_type_ == "kLegged")
   {
-    max_graph_height_ = 1;
+    truncate_sample_Z_ = 1;
   }
 
   map_manager_->setRobotRadius(robot_box_size_.norm() / 2.0);
@@ -243,13 +222,6 @@ void GraphManager::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
   robotState_[0] = pose->pose.pose.position.x;
   robotState_[1] = pose->pose.pose.position.y;
   robotState_[2] = pose->pose.pose.position.z;
-  // if (!robot_aerial_) {
-  //   robotState_[2] = pose->pose.pose.position.z + 1;
-  //
-  // }
-  //  else {
-  //   robotState_[2] = pose->pose.pose.position.z;
-  // }
   robotState_[3] = yaw * (180 / M_PI);
 
   // GraphManager::visualizeFrontierGraph();
@@ -418,7 +390,7 @@ void GraphManager::sampleNodes(std::vector<node *> &nodes, State state, int iter
     else
     {
 
-      z = robotState_[2] + abs(1024 * rand() / (RAND_MAX + 1.0)) * max_graph_height_;
+      z = robotState_[2] + abs(1024 * rand() / (RAND_MAX + 1.0)) * truncate_sample_Z_;
     }
     ufo::math::Vector3 random_point(x, y, z);
     Eigen::Vector3d random_state(x, y, z);
@@ -536,7 +508,7 @@ void GraphManager::sampleNodesOBB(std::vector<node *> *nodes, int iterations_max
       }
     else
     {
-      z = robotState_[2] + abs(1024 * rand() / (RAND_MAX + 1.0)) * max_graph_height_;
+      z = robotState_[2] + abs(1024 * rand() / (RAND_MAX + 1.0)) * truncate_sample_Z_;
     }
 
     ufo::math::Vector3 random_point(x, y, z);
@@ -590,7 +562,7 @@ State GraphManager::generateRandomState(State root, State goal)
     }
   else
   {
-    z = robotState_[2] + abs(1024 * rand() / (RAND_MAX + 1.0)) * max_graph_height_;
+    z = robotState_[2] + abs(1024 * rand() / (RAND_MAX + 1.0)) * truncate_sample_Z_;
   }
 
   random_state[0] = x;
@@ -764,13 +736,13 @@ void GraphManager::expandGraph(int iterations_max, Vertex *root, Vertex *goal, d
     float y = root->state[1] + abs(1024 * rand() / (RAND_MAX + 1.0)) * (goal->state[1] - root->state[1]);
     float z;
 
-    if (robot_aerial_)
+    if (robot_type_ == "kAerial")
       {
         z = root->state[2] + abs(1024 * rand() / (RAND_MAX + 1.0)) * (goal->state[2] - root->state[2]);
       }
     else
     {
-      z = robotState_[2] + abs(1024 * rand() / (RAND_MAX + 1.0)) * max_graph_height_;
+      z = robotState_[2] + abs(1024 * rand() / (RAND_MAX + 1.0)) * truncate_sample_Z_;
     }
 
     ufo::math::Vector3 random_point(x, y, z);
@@ -2478,7 +2450,7 @@ void GraphManager::visualizeRandomNodes()
     float x = robotState_[0] + abs(1024 * rand() / (RAND_MAX + 1.0)) * box.x();
     float y = robotState_[1] + abs(1024 * rand() / (RAND_MAX + 1.0)) * box.y();
 
-    if (robot_aerial_)
+    if (robot_type_ == "kAerial")
       {
 
         z = robotState_[2] + abs(1024 * rand() / (RAND_MAX + 1.0)) * box.z();
@@ -2486,7 +2458,7 @@ void GraphManager::visualizeRandomNodes()
     else
     {
 
-      z = robotState_[2] + abs(1024 * rand() / (RAND_MAX + 1.0)) * max_graph_height_;
+      z = robotState_[2] + abs(1024 * rand() / (RAND_MAX + 1.0)) * truncate_sample_Z_;
     }
     ufo::math::Vector3 random_point(x, y, z);
     nodes.push_back(random_point);
