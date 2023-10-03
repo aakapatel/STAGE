@@ -194,12 +194,8 @@ void GraphManager::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
       pose_graph_->addEdge(vertex, previous_vertex, pose_graph_->distanceBetweenVertices(vertex, previous_vertex));
 
       global_graph_->state_history_.push_back(robotState_);
-      // GraphManager::visualizeRandomNodes();
     }
   }
-  m_currentPosition.x() = m_currentPose.pose.pose.position.x;
-  m_currentPosition.y() = m_currentPose.pose.pose.position.y;
-  m_currentPosition.z() = m_currentPose.pose.pose.position.z;
 
   Eigen::Quaterniond attitude{pose->pose.pose.orientation.w, pose->pose.pose.orientation.x,
     pose->pose.pose.orientation.y, pose->pose.pose.orientation.z};
@@ -222,56 +218,29 @@ void GraphManager::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
   robotState_[0] = pose->pose.pose.position.x;
   robotState_[1] = pose->pose.pose.position.y;
   robotState_[2] = pose->pose.pose.position.z;
-  robotState_[3] = yaw * (180 / M_PI);
 
   // GraphManager::visualizeFrontierGraph();
   GraphManager::visualizePoseGraph();
 }
 
-double GraphManager::calculateDistance(ufo::math::Vector3 point1,
-                                       ufo::math::Vector3 point2)
+double GraphManager::calculateDistance(State s1,
+                                       State s2)
+{
+
+  double d =
+    sqrt(pow(s1.x() - s2.x(), 2) + pow(s1.y() - s2.y(), 2) +
+         pow(s.z() - s2.z(), 2));
+  return d;
+}
+
+double GraphManager::calculateDistance(Eigen::Vector3d point1,
+                                       Eigen::Vector3d point2)
 {
 
   double d =
     sqrt(pow(point1.x() - point2.x(), 2) + pow(point1.y() - point2.y(), 2) +
          pow(point1.z() - point2.z(), 2));
   return d;
-}
-
-bool GraphManager::isInCollision(
-  ufo::map::OccupancyMapColor const &map,
-  ufo::geometry::BoundingVar const &bounding_volume, bool occupied_space,
-  bool free_space, bool unknown_space, ufo::map::DepthType min_depth)
-{
-
-  for (auto it = map.beginLeaves(bounding_volume, occupied_space, free_space,
-                                 unknown_space, false, min_depth),
-  it_end = map.endLeaves();
-  it != it_end; ++it)
-  {
-    return true;
-  }
-  return false;
-}
-
-ufo::geometry::OBB GraphManager::makeOBB(ufo::math::Vector3 source,
-                                         ufo::math::Vector3 goal,
-                                         float radius)
-{
-
-  ufo::math::Vector3 direction = goal - source;
-  ufo::math::Vector3 center = source + (direction / 2.0);
-  double distance = direction.norm();
-  direction /= distance;
-  double yaw = -atan2(direction[1], direction[0]);
-  // double pitch = -asin(direction[2]);
-  double pitch = 0;
-  double roll = 0;
-  ufo::geometry::OBB obb(center,
-                         ufo::map::Point3(distance / 2.0, radius, radius),
-                         ufo::math::Quaternion(roll, pitch, yaw));
-
-  return obb;
 }
 
 double GraphManager::computeExplorationGain(State state)
@@ -429,121 +398,6 @@ void GraphManager::sampleNodes(std::vector<node *> &nodes, State state, int iter
 
 } // sampleNodes
 
-std::pair<Eigen::Vector3d, Eigen::Vector3d> GraphManager::tuneBounds(State root, State goal, double radius)
-{
-
-  float h_x, h_y, h_z = -std::numeric_limits<float>::max();
-  float l_x, l_y, l_z = std::numeric_limits<float>::max();
-  // ufo::math::Vector3 minPoint(root[0],
-  //                             root[1],
-  //                             root[2]);
-  // ufo::math::Vector3 maxPoint(goal[0],
-  //                             goal[1],
-  //                             goal[2]);
-  // ufo::geometry::AABB aabb(minPoint, maxPoint);
-  ufo::geometry::OBB obb = makeOBB(stateToUfo(root), stateToUfo(goal), radius);
-
-  for (auto it = ufoMAP_.beginLeaves(obb, false, true, false, false,
-                                     mapDepth_);
-  it != ufoMAP_.endLeaves(); ++it)
-  {
-    if (it.getX() > h_x)
-    {
-      h_x = it.getX();
-    }
-    if (it.getX() < l_x)
-    {
-      l_x = it.getX();
-    }
-    if (it.getY() > h_y)
-    {
-      h_y = it.getY();
-    }
-    if (it.getY() < l_y)
-    {
-      l_y = it.getY();
-    }
-    if (it.getZ() > h_z)
-    {
-      h_z = it.getZ();
-    }
-    if (it.getZ() < l_z)
-    {
-      l_z = it.getZ();
-    }
-  }
-
-  Eigen::Vector3d low_bound(l_x, l_y, l_z);
-  Eigen::Vector3d high_bound(h_x - l_x, h_y - l_y, h_z - l_z);
-
-  std::pair<Eigen::Vector3d, Eigen::Vector3d> bounds(std::make_pair(low_bound, high_bound));
-
-  return bounds;
-}
-
-void GraphManager::sampleNodesOBB(std::vector<node *> *nodes, int iterations_max, State root, State goal, double radius)
-{
-
-  std::pair<Eigen::Vector3d, Eigen::Vector3d> bounds = GraphManager::tuneBounds(root, goal, radius);
-  nodes->clear();
-
-  node *current_pos = new node(root.x(), root.y(), root.z());
-  current_pos->addParent(nullptr);
-  nodes->push_back(current_pos);
-
-  srand(time(0));
-  int itterations = 0;
-
-  while (itterations < iterations_max)
-  {
-
-    // Generate a random point
-    float x = bounds.first[0] + abs(1024 * rand() / (RAND_MAX + 1.0)) * bounds.second[0];
-    float y = bounds.first[1] + abs(1024 * rand() / (RAND_MAX + 1.0)) * bounds.second[1];
-    float z;
-
-    if (robot_aerial_)
-      {
-        z = bounds.first[2] + abs(1024 * rand() / (RAND_MAX + 1.0)) * bounds.second[2];
-      }
-    else
-    {
-      z = robotState_[2] + abs(1024 * rand() / (RAND_MAX + 1.0)) * truncate_sample_Z_;
-    }
-
-    ufo::math::Vector3 random_point(x, y, z);
-    Eigen::Vector3d random_state(x, y, z);
-    if (MapManager::VoxelStatus::kFree ==
-      map_manager_->getBoxStatus(random_state + safety_margin_, robot_box_size_, true))
-    {
-
-      float distance = std::numeric_limits<float>::max();
-      node *parent;
-      std::vector<node *>::iterator it_node;
-      for (it_node = nodes->begin(); it_node != nodes->end();
-      it_node++)
-      {
-        ufo::math::Vector3 direction = random_point - *((*it_node)->point);
-        double new_distance = abs(direction.norm());
-        if (new_distance < distance)
-        {
-          distance = new_distance;
-          parent = *it_node;
-        }
-      };
-      Eigen::Vector3d start_pos(parent->point->x(), parent->point->y(), parent->point->z());
-      if (MapManager::VoxelStatus::kFree ==
-        map_manager_->getPathStatus(random_state, start_pos, robot_box_size_, true))
-      {
-        node *new_node = new node(x, y, z);
-        new_node->addParent(parent);
-        parent->addChild(new_node);
-        nodes->push_back(new_node);
-      }
-    }
-    itterations++;
-  }
-}
 
 State GraphManager::generateRandomState(State root, State goal)
 {
@@ -712,104 +566,6 @@ void GraphManager::debugGraph(State root, State goal)
   debug_Graph_Vis_Pub_.publish(marker_array);
 }
 
-void GraphManager::expandGraph(int iterations_max, Vertex *root, Vertex *goal, double radius)
-{
-
-  std::pair<Eigen::Vector3d, Eigen::Vector3d> bounds = GraphManager::tuneBounds(root->state, goal->state, radius);
-  std::vector<node *> nodes;
-  nodes.clear();
-
-  node *current_pos = new node(root->state[0], root->state[1], root->state[2]);
-  current_pos->addParent(nullptr);
-  nodes.push_back(current_pos);
-
-  srand(time(0));
-  int itterations = 0;
-
-  bool allow_once = true;
-
-  while (itterations < iterations_max)
-  {
-
-    // Generate a random point
-    float x = root->state[0] + abs(1024 * rand() / (RAND_MAX + 1.0)) * (goal->state[0] - root->state[0]);
-    float y = root->state[1] + abs(1024 * rand() / (RAND_MAX + 1.0)) * (goal->state[1] - root->state[1]);
-    float z;
-
-    if (robot_type_ == "kAerial")
-      {
-        z = root->state[2] + abs(1024 * rand() / (RAND_MAX + 1.0)) * (goal->state[2] - root->state[2]);
-      }
-    else
-    {
-      z = robotState_[2] + abs(1024 * rand() / (RAND_MAX + 1.0)) * truncate_sample_Z_;
-    }
-
-    ufo::math::Vector3 random_point(x, y, z);
-    Eigen::Vector3d random_state(x, y, z);
-    if (MapManager::VoxelStatus::kFree ==
-      map_manager_->getBoxStatus(random_state + safety_margin_, robot_box_size_, true))
-    {
-
-      float distance = std::numeric_limits<float>::max();
-      node *parent;
-      std::vector<node *>::iterator it_node;
-      for (it_node = nodes.begin(); it_node != nodes.end();
-      it_node++)
-      {
-        ufo::math::Vector3 direction = random_point - *((*it_node)->point);
-        double new_distance = abs(direction.norm());
-        if (new_distance < distance)
-        {
-          distance = new_distance;
-          parent = *it_node;
-        }
-      };
-      Eigen::Vector3d start_pos(parent->point->x(), parent->point->y(), parent->point->z());
-      if ((start_pos - random_state).norm() > 0.5 and MapManager::VoxelStatus::kFree ==
-        map_manager_->getPathStatus(random_state, start_pos, robot_box_size_, true))
-      {
-        State previous_state = ufoToState(*parent->point);
-        Vertex *previous_vertex = new Vertex(global_graph_->generateVertexID(), previous_state);
-        global_graph_->addVertex(previous_vertex);
-
-        if (allow_once)
-        {
-          double weight = global_graph_->distanceBetweenVertices(global_graph_->vertices_map_[root->id], previous_vertex);
-          global_graph_->addEdge(global_graph_->vertices_map_[root->id], previous_vertex, weight);
-          allow_once = false;
-        }
-
-        State new_state = ufoToState(random_point);
-        Vertex *new_vertex = new Vertex(global_graph_->generateVertexID(), new_state);
-        global_graph_->addVertex(new_vertex);
-        double weight = global_graph_->distanceBetweenVertices(previous_vertex, new_vertex);
-        global_graph_->addEdge(previous_vertex, new_vertex, weight);
-
-        std::vector<Vertex *> neighbours;
-        global_graph_->getNearestVertices(&new_state, 2, &neighbours);
-        for (Vertex *v : neighbours)
-        {
-          if (v == goal)
-          {
-
-            double weight = global_graph_->distanceBetweenVertices(new_vertex, v);
-            global_graph_->addEdge(new_vertex, v, weight);
-            // v->edges++;
-            ROS_WARN_STREAM("Found Frontier \n");
-            // break;
-          }
-        }
-
-        node *new_node = new node(x, y, z);
-        new_node->addParent(parent);
-        parent->addChild(new_node);
-        nodes.push_back(new_node);
-      }
-    }
-    itterations++;
-  }
-}
 
 State GraphManager::ufoToState(ufo::math::Vector3 v)
 {
@@ -990,7 +746,7 @@ double GraphManager::getPathLength(std::vector<Vertex *> path)
 
   for (int i = 0; i < path.size() - 1; ++i)
   {
-    l = l + calculateDistance(stateToUfo(path[i]->state), stateToUfo(path[i + 1]->state));
+    l = l + calculateDistance(path[i]->state, path[i + 1]->state);
   }
   return l;
 }
@@ -2421,131 +2177,6 @@ void GraphManager::visualizeRepositionPath()
   marker_array.markers.push_back(vertex_marker);
 
   reposition_Path_Vis_Pub_.publish(marker_array);
-}
-
-void GraphManager::visualizeRandomNodes()
-{
-
-  if (local_goal_vertex == nullptr)
-  {
-    return;
-  }
-
-  visualization_msgs::MarkerArray marker_array;
-  ufo::math::Vector3 box(robotState_[0] - local_goal_vertex->state[0], robotState_[1] - local_goal_vertex->state[1],
-                         robotState_[2] - local_goal_vertex->state[2]);
-  ufo::math::Vector3 goal(local_goal_vertex->state[0], local_goal_vertex->state[1], local_goal_vertex->state[2]);
-  std::vector<ufo::math::Vector3> nodes;
-  nodes.clear();
-
-  nodes.push_back(stateToUfo(robotState_));
-
-  srand(time(0));
-  int itterations = 0;
-
-  while (itterations < 40)
-  {
-
-    float z;
-    float x = robotState_[0] + abs(1024 * rand() / (RAND_MAX + 1.0)) * box.x();
-    float y = robotState_[1] + abs(1024 * rand() / (RAND_MAX + 1.0)) * box.y();
-
-    if (robot_type_ == "kAerial")
-      {
-
-        z = robotState_[2] + abs(1024 * rand() / (RAND_MAX + 1.0)) * box.z();
-      }
-    else
-    {
-
-      z = robotState_[2] + abs(1024 * rand() / (RAND_MAX + 1.0)) * truncate_sample_Z_;
-    }
-    ufo::math::Vector3 random_point(x, y, z);
-    nodes.push_back(random_point);
-    itterations++;
-  }
-
-  // Plot all vertices
-  visualization_msgs::Marker vertex_marker;
-  vertex_marker.header.stamp = ros::Time::now();
-  vertex_marker.header.seq = 0;
-  vertex_marker.header.frame_id = "world";
-  vertex_marker.id = 0;
-  vertex_marker.ns = "vertices";
-  vertex_marker.action = visualization_msgs::Marker::ADD;
-  vertex_marker.type = visualization_msgs::Marker::SPHERE_LIST;
-  vertex_marker.scale.x = 0.3;
-  vertex_marker.scale.y = 0.3;
-  vertex_marker.scale.z = 0.3;
-  vertex_marker.color.r = 255.0 / 255.0;
-  vertex_marker.color.g = 0 / 255.0;
-  vertex_marker.color.b = 0 / 255.0;
-  vertex_marker.color.a = 1.0;
-  // vertex_marker.lifetime = ros::Duration(graph_lifetime);
-  vertex_marker.frame_locked = false;
-
-  for (ufo::math::Vector3 v : nodes)
-  {
-    geometry_msgs::Point p1;
-    p1.x = v.x();
-    p1.y = v.y();
-    p1.z = v.z();
-
-    vertex_marker.points.push_back(p1);
-  }
-  marker_array.markers.push_back(vertex_marker);
-
-  random_Nodes_Vis_Pub_.publish(marker_array);
-
-  bool box_vis = true;
-
-  if (box_vis)
-  {
-
-    // The direction from position to goal
-    ufo::math::Vector3 direction = goal - stateToUfo(robotState_);
-    // The center between position and goal
-    ufo::math::Vector3 center = stateToUfo(robotState_) + (direction / 2.0);
-    // The distance between position and goal
-    double distance = direction.norm();
-    // Normalize direction
-    direction /= distance;
-
-    // Calculate yaw, pitch and roll for oriented bounding box
-    double yaw = -atan2(direction[1], direction[0]);
-    double pitch = 0;
-    double roll = 0; // TODO: Fix
-
-    ufo::math::Vector3 v(roll, pitch, yaw);
-    Eigen::Quaternion<float> q = Euler2Quaternion(v);
-
-    visualization_msgs::Marker vertex_marker;
-    vertex_marker.header.stamp = ros::Time::now();
-    vertex_marker.header.seq = 0;
-    vertex_marker.header.frame_id = "world";
-    vertex_marker.id = 0;
-    vertex_marker.ns = "vertices";
-    vertex_marker.action = visualization_msgs::Marker::ADD;
-    vertex_marker.type = visualization_msgs::Marker::CUBE;
-    vertex_marker.pose.position.x = center.x();
-    vertex_marker.pose.position.y = center.y();
-    vertex_marker.pose.position.z = center.z();
-    vertex_marker.pose.orientation.x = q.x();
-    vertex_marker.pose.orientation.y = q.y();
-    vertex_marker.pose.orientation.z = q.z();
-    vertex_marker.pose.orientation.w = q.w();
-
-    vertex_marker.scale.x = distance / 2;
-    vertex_marker.scale.y = 2;
-    vertex_marker.scale.z = 2;
-    vertex_marker.color.r = 255.0 / 255.0;
-    vertex_marker.color.g = 0 / 255.0;
-    vertex_marker.color.b = 255.0 / 255.0;
-    vertex_marker.color.a = 0.4;
-    // vertex_marker.lifetime = ros::Duration(graph_lifetime);
-    vertex_marker.frame_locked = false;
-    overlap_Vis_Pub_.publish(vertex_marker);
-  }
 }
 
 void GraphManager::visualizeGlobalGraph()

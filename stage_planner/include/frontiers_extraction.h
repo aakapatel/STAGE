@@ -99,7 +99,7 @@ typedef ros::Time TIMER;
 #define START_TIMER(x) (x = ros::Time::now())
 #define GET_ELAPSED_TIME(x) (float)((ros::Time::now() - x).toSec())
 
-typedef Eigen::Vector4d State; // x, y, z, yaw
+typedef Eigen::Vector3d State; // x, y, z
 
 
 class FrontierExtraction
@@ -118,11 +118,9 @@ public:
     
     virtual void odomCallback(const nav_msgs::Odometry::ConstPtr &pos);
     
-    void voxbloxCallback(visualization_msgs::MarkerArray msg);
-
     void wrt_Body (Eigen::Vector3d frontier_W, Eigen::Vector3d& frontier_B);
     
-    double findAngle (ufo::math::Vector3 fpoint);
+    double findAngle (Eigen::Vector3d fpoint);
 
     virtual void insertPointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr &cloud);
 
@@ -131,34 +129,25 @@ public:
 
     virtual void extractFrontiers(const tf::Point &sensorOrigin, const ros::Time &rostime = ros::Time::now());
 
-    virtual void mapCallback(ufomap_msgs::UFOMapStamped::ConstPtr const &map);
-
     bool verifyFrontier(float x, float y, float z, point3d sensorOrigin);
 
-    double calculateDistance(ufo::math::Vector3 point1, ufo::math::Vector3 point2);
+    double calculateDistance(Eigen::Vector3d point1, Eigen::Vector3d point2);
 
-    bool isInCollision(ufo::map::OccupancyMapColor const &map,
-                       ufo::geometry::BoundingVar const &bounding_volume,
-                       bool occupied_space, bool free_space,
-                       bool unknown_space, ufo::map::DepthType min_depth);
+    double calculateAngle(Eigen::Vector3d fpoint);
 
-    ufo::geometry::OBB makeOBB(ufo::math::Vector3 source, ufo::math::Vector3 goal, float radius);
+    bool isLocal(Eigen::Vector3d point);
 
-    double calculateAngle(ufo::math::Vector3 fpoint);
+    std::vector<Eigen::Vector3d> fetchFrontiers();
 
-    bool isLocal(ufo::math::Vector3 point);
+    std::vector<Eigen::Vector3d> fetchLocalFrontiers();
 
-    std::vector<ufo::math::Vector3> fetchFrontiers();
+    std::vector<Eigen::Vector3d> fetchGlobalFrontiers();
 
-    std::vector<ufo::math::Vector3> fetchLocalFrontiers();
+    std::vector<Eigen::Vector3d> fetchLocallyTraversableFrontiers();
 
-    std::vector<ufo::math::Vector3> fetchGlobalFrontiers();
+    double computeVolumetricGain(Eigen::Vector3d frontier, ufo::map::OccupancyMapColor const &map);
 
-    std::vector<ufo::math::Vector3> fetchLocallyTraversableFrontiers();
-
-    double computeVolumetricGain(ufo::math::Vector3 frontier, ufo::map::OccupancyMapColor const &map);
-
-    ufo::math::Vector3 fetchInformativeFrontier();
+    Eigen::Vector3d fetchInformativeFrontier();
 
     std::vector<geometry_msgs::Point> fetchGlobalRepositioningTargets();
 
@@ -168,7 +157,7 @@ public:
     bool queryFrontierTarget(stage_planner::isFrontier::Request &req,
                              stage_planner::isFrontier::Response &res);
 
-    geometry_msgs::Point ufoToPoint(ufo::math::Vector3 v);
+    geometry_msgs::Point ufoToPoint(Eigen::Vector3d v);
     
     std::vector<geometry_msgs::Point> fetchLocalTargets ();
     
@@ -185,9 +174,9 @@ private:
     
     bool robot_aerial_ = false;
 
-    State robotState_;
+    Eigen::Vector3d robotState_;
     Eigen::Quaterniond quat_;
-    ufo::math::Vector3 m_currentPosition;
+    Eigen::Vector3d m_currentPosition;
     double LOCAL_SPACE;
     double LOCAL_FOV;
     bool map_received;
@@ -253,8 +242,6 @@ private:
     // Subscriber
     message_filters::Subscriber<sensor_msgs::PointCloud2> *m_pointCloudSubscriber;
     tf::MessageFilter<sensor_msgs::PointCloud2> *m_tfPointCloudSubscriber;
-    // message_filters::Subscriber<nav_msgs::Odometry> *m_poseSubscriber;
-    // message_filters::Subscriber<ufomap_msgs::UFOMapStamped> *m_ufoMapSubscriber;
 
     ros::Subscriber m_poseSubscriber;
     ros::Subscriber m_ufoMapSubscriber;

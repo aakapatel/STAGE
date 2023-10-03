@@ -11,7 +11,7 @@
 struct node
 {
 
-  ufo::math::Vector3 *point;
+  Eigen::Vector3d *point;
   node *myParent = nullptr;
   double distanceToParent = -1;
   std::vector<node *> myChilds{};
@@ -19,13 +19,13 @@ struct node
   double distanceToGoal;
   node(float x, float y, float z)
   {
-    point = new ufo::math::Vector3(x, y, z);
+    point = new Eigen::Vector3d(x, y, z);
   }
-  node(ufo::math::Vector3 *givenPoint)
+  node(Eigen::Vector3d *givenPoint)
   {
-    point = new ufo::math::Vector3(givenPoint->x(), givenPoint->y(), givenPoint->z());
+    point = new Eigen::Vector3d(givenPoint->x(), givenPoint->y(), givenPoint->z());
   }
-  ufo::math::Vector3 *getNodePointer();
+  Eigen::Vector3d *getNodePointer();
   void addChild(node *newChild)
   {
     myChilds.push_back(newChild);
@@ -49,26 +49,20 @@ public:
   virtual void odomCallback(const nav_msgs::Odometry::ConstPtr &pos);
   Eigen::Vector3d quaternion_to_rpy(Eigen::Quaterniond q);
   virtual void mapCallback(ufomap_msgs::UFOMapStamped::ConstPtr const &map);
-  double calculateDistance(ufo::math::Vector3 point1, ufo::math::Vector3 point2);
-  bool isInCollision(ufo::map::OccupancyMapColor const &map,
-                     ufo::geometry::BoundingVar const &bounding_volume,
-                     bool occupied_space, bool free_space,
-                     bool unknown_space, ufo::map::DepthType min_depth);
-  ufo::geometry::OBB makeOBB(ufo::math::Vector3 source, ufo::math::Vector3 goal, float radius);
-  ufo::math::Vector3 tunePlanningSpace(State state, double bounding_box_size);
+  double calculateDistance(Eigen::Vector3d point1, Eigen::Vector3d point2);
+  double calculateDistance(State point1, State point2);
+  Eigen::Vector3d tunePlanningSpace(State state, double bounding_box_size);
   void sampleNodes(std::vector<node *> &nodes, State state, int iterations_max, double bounding_box_size);
-  void sampleNodesOBB (std::vector<node *>* nodes, int iterations_max, State root, State goal, double radius);
-  std::pair<Eigen::Vector3d, Eigen::Vector3d> tuneBounds (State root, State goal, double radius);
-  ufo::math::Vector3 pointToUfo(geometry_msgs::Point p);
-  std::vector<ufo::math::Vector3> pointsToUfo(std::vector<geometry_msgs::Point> points);
+  Eigen::Vector3d pointToUfo(geometry_msgs::Point p);
+  std::vector<Eigen::Vector3d> pointsToUfo(std::vector<geometry_msgs::Point> points);
   void fetchExplorationTargets();
   bool isLastTargetFrontier(geometry_msgs::Point last_target_frontier);
   bool nextExplorationPath(stage_planner::explorationPath::Request &req,
                            stage_planner::explorationPath::Response &res);
-  Eigen::Quaternion<float> Euler2Quaternion(ufo::math::Vector3 v);
+  Eigen::Quaternion<float> Euler2Quaternion(Eigen::Vector3d v);
 
-  State ufoToState(ufo::math::Vector3 v);
-  ufo::math::Vector3 stateToUfo(State s);
+  State ufoToState(Eigen::Vector3d v);
+  Eigen::Vector3d stateToUfo(State s);
 
   void segmentPath(std::vector<Vertex *> path,
                    nav_msgs::Path &path_seg);
@@ -111,8 +105,6 @@ public:
   
   void visualizePoseGraph ();
 
-  void visualizeRandomNodes ();
-  
   bool getNeighbours(const State *state, double range, std::vector<Vertex *> *v_res);
   void insertVertexKdtree(Vertex *v);
   void resetKdtree();
@@ -208,8 +200,8 @@ private:
 
   std::list<Vertex *> sparse_vertices;
   // variables
-  State robotState_;
-
+  
+  Eigen::Vector3d robotState_;
   Eigen::Vector3d robot_box_size_;
   Eigen::Vector3d safety_margin_;
 
@@ -237,7 +229,6 @@ private:
   std::string robot_type_ = "kAerial";
   Eigen::Quaterniond quat_;
   bool firstTime = true;
-  ufo::math::Vector3 m_currentPosition;
   double m_currentHeading;
   double bounding_box_size_, m_global_space;
   double m_local_fov;
@@ -252,8 +243,8 @@ private:
   float SCALER_X, SCALER_Y, SCALER_Z, highest_x, highest_y,
       highest_z, lowest_x, lowest_y, lowest_z;
   double m_min_dist_bw_nodes;
-  std::vector<ufo::math::Vector3> local_exploration_targets_;
-  std::vector<ufo::math::Vector3> global_repos_targets_;
+  std::vector<Eigen::Vector3d> local_exploration_targets_;
+  std::vector<Eigen::Vector3d> global_repos_targets_;
   int iterations_local_;
   int iterations_global_;
   double max_edge_length_;
@@ -261,9 +252,9 @@ private:
   bool local_exploration;
   bool global_exploration;
   bool run_global_planner = false;
-  ufo::math::Vector3 exploration_target;
+  Eigen::Vector3d exploration_target;
   nav_msgs::Path homing_path_;
-  ufo::math::Vector3 home_position;
+  Eigen::Vector3d home_position;
 
   nav_msgs::Path exploration_path_;
 
@@ -273,7 +264,7 @@ private:
   std::string m_baseFrameId; // base of the robot for ground plane filtering
   nav_msgs::Odometry m_currentPose;
   nav_msgs::Odometry m_prevPose; // Holds the point where the direction changed.
-  std::vector<ufo::math::Vector3> visited_exploration_targets;
+  std::vector<Eigen::Vector3d> visited_exploration_targets;
 
   // Subscriber
   ros::Subscriber m_poseSubscriber;
