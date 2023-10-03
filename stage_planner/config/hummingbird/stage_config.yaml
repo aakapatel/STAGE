@@ -3,7 +3,7 @@ odometry_topic: "/hummingbird/ground_truth/odometry"
 point_cloud_topic: "/hummingbird/velodyne_points"
 ufoMAP_topic: "/ufomap_mapping_server_node/map"
 ufoMAP_depth: 1
-local_AABB_size: 15
+local_AABB_size: 20
 local_FOV: 40
 max_edge_length: 2
 sampling_iterations: 1200

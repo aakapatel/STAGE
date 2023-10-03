@@ -36,9 +36,6 @@ FrontierExtraction::FrontierExtraction(const ros::NodeHandle &nh, const ros::Nod
       m_ufomap("/ufomap_mapping_server_node/map"),
       m_voxblox_topic("/graph_management_node/occupied_nodes"),
       max_allowed_height_(10),
-      OBB_RADIUS(0.5),
-      mapDepth_(0),
-      VOLUMETRIC_GAIN_THREASHOLD(10),
       robot_type_("kAerial")
 
 {
@@ -50,7 +47,7 @@ FrontierExtraction::FrontierExtraction(const ros::NodeHandle &nh, const ros::Nod
     nh_private_.param("sensor_model/miss", probMiss, 0.4);
     nh_private_.param("sensor_model/min", thresMin, 0.12);
     nh_private_.param("sensor_model/max", thresMax, 0.97);
-    nh_private_.param("sensor_model/max_range", m_maxRange, m_maxRange);
+    nh_private_.param("frontier_detection_range", m_maxRange, m_maxRange);
     nh_private_.param("point_cloud_topic", cloud_in, cloud_in);
     nh_private_.param("frontier_clearing_range", m_distance_deletion, m_distance_deletion);
     nh_private_.param("odometry_topic", m_odometry, m_odometry);
