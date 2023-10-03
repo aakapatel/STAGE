@@ -2,15 +2,15 @@ world_frame: world
 use_tf_transforms: True
 use_freespace_pointcloud: True
 tsdf_voxels_per_side: 16
-tsdf_voxel_size: 0.20
-max_ray_length_m: 50.0
+tsdf_voxel_size: 0.4
+max_ray_length_m: 18.0
 truncation_distance: 0.6 #1.0
 voxel_carving_enabled: True
 use_sparsity_compensation_factor: True
 sparsity_compensation_factor: 100.0 #10.0
 color_mode: "colors"
 verbose: False
-update_mesh_every_n_sec: 0.5
+update_mesh_every_n_sec: 1.0
 mesh_min_weight: 1e-4
 slice_level: 1.0
 method: "fast"
@@ -43,20 +43,8 @@ use_const_weight: False
 use_weight_dropoff: True
 use_symmetric_weight_drop_off: False
 
-### NEW SETTINGS FOR BRANCH feature/new_abort_criterion_for_fast_integrator ###
 max_weight: 200 #20-200
 clearing_ray_weight_factor: 0.01 #ANYmal: 0.01 #Flyab: 0.05 #0.05-1.0
 weight_ray_by_range: False
 min_ray_length_m: 0.5 #1.0
 occupancy_min_distance_voxel_size_factor: 1.0
-### THESE ARE OUT ###
-# use_sparsity_compensation_factor
-# sparsity_compensation_factor
-
-# !!! NOT IMPLEMENTED FOR VOXBLOX !!!
-# Augmentation
-#augment_free_frustum_enabled: true
-#free_frustum_skip: 10
-#free_frustum_range: 15.0
-#free_frustum_fov: [rad(2*pi), rad(pi/6)]
-#free_frustum_resolution: [rad(1.0*pi/180) rad(1.0*pi/180)]
