@@ -31,8 +31,8 @@ FrontierExtraction::FrontierExtraction(const ros::NodeHandle &nh, const ros::Nod
       yFiltering(true),
       zFiltering(true),
       m_distance_deletion(8.0),
-      LOCAL_SPACE(10),
-      LOCAL_FOV(40),
+      m_local_range(10),
+      m_local_fov(40),
       m_ufomap("/ufomap_mapping_server_node/map"),
       m_voxblox_topic("/graph_management_node/occupied_nodes"),
       max_allowed_height_(10),
@@ -52,8 +52,8 @@ FrontierExtraction::FrontierExtraction(const ros::NodeHandle &nh, const ros::Nod
     nh_private_.param("frontier_clearing_range", m_distance_deletion, m_distance_deletion);
     nh_private_.param("odometry_topic", m_odometry, m_odometry);
     nh_private_.param("unknowns_threashold", numberOfUnknowns, numberOfUnknowns);
-    nh_private_.param("local_AABB_size", LOCAL_SPACE, LOCAL_SPACE);
-    nh_private_.param("local_FOV", LOCAL_FOV, LOCAL_SPACE);
+    nh_private_.param("local_AABB_size", m_local_range, m_local_range);
+    nh_private_.param("local_FOV", m_local_fov, m_local_fov);
     nh_private_.param("truncate_frontiers_Z", max_allowed_height_, max_allowed_height_);
     nh_private_.param("robot_type", robot_type_, robot_type_);
     
@@ -815,7 +815,7 @@ bool FrontierExtraction::isLocal(Eigen::Vector3d point)
     double angle = calculateAngle(point);
     double distance = calculateDistance(point, m_currentPosition);
 
-    if (((angle < LOCAL_FOV) && (angle > -LOCAL_FOV)) && distance < LOCAL_SPACE)
+    if (((angle < m_local_fov) && (angle > -m_local_fov)) && distance < m_local_range)
     {
         return true;
     }

@@ -33,7 +33,6 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
   // Set variables
   nh_private_.param("frame_id", m_worldFrameId, m_worldFrameId);
   nh_private_.param("odometry_topic", m_odometry, m_odometry);
-
   nh_private_.param("local_AABB_size", bounding_box_size_, bounding_box_size_);
   nh_private_.param("local_FOV", m_local_fov, m_local_fov);
   nh_private_.param("ufoMAP_topic", m_ufomap, m_ufomap);

@@ -1,9 +1,0 @@
-<library path="lib/libstage_planner_ui">
-  <class name="stage_planner_ui/StagePlanner Control"
-         type="stage_planner_ui::stage_planner_panel"
-         base_class_type="rviz::Panel">
-    <description>
-      A panel widget for control of stage planner.
-    </description>
-  </class>
-</library>

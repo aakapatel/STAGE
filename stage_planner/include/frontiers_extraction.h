@@ -188,8 +188,8 @@ private:
     Eigen::Vector3d robotState_;
     Eigen::Quaterniond quat_;
     Eigen::Vector3d m_currentPosition;
-    double LOCAL_SPACE;
-    double LOCAL_FOV;
+    double m_local_range;
+    double m_local_fov;
     bool map_received;
     std::string m_ufomap;
     double max_allowed_height_;

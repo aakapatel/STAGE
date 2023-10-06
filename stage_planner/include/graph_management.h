@@ -41,7 +41,8 @@ class GraphManager
 {
 
 public:
-  GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_private, MapManagerVoxblox<MapManagerVoxbloxServer, MapManagerVoxbloxVoxel> *map_manager);
+  GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_private, 
+               MapManagerVoxblox<MapManagerVoxbloxServer, MapManagerVoxbloxVoxel> *map_manager);
 
   virtual void odomCallback(const nav_msgs::Odometry::ConstPtr &pos);
   Eigen::Vector3d quaternion_to_rpy(Eigen::Quaterniond q);
