@@ -133,7 +133,6 @@ public:
   
   double average_gain;
 
-  bool robot_aerial_ = false;
   double truncate_sample_Z_ = 1;
   
 

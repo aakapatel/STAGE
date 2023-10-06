@@ -14,7 +14,8 @@ octree_resolution: 0.5
 frontier_detection_range: 15
 frontier_clearing_range: 14
 unknowns_threashold: 4 
-truncate_frontier_Z: 6 
+truncate_frontier_Z: 6
+truncate_sample_Z: 4
 
 
 
