@@ -41,6 +41,8 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
   nh_private_.param("sampling_iterations", iterations_local_, iterations_local_);
   nh_private_.param("safety_margin", safety_margin, safety_margin);
   nh_private_.param("robot_size", robot_box_size, robot_box_size);
+  nh_private_.param("robot_type", robot_type_, robot_type_);
+  nh_private_.param("truncate_sample_Z", truncate_sample_Z_, truncate_sample_Z_);
 
   // Subscribers
 
@@ -340,7 +342,7 @@ void GraphManager::sampleNodes(std::vector<node *> &nodes, State state, int iter
     float x = lowest_x + abs(1024 * rand() / (RAND_MAX + 1.0)) * box[0];
     float y = lowest_y + abs(1024 * rand() / (RAND_MAX + 1.0)) * box[1];
 
-    if (robot_aerial_)
+    if (robot_type_ == "kAerial")
       {
 
         z = lowest_z + abs(1024 * rand() / (RAND_MAX + 1.0)) * box[2];
@@ -399,7 +401,7 @@ State GraphManager::generateRandomState(State root, State goal)
   float y = root[1] + abs(1024 * rand() / (RAND_MAX + 1.0)) * goal[1] - root[1];
   float z;
 
-  if (robot_aerial_)
+  if (robot_type_ == "kAerial")
     {
       z = root[2] + abs(1024 * rand() / (RAND_MAX + 1.0)) * goal[2] - root[2];
     }
