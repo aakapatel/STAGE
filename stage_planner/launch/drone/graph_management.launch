@@ -7,10 +7,7 @@
 
 
   <arg name="voxblox_config_file" default="$(find stage_planner)/config/$(arg robot_name)/voxblox_sim_config.yaml"/>
-<<<<<<< HEAD
-=======
 
->>>>>>> ddb24b59f2845bcbbbc8644be24398df8c05b33e
   <arg name="stage_config_file" default="$(find stage_planner)/config/$(arg robot_name)/stage_config.yaml"/>
   <node pkg="stage_planner" type="graph_management_node" name="graph_management_node" respawn="true" output="screen">
 

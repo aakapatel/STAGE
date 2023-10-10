@@ -81,7 +81,6 @@ public:
 
   bool planGlobalPath();
   
-  bool runLocalPlanner ();
 
   void visualizeLocalGraph();
 
