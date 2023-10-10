@@ -941,7 +941,6 @@ bool GraphManager::planLocalPath()
     }
   }
   
-  ROS_INFO ("DEBUG : Local graph alive \n");
 
   GraphManager::visualizeLocalGraph();
   if (!local_paths_.empty())
@@ -1221,9 +1220,7 @@ bool GraphManager::buildReservedGraph()
 
   for (Graph::GraphType::vertex_iterator it = v_it.first; it != v_it.second; ++it)
   {
-
     int s_id = latest_graph->graph_->getVertexProperty(it);
-
     Vertex *global_graph_vertex = global_graph_->getVertexBySubId(s_id);
     int id = global_graph_vertex->id;
 
@@ -1252,14 +1249,13 @@ bool GraphManager::buildReservedGraph()
         const int e2 = global_graph_->vertices_map_[nearby_vertex_id]->edges;
         const double weight = global_graph_->distanceBetweenVertices(global_graph_->vertices_map_[id],
                                                                      global_graph_->vertices_map_[nearby_vertex_id]);
-        if (weight < 1.5 * max_edge_length_)
+        if (weight < max_edge_length_)
         {
 
-          if (e1 < 6)
+          if (e1 < 10)
           {
             if (MapManager::VoxelStatus::kFree == vs)
             {
-
               global_graph_->addEdge(global_graph_->vertices_map_[id],
                                      global_graph_->vertices_map_[nearby_vertex_id],
                                      global_graph_->distanceBetweenVertices(global_graph_->vertices_map_[id],
@@ -1273,6 +1269,7 @@ bool GraphManager::buildReservedGraph()
     }
   }
 
+  ROS_INFO_STREAM("Built global graph with " << global_graph_->getNumVertices() << " vertices & " << global_graph_->getNumEdges() << " edges\n");
   GraphManager::visualizeGlobalGraph();
   if (global_graph_->getNumEdges() > 2)
     {
@@ -1281,7 +1278,7 @@ bool GraphManager::buildReservedGraph()
   else
   {
     graph_status = false;
-    ROS_INFO_STREAM("Built global graph with " << global_graph_->getNumVertices() << " vertices & " << global_graph_->getNumEdges() << " edges\n");
+    // ROS_INFO_STREAM("Built global graph with " << global_graph_->getNumVertices() << " vertices & " << global_graph_->getNumEdges() << " edges\n");
     return graph_status;
   }
 
@@ -1293,8 +1290,6 @@ bool GraphManager::planGlobalPath()
 {
 
   bool path_status = true;
-
-  ROS_INFO ("DEBUG: path planning initialization \n");
 
   // Dijkstra SP report from root to all vertices in global graph
   Vertex* global_root_vertex;
@@ -1623,7 +1618,6 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
       ROS_INFO ("Local exploration targets received \n ");
 
       if (GraphManager::buildLocalGraph()) {
-        ROS_INFO ("Debug : rebuilt local graph \n");
         ROS_INFO ("Successfully built local graph \n");
 
         if (GraphManager::planLocalPath()) {

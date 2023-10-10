@@ -283,7 +283,7 @@ void FrontierExtraction::extractFrontiers(const tf::Point &sensorOriginTf, const
                     pt.y() = point.y();
                     pt.z() = point.z();
 
-                    double z_diff = abs(m_currentPose.pose.pose.position.z - pt.z());
+                    double z_diff = abs(robotState_[2] - pt.z());
 
                     if (z_diff < max_allowed_height_)
                     {
