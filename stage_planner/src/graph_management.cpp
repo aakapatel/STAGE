@@ -178,11 +178,11 @@ void GraphManager::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
     m_currentPose = *pose;
 
     State newPoint(pose->pose.pose.position.x,
-                                pose->pose.pose.position.y,
-                                pose->pose.pose.position.z);
+                   pose->pose.pose.position.y,
+                   pose->pose.pose.position.z);
     State oldPoint(m_prevPose.pose.pose.position.x,
-                                m_prevPose.pose.pose.position.y,
-                                m_prevPose.pose.pose.position.z);
+                   m_prevPose.pose.pose.position.y,
+                   m_prevPose.pose.pose.position.z);
 
     if (calculateDistance(newPoint, oldPoint) > 2)
     {
@@ -940,6 +940,8 @@ bool GraphManager::planLocalPath()
       }
     }
   }
+  
+  ROS_INFO ("DEBUG : Local graph alive \n");
 
   GraphManager::visualizeLocalGraph();
   if (!local_paths_.empty())
@@ -961,18 +963,19 @@ bool GraphManager::planLocalPath()
         gain = computeExplorationGain(paths_[i].first.back()->state);
 
         path_length = paths_[i].second;
-        if (gain < 100000 and gain > -100000 and path_length < 10000)
+        // if (gain < 100000 and gain > -100000 and path_length < 10000)
+        // {
+
+        path_length = paths_[i].second;
+
+        // ROS_INFO_STREAM (" Local Info gain : " << 100 * gain << "\n");
+        reward = (100 * gain) - path_length;
+        if (reward > my_reward)
           {
-
-            path_length = paths_[i].second;
-
-            reward = (100 * gain) - path_length;
-            if (reward > my_reward)
-            {
-              my_reward = reward;
-              path = paths_[i].first;
-            }
+            my_reward = reward;
+            path = paths_[i].first;
           }
+          // }
         else
         {
           i++;
@@ -1290,7 +1293,7 @@ bool GraphManager::planGlobalPath()
 {
 
   bool path_status = true;
-  
+
   ROS_INFO ("DEBUG: path planning initialization \n");
 
   // Dijkstra SP report from root to all vertices in global graph
@@ -1369,19 +1372,19 @@ bool GraphManager::planGlobalPath()
         gain = computeExplorationGain(paths_[i].first.back()->state);
 
         path_length = paths_[i].second;
-        if (100 * gain < 100000 and 100 * gain > -100000 and path_length < 10000)
+        // if (100 * gain < 100000 and 100 * gain > -100000 and path_length < 10000)
+        // {
+
+        path_length = paths_[i].second;
+
+        // ROS_INFO_STREAM ("Global Info gain : " << 100 * gain << "\n");
+        reward = (100 * gain) - 50 * path_length;
+        if (reward > my_reward)
         {
-
-          path_length = paths_[i].second;
-
-          // ROS_INFO_STREAM ("path length : " << path_length << "\n");
-          reward = (100 * gain) - 50 * path_length;
-          if (reward > my_reward)
-          {
-            my_reward = reward;
-            path = paths_[i].first;
-          }
+          my_reward = reward;
+          path = paths_[i].first;
         }
+        // }
       }
 
       // best_path_.clear();
@@ -1611,7 +1614,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
     ++planning_iteration_;
 
     GraphManager::fetchExplorationTargets();
-    
+
     if (!local_exploration_targets_.empty()) {
       ROS_INFO ("Local exploration targets received \n ");
 
@@ -1621,63 +1624,65 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
         if (GraphManager::planLocalPath()) {
           ROS_INFO ("Successfully planned local path \n");
 
-          if (GraphManager::insertLatestSubGraph()) {
-            ROS_INFO ("Successfully inserted sub graph \n");
+          if (GraphManager::setPath()) {
+            ROS_INFO ("Set path success ! \n");
 
-            if (GraphManager::buildReservedGraph()) {
-              ROS_INFO ("Successfully built reserved graph \n");
-              
-              if (GraphManager::setPath()) {
-                ROS_INFO ("Set path success ! \n");
-                res.path = exploration_path_;
-                high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+            if (GraphManager::insertLatestSubGraph()) {
+              ROS_INFO ("Successfully inserted sub graph \n");
 
-                auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+              if (GraphManager::buildReservedGraph()) {
+                ROS_INFO ("Successfully built reserved graph \n");
 
-                ROS_INFO_STREAM("\033[;34m Total Execution time \033[0m "
-                                << duration_total.count() << " \033[;34m ms \033[0m\n ");
-                return true;
-              } else {
-                
-                // Check if global re-positioning is possible 
-                
-                if (!global_repos_targets_.empty()) {
-                  GraphManager::buildLocalGraph();
-                  GraphManager::insertLatestSubGraph();
-                  GraphManager::buildReservedGraph();
-                  if (GraphManager::planGlobalPath()) {
-                    ROS_INFO ("Global planner engaged \n");
+              }
+            }
 
-                    if (GraphManager::setPath()) {
-                      ROS_INFO ("Successfully planned global re-pos path \n");
-                      res.path = exploration_path_;
+            res.path = exploration_path_;
+            high_resolution_clock::time_point stop_total = high_resolution_clock::now();
 
-                      high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+            auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
 
-                      auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+            ROS_INFO_STREAM("\033[;34m Total Execution time \033[0m "
+                            << duration_total.count() << " \033[;34m ms \033[0m\n ");
+            return true;
+          } else {
 
-                      ROS_INFO_STREAM("\033[;34m Total Execution time \033[0m "
-                                      << duration_total.count() << " \033[;34m ms \033[0m\n ");
+            // Check if global re-positioning is possible 
 
-                      return true;
-                    } else {
-                      ROS_WARN ("Global planner failure !! \n");
-                      high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+            if (!global_repos_targets_.empty()) {
+              GraphManager::buildLocalGraph();
+              GraphManager::insertLatestSubGraph();
+              GraphManager::buildReservedGraph();
+              if (GraphManager::planGlobalPath()) {
+                ROS_INFO ("Global planner engaged \n");
 
-                      auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+                if (GraphManager::setPath()) {
+                  ROS_INFO ("Successfully planned global re-pos path \n");
+                  res.path = exploration_path_;
 
-                      ROS_INFO_STREAM("\033[;34m Total Execution time \033[0m "
-                                      << duration_total.count() << " \033[;34m ms \033[0m\n ");                     
-                      return false;
-                    }
-                  }
+                  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+
+                  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+
+                  ROS_INFO_STREAM("\033[;34m Total Execution time \033[0m "
+                                  << duration_total.count() << " \033[;34m ms \033[0m\n ");
+
+                  return true;
+                } else {
+                  ROS_WARN ("Global planner failure !! \n");
+                  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+
+                  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+
+                  ROS_INFO_STREAM("\033[;34m Total Execution time \033[0m "
+                                  << duration_total.count() << " \033[;34m ms \033[0m\n ");                     
+                  // return false;
                 }
               }
             }
           }
         }
       }
-    } else if (!global_repos_targets_.empty()) {
+    } else if (!global_repos_targets_.empty() and local_exploration_targets_.empty()) {
 
       GraphManager::buildLocalGraph();
       GraphManager::insertLatestSubGraph();
@@ -1703,12 +1708,13 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
           ROS_INFO_STREAM("\033[;34m Total Execution time \033[0m "
                           << duration_total.count() << " \033[;34m ms \033[0m\n ");
-          return false;
+          // return false;
         }
       }
     }
 
   } else {
+
     if (GraphManager::setPath ()) 
     {
       if (!reached_end_of_path_)
@@ -1722,8 +1728,6 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
       ROS_INFO_STREAM("\033[;34m Total Execution time \033[0m "
                       << duration_total.count() << " \033[;34m ms \033[0m\n ");      
-      return true;
-
     }
   }
 
