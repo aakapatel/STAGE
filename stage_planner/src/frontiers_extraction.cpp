@@ -31,7 +31,7 @@ FrontierExtraction::FrontierExtraction(const ros::NodeHandle &nh, const ros::Nod
       yFiltering(true),
       zFiltering(true),
       m_distance_deletion(8.0),
-      m_local_range(10),
+      m_local_range(20),
       m_local_fov(40),
       m_ufomap("/ufomap_mapping_server_node/map"),
       m_voxblox_topic("/graph_management_node/occupied_nodes"),
@@ -374,7 +374,7 @@ void FrontierExtraction::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
     robotState_[1] = pose->pose.pose.position.y;
     robotState_[2] = pose->pose.pose.position.z;
 
-    visualize();
+    // visualize();
 }
 
 void FrontierExtraction::wrt_Body(Eigen::Vector3d frontier_W, Eigen::Vector3d &frontier_B)
@@ -813,7 +813,7 @@ bool FrontierExtraction::isLocal(Eigen::Vector3d point)
 {
 
     double angle = calculateAngle(point);
-    double distance = calculateDistance(point, m_currentPosition);
+    double distance = calculateDistance(point, robotState_);
 
     if (((angle < m_local_fov) && (angle > -m_local_fov)) && distance < m_local_range)
     {
@@ -915,6 +915,7 @@ bool FrontierExtraction::exportFrontierTargets(stage_planner::frontierRequest::R
                                                stage_planner::frontierRequest::Response &res)
 {
 
+    visualize();
     if (req.explore)
     {
 

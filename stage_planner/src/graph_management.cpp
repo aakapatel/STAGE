@@ -1568,8 +1568,8 @@ void GraphManager::fetchExplorationTargets()
 
       average_gain = std::accumulate(gains.begin(), gains.end(), 0.0) / gains.size();
 
-      // ROS_INFO_STREAM ("Fetched " << local_exploration_targets_.size() << " Local & "
-      // << global_repos_targets_.size() << " Global frontiers \n");
+      ROS_INFO_STREAM ("Fetched " << local_exploration_targets_.size() << " Local & "
+      << global_repos_targets_.size() << " Global frontiers \n");
     }
   }
 }
@@ -1608,17 +1608,22 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 {
 
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
-
+  
+  bool return_value = true;
+  
   if (reached_end_of_path_) {
+    
+
     exploration_path_.poses.clear();
     ++planning_iteration_;
 
     GraphManager::fetchExplorationTargets();
-
     if (!local_exploration_targets_.empty()) {
+
       ROS_INFO ("Local exploration targets received \n ");
 
       if (GraphManager::buildLocalGraph()) {
+        ROS_INFO ("Debug : rebuilt local graph \n");
         ROS_INFO ("Successfully built local graph \n");
 
         if (GraphManager::planLocalPath()) {
@@ -1715,23 +1720,25 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
   } else {
 
-    if (GraphManager::setPath ()) 
-    {
+    return_value = GraphManager::setPath (); 
+    
       if (!reached_end_of_path_)
       {
         res.path = exploration_path_;
         ROS_INFO_STREAM("Following path segment \n");
-      }
+      } else  {
+        ROS_INFO ("Reached end.. fetch new path \n");
+        }
       high_resolution_clock::time_point stop_total = high_resolution_clock::now();
 
       auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
 
       ROS_INFO_STREAM("\033[;34m Total Execution time \033[0m "
                       << duration_total.count() << " \033[;34m ms \033[0m\n ");      
-    }
+    
   }
 
-  return true;
+  return return_value;
 
 }
 
