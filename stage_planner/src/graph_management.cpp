@@ -1217,10 +1217,14 @@ bool GraphManager::buildReservedGraph()
   latest_graph->graph_->getVertexIterator(v_it);
 
   std::vector<Vertex *> nearby_vertices;
-
+  
+  ROS_INFO_STREAM ("Latest graph nodes :" << latest_graph->getNumVertices() << "\n");
+  
   for (Graph::GraphType::vertex_iterator it = v_it.first; it != v_it.second; ++it)
   {
+    
     int s_id = latest_graph->graph_->getVertexProperty(it);
+    ROS_INFO_STREAM ("sub_id_count : " << s_id << "\n");
     Vertex *global_graph_vertex = global_graph_->getVertexBySubId(s_id);
     int id = global_graph_vertex->id;
 
