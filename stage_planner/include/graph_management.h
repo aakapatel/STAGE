@@ -120,8 +120,7 @@ public:
   
   void debugGraph(State root, State goal);
   
-  bool buildReservedGraph();
-  bool insertLatestSubGraph();
+  bool buildGlobalGraph();
   
   bool setPath();
 
@@ -197,6 +196,8 @@ private:
   std::vector<double> robot_box_size;
   Eigen::Vector3d robot_box_size_;
   Eigen::Vector3d safety_margin_;
+  int num_edges_max_;
+
 
   bool build_global_graph_ = false;
  
