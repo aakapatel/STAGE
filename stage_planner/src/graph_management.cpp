@@ -1035,20 +1035,16 @@ bool GraphManager::buildGlobalGraph()
   Graph::GraphType::vertex_iterator>
   vi;
   
-  // BUG !! FIX ME !!!!!! Process inside the global graph loop does not initiate :( 
+  global_graph_->graph_->getVertexIterator(vi);
 
-  ROS_INFO_STREAM ("Global graph check O " << "\n");
-  
   for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
   {
     
     std::vector<Vertex *> nearby_vertices;
-    ROS_INFO_STREAM ("Global graph check I " << "\n");
     int id = global_graph_->graph_->getVertexProperty(it);
     Vertex* global_graph_vertex = global_graph_->vertices_map_[id];
     global_graph_->getNearestVertices(&global_graph_vertex->state, 1, &nearby_vertices);
 
-    ROS_INFO_STREAM ("Global graph vertex count " << id << "\n");
     const Eigen::Vector3d v(global_graph_vertex->state[0],
                             global_graph_vertex->state[1],
                             global_graph_vertex->state[2]);
@@ -1056,8 +1052,8 @@ bool GraphManager::buildGlobalGraph()
     for (int i = 0; i < nearby_vertices.size(); ++i)
     {
 
-      // if (!nearby_vertices[i]->is_leaf_vertex)
-      // {
+      if (!nearby_vertices[i]->is_leaf_vertex)
+      {
 
         int nearby_vertex_id = nearby_vertices[i]->id;
 
@@ -1078,10 +1074,9 @@ bool GraphManager::buildGlobalGraph()
                                  global_graph_->distanceBetweenVertices(global_graph_->vertices_map_[id],
                                                                         global_graph_->vertices_map_[nearby_vertex_id]));
           
-          ROS_INFO_STREAM ("Global graph edge count " << e << "\n");
           global_graph_->vertices_map_[id]->edges++;
         }
-      // }
+      }
     }
   }
 
