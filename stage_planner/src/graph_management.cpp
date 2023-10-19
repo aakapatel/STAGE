@@ -676,6 +676,10 @@ bool GraphManager::getNeighbours(const State *state, double range, std::vector<V
 
 void GraphManager::updateKdtree()
 {
+  
+  if (global_graph_->getNumVertices() == 0) {
+    return;
+  }
 
   std::pair<Graph::GraphType::vertex_iterator,
   Graph::GraphType::vertex_iterator>
@@ -992,25 +996,20 @@ bool GraphManager::buildGlobalGraph()
     ROS_INFO("Sub graph nodes not inserted into Global graph \n");
     graph_status = false;
     return graph_status;
+  } else {
+    GraphManager::updateKdtree();
   }
 
-  // Add global exploration targets to global graph for simpler direct path
-
-  high_resolution_clock::time_point start_total = high_resolution_clock::now();
-  
   // Iterate through frontiers and mark leaf vertices 
+  
+  for (int i = 0; i < global_repos_targets_.size(); ++i) {
 
-  for (int i = 0; i < frontier_graph_->getNumVertices(); ++i)
-  {
-
-    Vertex *temp_vert = frontier_graph_->vertices_map_[i];
+    Vertex *temp_vert = new Vertex (++temp_id, global_repos_targets_[i]); 
     temp_vert->is_leaf_vertex = true;
+    temp_vert->is_global = true;
     global_graph_->insertVertexKdtree(temp_vert);
-    if (frontier_graph_->vertices_map_[i]->is_global)
-    {
-      temp_vert->is_global = true;
-    }
   }
+
   
   // Iterate through global graph leaf vertices to detect potential frontier nodes
 
@@ -1080,7 +1079,6 @@ bool GraphManager::buildGlobalGraph()
     }
   }
 
-  ROS_INFO_STREAM("Built global graph with " << global_graph_->getNumVertices() << " vertices & " << global_graph_->getNumEdges() << " edges\n");
   GraphManager::visualizeGlobalGraph();
   if (global_graph_->getNumEdges() > 2)
     {
@@ -1089,7 +1087,7 @@ bool GraphManager::buildGlobalGraph()
   else
   {
     graph_status = false;
-    // ROS_INFO_STREAM("Built global graph with " << global_graph_->getNumVertices() << " vertices & " << global_graph_->getNumEdges() << " edges\n");
+    ROS_WARN_STREAM("Global graph status : " << global_graph_->getNumVertices() << " vertices & " << global_graph_->getNumEdges() << " edges\n");
   }
 
   return graph_status;
@@ -1503,7 +1501,6 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
   
   if (reached_end_of_path_) {
     
-
     exploration_path_.poses.clear();
     ++planning_iteration_;
 
@@ -1523,7 +1520,6 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
               if (GraphManager::buildGlobalGraph()) {
                 ROS_INFO ("Successfully built reserved graph \n");
-
               }
 
             res.path = exploration_path_;
