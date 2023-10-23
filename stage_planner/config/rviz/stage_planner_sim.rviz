@@ -125,7 +125,7 @@ Visualization Manager:
       Marker Topic: /frontiers
       Name: MarkerArray
       Namespaces:
-        frontier: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -137,13 +137,13 @@ Visualization Manager:
       Queue Size: 100
       Value: false
     - Class: rviz/MarkerArray
-      Enabled: false
+      Enabled: true
       Marker Topic: /local_planning_graph
       Name: MarkerArray
       Namespaces:
         {}
       Queue Size: 100
-      Value: false
+      Value: true
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
@@ -173,8 +173,7 @@ Visualization Manager:
       Marker Topic: /local_dijkstra_paths
       Name: MarkerArray
       Namespaces:
-        edges: true
-        vertices: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -250,7 +249,6 @@ Visualization Manager:
       Marker Topic: /pose_graph
       Name: MarkerArray
       Namespaces:
-        edges: true
         vertices: true
       Queue Size: 100
       Value: true
@@ -275,8 +273,7 @@ Visualization Manager:
       Marker Topic: /global_repos_path
       Name: MarkerArray
       Namespaces:
-        edges: true
-        vertices: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray

@@ -46,9 +46,7 @@ public:
 
   virtual void odomCallback(const nav_msgs::Odometry::ConstPtr &pos);
   Eigen::Vector3d quaternion_to_rpy(Eigen::Quaterniond q);
-  virtual void mapCallback(ufomap_msgs::UFOMapStamped::ConstPtr const &map);
   double calculateDistance(State s1, State s2);
-  Eigen::Vector3d tunePlanningSpace(State state, double bounding_box_size);
   void sampleNodes(std::vector<node *> &nodes, State state, int iterations_max, double bounding_box_size);
   std::vector<Eigen::Vector3d> pointsToEigen(std::vector<geometry_msgs::Point> points);
   void fetchExplorationTargets();
@@ -228,7 +226,6 @@ private:
   double m_local_fov;
   bool map_received;
   bool reset_global_graph = true;
-  std::string m_ufomap;
   bool m_max_allowed_Z;
   double obb_radius_;
   int mapDepth_;
@@ -262,10 +259,8 @@ private:
 
   // Subscriber
   ros::Subscriber m_poseSubscriber;
-  ros::Subscriber m_ufoMapSubscriber;
 
   // message_filters::Subscriber<nav_msgs::Odometry> *m_poseSubscriber;
-  // message_filters::Subscriber<ufomap_msgs::UFOMapStamped> *m_ufoMapSubscriber;
 
   // Publisher
   ros::Publisher m_frontierPub;

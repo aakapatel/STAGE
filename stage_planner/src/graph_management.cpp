@@ -15,7 +15,6 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
   m_currentHeading(0),
   bounding_box_size_(12),
   m_local_fov(40),
-  m_ufomap("/ufomap_mapping_server_node/map"),
   m_max_allowed_Z(4),
   obb_radius_(0.5),
   mapDepth_(1),
@@ -36,8 +35,6 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
   nh_private_.param("odometry_topic", m_odometry, m_odometry);
   nh_private_.param("local_AABB_size", bounding_box_size_, bounding_box_size_);
   nh_private_.param("local_FOV", m_local_fov, m_local_fov);
-  nh_private_.param("ufoMAP_topic", m_ufomap, m_ufomap);
-  nh_private_.param("ufoMAP_depth", mapDepth_, mapDepth_);
   nh_private_.param("max_edge_length", max_edge_length_, max_edge_length_);
   nh_private_.param("num_edges_max", num_edges_max_, num_edges_max_);
   nh_private_.param("sampling_iterations", iterations_local_, iterations_local_);
@@ -49,8 +46,6 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
   // Subscribers
 
   m_poseSubscriber = nh_.subscribe(m_odometry, 1, &GraphManager::odomCallback, this);
-
-  m_ufoMapSubscriber = nh_.subscribe(m_ufomap, 1, &GraphManager::mapCallback, this);
 
   // publishers
 
@@ -100,22 +95,6 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
   map_manager_->setRobotRadius(robot_box_size_.norm() / 2.0);
 };
 
-// Define an ufoMAP object
-ufo::map::OccupancyMapColor ufoMAP_(0.2);
-
-void GraphManager::mapCallback(ufomap_msgs::UFOMapStamped::ConstPtr const &msg)
-{
-
-  if (ufomap_msgs::msgToUfo(msg->map, ufoMAP_))
-    {
-      // ROS_INFO("MAP RECEIVED");
-      map_received = true;
-    }
-  else
-  {
-    ROS_WARN("MAP NOT RECEIVED");
-  }
-}
 
 Eigen::Vector3d GraphManager::quaternion_to_rpy(Eigen::Quaterniond q)
 {
@@ -267,60 +246,6 @@ double GraphManager::computeExplorationGain(State state)
   // return free.size();
 }
 
-Eigen::Vector3d GraphManager::tunePlanningSpace(State state, double bounding_box_size)
-{
-
-  highest_x = -std::numeric_limits<float>::max();
-  highest_y = -std::numeric_limits<float>::max();
-  highest_z = -std::numeric_limits<float>::max();
-  lowest_x = std::numeric_limits<float>::max();
-  lowest_y = std::numeric_limits<float>::max();
-  lowest_z = std::numeric_limits<float>::max();
-
-  ufo::math::Vector3 minPoint(state[0] - 1 * bounding_box_size,
-                              state[1] - 1 * bounding_box_size,
-                              state[2] - 1 * bounding_box_size);
-  ufo::math::Vector3 maxPoint(state[0] + 1 * bounding_box_size,
-                              state[1] + 1 * bounding_box_size,
-                              state[2] + 1 * bounding_box_size);
-  ufo::geometry::AABB aabb(minPoint, maxPoint);
-
-  for (auto it = ufoMAP_.beginLeaves(aabb, false, true, false, false,
-                                     mapDepth_);
-  it != ufoMAP_.endLeaves(); ++it)
-  {
-    if (it.getX() > highest_x)
-    {
-      highest_x = it.getX();
-    }
-    if (it.getX() < lowest_x)
-    {
-      lowest_x = it.getX();
-    }
-    if (it.getY() > highest_y)
-    {
-      highest_y = it.getY();
-    }
-    if (it.getY() < lowest_y)
-    {
-      lowest_y = it.getY();
-    }
-    if (it.getZ() > highest_z)
-    {
-      highest_z = it.getZ();
-    }
-    if (it.getZ() < lowest_z)
-    {
-      lowest_z = it.getZ();
-    }
-  }
-
-  Eigen::Vector3d planning_space_scaler(
-    highest_x - lowest_x, highest_y - lowest_y, highest_z - lowest_z);
-
-  return planning_space_scaler;
-}
-
 void GraphManager::sampleNodes(std::vector<node *> &nodes, State state, int iterations_max, double bounding_box_size)
 {
 
@@ -330,19 +255,62 @@ void GraphManager::sampleNodes(std::vector<node *> &nodes, State state, int iter
   current_pos->addParent(nullptr);
   nodes.push_back(current_pos);
 
+  Eigen::Vector3d center (robotState_[0], robotState_[1], robotState_[2]);
+  Eigen::Vector3d bb_size (bounding_box_size_, bounding_box_size_, bounding_box_size_);
+  std::vector<Eigen::Vector3d> occupied_voxels;
+  std::vector<Eigen::Vector3d> free_voxels;
+  
+  map_manager_->extractLocalMap(center, bb_size, occupied_voxels, free_voxels);
+
+  highest_x = std::numeric_limits<float>::max();
+  highest_y = std::numeric_limits<float>::max();
+  highest_z = std::numeric_limits<float>::max();
+  lowest_x = -std::numeric_limits<float>::max();
+  lowest_y = -std::numeric_limits<float>::max();
+  lowest_z = -std::numeric_limits<float>::max();
+
+  for (int i = 0; i < free_voxels.size(); ++i)
+  {
+    if (free_voxels[i].x() < highest_x)
+    {
+      highest_x = free_voxels[i].x();
+    }
+    if (free_voxels[i].x() > lowest_x)
+    {
+      lowest_x = free_voxels[i].x();
+    }
+    if (free_voxels[i].y() < highest_y)
+    {
+      highest_y = free_voxels[i].y();
+    }
+    if (free_voxels[i].y() > lowest_y)
+    {
+      lowest_y = free_voxels[i].y();
+    }
+    if (free_voxels[i].z() < highest_z)
+    {
+      highest_z = free_voxels[i].z();
+    }
+    if (free_voxels[i].z() > lowest_z)
+    {
+      lowest_z = free_voxels[i].z();
+    }
+  }
   srand(time(0));
   int itterations = 0;
 
-  Eigen::Vector3d box = tunePlanningSpace(state, bounding_box_size);
-
+  Eigen::Vector3d box (highest_x - lowest_x, highest_y - lowest_y, highest_z - lowest_z);
+  
   while (itterations < iterations_max)
   {
-
     // Generate a random point
 
     float z;
     float x = lowest_x + abs(1024 * rand() / (RAND_MAX + 1.0)) * box[0];
     float y = lowest_y + abs(1024 * rand() / (RAND_MAX + 1.0)) * box[1];
+    
+    // float x = box[0] * (float) rand() / (RAND_MAX);
+    // float y = box[1] * (float) rand() / (RAND_MAX);
 
     if (robot_type_ == "kAerial")
       {
