@@ -7,7 +7,7 @@ local_FOV: 40
 num_edges_max: 10
 max_edge_length: 4
 sampling_iterations: 2000
-robot_type: "kLegged" #"kLegged" 
+robot_type: "kLegged" #"kAerial"  
 safety_margin: [0.5, 0.5, 0.5]
 robot_size: [0.5, 0.5, 0.5]
 octree_resolution: 0.5

@@ -756,19 +756,14 @@ bool GraphManager::buildLocalGraph()
 
   // Add local exploration targets to graph
 
-  for (int i = 0; i < frontier_graph_->getNumVertices(); ++i)
-  {
+  for (int i = 0; i < local_exploration_targets_.size(); ++i) {
 
-    Vertex *temp_vert = frontier_graph_->vertices_map_[i];
-
-    sub_graph_->insertVertexKdtree(temp_vert);
+    Vertex *temp_vert = new Vertex (i, local_exploration_targets_[i]); 
     temp_vert->is_leaf_vertex = true;
-    if (frontier_graph_->vertices_map_[i]->is_local)
-    {
-      temp_vert->is_local = true;
-    }
+    temp_vert->is_local = true;
+    sub_graph_->insertVertexKdtree(temp_vert);
   }
-
+  
   for (int i = 0; i < sub_graph_->getNumVertices(); ++i)
   {
 
@@ -841,7 +836,7 @@ bool GraphManager::buildLocalGraph()
     }
   }
 
-  if (sub_graph_->getNumEdges() > 2)
+  if (sub_graph_->getNumEdges() != 0)
     {
       graph_vec_.push_back(sub_graph_);
       graph_status = true;
@@ -860,11 +855,7 @@ bool GraphManager::planLocalPath()
 
   bool path_status = true;
   // Fetch shortest path report from root vertex to all vertices in the graph
-  if (sub_graph_->findShortestPaths(root_vertex->id, sub_graph_rep_))
-    {
-      // ROS_INFO ("Sub graph dijkstra report : PASS \n");
-    }
-  else
+  if (!sub_graph_->findShortestPaths(root_vertex->id, sub_graph_rep_))
   {
     path_status = false;
     ROS_WARN("Could not find dijkstra shortest paths on sub graph \n");
@@ -925,7 +916,8 @@ bool GraphManager::planLocalPath()
         path_length = paths_[i].second;
 
         // ROS_INFO_STREAM (" Local Info gain : " << 100 * gain << "\n");
-        reward = (100 * gain) - path_length;
+        // reward = (100 * gain) - path_length;
+        reward = gain/path_length;
         if (reward > my_reward)
           {
             my_reward = reward;
@@ -1143,7 +1135,8 @@ bool GraphManager::planGlobalPath()
         path_length = paths_[i].second;
 
         // ROS_INFO_STREAM ("Global Info gain : " << 100 * gain << "\n");
-        reward = (100 * gain) - 50 * path_length;
+        // reward = (100 * gain) - 50 * path_length;
+        reward = gain/path_length;
         if (reward > my_reward)
         {
           my_reward = reward;
@@ -1474,19 +1467,19 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
     GraphManager::fetchExplorationTargets();
     if (!local_exploration_targets_.empty()) {
 
-      ROS_INFO ("Local exploration targets received \n ");
+      // ROS_INFO ("Local exploration targets received \n ");
 
       if (GraphManager::buildLocalGraph()) {
-        ROS_INFO ("Successfully built local graph \n");
+        // ROS_INFO ("Successfully built local graph \n");
 
         if (GraphManager::planLocalPath()) {
-          ROS_INFO ("Successfully planned local path \n");
+          // ROS_INFO ("Successfully planned local path \n");
 
           if (GraphManager::setPath()) {
             ROS_INFO ("Set path success ! \n");
 
               if (GraphManager::buildGlobalGraph()) {
-                ROS_INFO ("Successfully built reserved graph \n");
+                // ROS_INFO ("Successfully built reserved graph \n");
               }
 
             res.path = exploration_path_;
@@ -1527,7 +1520,6 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
                   ROS_INFO_STREAM("\033[;34m Total Execution time \033[0m "
                                   << duration_total.count() << " \033[;34m ms \033[0m\n ");                     
-                  // return false;
                 }
               }
             }
@@ -1700,6 +1692,23 @@ void GraphManager::visualizeLocalGraph()
   // vertex_marker.color.a = 1.0;
   vertex_marker.frame_locked = false;
 
+  visualization_msgs::Marker frontier_vertex_marker;
+  frontier_vertex_marker.header.stamp = ros::Time::now();
+  frontier_vertex_marker.header.seq = 0;
+  frontier_vertex_marker.header.frame_id = "world";
+  frontier_vertex_marker.id = 0;
+  frontier_vertex_marker.ns = "frontier";
+  frontier_vertex_marker.action = visualization_msgs::Marker::ADD;
+  frontier_vertex_marker.type = visualization_msgs::Marker::SPHERE_LIST;
+  frontier_vertex_marker.scale.x = 0.4;
+  frontier_vertex_marker.scale.y = 0.4;
+  frontier_vertex_marker.scale.z = 0.4;
+  frontier_vertex_marker.color.r = 255.0 / 255.0;
+  frontier_vertex_marker.color.g = 0.0 / 255.0;
+  frontier_vertex_marker.color.b = 0.0 / 255.0;
+  frontier_vertex_marker.color.a = 1.0;
+  frontier_vertex_marker.frame_locked = false;
+
   std::pair<Graph::GraphType::vertex_iterator,
   Graph::GraphType::vertex_iterator>
   vi;
@@ -1739,9 +1748,19 @@ void GraphManager::visualizeLocalGraph()
     double h = (1.0 - std::min(std::max((gain - minZ) / (maxZ - minZ), 0.0), 1.0)) * 0.8;
     vertex_marker.colors.push_back(GraphManager::heightMapColor(h));
     vertex_marker.points.push_back(p1);
+    if (v_map[id]->is_frontier)
+    {
+
+      geometry_msgs::Point p1;
+      p1.x = v_map[id]->state[0];
+      p1.y = v_map[id]->state[1];
+      p1.z = v_map[id]->state[2];
+
+      frontier_vertex_marker.points.push_back(p1);
+    }
   }
   marker_array.markers.push_back(vertex_marker);
-
+  marker_array.markers.push_back(frontier_vertex_marker);
   local_Graph_Vis_Pub_.publish(marker_array);
 }
 
