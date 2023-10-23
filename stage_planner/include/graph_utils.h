@@ -43,8 +43,9 @@ struct Vertex {
     gain = 0;
     edges = 0;
     is_root = false;
-    is_sampled = false;
+    is_leaf_vertex = false;
     is_local = false;
+    is_global = false;
     is_frontier = false;
     sub_id = 0;
     sub_graph_id = 0;
@@ -66,9 +67,11 @@ struct Vertex {
   // If it is root vertex 
   bool is_root;
   // If node is randomly sampled 
-  bool is_sampled;
+  bool is_leaf_vertex;
   // If in local FOV
   bool is_local;
+  // If a node is outside FOV
+  bool is_global;
   // If a node itself is a frontier
   bool is_frontier;
   // Sub graph id to keep track while adding to global graph 
