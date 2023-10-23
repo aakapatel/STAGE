@@ -322,7 +322,6 @@ void GraphManager::sampleNodes(std::vector<node *> &nodes, State state, int iter
 
       z = robotState_[2] + abs(1024 * rand() / (RAND_MAX + 1.0)) * truncate_sample_Z_;
     }
-    Eigen::Vector3d random_point(x, y, z);
     Eigen::Vector3d random_state(x, y, z);
     if (MapManager::VoxelStatus::kFree ==
       map_manager_->getBoxStatus(random_state + safety_margin_, robot_box_size_, true))
@@ -334,7 +333,7 @@ void GraphManager::sampleNodes(std::vector<node *> &nodes, State state, int iter
       for (it_node = nodes.begin(); it_node != nodes.end();
       it_node++)
       {
-        Eigen::Vector3d direction = random_point - *((*it_node)->point);
+        Eigen::Vector3d direction = random_state - *((*it_node)->point);
         double new_distance = abs(direction.norm());
         if (new_distance < distance)
         {
