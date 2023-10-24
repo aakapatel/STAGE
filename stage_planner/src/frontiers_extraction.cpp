@@ -33,8 +33,6 @@ FrontierExtraction::FrontierExtraction(const ros::NodeHandle &nh, const ros::Nod
       m_distance_deletion(8.0),
       m_local_range(20),
       m_local_fov(40),
-      m_ufomap("/ufomap_mapping_server_node/map"),
-      m_voxblox_topic("/graph_management_node/occupied_nodes"),
       max_allowed_height_(10),
       robot_type_("kAerial")
 
@@ -369,6 +367,7 @@ void FrontierExtraction::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
     tf::Matrix3x3 m(q);
     double roll, pitch, yaw;
     m.getRPY(roll, pitch, yaw);
+    yaw_ = yaw * (180 / 3.14159);
 
     robotState_[0] = pose->pose.pose.position.x;
     robotState_[1] = pose->pose.pose.position.y;
@@ -748,7 +747,7 @@ double FrontierExtraction::calculateDistance(Eigen::Vector3d point1, Eigen::Vect
 
 double FrontierExtraction::calculateAngle(Eigen::Vector3d fpoint)
 {
-    return atan2((fpoint.y() - robotState_[1]), (fpoint.x() - robotState_[0])) * (180 / M_PI) - robotState_[3];
+    return atan2((fpoint.y() - robotState_[1]), (fpoint.x() - robotState_[0])) * (180 / M_PI) - yaw_;
 }
 
 void FrontierExtraction::visualize()
@@ -815,7 +814,7 @@ bool FrontierExtraction::isLocal(Eigen::Vector3d point)
     double angle = calculateAngle(point);
     double distance = calculateDistance(point, robotState_);
 
-    if (((angle < m_local_fov) && (angle > -m_local_fov)) && distance < m_local_range)
+    if (((angle < m_local_fov) && (angle > -m_local_fov)) && distance < (m_local_range + 2))
     {
         return true;
     }

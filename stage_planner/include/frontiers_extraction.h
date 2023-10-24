@@ -188,6 +188,7 @@ private:
     Eigen::Vector3d robotState_;
     Eigen::Quaterniond quat_;
     Eigen::Vector3d m_currentPosition;
+    double yaw_;
     double m_local_range;
     double m_local_fov;
     bool map_received;
