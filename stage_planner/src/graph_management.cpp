@@ -165,7 +165,7 @@ void GraphManager::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
                    m_prevPose.pose.pose.position.y,
                    m_prevPose.pose.pose.position.z);
 
-    if (calculateDistance(newPoint, oldPoint) > 2)
+    if (calculateDistance(newPoint, oldPoint) > 1)
     {
       m_prevPose = *pose;
 
@@ -199,7 +199,7 @@ void GraphManager::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
 
   robotState_[0] = pose->pose.pose.position.x;
   robotState_[1] = pose->pose.pose.position.y;
-  robotState_[2] = pose->pose.pose.position.z;
+  robotState_[2] = pose->pose.pose.position.z + 0.8;
 
   // GraphManager::visualizeFrontierGraph();
   GraphManager::visualizePoseGraph();
@@ -255,7 +255,7 @@ void GraphManager::sampleNodes(std::vector<node *> &nodes, State state, int iter
   current_pos->addParent(nullptr);
   nodes.push_back(current_pos);
 
-  Eigen::Vector3d center (robotState_[0], robotState_[1], robotState_[2]);
+  Eigen::Vector3d center (state[0], state[1], state[2]);
   Eigen::Vector3d bb_size (bounding_box_size_, bounding_box_size_, bounding_box_size_);
   std::vector<Eigen::Vector3d> occupied_voxels;
   std::vector<Eigen::Vector3d> free_voxels;
@@ -320,7 +320,8 @@ void GraphManager::sampleNodes(std::vector<node *> &nodes, State state, int iter
     else
     {
 
-      z = robotState_[2] + abs(1024 * rand() / (RAND_MAX + 1.0)) * truncate_sample_Z_;
+      // z = robotState_[2] + abs(1024 * rand() / (RAND_MAX + 1.0)) * truncate_sample_Z_;
+      z = robotState_[2];
     }
     Eigen::Vector3d random_state(x, y, z);
     if (MapManager::VoxelStatus::kFree ==

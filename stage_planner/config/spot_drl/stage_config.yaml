@@ -1,0 +1,32 @@
+frame_id: "world"
+odometry_topic: "/odom"
+point_cloud_topic: "/velodyne_points"
+ufoMAP_depth: 1
+local_AABB_size: 12
+local_FOV: 40
+num_edges_max: 10
+max_edge_length: 2
+sampling_iterations: 1500
+robot_type: "kLegged" #"kLegged" 
+safety_margin: [0.5, 0.5, 0.1]
+robot_size: [0.5, 0.5, 0.1]
+octree_resolution: 0.3
+frontier_detection_range: 4
+frontier_clearing_range: 3
+unknowns_threashold: 4 
+truncate_frontier_Z: 2
+truncate_sample_Z: 1
+
+
+
+
+
+
+
+
+########## DO NOT TOUCH ############
+
+sensor_model_hits: 0.7
+sensor_model_miss: 0.4
+sensor_model_min: 0.12
+sensor_model_max: 0.97
