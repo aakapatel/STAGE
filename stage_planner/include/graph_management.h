@@ -70,11 +70,11 @@ public:
 
   void resetLocalGraph();
   void resetGlobalGraph();
-  void resetFrontierGraph();
+  void resetPathWaysGraph();
   void resetSparseGraph();
 
   bool buildLocalGraph();
-  
+  bool buildPathWaysGraph(); 
   bool planLocalPath();
 
   bool planGlobalPath();
@@ -95,7 +95,7 @@ public:
   void visualizeGlobalPaths(std::vector<std::pair<std::vector<Vertex *>, double>> global_paths);
   void visualizeImprovedGlobalPaths(std::vector<std::pair<std::vector<Vertex *>, double>> global_paths);
 
-  void visualizeFrontierGraph();
+  void visualizePathWaysGraph();
   
   void visualizePoseGraph ();
 
@@ -149,7 +149,7 @@ private:
   Eigen::Vector3d robotState_;
   std::shared_ptr<GraphUtils> sub_graph_;
   std::shared_ptr<GraphUtils> global_graph_;
-  std::shared_ptr<GraphUtils> frontier_graph_;
+  std::shared_ptr<GraphUtils> path_ways_graph_;
   std::shared_ptr<GraphUtils> improvement_graph_;
   std::shared_ptr<GraphUtils> pose_graph_;
   std::shared_ptr<GraphUtils> sparse_graph_;
@@ -164,7 +164,7 @@ private:
   ShortestPathsReport global_graph_rep_;
   ShortestPathsReport homing_graph_rep_;
   ShortestPathsReport improvement_graph_rep_;
-  ShortestPathsReport frontier_graph_rep_;
+  ShortestPathsReport path_ways_graph_rep_;
   ShortestPathsReport pose_graph_rep_;
   ShortestPathsReport sparse_graph_rep_;
 
@@ -234,6 +234,7 @@ private:
   double m_min_dist_bw_nodes;
   std::vector<Eigen::Vector3d> local_exploration_targets_;
   std::vector<Eigen::Vector3d> global_repos_targets_;
+  std::vector<Eigen::Vector3d> exploration_targets_;
   int iterations_local_;
   int iterations_global_;
   double max_edge_length_;
@@ -270,7 +271,7 @@ private:
   ros::Publisher reposition_Path_Vis_Pub_;
   ros::Publisher local_Graph_Vis_Pub_;
   ros::Publisher global_Graph_Vis_Pub_;
-  ros::Publisher frontier_Graph_Vis_Pub_;
+  ros::Publisher path_Ways_Graph_Vis_Pub_;
   ros::Publisher pose_Graph_Vis_Pub_;
   ros::Publisher overlap_Vis_Pub_;
   ros::Publisher random_Nodes_Vis_Pub_;

@@ -56,7 +56,7 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
 
   global_Graph_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/global_planning_graph", 10);
 
-  frontier_Graph_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/frontier_graph", 10);
+  path_Ways_Graph_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/path_ways_graph", 10);
 
   pose_Graph_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/pose_graph", 10);
 
@@ -146,7 +146,7 @@ void GraphManager::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
       // GraphManager::resetLocalGraph();
       GraphManager::resetSparseGraph ();
       GraphManager::resetGlobalGraph();
-      GraphManager::resetFrontierGraph();
+      GraphManager::resetPathWaysGraph();
       
       m_prevPose = *pose;
       firstTime = false;
@@ -183,6 +183,9 @@ void GraphManager::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
       global_vertices_ids_.push_back(pose_vertex->id);
       global_graph_->addVertex(pose_vertex);
         
+      Vertex *path_vertex_root = new Vertex(path_ways_graph_->generateVertexID(), robotState_);
+      path_vertex_root->is_root = true;
+      path_ways_graph_->addVertex(path_vertex_root);
       global_graph_->state_history_.push_back(robotState_);
     }
   }
@@ -418,15 +421,15 @@ void GraphManager::resetGlobalGraph()
   // global_graph_->addVertex(home_vertex);
 }
 
-void GraphManager::resetFrontierGraph()
+void GraphManager::resetPathWaysGraph()
 {
 
-  if (frontier_graph_ != NULL)
+  if (path_ways_graph_ != NULL)
   {
-    frontier_graph_->reset();
+    path_ways_graph_->reset();
   }
-  frontier_graph_.reset(new GraphUtils());
-  frontier_graph_rep_.reset();
+  path_ways_graph_.reset(new GraphUtils());
+  path_ways_graph_rep_.reset();
 }
 
 void GraphManager::resetSparseGraph()
@@ -595,7 +598,8 @@ bool GraphManager::buildLocalGraph()
 
   // Add local exploration targets to graph
 
-  for (int i = 0; i < local_exploration_targets_.size(); ++i) {
+  // for (int i = 0; i < local_exploration_targets_.size(); ++i) {
+  for (int i = 0; i < exploration_targets_.size(); ++i) {
 
     Vertex *temp_vert = new Vertex (i, local_exploration_targets_[i]); 
     temp_vert->is_leaf_vertex = true;
@@ -724,6 +728,11 @@ bool GraphManager::planLocalPath()
 
       if (!dijkstra_path.empty())
       {
+        
+        for (int i = 0; i < dijkstra_path.size(); ++i) {
+          Vertex* path_vert = new Vertex(path_ways_graph_->generateVertexID(), dijkstra_path[i]->state);
+          path_ways_graph_->addVertex(path_vert);
+        }
 
         std::pair<std::vector<Vertex *>, double> p = std::make_pair(dijkstra_path, getPathLength(dijkstra_path));
 
@@ -783,6 +792,77 @@ bool GraphManager::planLocalPath()
   return path_status;
 
 } // planLocalPath
+
+bool GraphManager::buildPathWaysGraph() {
+
+  bool graph_status = true;
+
+  for (int i = 0; i < exploration_targets_.size(); ++i) {
+
+    Vertex *temp_vert = new Vertex (i, local_exploration_targets_[i]); 
+    temp_vert->is_leaf_vertex = true;
+    path_ways_graph_->insertVertexKdtree(temp_vert);
+  }
+  
+  for (int i = 0; i < path_ways_graph_->getNumVertices(); ++i)
+  {
+
+    std::vector<Vertex *> knn;
+    path_ways_graph_->getNearestVertices(&path_ways_graph_->vertices_map_[i]->state, 1, &knn);
+
+    for (Vertex *v : knn)
+    {
+      if (v->is_leaf_vertex)
+      {
+        path_ways_graph_->vertices_map_[i]->is_frontier = true;
+      }
+    }
+  }
+
+  std::pair<Graph::GraphType::vertex_iterator,
+  Graph::GraphType::vertex_iterator>
+  vi;
+  path_ways_graph_->graph_->getVertexIterator(vi);
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
+  {
+
+    int id = path_ways_graph_->graph_->getVertexProperty(it);
+    
+    Eigen::Vector3d v(path_ways_graph_->vertices_map_[id]->state[0],
+                      path_ways_graph_->vertices_map_[id]->state[1],
+                      path_ways_graph_->vertices_map_[id]->state[2]);
+
+    // Get nearby vertices from the current vertex and connect the them to form local edges
+    std::vector<Vertex *> nearby_vertices;
+    path_ways_graph_->getNearestVertices(&path_ways_graph_->vertices_map_[id]->state, 2, &nearby_vertices);
+
+    for (int i = 0; i < nearby_vertices.size(); i++)
+    {
+      if (!nearby_vertices[i]->is_leaf_vertex)
+      {
+        // VOXBLOX EDGE CHECK
+
+        if (path_ways_graph_->vertices_map_[id]->edges < num_edges_max_ and path_ways_graph_->distanceBetweenVertices(path_ways_graph_->vertices_map_[id], nearby_vertices[i]) < max_edge_length_)
+        {
+
+          Eigen::Vector3d v_n(nearby_vertices[i]->state[0], nearby_vertices[i]->state[1], nearby_vertices[i]->state[2]);
+          MapManager::VoxelStatus vn = map_manager_->getPathStatus(v, v_n, robot_box_size_, true);
+
+          if (MapManager::VoxelStatus::kFree == vn)
+          {
+
+            path_ways_graph_->addEdge(path_ways_graph_->vertices_map_[id], nearby_vertices[i],
+                                path_ways_graph_->distanceBetweenVertices(path_ways_graph_->vertices_map_[id], nearby_vertices[i]));
+            path_ways_graph_->vertices_map_[id]->edges++;
+          }
+        }
+      }
+    }
+  }
+  
+  GraphManager::visualizePathWaysGraph ();
+  return graph_status;
+}
 
 bool GraphManager::buildSparseGraph () 
 {
@@ -1300,6 +1380,7 @@ void GraphManager::fetchExplorationTargets()
 
   global_repos_targets_.clear();
   local_exploration_targets_.clear();
+  exploration_targets_.clear();
 
   frontier_srv.request.explore = true;
 
@@ -1314,8 +1395,6 @@ void GraphManager::fetchExplorationTargets()
 
       global_repos_targets_ = pointsToEigen(frontier_srv.response.global_targets);
 
-      GraphManager::resetFrontierGraph();
-
       if (global_repos_targets_.empty() and local_exploration_targets_.empty())
       {
         return;
@@ -1327,11 +1406,7 @@ void GraphManager::fetchExplorationTargets()
 
         for (auto i : local_exploration_targets_)
         {
-          Vertex *frontier_vertex = new Vertex(frontier_graph_->generateVertexID(), eigenToState(i));
-          frontier_vertex->is_local = true;
-          frontier_vertex->gain = 10 * computeExplorationGain(eigenToState(i));
-          frontier_graph_->addVertex(frontier_vertex);
-          gains.push_back(frontier_vertex->gain);
+          exploration_targets_.push_back(i);
         }
       }
 
@@ -1340,12 +1415,7 @@ void GraphManager::fetchExplorationTargets()
 
         for (auto i : global_repos_targets_)
         {
-          Vertex *frontier_vertex = new Vertex(frontier_graph_->generateVertexID(), eigenToState(i));
-          frontier_vertex->is_global = true;
-          frontier_vertex->gain = 10 * computeExplorationGain(eigenToState(i));
-          // ROS_INFO_STREAM ("Frontier vertex gain : " << frontier_vertex->gain << "\n");
-          frontier_graph_->addVertex(frontier_vertex);
-          gains.push_back(frontier_vertex->gain);
+          exploration_targets_.push_back(i);
         }
       }
 
@@ -1412,9 +1482,10 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
           if (GraphManager::setPath()) {
             ROS_INFO ("Set path success ! \n");
 
+              GraphManager::buildPathWaysGraph();  
               if (GraphManager::buildGlobalGraph()) {
                 // ROS_INFO ("Successfully built reserved graph \n");
-              GraphManager::buildSparseGraph();  
+              // GraphManager::buildSparseGraph();  
             }
 
             res.path = exploration_path_;
@@ -1519,14 +1590,53 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
 // Visualization of navigation graphs
 
-void GraphManager::visualizeFrontierGraph()
+void GraphManager::visualizePathWaysGraph()
 {
 
-  if (all_vertices.empty())
+  std::shared_ptr<Graph> g = path_ways_graph_->graph_;
+  std::unordered_map<int, Vertex *> &v_map = path_ways_graph_->vertices_map_;
+  
+  if (path_ways_graph_->getNumVertices() == 0) {
     return;
+  }
 
   visualization_msgs::MarkerArray marker_array;
 
+  visualization_msgs::Marker edge_marker;
+  edge_marker.header.stamp = ros::Time::now();
+  edge_marker.header.seq = 0;
+  edge_marker.header.frame_id = "world";
+  edge_marker.id = 0;
+  edge_marker.ns = "edges";
+  edge_marker.action = visualization_msgs::Marker::ADD;
+  edge_marker.type = visualization_msgs::Marker::LINE_LIST;
+  edge_marker.scale.x = 0.04;
+  edge_marker.color.r = 90.0 / 255.0;
+  edge_marker.color.g = 80.0 / 255.0;
+  edge_marker.color.b = 100.0;
+  edge_marker.color.a = 0.8;
+  edge_marker.frame_locked = false;
+
+  std::pair<Graph::GraphType::edge_iterator, Graph::GraphType::edge_iterator>
+  ei;
+  g->getEdgeIterator(ei);
+  for (Graph::GraphType::edge_iterator it = ei.first; it != ei.second; ++it)
+  {
+    int src_id, tgt_id;
+    double weight;
+    std::tie(src_id, tgt_id, weight) = g->getEdgeProperty(it);
+    geometry_msgs::Point p1;
+    p1.x = v_map[src_id]->state[0];
+    p1.y = v_map[src_id]->state[1];
+    p1.z = v_map[src_id]->state[2];
+    geometry_msgs::Point p2;
+    p2.x = v_map[tgt_id]->state[0];
+    p2.y = v_map[tgt_id]->state[1];
+    p2.z = v_map[tgt_id]->state[2];
+    edge_marker.points.push_back(p1);
+    edge_marker.points.push_back(p2);
+  }
+  marker_array.markers.push_back(edge_marker);
   // Plot all vertices
   visualization_msgs::Marker vertex_marker;
   vertex_marker.header.stamp = ros::Time::now();
@@ -1545,23 +1655,52 @@ void GraphManager::visualizeFrontierGraph()
   vertex_marker.color.a = 1.0;
   vertex_marker.frame_locked = false;
 
-  for (auto it = all_vertices.begin(); it != all_vertices.end(); ++it)
-  {
+  visualization_msgs::Marker frontier_vertex_marker;
+  frontier_vertex_marker.header.stamp = ros::Time::now();
+  frontier_vertex_marker.header.seq = 0;
+  frontier_vertex_marker.header.frame_id = "world";
+  frontier_vertex_marker.id = 0;
+  frontier_vertex_marker.ns = "frontier";
+  frontier_vertex_marker.action = visualization_msgs::Marker::ADD;
+  frontier_vertex_marker.type = visualization_msgs::Marker::SPHERE_LIST;
+  frontier_vertex_marker.scale.x = 0.4;
+  frontier_vertex_marker.scale.y = 0.4;
+  frontier_vertex_marker.scale.z = 0.4;
+  frontier_vertex_marker.color.r = 255.0 / 255.0;
+  frontier_vertex_marker.color.g = 0.0 / 255.0;
+  frontier_vertex_marker.color.b = 0.0 / 255.0;
+  frontier_vertex_marker.color.a = 0.7;
+  frontier_vertex_marker.frame_locked = false;
 
-    if ((*it)->is_frontier)
+  std::pair<Graph::GraphType::vertex_iterator,
+  Graph::GraphType::vertex_iterator>
+  vi;
+  g->getVertexIterator(vi);
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
+  {
+    int id = g->getVertexProperty(it);
+    if (v_map[id]->is_frontier)
     {
 
       geometry_msgs::Point p1;
-      p1.x = (*it)->state[0];
-      p1.y = (*it)->state[1];
-      p1.z = (*it)->state[2];
+      p1.x = v_map[id]->state[0];
+      p1.y = v_map[id]->state[1];
+      p1.z = v_map[id]->state[2];
 
-      vertex_marker.points.push_back(p1);
+      frontier_vertex_marker.points.push_back(p1);
     }
+
+    geometry_msgs::Point p1;
+    p1.x = v_map[id]->state[0];
+    p1.y = v_map[id]->state[1];
+    p1.z = v_map[id]->state[2];
+
+    vertex_marker.points.push_back(p1);
   }
   marker_array.markers.push_back(vertex_marker);
+  marker_array.markers.push_back(frontier_vertex_marker);
 
-  frontier_Graph_Vis_Pub_.publish(marker_array);
+  path_Ways_Graph_Vis_Pub_.publish(marker_array);
 }
 
 void GraphManager::visualizeLocalGraph()
