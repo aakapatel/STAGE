@@ -10,7 +10,7 @@
   
   <node pkg="stage_planner" type="frontiers_extraction_node" name="frontiers_extraction_node" output="screen">
 
-    <remap from="odometry" to="/hummingbird/ground_truth/odometry" />
+    <remap from="/odometry" to="/hummingbird/ground_truth/odometry" />
     <remap from="/pointcloud" to="/hummingbird/velodyne_points" />
     <rosparam command="load" file="$(arg voxblox_config_file)" /> 
     <rosparam command="load" file="$(arg stage_config_file)" /> 
