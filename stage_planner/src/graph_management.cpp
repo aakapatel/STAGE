@@ -39,7 +39,7 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
   nh_private_.param("num_edges_max", num_edges_max_, num_edges_max_);
   nh_private_.param("sampling_iterations", iterations_local_, iterations_local_);
   nh_private_.param("knn_range", knn_range_, knn_range_);
-  nh_private_.param("safety_margin", knn_range_, knn_range_);
+  nh_private_.param("safety_margin", safety_margin, safety_margin);
   nh_private_.param("robot_size", robot_box_size, robot_box_size);
   nh_private_.param("robot_type", robot_type_, robot_type_);
   nh_private_.param("truncate_sample_Z", truncate_sample_Z_, truncate_sample_Z_);
@@ -86,6 +86,7 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
   graph_timer_ = nh_.createTimer(ros::Duration(1), &GraphManager::updateGraph, this);
 
   robot_box_size_ << robot_box_size[0], robot_box_size[1], robot_box_size[2];
+  
   safety_margin_ << safety_margin[0], safety_margin[1], safety_margin[2];
 
   if (robot_type_ == "kLegged")
@@ -179,8 +180,9 @@ void GraphManager::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
       pose_graph_->addEdge(vertex, previous_vertex, pose_graph_->distanceBetweenVertices(vertex, previous_vertex));
       Vertex *pose_vertex = new Vertex(global_graph_->generateVertexID(), robotState_);
       pose_vertex->is_root = true;
+      global_vertices_ids_.push_back(pose_vertex->id);
       global_graph_->addVertex(pose_vertex);
-      
+        
       global_graph_->state_history_.push_back(robotState_);
     }
   }
@@ -401,7 +403,6 @@ void GraphManager::resetGlobalGraph()
     home_state[2] = robotState_[2] + 1;
     home = new Vertex(assignVertexID(), home_state);
     GraphManager::insertVertexKdtree(home);
-    global_vertices_ids_.push_back(home->id);
     reset_global_graph = false;
   }
 
@@ -793,29 +794,29 @@ bool GraphManager::buildSparseGraph ()
 
   bool graph_status = true;
   
-  for (int i = 0; i < global_graph_->getNumVertices(); ++i)
+  high_resolution_clock::time_point start_total = high_resolution_clock::now();
+  for (int i = 0; i < global_vertices_ids_.size(); ++i)
   {
 
     std::vector<Vertex *> knn;
-    if (global_graph_->vertices_map_[i]->is_root) {
-      State state = global_graph_->vertices_map_[i]->state; 
-      Vertex* sparse_graph_vertex = new Vertex (sparse_graph_->generateVertexID(), state);
-      sparse_graph_vertex->is_root = true;
-      sparse_graph_->addVertex(sparse_graph_vertex);
-      global_graph_->getNearestVertices(&state, knn_range_, &knn);
+    int id = global_vertices_ids_[i];
+    State state = global_graph_->vertices_map_[id]->state; 
+    Vertex* sparse_graph_vertex = new Vertex (sparse_graph_->generateVertexID(), state);
+    sparse_graph_vertex->is_root = true;
+    sparse_graph_->addVertex(sparse_graph_vertex);
+    global_graph_->getNearestVertices(&state, knn_range_, &knn);
 
-      for (Vertex *v : knn)
+    for (Vertex *v : knn)
+    {
+      State state_nn = v->state;
+      Vertex * sparse_graph_vertex_nn = new Vertex(sparse_graph_->generateVertexID(),state_nn);
+
+      if (v->is_leaf_vertex and v->is_global)
       {
-        State state_nn = v->state;
-        Vertex * sparse_graph_vertex_nn = new Vertex(sparse_graph_->generateVertexID(),state_nn);
-        
-        if (v->is_leaf_vertex and v->is_global)
-        {
-          sparse_graph_vertex_nn->is_frontier = true;
-          sparse_graph_vertex_nn->is_global = true;
-        }
-        sparse_graph_->addVertex(sparse_graph_vertex_nn);
+        sparse_graph_vertex_nn->is_frontier = true;
+        sparse_graph_vertex_nn->is_global = true;
       }
+      sparse_graph_->addVertex(sparse_graph_vertex_nn);
     }
   }
 
@@ -849,13 +850,11 @@ bool GraphManager::buildSparseGraph ()
                                   sparse_graph_->vertices_map_[nearby_vertex_id]->state[1],
                                   sparse_graph_->vertices_map_[nearby_vertex_id]->state[2]);
 
-        MapManager::VoxelStatus vs = map_manager_->getPathStatus(v, v_n, robot_box_size_, true);
-
         int e = sparse_graph_->vertices_map_[id]->edges;
         double weight = sparse_graph_->distanceBetweenVertices(sparse_graph_->vertices_map_[id],
                                                                      sparse_graph_->vertices_map_[nearby_vertex_id]);
         
-        if (e < num_edges_max_ && weight < max_edge_length_ && MapManager::VoxelStatus::kFree == vs)
+        if (e < num_edges_max_ && weight < 4*max_edge_length_ && MapManager::VoxelStatus::kFree == map_manager_->getPathStatus(v, v_n, robot_box_size_, true))
         {
           sparse_graph_->addEdge(sparse_graph_->vertices_map_[id],
                                  sparse_graph_->vertices_map_[nearby_vertex_id],
@@ -868,6 +867,12 @@ bool GraphManager::buildSparseGraph ()
     }
   }
 
+  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+
+  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+
+  ROS_INFO_STREAM("Sparse Graph build time "
+                  << duration_total.count() << " ms \n");
   GraphManager::visualizeSparseGraph();
   
   return graph_status;
@@ -902,9 +907,12 @@ bool GraphManager::buildGlobalGraph()
   for (int i = 0; i < global_graph_->getNumVertices(); ++i)
   {
 
+    if (global_graph_->vertices_map_[i]->is_root) {
+      global_vertices_ids_.push_back(global_graph_->vertices_map_[i]->id);
+    }
     std::vector<Vertex *> knn;
     global_graph_->getNearestVertices(&global_graph_->vertices_map_[i]->state, 1, &knn);
-
+    
     for (Vertex *v : knn)
     {
       if (v->is_leaf_vertex and v->is_global)
@@ -1383,37 +1391,30 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 {
 
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
-  ROS_INFO ("health check 1 \n"); 
   bool return_value = true;
   
   if (reached_end_of_path_) {
     
-  ROS_INFO ("health check 2 \n");  
     exploration_path_.poses.clear();
     ++planning_iteration_;
 
     GraphManager::fetchExplorationTargets();
     if (!local_exploration_targets_.empty()) {
 
-  ROS_INFO ("health check 3 \n"); 
       // ROS_INFO ("Local exploration targets received \n ");
 
       if (GraphManager::buildLocalGraph()) {
         // ROS_INFO ("Successfully built local graph \n");
 
-  ROS_INFO ("health check 4 \n");  
         if (GraphManager::planLocalPath()) {
           // ROS_INFO ("Successfully planned local path \n");
 
-  ROS_INFO ("health check 5 \n"); 
           if (GraphManager::setPath()) {
             ROS_INFO ("Set path success ! \n");
 
-  ROS_INFO ("health check 6 \n"); 
               if (GraphManager::buildGlobalGraph()) {
                 // ROS_INFO ("Successfully built reserved graph \n");
               GraphManager::buildSparseGraph();  
-  ROS_INFO ("health check 7 \n");  
             }
 
             res.path = exploration_path_;
@@ -1982,10 +1983,10 @@ void GraphManager::visualizeSparseGraph()
   edge_marker.action = visualization_msgs::Marker::ADD;
   edge_marker.type = visualization_msgs::Marker::LINE_LIST;
   edge_marker.scale.x = 0.04;
-  edge_marker.color.r = 93 / 255.0;
-  edge_marker.color.g = 142.0 / 255.0;
-  edge_marker.color.b = 193.0 / 255.0;
-  edge_marker.color.a = 1.0;
+  edge_marker.color.r = 213 / 255.0;
+  edge_marker.color.g = 117.0 / 255.0;
+  edge_marker.color.b = 0.0 / 255.0;
+  edge_marker.color.a = 0.8;
   // edge_marker.lifetime = ros::Duration(graph_lifetime);
   edge_marker.frame_locked = false;
 
@@ -2023,10 +2024,10 @@ void GraphManager::visualizeSparseGraph()
   vertex_marker.scale.x = 0.3;
   vertex_marker.scale.y = 0.3;
   vertex_marker.scale.z = 0.3;
-  vertex_marker.color.r = 93.0 / 255.0;
-  vertex_marker.color.g = 142.0 / 255.0;
-  vertex_marker.color.b = 193.0 / 255.0;
-  vertex_marker.color.a = 1.0;
+  vertex_marker.color.r = 40.0 / 255.0;
+  vertex_marker.color.g = 80.0 / 255.0;
+  vertex_marker.color.b = 60.0 / 255.0;
+  vertex_marker.color.a = 0.6;
   // vertex_marker.lifetime = ros::Duration(graph_lifetime);
   vertex_marker.frame_locked = false;
 

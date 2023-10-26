@@ -10,11 +10,13 @@ int main(int argc, char **argv)
     
     ros::NodeHandle nh;
     ros::NodeHandle nh_private("~");
+    
     MapManagerVoxblox<MapManagerVoxbloxServer, MapManagerVoxbloxVoxel>* map_manager = 
-      new MapManagerVoxblox<MapManagerVoxbloxServer, MapManagerVoxbloxVoxel> (nh, nh_private);   
+        new MapManagerVoxblox<MapManagerVoxbloxServer, MapManagerVoxbloxVoxel> (nh, nh_private);   
     GraphManager graphManager(nh, nh_private, map_manager);
-
+    
     ros::spin();
+
     // try
     // {
     //     ros::spin();
