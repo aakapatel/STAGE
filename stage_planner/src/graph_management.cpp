@@ -24,6 +24,7 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
   iterations_global_(6000),
   max_edge_length_(4),
   num_edges_max_(10),
+  knn_range_(4),
   robot_type_("kAerial")
 
 {
@@ -38,7 +39,8 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
   nh_private_.param("max_edge_length", max_edge_length_, max_edge_length_);
   nh_private_.param("num_edges_max", num_edges_max_, num_edges_max_);
   nh_private_.param("sampling_iterations", iterations_local_, iterations_local_);
-  nh_private_.param("safety_margin", safety_margin, safety_margin);
+  nh_private_.param("knn_range", knn_range_, knn_range_);
+  nh_private_.param("safety_margin", knn_range_, knn_range_);
   nh_private_.param("robot_size", robot_box_size, robot_box_size);
   nh_private_.param("robot_type", robot_type_, robot_type_);
   nh_private_.param("truncate_sample_Z", truncate_sample_Z_, truncate_sample_Z_);
@@ -71,7 +73,7 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
 
   random_Nodes_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/random_nodes", 10);
 
-  debug_Graph_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/debug_graph", 10);
+  sparse_Graph_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/sparse_graph", 10);
 
   execution_Time_Pub_ = nh_.advertise<std_msgs::Int64>("/stage_execution_time", 1);
 
@@ -165,7 +167,7 @@ void GraphManager::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
                    m_prevPose.pose.pose.position.y,
                    m_prevPose.pose.pose.position.z);
 
-    if (calculateDistance(newPoint, oldPoint) > 2)
+    if (calculateDistance(newPoint, oldPoint) > 1)
     {
       m_prevPose = *pose;
 
@@ -174,7 +176,10 @@ void GraphManager::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
       int id = pose_graph_->getIdCount();
       Vertex *previous_vertex = pose_graph_->vertices_map_[id - 1];
       pose_graph_->addEdge(vertex, previous_vertex, pose_graph_->distanceBetweenVertices(vertex, previous_vertex));
-
+      Vertex *pose_vertex = new Vertex(global_graph_->generateVertexID(), robotState_);
+      pose_vertex->is_root = true;
+      global_graph_->addVertex(pose_vertex);
+      
       global_graph_->state_history_.push_back(robotState_);
     }
   }
@@ -386,147 +391,6 @@ State GraphManager::generateRandomState(State root, State goal)
   return random_state;
 }
 
-void GraphManager::debugGraph(State root, State goal)
-{
-
-  GraphManager::resetDebugGraph();
-
-  int it = 0;
-  bool allow_once = true;
-
-  Vertex *v_root = new Vertex(debug_graph_->generateVertexID(), root);
-  debug_graph_->addVertex(v_root);
-
-  Vertex *v_goal = new Vertex(debug_graph_->generateVertexID(), goal);
-  debug_graph_->addVertex(v_goal);
-  Vertex *v_random = nullptr;
-
-  if (allow_once)
-  {
-    State random_state = GraphManager::generateRandomState(v_root->state, v_goal->state);
-    v_random = new Vertex(debug_graph_->generateVertexID(), random_state);
-    debug_graph_->addVertex(v_random);
-    debug_graph_->addEdge(v_root, v_random, debug_graph_->distanceBetweenVertices(v_root, v_random));
-    allow_once = false;
-  }
-
-  bool debug_while = true;
-  while (it < 100 and debug_while)
-  {
-    Vertex *v_previous = v_random;
-    std::vector<Vertex *> neighbours;
-    // neighbours.clear();
-    debug_graph_->getNearestVertices(&v_random->state, 1, &neighbours);
-    for (Vertex *vert : neighbours)
-    {
-      if (debug_graph_->distanceBetweenVertices(vert, v_goal) < 1)
-      {
-        // debug_graph_->addEdge(v_random, vert, debug_graph_->distanceBetweenVertices(v_random, vert));
-        debug_while = false;
-        break;
-      }
-    }
-    if (!debug_while)
-    {
-      break;
-    }
-
-    State random_state = GraphManager::generateRandomState(v_random->state, v_goal->state);
-    v_random = new Vertex(debug_graph_->generateVertexID(), random_state);
-    debug_graph_->addVertex(v_random);
-    debug_graph_->addEdge(v_previous, v_random, debug_graph_->distanceBetweenVertices(v_previous, v_random));
-    it++;
-  }
-
-  // VISUALIZE DEBUG GRAPH
-
-  std::shared_ptr<Graph> g = debug_graph_->graph_;
-  std::unordered_map<int, Vertex *> &v_map = debug_graph_->vertices_map_;
-
-  if (debug_graph_->getNumVertices() == 0)
-    return;
-
-  visualization_msgs::MarkerArray marker_array;
-
-  // Plot all edges
-  visualization_msgs::Marker edge_marker;
-  edge_marker.header.stamp = ros::Time::now();
-  edge_marker.header.seq = 0;
-  edge_marker.header.frame_id = "world";
-  edge_marker.id = 0;
-  edge_marker.ns = "edges";
-  edge_marker.action = visualization_msgs::Marker::ADD;
-  edge_marker.type = visualization_msgs::Marker::LINE_LIST;
-  edge_marker.scale.x = 0.04;
-  edge_marker.color.r = 0 / 255.0;
-  edge_marker.color.g = 200.0 / 255.0;
-  edge_marker.color.b = 200.0 / 255.0;
-  edge_marker.color.a = 0.8;
-  // edge_marker.lifetime = ros::Duration(graph_lifetime);
-  edge_marker.frame_locked = false;
-
-  std::pair<Graph::GraphType::edge_iterator, Graph::GraphType::edge_iterator>
-  ei;
-  g->getEdgeIterator(ei);
-  for (Graph::GraphType::edge_iterator it = ei.first; it != ei.second; ++it)
-  {
-    int src_id, tgt_id;
-    double weight;
-    std::tie(src_id, tgt_id, weight) = g->getEdgeProperty(it);
-
-    geometry_msgs::Point p1;
-    p1.x = v_map[src_id]->state[0];
-    p1.y = v_map[src_id]->state[1];
-    p1.z = v_map[src_id]->state[2];
-    geometry_msgs::Point p2;
-    p2.x = v_map[tgt_id]->state[0];
-    p2.y = v_map[tgt_id]->state[1];
-    p2.z = v_map[tgt_id]->state[2];
-    edge_marker.points.push_back(p1);
-    edge_marker.points.push_back(p2);
-  }
-  marker_array.markers.push_back(edge_marker);
-
-  // Plot all vertices
-  visualization_msgs::Marker vertex_marker;
-  vertex_marker.header.stamp = ros::Time::now();
-  vertex_marker.header.seq = 0;
-  vertex_marker.header.frame_id = "world";
-  vertex_marker.id = 0;
-  vertex_marker.ns = "vertices";
-  vertex_marker.action = visualization_msgs::Marker::ADD;
-  vertex_marker.type = visualization_msgs::Marker::SPHERE_LIST;
-  vertex_marker.scale.x = 0.3;
-  vertex_marker.scale.y = 0.3;
-  vertex_marker.scale.z = 0.3;
-  vertex_marker.color.r = 0.0 / 255.0;
-  vertex_marker.color.g = 200.0 / 255.0;
-  vertex_marker.color.b = 200.0 / 255.0;
-  vertex_marker.color.a = 0.8;
-  // vertex_marker.lifetime = ros::Duration(graph_lifetime);
-  vertex_marker.frame_locked = false;
-
-  std::pair<Graph::GraphType::vertex_iterator,
-  Graph::GraphType::vertex_iterator>
-  vi;
-  g->getVertexIterator(vi);
-  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
-  {
-    int id = g->getVertexProperty(it);
-
-    geometry_msgs::Point p1;
-    p1.x = v_map[id]->state[0];
-    p1.y = v_map[id]->state[1];
-    p1.z = v_map[id]->state[2];
-
-    vertex_marker.points.push_back(p1);
-  }
-  marker_array.markers.push_back(vertex_marker);
-
-  debug_Graph_Vis_Pub_.publish(marker_array);
-}
-
-
 State GraphManager::eigenToState(Eigen::Vector3d v)
 {
   State s;
@@ -590,15 +454,15 @@ void GraphManager::resetFrontierGraph()
   frontier_graph_rep_.reset();
 }
 
-void GraphManager::resetDebugGraph()
+void GraphManager::resetSparseGraph()
 {
 
-  if (debug_graph_ != NULL)
+  if (sparse_graph_ != NULL)
   {
-    debug_graph_->reset();
+    sparse_graph_->reset();
   }
-  debug_graph_.reset(new GraphUtils());
-  debug_graph_rep_.reset();
+  sparse_graph_.reset(new GraphUtils());
+  sparse_graph_rep_.reset();
 }
 
 void GraphManager::insertVertexKdtree(Vertex *v)
@@ -945,7 +809,94 @@ bool GraphManager::planLocalPath()
 
 } // planLocalPath
 
+bool GraphManager::buildSparseGraph () 
+{
 
+  // Iterate through global graph, look for root vertices and their neighbours. Add them to sparse graph wwhile updating their frontier/global property.
+  
+  // The sparse graph should reset every iteration to plan paths in the background with latest map update 
+  GraphManager::resetSparseGraph();
+
+  bool graph_status = true;
+  
+  for (int i = 0; i < global_graph_->getNumVertices(); ++i)
+  {
+
+    std::vector<Vertex *> knn;
+    if (global_graph_->vertices_map_[i]->is_root) {
+      State state = global_graph_->vertices_map_[i]->state; 
+      Vertex* sparse_graph_vertex = new Vertex (sparse_graph_->generateVertexID(), state);
+      sparse_graph_vertex->is_root = true;
+      sparse_graph_->addVertex(sparse_graph_vertex);
+      global_graph_->getNearestVertices(&state, knn_range_, &knn);
+
+      for (Vertex *v : knn)
+      {
+        State state_nn = v->state;
+        Vertex * sparse_graph_vertex_nn = new Vertex(sparse_graph_->generateVertexID(),state_nn);
+        
+        if (v->is_leaf_vertex and v->is_global)
+        {
+          sparse_graph_vertex_nn->is_frontier = true;
+          sparse_graph_vertex_nn->is_global = true;
+        }
+        sparse_graph_->addVertex(sparse_graph_vertex_nn);
+      }
+    }
+  }
+
+  std::pair<Graph::GraphType::vertex_iterator,
+  Graph::GraphType::vertex_iterator>
+  vi;
+  
+  sparse_graph_->graph_->getVertexIterator(vi);
+
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
+  {
+    
+    std::vector<Vertex *> nearby_vertices;
+    int id = sparse_graph_->graph_->getVertexProperty(it);
+    Vertex* sparse_graph_vertex = sparse_graph_->vertices_map_[id];
+    sparse_graph_->getNearestVertices(&sparse_graph_vertex->state, 2, &nearby_vertices);
+
+    const Eigen::Vector3d v(sparse_graph_vertex->state[0],
+                            sparse_graph_vertex->state[1],
+                            sparse_graph_vertex->state[2]);
+
+    for (int i = 0; i < nearby_vertices.size(); ++i)
+    {
+
+      if (!nearby_vertices[i]->is_leaf_vertex)
+      {
+
+        int nearby_vertex_id = nearby_vertices[i]->id;
+
+        const Eigen::Vector3d v_n(sparse_graph_->vertices_map_[nearby_vertex_id]->state[0],
+                                  sparse_graph_->vertices_map_[nearby_vertex_id]->state[1],
+                                  sparse_graph_->vertices_map_[nearby_vertex_id]->state[2]);
+
+        MapManager::VoxelStatus vs = map_manager_->getPathStatus(v, v_n, robot_box_size_, true);
+
+        int e = sparse_graph_->vertices_map_[id]->edges;
+        double weight = sparse_graph_->distanceBetweenVertices(sparse_graph_->vertices_map_[id],
+                                                                     sparse_graph_->vertices_map_[nearby_vertex_id]);
+        
+        if (e < num_edges_max_ && weight < max_edge_length_ && MapManager::VoxelStatus::kFree == vs)
+        {
+          sparse_graph_->addEdge(sparse_graph_->vertices_map_[id],
+                                 sparse_graph_->vertices_map_[nearby_vertex_id],
+                                 sparse_graph_->distanceBetweenVertices(sparse_graph_->vertices_map_[id],
+                                                                       sparse_graph_->vertices_map_[nearby_vertex_id]));
+          
+          sparse_graph_->vertices_map_[id]->edges++;
+        }
+      }
+    }
+  }
+
+  GraphManager::visualizeSparseGraph();
+
+}
 
 bool GraphManager::buildGlobalGraph()
 {
@@ -1480,7 +1431,8 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
               if (GraphManager::buildGlobalGraph()) {
                 // ROS_INFO ("Successfully built reserved graph \n");
-              }
+              GraphManager::buildSparseGraph();  
+            }
 
             res.path = exploration_path_;
             high_resolution_clock::time_point stop_total = high_resolution_clock::now();
@@ -1497,6 +1449,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
             if (!global_repos_targets_.empty()) {
               GraphManager::buildLocalGraph();
               GraphManager::buildGlobalGraph();
+              GraphManager::buildSparseGraph();  
               if (GraphManager::planGlobalPath()) {
                 ROS_INFO ("Global planner engaged \n");
 
@@ -1530,6 +1483,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
       GraphManager::buildLocalGraph();
       GraphManager::buildGlobalGraph();
+      GraphManager::buildSparseGraph();  
       if (GraphManager::planGlobalPath()) {
         ROS_INFO ("Global planner engaged \n");
 
@@ -2024,6 +1978,122 @@ void GraphManager::visualizeRepositionPath()
   marker_array.markers.push_back(vertex_marker);
 
   reposition_Path_Vis_Pub_.publish(marker_array);
+}
+
+void GraphManager::visualizeSparseGraph()
+{
+  std::shared_ptr<Graph> g = sparse_graph_->graph_;
+  std::unordered_map<int, Vertex *> &v_map = sparse_graph_->vertices_map_;
+
+  if (sparse_graph_->getNumVertices() == 0)
+    return;
+
+  visualization_msgs::MarkerArray marker_array;
+
+  // Plot all edges
+  visualization_msgs::Marker edge_marker;
+  edge_marker.header.stamp = ros::Time::now();
+  edge_marker.header.seq = 0;
+  edge_marker.header.frame_id = "world";
+  edge_marker.id = 0;
+  edge_marker.ns = "edges";
+  edge_marker.action = visualization_msgs::Marker::ADD;
+  edge_marker.type = visualization_msgs::Marker::LINE_LIST;
+  edge_marker.scale.x = 0.04;
+  edge_marker.color.r = 93 / 255.0;
+  edge_marker.color.g = 142.0 / 255.0;
+  edge_marker.color.b = 193.0 / 255.0;
+  edge_marker.color.a = 1.0;
+  // edge_marker.lifetime = ros::Duration(graph_lifetime);
+  edge_marker.frame_locked = false;
+
+  std::pair<Graph::GraphType::edge_iterator, Graph::GraphType::edge_iterator>
+  ei;
+  g->getEdgeIterator(ei);
+  for (Graph::GraphType::edge_iterator it = ei.first; it != ei.second; ++it)
+  {
+    int src_id, tgt_id;
+    double weight;
+    std::tie(src_id, tgt_id, weight) = g->getEdgeProperty(it);
+
+    geometry_msgs::Point p1;
+    p1.x = v_map[src_id]->state[0];
+    p1.y = v_map[src_id]->state[1];
+    p1.z = v_map[src_id]->state[2];
+    geometry_msgs::Point p2;
+    p2.x = v_map[tgt_id]->state[0];
+    p2.y = v_map[tgt_id]->state[1];
+    p2.z = v_map[tgt_id]->state[2];
+    edge_marker.points.push_back(p1);
+    edge_marker.points.push_back(p2);
+  }
+  marker_array.markers.push_back(edge_marker);
+
+  // Plot all vertices
+  visualization_msgs::Marker vertex_marker;
+  vertex_marker.header.stamp = ros::Time::now();
+  vertex_marker.header.seq = 0;
+  vertex_marker.header.frame_id = "world";
+  vertex_marker.id = 0;
+  vertex_marker.ns = "vertices";
+  vertex_marker.action = visualization_msgs::Marker::ADD;
+  vertex_marker.type = visualization_msgs::Marker::SPHERE_LIST;
+  vertex_marker.scale.x = 0.3;
+  vertex_marker.scale.y = 0.3;
+  vertex_marker.scale.z = 0.3;
+  vertex_marker.color.r = 93.0 / 255.0;
+  vertex_marker.color.g = 142.0 / 255.0;
+  vertex_marker.color.b = 193.0 / 255.0;
+  vertex_marker.color.a = 1.0;
+  // vertex_marker.lifetime = ros::Duration(graph_lifetime);
+  vertex_marker.frame_locked = false;
+
+  visualization_msgs::Marker frontier_vertex_marker;
+  frontier_vertex_marker.header.stamp = ros::Time::now();
+  frontier_vertex_marker.header.seq = 0;
+  frontier_vertex_marker.header.frame_id = "world";
+  frontier_vertex_marker.id = 0;
+  frontier_vertex_marker.ns = "frontier";
+  frontier_vertex_marker.action = visualization_msgs::Marker::ADD;
+  frontier_vertex_marker.type = visualization_msgs::Marker::SPHERE_LIST;
+  frontier_vertex_marker.scale.x = 0.4;
+  frontier_vertex_marker.scale.y = 0.4;
+  frontier_vertex_marker.scale.z = 0.4;
+  frontier_vertex_marker.color.r = 255.0 / 255.0;
+  frontier_vertex_marker.color.g = 0.0 / 255.0;
+  frontier_vertex_marker.color.b = 0.0 / 255.0;
+  frontier_vertex_marker.color.a = 0.7;
+  frontier_vertex_marker.frame_locked = false;
+
+  std::pair<Graph::GraphType::vertex_iterator,
+  Graph::GraphType::vertex_iterator>
+  vi;
+  g->getVertexIterator(vi);
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
+  {
+    int id = g->getVertexProperty(it);
+    if (v_map[id]->is_frontier)
+    {
+
+      geometry_msgs::Point p1;
+      p1.x = v_map[id]->state[0];
+      p1.y = v_map[id]->state[1];
+      p1.z = v_map[id]->state[2];
+
+      frontier_vertex_marker.points.push_back(p1);
+    }
+
+    geometry_msgs::Point p1;
+    p1.x = v_map[id]->state[0];
+    p1.y = v_map[id]->state[1];
+    p1.z = v_map[id]->state[2];
+
+    vertex_marker.points.push_back(p1);
+  }
+  marker_array.markers.push_back(vertex_marker);
+  marker_array.markers.push_back(frontier_vertex_marker);
+
+  sparse_Graph_Vis_Pub_.publish(marker_array);
 }
 
 void GraphManager::visualizeGlobalGraph()

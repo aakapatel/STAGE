@@ -71,7 +71,7 @@ public:
   void resetLocalGraph();
   void resetGlobalGraph();
   void resetFrontierGraph();
-  void resetDebugGraph();
+  void resetSparseGraph();
 
   bool buildLocalGraph();
   
@@ -83,6 +83,8 @@ public:
   void visualizeLocalGraph();
 
   void visualizeGlobalGraph();
+  
+  void visualizeSparseGraph();
 
   void visualize();
 
@@ -116,9 +118,8 @@ public:
   
   State generateRandomState (State root, State goal);
   
-  void debugGraph(State root, State goal);
-  
   bool buildGlobalGraph();
+  bool buildSparseGraph();
   
   bool setPath();
 
@@ -153,7 +154,7 @@ private:
   std::shared_ptr<GraphUtils> frontier_graph_;
   std::shared_ptr<GraphUtils> improvement_graph_;
   std::shared_ptr<GraphUtils> pose_graph_;
-  std::shared_ptr<GraphUtils> debug_graph_;
+  std::shared_ptr<GraphUtils> sparse_graph_;
   
   std::vector<std::shared_ptr<GraphUtils>> graph_vec_;
 
@@ -167,7 +168,7 @@ private:
   ShortestPathsReport improvement_graph_rep_;
   ShortestPathsReport frontier_graph_rep_;
   ShortestPathsReport pose_graph_rep_;
-  ShortestPathsReport debug_graph_rep_;
+  ShortestPathsReport sparse_graph_rep_;
 
   int vertex_id_ = -1;
   int subgraph_ind_ = -1;
@@ -195,7 +196,7 @@ private:
   Eigen::Vector3d robot_box_size_;
   Eigen::Vector3d safety_margin_;
   int num_edges_max_;
-
+  double knn_range_;
 
   bool build_global_graph_ = false;
  
@@ -276,7 +277,7 @@ private:
   ros::Publisher pose_Graph_Vis_Pub_;
   ros::Publisher overlap_Vis_Pub_;
   ros::Publisher random_Nodes_Vis_Pub_;
-  ros::Publisher debug_Graph_Vis_Pub_;
+  ros::Publisher sparse_Graph_Vis_Pub_;
   ros::Publisher execution_Time_Pub_;
 
 
