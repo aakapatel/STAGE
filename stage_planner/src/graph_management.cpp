@@ -12,7 +12,6 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
   map_manager_(map_manager),
   m_worldFrameId("world"),
   m_odometry("/hummingbird/ground_truth/odometry"),
-  m_currentHeading(0),
   bounding_box_size_(12),
   m_local_fov(40),
   m_max_allowed_Z(4),
@@ -134,7 +133,7 @@ void GraphManager::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
 
   if (firstTime)
     {
-
+      
       if (pose_graph_ != NULL)
       {
         pose_graph_->reset();
@@ -144,8 +143,10 @@ void GraphManager::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
 
       GraphManager::resetKdtree();
       // GraphManager::resetLocalGraph();
+      GraphManager::resetSparseGraph ();
       GraphManager::resetGlobalGraph();
       GraphManager::resetFrontierGraph();
+      
       m_prevPose = *pose;
       firstTime = false;
       State home_state;
@@ -363,33 +364,6 @@ void GraphManager::sampleNodes(std::vector<node *> &nodes, State state, int iter
 
 } // sampleNodes
 
-
-State GraphManager::generateRandomState(State root, State goal)
-{
-
-  State random_state;
-
-  srand(time(0));
-
-  float x = root[0] + abs(1024 * rand() / (RAND_MAX + 1.0)) * goal[0] - root[0];
-  float y = root[1] + abs(1024 * rand() / (RAND_MAX + 1.0)) * goal[1] - root[1];
-  float z;
-
-  if (robot_type_ == "kAerial")
-    {
-      z = root[2] + abs(1024 * rand() / (RAND_MAX + 1.0)) * goal[2] - root[2];
-    }
-  else
-  {
-    z = robotState_[2] + abs(1024 * rand() / (RAND_MAX + 1.0)) * truncate_sample_Z_;
-  }
-
-  random_state[0] = x;
-  random_state[1] = y;
-  random_state[2] = z;
-
-  return random_state;
-}
 
 State GraphManager::eigenToState(Eigen::Vector3d v)
 {
@@ -895,6 +869,8 @@ bool GraphManager::buildSparseGraph ()
   }
 
   GraphManager::visualizeSparseGraph();
+  
+  return graph_status;
 
 }
 
@@ -1407,31 +1383,37 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 {
 
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
-  
+  ROS_INFO ("health check 1 \n"); 
   bool return_value = true;
   
   if (reached_end_of_path_) {
     
+  ROS_INFO ("health check 2 \n");  
     exploration_path_.poses.clear();
     ++planning_iteration_;
 
     GraphManager::fetchExplorationTargets();
     if (!local_exploration_targets_.empty()) {
 
+  ROS_INFO ("health check 3 \n"); 
       // ROS_INFO ("Local exploration targets received \n ");
 
       if (GraphManager::buildLocalGraph()) {
         // ROS_INFO ("Successfully built local graph \n");
 
+  ROS_INFO ("health check 4 \n");  
         if (GraphManager::planLocalPath()) {
           // ROS_INFO ("Successfully planned local path \n");
 
+  ROS_INFO ("health check 5 \n"); 
           if (GraphManager::setPath()) {
             ROS_INFO ("Set path success ! \n");
 
+  ROS_INFO ("health check 6 \n"); 
               if (GraphManager::buildGlobalGraph()) {
                 // ROS_INFO ("Successfully built reserved graph \n");
               GraphManager::buildSparseGraph();  
+  ROS_INFO ("health check 7 \n");  
             }
 
             res.path = exploration_path_;

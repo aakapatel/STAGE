@@ -21,12 +21,14 @@ Panels:
         - /MarkerArray4
         - /MarkerArray5
         - /PointCloud21
+        - /MarkerArray6
+        - /MarkerArray7
         - /Marker1
+        - /MarkerArray8
         - /MarkerArray9
         - /MarkerArray10
         - /MarkerArray11
         - /MarkerArray12
-        - /MarkerArray13
         - /PointCloud22
       Splitter Ratio: 0.5
     Tree Height: 601
@@ -141,9 +143,7 @@ Visualization Manager:
       Marker Topic: /local_planning_graph
       Name: MarkerArray
       Namespaces:
-        edges: false
-        frontier: true
-        vertices: true
+        {}
       Queue Size: 100
       Value: true
     - Alpha: 1
@@ -209,7 +209,7 @@ Visualization Manager:
       Size (Pixels): 2
       Size (m): 0.05999999865889549
       Style: Points
-      Topic: /graph_management_node/surface_pointcloud
+      Topic: /frontiers_extraction_node/surface_pointcloud
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
@@ -223,21 +223,13 @@ Visualization Manager:
       Queue Size: 100
       Value: false
     - Class: rviz/MarkerArray
-      Enabled: false
-      Marker Topic: /frontier_graph
+      Enabled: true
+      Marker Topic: /sparse_graph
       Name: MarkerArray
       Namespaces:
         {}
       Queue Size: 100
-      Value: false
-    - Class: rviz/MarkerArray
-      Enabled: false
-      Marker Topic: /sparse_planning_graph
-      Name: MarkerArray
-      Namespaces:
-        {}
-      Queue Size: 100
-      Value: false
+      Value: true
     - Class: rviz/Marker
       Enabled: true
       Marker Topic: /overlap_point
@@ -251,8 +243,7 @@ Visualization Manager:
       Marker Topic: /pose_graph
       Name: MarkerArray
       Namespaces:
-        edges: true
-        vertices: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -276,8 +267,7 @@ Visualization Manager:
       Marker Topic: /global_repos_path
       Name: MarkerArray
       Namespaces:
-        edges: true
-        vertices: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -362,7 +352,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: hummingbird/base_link
-      Yaw: 3.1686980724334717
+      Yaw: 3.128697395324707
     Saved: ~
 Window Geometry:
   Displays:

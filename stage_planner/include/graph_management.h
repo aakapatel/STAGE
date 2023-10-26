@@ -116,8 +116,6 @@ public:
  
   void expandGraph (int iterations_max, Vertex* root, Vertex* goal, double radius);
   
-  State generateRandomState (State root, State goal);
-  
   bool buildGlobalGraph();
   bool buildSparseGraph();
   
@@ -196,7 +194,7 @@ private:
   Eigen::Vector3d robot_box_size_;
   Eigen::Vector3d safety_margin_;
   int num_edges_max_;
-  double knn_range_;
+  double knn_range_ = 4;
 
   bool build_global_graph_ = false;
  
@@ -222,8 +220,7 @@ private:
   std::string robot_type_ = "kAerial";
   Eigen::Quaterniond quat_;
   bool firstTime = true;
-  double m_currentHeading;
-  double bounding_box_size_, m_global_space;
+  double bounding_box_size_;
   double m_local_fov;
   bool map_received;
   bool reset_global_graph = true;

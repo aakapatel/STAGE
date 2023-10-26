@@ -1,11 +1,10 @@
 <?xml version="1.0" ?>
 <launch>
 
-  <env name="ROSCONSOLE_FORMAT" value="[${severity}] : ${message}"/>
   
   <arg name="robot_name" default="hummingbird"/>
 
-
+  <env name="ROSCONSOLE_FORMAT" value="[${severity}] : ${message}"/>
   <arg name="voxblox_config_file" default="$(find stage_planner)/config/$(arg robot_name)/voxblox_sim_config.yaml"/>
 
   <arg name="stage_config_file" default="$(find stage_planner)/config/$(arg robot_name)/stage_config.yaml"/>
