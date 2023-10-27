@@ -207,7 +207,8 @@ void GraphManager::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
   tf::Matrix3x3 m(q);
   double roll, pitch, yaw;
   m.getRPY(roll, pitch, yaw);
-
+  yaw_ = yaw * (180 / 3.14159);
+  
   robotState_[0] = pose->pose.pose.position.x;
   robotState_[1] = pose->pose.pose.position.y;
   robotState_[2] = pose->pose.pose.position.z;
@@ -719,8 +720,7 @@ bool GraphManager::planLocalPath()
 
     int id = sub_graph_->graph_->getVertexProperty(it);
 
-    // if (sub_graph_->vertices_map_[id]->is_local and sub_graph_->vertices_map_[id]->is_frontier)
-    if (sub_graph_->vertices_map_[id]->is_frontier)
+    if (sub_graph_->vertices_map_[id]->is_local and sub_graph_->vertices_map_[id]->is_frontier)
     {
 
       std::vector<Vertex *> dijkstra_path;
@@ -736,10 +736,14 @@ bool GraphManager::planLocalPath()
           Vertex* path_vert = new Vertex(path_ways_graph_->generateVertexID(), dijkstra_path[i]->state);
           path_ways_graph_->addVertex(path_vert);
         }
+        Eigen::Vector3d path_goal (dijkstra_path.back()->state[0], dijkstra_path.back()->state[1], dijkstra_path.back()->state[2]);
 
-        std::pair<std::vector<Vertex *>, double> p = std::make_pair(dijkstra_path, getPathLength(dijkstra_path));
+        if (isLocal(path_goal)) {
 
-        local_paths_.push_back(p);
+          std::pair<std::vector<Vertex *>, double> p = std::make_pair(dijkstra_path, getPathLength(dijkstra_path));
+
+          local_paths_.push_back(p);
+        }
       }
     }
   }
@@ -1354,6 +1358,29 @@ void GraphManager::improvePath(std::vector<Vertex *> raw_path, std::vector<Verte
   }
 
   improvement_graph_->getShortestPath(goal_vertex->id, improvement_graph_rep_, true, path);
+}
+
+// Calculate relative Angle of a point wrt robot's current heading vector
+
+double GraphManager::calculateAngle(Eigen::Vector3d fpoint)
+{
+    return atan2((fpoint.y() - robotState_[1]), (fpoint.x() - robotState_[0])) * (180 / M_PI) - yaw_;
+}
+
+bool GraphManager::isLocal(Eigen::Vector3d point)
+{
+
+    double angle = calculateAngle(point);
+    double distance = calculateDistance(point, robotState_);
+
+    if (((angle < m_local_fov) && (angle > -m_local_fov)) && distance < (bounding_box_size_ + 2))
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
 }
 
 void GraphManager::updateGraph(const ros::TimerEvent &event)

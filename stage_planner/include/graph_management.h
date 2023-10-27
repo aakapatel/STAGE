@@ -55,6 +55,10 @@ public:
                            stage_planner::explorationPath::Response &res);
   Eigen::Quaternion<float> Euler2Quaternion(Eigen::Vector3d v);
 
+  double calculateAngle(Eigen::Vector3d fpoint);
+
+  bool isLocal(Eigen::Vector3d point);
+  
   State eigenToState(Eigen::Vector3d v);
 
   void segmentPath(std::vector<Vertex *> path,
@@ -242,6 +246,7 @@ private:
   bool local_exploration;
   bool global_exploration;
   bool run_global_planner = false;
+  double yaw_;
   Eigen::Vector3d exploration_target;
   nav_msgs::Path homing_path_;
   Eigen::Vector3d home_position;
