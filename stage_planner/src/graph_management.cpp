@@ -601,9 +601,10 @@ bool GraphManager::buildLocalGraph()
   // for (int i = 0; i < local_exploration_targets_.size(); ++i) {
   for (int i = 0; i < exploration_targets_.size(); ++i) {
 
-    Vertex *temp_vert = new Vertex (i, local_exploration_targets_[i]); 
+    // Vertex *temp_vert = new Vertex (i, local_exploration_targets_[i]); 
+    Vertex *temp_vert = new Vertex (i, exploration_targets_[i]); 
     temp_vert->is_leaf_vertex = true;
-    temp_vert->is_local = true;
+    // temp_vert->is_local = true;
     sub_graph_->insertVertexKdtree(temp_vert);
   }
   
@@ -615,10 +616,11 @@ bool GraphManager::buildLocalGraph()
 
     for (Vertex *v : knn)
     {
-      if (v->is_leaf_vertex and v->is_local)
+      // if (v->is_leaf_vertex and v->is_local)
+      if (v->is_leaf_vertex)
       {
         sub_graph_->vertices_map_[i]->is_frontier = true;
-        sub_graph_->vertices_map_[i]->is_local = true;
+        // sub_graph_->vertices_map_[i]->is_local = true;
       }
     }
   }
@@ -717,7 +719,8 @@ bool GraphManager::planLocalPath()
 
     int id = sub_graph_->graph_->getVertexProperty(it);
 
-    if (sub_graph_->vertices_map_[id]->is_local and sub_graph_->vertices_map_[id]->is_frontier)
+    // if (sub_graph_->vertices_map_[id]->is_local and sub_graph_->vertices_map_[id]->is_frontier)
+    if (sub_graph_->vertices_map_[id]->is_frontier)
     {
 
       std::vector<Vertex *> dijkstra_path;
