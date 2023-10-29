@@ -3,3 +3,4 @@ bool explore
 bool frontiers_exist
 geometry_msgs/Point[] local_targets
 geometry_msgs/Point[] global_targets
+geometry_msgs/Point[] all_targets

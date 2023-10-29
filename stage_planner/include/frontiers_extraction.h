@@ -127,6 +127,7 @@ public:
     
     double findAngle (Eigen::Vector3d fpoint);
 
+    std::vector<geometry_msgs::Point> fetchAllTargets();
     virtual void insertPointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr &cloud);
 
     virtual void insertPointCloudScan(const tf::Point &sensorOrigin, const PCLPointCloud &ground,

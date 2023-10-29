@@ -51,6 +51,7 @@ public:
   std::vector<Eigen::Vector3d> pointsToEigen(std::vector<geometry_msgs::Point> points);
   void fetchExplorationTargets();
   bool isLastTargetFrontier(geometry_msgs::Point last_target_frontier);
+  void getFrontiers(std::vector<Eigen::Vector3d> &frontiers);
   bool nextExplorationPath(stage_planner::explorationPath::Request &req,
                            stage_planner::explorationPath::Response &res);
   Eigen::Quaternion<float> Euler2Quaternion(Eigen::Vector3d v);
@@ -109,7 +110,7 @@ public:
 
   int assignVertexID();
 
-  void updateKdtree();
+  void updateKdtree(std::shared_ptr<GraphUtils> graph);
 
   void updateGraph(const ros::TimerEvent &event);
 
@@ -180,7 +181,7 @@ private:
   int planning_iteration_ = -1;
 
   int temp_id = -1;
-
+  int fake_id_count = -1;
   int latest_sub_graph_id = 0;
 
   std::vector<std::pair<std::vector<Vertex *>, double>> local_paths_;
@@ -189,6 +190,7 @@ private:
   std::vector<int> global_vertices_ids_;
 
   std::list<Vertex *> all_vertices;
+  std::list<Vertex *> path_way_vertices;
 
   std::list<Vertex *> sparse_vertices;
   // variables

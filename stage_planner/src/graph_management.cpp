@@ -807,28 +807,51 @@ bool GraphManager::buildPathWaysGraph() {
   
   GraphManager::resetPathWaysGraph();
 
+  // std::vector<Eigen::Vector3d> frontiers;
+  // GraphManager::getFrontiers(frontiers);
+  
+  // ROS_INFO_STREAM ("number of frontiers : " << frontiers.size() << "\n");
+  ROS_INFO_STREAM ("number of frontiers : " << exploration_targets_.size() << "\n");
+
+  ROS_INFO_STREAM ("before path ways vertices : " << path_way_vertices.size() << "\n");
+  // for (Eigen::Vector3d v : frontiers) {
   for (Eigen::Vector3d v : exploration_targets_) {
     
-    State state (v[0], v[1], v[2]);
-    Vertex* vert = new Vertex (++fake_id_count, state);
-    vert->is_leaf_vertex = true;
+    State vert_state;
+    vert_state[0] = v[0];
+    vert_state[1] = v[1];
+    vert_state[2] = v[2];
+
+    Vertex* vert = new Vertex (++fake_id_count, vert_state);
     vert->is_frontier= true;
     path_way_vertices.push_back(vert);
 
   }
 
-  for (auto it = path_way_vertices.begin(); it != path_way_vertices.end(); it++) {
+  ROS_INFO_STREAM ("path ways vertices with frontiers  : " << path_way_vertices.size() << "\n");
+
+  std::vector<Vertex *> remove_ids;
+
+  for (auto it : path_way_vertices) {
 
     // Iterate through reserved vertices from local path planning step and make path ways graph
-
-    Vertex* path_way_vertex = new Vertex (path_ways_graph_->generateVertexID(), (*it)->state);
-    path_way_vertex->is_frontier = (*it)->is_frontier;
-    path_ways_graph_->addVertex(path_way_vertex);
-    if ((*it)->is_frontier) {
-      it = path_way_vertices.erase(it);
+    State v_state = (it)->state;
+    Vertex* path_way_vertex = new Vertex (path_ways_graph_->generateVertexID(), v_state);
+    if ((it)->is_frontier) {
+      path_way_vertex->is_frontier = true;
+      path_ways_graph_->addVertex(path_way_vertex);
+      
+      remove_ids.push_back(it);
+    } else { 
+      path_ways_graph_->addVertex(path_way_vertex);
     }
   }
 
+  for (auto i : remove_ids) {
+    path_way_vertices.remove(i);
+  }
+  
+  ROS_INFO_STREAM ("path ways vertices after removing frontiers  : " << path_way_vertices.size() << "\n");
   std::pair<Graph::GraphType::vertex_iterator,
   Graph::GraphType::vertex_iterator>
   vi;
@@ -850,8 +873,11 @@ bool GraphManager::buildPathWaysGraph() {
     for (int i = 0; i < nearby_vertices.size(); i++)
     {
         // VOXBLOX EDGE CHECK
+        
+      if (!path_ways_graph_->vertices_map_[id]->is_frontier or !nearby_vertices[i]->is_frontier) {
 
-        if (path_ways_graph_->vertices_map_[id]->edges < num_edges_max_ and path_ways_graph_->distanceBetweenVertices(path_ways_graph_->vertices_map_[id], nearby_vertices[i]) < max_edge_length_)
+        if (path_ways_graph_->vertices_map_[id]->edges < num_edges_max_ 
+            and path_ways_graph_->distanceBetweenVertices(path_ways_graph_->vertices_map_[id], nearby_vertices[i]) < 2*max_edge_length_)
         {
 
           Eigen::Vector3d v_n(nearby_vertices[i]->state[0], nearby_vertices[i]->state[1], nearby_vertices[i]->state[2]);
@@ -861,14 +887,16 @@ bool GraphManager::buildPathWaysGraph() {
           {
 
             path_ways_graph_->addEdge(path_ways_graph_->vertices_map_[id], nearby_vertices[i],
-                                path_ways_graph_->distanceBetweenVertices(path_ways_graph_->vertices_map_[id], nearby_vertices[i]));
+                                      path_ways_graph_->distanceBetweenVertices(path_ways_graph_->vertices_map_[id], nearby_vertices[i]));
             path_ways_graph_->vertices_map_[id]->edges++;
           }
         }
+      }
+
     }
   }
   
-  GraphManager::visualizePathWaysGraph ();
+  GraphManager::visualizePathWaysGraph();
   return graph_status;
 }
 
@@ -1159,7 +1187,7 @@ bool GraphManager::planGlobalPath()
 
         // ROS_INFO_STREAM ("Global Info gain : " << 100 * gain << "\n");
         // reward = (100 * gain) - 50 * path_length;
-        reward = gain/path_length;
+        reward = gain/(path_length + 2);
         if (reward > my_reward)
         {
           my_reward = reward;
@@ -1408,7 +1436,6 @@ void GraphManager::fetchExplorationTargets()
 {
 
   stage_planner::frontierRequest frontier_srv;
-
   global_repos_targets_.clear();
   local_exploration_targets_.clear();
   exploration_targets_.clear();
@@ -1458,6 +1485,27 @@ void GraphManager::fetchExplorationTargets()
   }
 }
 
+void GraphManager::getFrontiers(std::vector<Eigen::Vector3d> &frontiers)
+{
+
+  stage_planner::frontierRequest frontier_srv;
+  frontiers.clear();
+
+  frontier_srv.request.explore = true;
+
+  if (m_frontier_client.call(frontier_srv))
+  {
+
+    if (frontier_srv.response.frontiers_exist)
+    {
+
+      frontiers = pointsToEigen(frontier_srv.response.all_targets);
+
+      ROS_INFO_STREAM ("Fetched " << frontiers.size() << " frontiers \n");
+    }
+  }
+}
+
 bool GraphManager::isLastTargetFrontier(geometry_msgs::Point last_target_frontier)
 {
 
@@ -1492,7 +1540,9 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 {
 
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
-  bool return_value = true;
+  bool planner_status = true;
+  
+  GraphManager::resetPathWaysGraph();
   
   if (reached_end_of_path_) {
     
@@ -1513,11 +1563,12 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
           if (GraphManager::setPath()) {
             ROS_INFO ("Set path success ! \n");
 
-              if (GraphManager::buildPathWaysGraph()) {
-                ROS_INFO ("Successfully built reserved graph \n");
+            if (GraphManager::buildPathWaysGraph()) {
+              ROS_INFO ("Successfully built reserved graph \n");
             }
 
             res.path = exploration_path_;
+            // GraphManager::planGlobalPath();
             high_resolution_clock::time_point stop_total = high_resolution_clock::now();
 
             auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
@@ -1594,25 +1645,19 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
   } else {
 
-    return_value = GraphManager::setPath (); 
+    planner_status = GraphManager::setPath (); 
     
       if (!reached_end_of_path_)
       {
         res.path = exploration_path_;
-        ROS_INFO_STREAM("Following path segment \n");
+        // ROS_INFO_STREAM("Following path segment \n");
       } else  {
-        ROS_INFO ("Reached end.. fetch new path \n");
+        // ROS_INFO ("Reached end.. fetch new path \n");
         }
-      high_resolution_clock::time_point stop_total = high_resolution_clock::now();
-
-      auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-
-      ROS_INFO_STREAM("\033[;34m Total Execution time \033[0m "
-                      << duration_total.count() << " \033[;34m ms \033[0m\n ");      
     
   }
 
-  return return_value;
+  return planner_status;
 
 }
 
@@ -1630,6 +1675,18 @@ void GraphManager::visualizePathWaysGraph()
 
   visualization_msgs::MarkerArray marker_array;
 
+  std_msgs::ColorRGBA vertex_color;
+  std_msgs::ColorRGBA frontier_color;
+  vertex_color.r = 125.0 / 255.0;
+  vertex_color.g = 42.0 / 255.0;
+  vertex_color.b = 104.0 / 255.0;
+  vertex_color.a = 1.0;
+  frontier_color.r = 250 / 255.0;
+  frontier_color.g = 0;
+  frontier_color.b = 0;
+  frontier_color.a = 1.0;
+
+  
   visualization_msgs::Marker edge_marker;
   edge_marker.header.stamp = ros::Time::now();
   edge_marker.header.seq = 0;
@@ -1677,28 +1734,7 @@ void GraphManager::visualizePathWaysGraph()
   vertex_marker.scale.x = 0.3;
   vertex_marker.scale.y = 0.3;
   vertex_marker.scale.z = 0.3;
-  vertex_marker.color.r = 125.0 / 255.0;
-  vertex_marker.color.g = 42.0 / 255.0;
-  vertex_marker.color.b = 104.0 / 255.0;
-  vertex_marker.color.a = 1.0;
   vertex_marker.frame_locked = false;
-
-  visualization_msgs::Marker frontier_vertex_marker;
-  frontier_vertex_marker.header.stamp = ros::Time::now();
-  frontier_vertex_marker.header.seq = 0;
-  frontier_vertex_marker.header.frame_id = "world";
-  frontier_vertex_marker.id = 0;
-  frontier_vertex_marker.ns = "frontier";
-  frontier_vertex_marker.action = visualization_msgs::Marker::ADD;
-  frontier_vertex_marker.type = visualization_msgs::Marker::SPHERE_LIST;
-  frontier_vertex_marker.scale.x = 0.4;
-  frontier_vertex_marker.scale.y = 0.4;
-  frontier_vertex_marker.scale.z = 0.4;
-  frontier_vertex_marker.color.r = 255.0 / 255.0;
-  frontier_vertex_marker.color.g = 0.0 / 255.0;
-  frontier_vertex_marker.color.b = 0.0 / 255.0;
-  frontier_vertex_marker.color.a = 0.7;
-  frontier_vertex_marker.frame_locked = false;
 
   std::pair<Graph::GraphType::vertex_iterator,
   Graph::GraphType::vertex_iterator>
@@ -1714,19 +1750,20 @@ void GraphManager::visualizePathWaysGraph()
       p1.x = v_map[id]->state[0];
       p1.y = v_map[id]->state[1];
       p1.z = v_map[id]->state[2];
+      vertex_marker.colors.push_back(frontier_color);
+      vertex_marker.points.push_back(p1);
+    } else {
 
-      frontier_vertex_marker.points.push_back(p1);
+      geometry_msgs::Point p1;
+      p1.x = v_map[id]->state[0];
+      p1.y = v_map[id]->state[1];
+      p1.z = v_map[id]->state[2];
+      vertex_marker.colors.push_back(vertex_color);
+      vertex_marker.points.push_back(p1);
     }
 
-    geometry_msgs::Point p1;
-    p1.x = v_map[id]->state[0];
-    p1.y = v_map[id]->state[1];
-    p1.z = v_map[id]->state[2];
-
-    vertex_marker.points.push_back(p1);
   }
   marker_array.markers.push_back(vertex_marker);
-  marker_array.markers.push_back(frontier_vertex_marker);
 
   path_Ways_Graph_Vis_Pub_.publish(marker_array);
 }

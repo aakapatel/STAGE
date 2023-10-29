@@ -879,6 +879,20 @@ geometry_msgs::Point FrontierExtraction::eigenToPoint(Eigen::Vector3d v)
     return p;
 }
 
+std::vector<geometry_msgs::Point> FrontierExtraction::fetchAllTargets()
+{
+
+    std::vector<geometry_msgs::Point> all_targets;
+
+    for (Eigen::Vector3d frontier : fetchFrontiers())
+    {
+
+        all_targets.push_back(eigenToPoint(frontier));
+    }
+
+    return all_targets;
+}
+
 std::vector<geometry_msgs::Point> FrontierExtraction::fetchLocalTargets()
 {
 
@@ -921,6 +935,8 @@ bool FrontierExtraction::exportFrontierTargets(stage_planner::frontierRequest::R
         res.local_targets = fetchLocalTargets();
 
         res.global_targets = fetchGlobalRepositioningTargets();
+
+        res.all_targets = fetchAllTargets();
 
         if (res.local_targets.empty() and res.global_targets.empty())
         {
