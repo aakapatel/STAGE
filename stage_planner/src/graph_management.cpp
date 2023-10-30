@@ -604,26 +604,27 @@ void GraphManager::clusterNodes (std::shared_ptr<GraphUtils> g)
     Vertex * v = g->vertices_map_[id];
     std::vector<Vertex *> nearby_vertices;
     double vol_gain = -std::numeric_limits<double>::max();
-    g->getNearestVertices(&g->vertices_map_[id]->state, 2, &nearby_vertices);
+    g->getNearestVertices(&g->vertices_map_[id]->state, 2.5, &nearby_vertices);
     
     Vertex * centroid_vertex;
     for (int i = 0; i < nearby_vertices.size(); i++)
     {
       
       Vertex * nearby_vertex = nearby_vertices[i];
-      if (nearby_vertex->cluster_id == -1 or nearby_vertex->volumetric_gain > vol_gain) {
+      if (nearby_vertex->cluster_id == -1 and nearby_vertex->volumetric_gain > vol_gain) {
         vol_gain = nearby_vertex->volumetric_gain;
         centroid_vertex->cluster_id = cluster_count;
         centroid_vertex = nearby_vertex;
 
+      } else {
+        nearby_vertex->cluster_id = cluster_count;
       }
+
     }
     centroid_vertex->is_cluster_centroid = true;
     cluster_count = cluster_count + 1;
   }
 
-  ROS_INFO_STREAM ("Local graph nodes : " << g->getNumVertices() << "\n");
-  
   std::vector<int> centroids;
 
   for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
@@ -637,10 +638,6 @@ void GraphManager::clusterNodes (std::shared_ptr<GraphUtils> g)
       centroids.push_back(v->id);
     }
   }
-
-
-  ROS_INFO_STREAM ("Centroid nodes : " << centroids.size() << "\n");
-
 }
 
 
@@ -719,9 +716,7 @@ bool GraphManager::buildLocalGraph()
     }
   }
   
-  ROS_INFO_STREAM ("health check 1 \n");
-  GraphManager::clusterNodes(sub_graph_);
-  ROS_INFO_STREAM ("health check 2 \n");
+  // GraphManager::clusterNodes(sub_graph_);
 
   std::pair<Graph::GraphType::vertex_iterator,
   Graph::GraphType::vertex_iterator>
@@ -780,7 +775,6 @@ bool GraphManager::buildLocalGraph()
     }
   }
 
-  ROS_INFO_STREAM ("health check 3 \n");
   if (sub_graph_->getNumEdges() != 0)
     {
       graph_vec_.push_back(sub_graph_);
@@ -789,6 +783,11 @@ bool GraphManager::buildLocalGraph()
   else
   {
     ROS_WARN_STREAM("Sub graph has " << sub_graph_->getNumVertices() << " nodes & " << sub_graph_->getNumEdges() << " edges\n");
+  }
+
+  if(!GraphManager::planLocalPath()) {
+    ROS_WARN("Local graph OK but no path found! \n");
+    graph_status = false;
   }
 
   return graph_status;
@@ -909,8 +908,6 @@ bool GraphManager::buildPathWaysGraph() {
   // std::vector<Eigen::Vector3d> frontiers;
   // GraphManager::getFrontiers(frontiers);
   
-  // ROS_INFO_STREAM ("number of frontiers : " << frontiers.size() << "\n");
-
   // for (Eigen::Vector3d v : frontiers) {
   for (Eigen::Vector3d v : exploration_targets_) {
     
@@ -945,7 +942,9 @@ bool GraphManager::buildPathWaysGraph() {
   for (auto i : frontiers_to_update) {
     path_way_vertices.remove(i);
   }
-  
+ 
+  GraphManager::clusterNodes(path_ways_graph_);
+
   std::pair<Graph::GraphType::vertex_iterator,
   Graph::GraphType::vertex_iterator>
   vi;
@@ -956,37 +955,41 @@ bool GraphManager::buildPathWaysGraph() {
 
     int id = path_ways_graph_->graph_->getVertexProperty(it);
     
-    Eigen::Vector3d v(path_ways_graph_->vertices_map_[id]->state[0],
-                      path_ways_graph_->vertices_map_[id]->state[1],
-                      path_ways_graph_->vertices_map_[id]->state[2]);
-
-    // Get nearby vertices from the current vertex and connect the them to form local edges
-    std::vector<Vertex *> nearby_vertices;
-    path_ways_graph_->getNearestVertices(&path_ways_graph_->vertices_map_[id]->state, 2*knn_range_, &nearby_vertices);
-
-    for (int i = 0; i < nearby_vertices.size(); i++)
+    if (path_ways_graph_->vertices_map_[id]->is_cluster_centroid) 
     {
+
+      Eigen::Vector3d v(path_ways_graph_->vertices_map_[id]->state[0],
+                        path_ways_graph_->vertices_map_[id]->state[1],
+                        path_ways_graph_->vertices_map_[id]->state[2]);
+
+      // Get nearby vertices from the current vertex and connect the them to form local edges
+      std::vector<Vertex *> nearby_vertices;
+      path_ways_graph_->getNearestVertices(&path_ways_graph_->vertices_map_[id]->state, 6*knn_range_, &nearby_vertices);
+
+      for (int i = 0; i < nearby_vertices.size(); i++)
+      {
         // VOXBLOX EDGE CHECK
-        
-      if (!path_ways_graph_->vertices_map_[id]->is_frontier or !nearby_vertices[i]->is_frontier) {
 
-        if (path_ways_graph_->vertices_map_[id]->edges < num_edges_max_ 
+        if (!path_ways_graph_->vertices_map_[id]->is_frontier or !nearby_vertices[i]->is_frontier) {
+
+          if (nearby_vertices[i]->is_cluster_centroid and path_ways_graph_->vertices_map_[id]->edges < num_edges_max_ 
             and path_ways_graph_->distanceBetweenVertices(path_ways_graph_->vertices_map_[id], nearby_vertices[i]) < 2*max_edge_length_)
-        {
-
-          Eigen::Vector3d v_n(nearby_vertices[i]->state[0], nearby_vertices[i]->state[1], nearby_vertices[i]->state[2]);
-          MapManager::VoxelStatus vn = map_manager_->getPathStatus(v, v_n, robot_box_size_, true);
-
-          if (MapManager::VoxelStatus::kFree == vn)
           {
 
-            path_ways_graph_->addEdge(path_ways_graph_->vertices_map_[id], nearby_vertices[i],
-                                      path_ways_graph_->distanceBetweenVertices(path_ways_graph_->vertices_map_[id], nearby_vertices[i]));
-            path_ways_graph_->vertices_map_[id]->edges++;
+            Eigen::Vector3d v_n(nearby_vertices[i]->state[0], nearby_vertices[i]->state[1], nearby_vertices[i]->state[2]);
+            MapManager::VoxelStatus vn = map_manager_->getPathStatus(v, v_n, robot_box_size_, true);
+
+            if (MapManager::VoxelStatus::kFree == vn)
+            {
+
+              path_ways_graph_->addEdge(path_ways_graph_->vertices_map_[id], nearby_vertices[i],
+                                        path_ways_graph_->distanceBetweenVertices(path_ways_graph_->vertices_map_[id], nearby_vertices[i]));
+              // path_ways_graph_->vertices_map_[id]->edges++;
+            }
           }
         }
       }
-    }
+  }
   }
   
   GraphManager::visualizePathWaysGraph();
@@ -1572,8 +1575,8 @@ void GraphManager::fetchExplorationTargets()
 
       average_gain = std::accumulate(gains.begin(), gains.end(), 0.0) / gains.size();
 
-      ROS_INFO_STREAM ("Fetched " << local_exploration_targets_.size() << " Local & "
-      << global_repos_targets_.size() << " Global frontiers \n");
+      // ROS_INFO_STREAM ("Fetched " << local_exploration_targets_.size() << " Local & "
+      // << global_repos_targets_.size() << " Global frontiers \n");
     }
   }
 }
@@ -1594,7 +1597,7 @@ void GraphManager::getFrontiers(std::vector<Eigen::Vector3d> &frontiers)
 
       frontiers = pointsToEigen(frontier_srv.response.all_targets);
 
-      ROS_INFO_STREAM ("Fetched " << frontiers.size() << " frontiers \n");
+      // ROS_INFO_STREAM ("Fetched " << frontiers.size() << " frontiers \n");
     }
   }
 }
@@ -1633,122 +1636,67 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 {
 
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
+    
+
+  
   bool planner_status = true;
   
-  GraphManager::resetPathWaysGraph();
-  
-  if (reached_end_of_path_) {
-    
-    exploration_path_.poses.clear();
-    ++planning_iteration_;
+  switch (reached_end_of_path_) {
+    case 1:
 
-    GraphManager::fetchExplorationTargets();
-    if (!local_exploration_targets_.empty()) {
+      exploration_path_.poses.clear();
+      GraphManager::fetchExplorationTargets();
 
-      // ROS_INFO ("Local exploration targets received \n ");
+      switch (!local_exploration_targets_.empty()) {
+        case 1:
 
-      if (GraphManager::buildLocalGraph()) {
-        // ROS_INFO ("Successfully built local graph \n");
+          if (!GraphManager::buildLocalGraph()) {
+            ROS_WARN("No local path, Trigger global planner \n");
+            if (!GraphManager::buildPathWaysGraph()) {
+              ROS_WARN ("Global graph error \n");
+              break;
+            } else if (!GraphManager::planGlobalPath()) {
+              ROS_WARN ("No global re-pos path \n");
+              break;
 
-        if (GraphManager::planLocalPath()) {
-          // ROS_INFO ("Successfully planned local path \n");
-
-          if (GraphManager::setPath()) {
-            ROS_INFO ("Set path success ! \n");
-
-            if (GraphManager::buildPathWaysGraph()) {
-              ROS_INFO ("Successfully built reserved graph \n");
+            } else if (GraphManager::setPath()) {
+              res.path = exploration_path_;
+              ROS_INFO("Local path set :) \n");
+              break;
             }
-
+          } else if (GraphManager::setPath()) {  
             res.path = exploration_path_;
-            // GraphManager::planGlobalPath();
-            high_resolution_clock::time_point stop_total = high_resolution_clock::now();
-
-            auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-
-            ROS_INFO_STREAM("\033[;34m Total Execution time \033[0m "
-                            << duration_total.count() << " \033[;34m ms \033[0m\n ");
-            return true;
-          } else {
-
-            // Check if global re-positioning is possible 
-
-            if (!global_repos_targets_.empty()) {
-              GraphManager::buildLocalGraph();
-              GraphManager::planLocalPath();
-              GraphManager::buildPathWaysGraph();
-              if (GraphManager::planGlobalPath()) {
-                ROS_INFO ("Global planner engaged \n");
-
-                if (GraphManager::setPath()) {
-                  ROS_INFO ("Successfully planned global re-pos path \n");
-                  res.path = exploration_path_;
-
-                  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
-
-                  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-
-                  ROS_INFO_STREAM("\033[;34m Total Execution time \033[0m "
-                                  << duration_total.count() << " \033[;34m ms \033[0m\n ");
-
-                  return true;
-                } else {
-                  ROS_WARN ("Global planner failure !! \n");
-                  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
-
-                  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-
-                  ROS_INFO_STREAM("\033[;34m Total Execution time \033[0m "
-                                  << duration_total.count() << " \033[;34m ms \033[0m\n ");                     
-                }
-              }
-            }
+            // ROS_INFO("Local path set :) \n");
+            break;
           }
-        }
+
+        case 0:
+          if (!GraphManager::buildPathWaysGraph()) {
+            ROS_WARN ("Global graph error \n");
+            break;
+          } else if (!GraphManager::planGlobalPath()) {
+            ROS_WARN ("No global re-pos path \n");
+            break;
+          } else if (GraphManager::setPath()) {
+            res.path = exploration_path_;
+            // ROS_INFO("Local path set :) \n");
+            break;
+          }
       }
-    } else if (!global_repos_targets_.empty() and local_exploration_targets_.empty()) {
 
-      GraphManager::buildLocalGraph();
-      GraphManager::buildPathWaysGraph();
-      if (GraphManager::planGlobalPath()) {
-        ROS_INFO ("Global planner engaged \n");
 
-        if (GraphManager::setPath()) {
-          ROS_INFO ("Successfully planned global re-pos path \n");
-          res.path = exploration_path_;
-          high_resolution_clock::time_point stop_total = high_resolution_clock::now();
-
-          auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-
-          ROS_INFO_STREAM("\033[;34m Total Execution time \033[0m "
-                          << duration_total.count() << " \033[;34m ms \033[0m\n ");
-          return true;
-        } else {
-          ROS_WARN ("Global planner failure !! \n");
-          high_resolution_clock::time_point stop_total = high_resolution_clock::now();
-
-          auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-
-          ROS_INFO_STREAM("\033[;34m Total Execution time \033[0m "
-                          << duration_total.count() << " \033[;34m ms \033[0m\n ");
-          // return false;
-        }
-      }
-    }
-
-  } else {
-
-    planner_status = GraphManager::setPath (); 
-    
-      if (!reached_end_of_path_)
-      {
-        res.path = exploration_path_;
-        // ROS_INFO_STREAM("Following path segment \n");
-      } else  {
-        // ROS_INFO ("Reached end.. fetch new path \n");
-        }
-    
+    case 0:
+      planner_status = GraphManager::setPath();
+      res.path = exploration_path_;
+      ROS_INFO("Executing path segment \n");
   }
+
+  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+
+  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+
+  ROS_INFO_STREAM("\033[;34m Planning time \033[0m "
+                  << duration_total.count() << " \033[;34m ms \033[0m\n ");
 
   return planner_status;
 
@@ -1836,7 +1784,8 @@ void GraphManager::visualizePathWaysGraph()
   for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
   {
     int id = g->getVertexProperty(it);
-    if (v_map[id]->is_frontier)
+    // if (v_map[id]->is_frontier)
+    if (v_map[id]->is_cluster_centroid)
     {
 
       geometry_msgs::Point p1;
@@ -1982,8 +1931,8 @@ void GraphManager::visualizeLocalGraph()
     double h = (1.0 - std::min(std::max((gain - minZ) / (maxZ - minZ), 0.0), 1.0)) * 0.8;
     vertex_marker.colors.push_back(GraphManager::heightMapColor(h));
     vertex_marker.points.push_back(p1);
-    // if (v_map[id]->is_frontier)
-    if (v_map[id]->is_cluster_centroid)
+    if (v_map[id]->is_frontier)
+    // if (v_map[id]->is_cluster_centroid)
     {
 
       geometry_msgs::Point p1;
