@@ -230,7 +230,7 @@ double GraphManager::calculateDistance(State s1,
 double GraphManager::computeVolumetricGain(State state)
 {
 
-  double step_size = 0.1;
+  double step_size = 1;
   Eigen::Vector3d check_state(state[0], state[1], state[2]);
   Eigen::Vector3d increment(step_size, step_size, step_size / 2);
 
@@ -238,7 +238,7 @@ double GraphManager::computeVolumetricGain(State state)
   MapManager::VoxelStatus vs = map_manager_->getBoxStatus(check_state, increment, true);
   while (MapManager::VoxelStatus::kFree == vs)
   {
-    step_size = step_size + 0.1;
+    step_size = step_size + 1;
     Eigen::Vector3d increment(step_size, step_size, step_size / 2);
     MapManager::VoxelStatus vs = map_manager_->getBoxStatus(check_state, increment, true);
     if (vs == MapManager::VoxelStatus::kUnknown or vs == MapManager::VoxelStatus::kOccupied)
@@ -611,7 +611,7 @@ void GraphManager::clusterNodes (std::shared_ptr<GraphUtils> g)
     {
       
       Vertex * nearby_vertex = nearby_vertices[i];
-      if (nearby_vertex->cluster_id == -1 and nearby_vertex->volumetric_gain > vol_gain) {
+      if (nearby_vertex->cluster_id == -1 or nearby_vertex->volumetric_gain > vol_gain) {
         vol_gain = nearby_vertex->volumetric_gain;
         centroid_vertex->cluster_id = cluster_count;
         centroid_vertex = nearby_vertex;
@@ -719,7 +719,9 @@ bool GraphManager::buildLocalGraph()
     }
   }
   
+  ROS_INFO_STREAM ("health check 1 \n");
   GraphManager::clusterNodes(sub_graph_);
+  ROS_INFO_STREAM ("health check 2 \n");
 
   std::pair<Graph::GraphType::vertex_iterator,
   Graph::GraphType::vertex_iterator>
@@ -778,6 +780,7 @@ bool GraphManager::buildLocalGraph()
     }
   }
 
+  ROS_INFO_STREAM ("health check 3 \n");
   if (sub_graph_->getNumEdges() != 0)
     {
       graph_vec_.push_back(sub_graph_);
@@ -1979,7 +1982,8 @@ void GraphManager::visualizeLocalGraph()
     double h = (1.0 - std::min(std::max((gain - minZ) / (maxZ - minZ), 0.0), 1.0)) * 0.8;
     vertex_marker.colors.push_back(GraphManager::heightMapColor(h));
     vertex_marker.points.push_back(p1);
-    if (v_map[id]->is_frontier)
+    // if (v_map[id]->is_frontier)
+    if (v_map[id]->is_cluster_centroid)
     {
 
       geometry_msgs::Point p1;

@@ -286,6 +286,7 @@ private:
   ros::Publisher overlap_Vis_Pub_;
   ros::Publisher random_Nodes_Vis_Pub_;
   ros::Publisher sparse_Graph_Vis_Pub_;
+  ros::Publisher cluster_Centers_Vis_Pub_;
   ros::Publisher execution_Time_Pub_;
 
 
