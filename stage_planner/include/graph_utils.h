@@ -41,12 +41,15 @@ struct Vertex {
     parent = NULL;
     distance = 0;
     gain = 0;
+    volumetric_gain = 0;
     edges = 0;
     is_root = false;
     is_leaf_vertex = false;
     is_local = false;
     is_global = false;
     is_frontier = false;
+    is_cluster_centroid = false;
+    cluster_id = -1;
     sub_id = 0;
     sub_graph_id = 0;
   }
@@ -60,8 +63,10 @@ struct Vertex {
   std::vector<Vertex*> children;
   // Distance to root.
   double distance;
-  // volumetric gain 
+  // exploration gain 
   double gain;
+  // volumetric gain 
+  double volumetric_gain;
   // number of edges 
   int edges;
   // If it is root vertex 
@@ -74,6 +79,10 @@ struct Vertex {
   bool is_global;
   // If a node itself is a frontier
   bool is_frontier;
+  // if a vertex is a cluster centroid
+  bool is_cluster_centroid;
+  // cluster id 
+  int cluster_id;
   // Sub graph id to keep track while adding to global graph 
   int sub_id;
   // Sub graph index 

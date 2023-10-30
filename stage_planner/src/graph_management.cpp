@@ -227,6 +227,29 @@ double GraphManager::calculateDistance(State s1,
   return d;
 }
 
+double GraphManager::computeVolumetricGain(State state)
+{
+
+  double step_size = 0.1;
+  Eigen::Vector3d check_state(state[0], state[1], state[2]);
+  Eigen::Vector3d increment(step_size, step_size, step_size / 2);
+
+  // double occupied, free, unknown = 0;
+  MapManager::VoxelStatus vs = map_manager_->getBoxStatus(check_state, increment, true);
+  while (MapManager::VoxelStatus::kFree == vs)
+  {
+    step_size = step_size + 0.1;
+    Eigen::Vector3d increment(step_size, step_size, step_size / 2);
+    MapManager::VoxelStatus vs = map_manager_->getBoxStatus(check_state, increment, true);
+    if (vs == MapManager::VoxelStatus::kUnknown or vs == MapManager::VoxelStatus::kOccupied)
+    {
+      break;
+    }
+  }
+
+  return 10*(step_size);
+}
+
 double GraphManager::computeExplorationGain(State state)
 {
 
@@ -551,6 +574,76 @@ void GraphManager::printVoxelStatus(MapManager::VoxelStatus vs)
   }
 }
 
+void GraphManager::clusterNodes (std::shared_ptr<GraphUtils> g) 
+{
+
+  
+  std::pair<Graph::GraphType::vertex_iterator,
+  Graph::GraphType::vertex_iterator>
+  vi;
+  g->graph_->getVertexIterator(vi);
+
+
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
+  {
+
+    int id = g->graph_->getVertexProperty(it);
+    State v_s = g->vertices_map_[id]->state;
+    Vertex * v = g->vertices_map_[id];
+    v->volumetric_gain = computeVolumetricGain(v_s);
+
+  }
+  
+  int cluster_count = 0;
+
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
+  {
+
+    int id = g->graph_->getVertexProperty(it);
+    State v_s = g->vertices_map_[id]->state;
+    Vertex * v = g->vertices_map_[id];
+    std::vector<Vertex *> nearby_vertices;
+    double vol_gain = -std::numeric_limits<double>::max();
+    g->getNearestVertices(&g->vertices_map_[id]->state, 2, &nearby_vertices);
+    
+    Vertex * centroid_vertex;
+    for (int i = 0; i < nearby_vertices.size(); i++)
+    {
+      
+      Vertex * nearby_vertex = nearby_vertices[i];
+      if (nearby_vertex->cluster_id == -1 and nearby_vertex->volumetric_gain > vol_gain) {
+        vol_gain = nearby_vertex->volumetric_gain;
+        centroid_vertex->cluster_id = cluster_count;
+        centroid_vertex = nearby_vertex;
+
+      }
+    }
+    centroid_vertex->is_cluster_centroid = true;
+    cluster_count = cluster_count + 1;
+  }
+
+  ROS_INFO_STREAM ("Local graph nodes : " << g->getNumVertices() << "\n");
+  
+  std::vector<int> centroids;
+
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
+  {
+
+    int id = g->graph_->getVertexProperty(it);
+    State v_s = g->vertices_map_[id]->state;
+    Vertex * v = g->vertices_map_[id];
+    
+    if (v->is_cluster_centroid) {
+      centroids.push_back(v->id);
+    }
+  }
+
+
+  ROS_INFO_STREAM ("Centroid nodes : " << centroids.size() << "\n");
+
+}
+
+
 bool GraphManager::buildLocalGraph()
 {
 
@@ -625,6 +718,8 @@ bool GraphManager::buildLocalGraph()
       }
     }
   }
+  
+  GraphManager::clusterNodes(sub_graph_);
 
   std::pair<Graph::GraphType::vertex_iterator,
   Graph::GraphType::vertex_iterator>
@@ -660,6 +755,7 @@ bool GraphManager::buildLocalGraph()
 
     for (int i = 0; i < nearby_vertices.size(); i++)
     {
+
       if (!nearby_vertices[i]->is_leaf_vertex)
       {
         // VOXBLOX EDGE CHECK
@@ -811,9 +907,7 @@ bool GraphManager::buildPathWaysGraph() {
   // GraphManager::getFrontiers(frontiers);
   
   // ROS_INFO_STREAM ("number of frontiers : " << frontiers.size() << "\n");
-  ROS_INFO_STREAM ("number of frontiers : " << exploration_targets_.size() << "\n");
 
-  ROS_INFO_STREAM ("before path ways vertices : " << path_way_vertices.size() << "\n");
   // for (Eigen::Vector3d v : frontiers) {
   for (Eigen::Vector3d v : exploration_targets_) {
     
@@ -828,9 +922,7 @@ bool GraphManager::buildPathWaysGraph() {
 
   }
 
-  ROS_INFO_STREAM ("path ways vertices with frontiers  : " << path_way_vertices.size() << "\n");
-
-  std::vector<Vertex *> remove_ids;
+  std::vector<Vertex *> frontiers_to_update;
 
   for (auto it : path_way_vertices) {
 
@@ -841,17 +933,16 @@ bool GraphManager::buildPathWaysGraph() {
       path_way_vertex->is_frontier = true;
       path_ways_graph_->addVertex(path_way_vertex);
       
-      remove_ids.push_back(it);
+      frontiers_to_update.push_back(it);
     } else { 
       path_ways_graph_->addVertex(path_way_vertex);
     }
   }
 
-  for (auto i : remove_ids) {
+  for (auto i : frontiers_to_update) {
     path_way_vertices.remove(i);
   }
   
-  ROS_INFO_STREAM ("path ways vertices after removing frontiers  : " << path_way_vertices.size() << "\n");
   std::pair<Graph::GraphType::vertex_iterator,
   Graph::GraphType::vertex_iterator>
   vi;
@@ -868,7 +959,7 @@ bool GraphManager::buildPathWaysGraph() {
 
     // Get nearby vertices from the current vertex and connect the them to form local edges
     std::vector<Vertex *> nearby_vertices;
-    path_ways_graph_->getNearestVertices(&path_ways_graph_->vertices_map_[id]->state, 2, &nearby_vertices);
+    path_ways_graph_->getNearestVertices(&path_ways_graph_->vertices_map_[id]->state, 2*knn_range_, &nearby_vertices);
 
     for (int i = 0; i < nearby_vertices.size(); i++)
     {
@@ -892,7 +983,6 @@ bool GraphManager::buildPathWaysGraph() {
           }
         }
       }
-
     }
   }
   

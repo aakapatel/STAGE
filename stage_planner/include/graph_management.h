@@ -71,6 +71,7 @@ public:
 
   void printVoxelStatus(MapManager::VoxelStatus vs);
 
+  void clusterNodes (std::shared_ptr<GraphUtils> g); 
   // GRAPH AND PLANNING
 
   void resetLocalGraph();
@@ -119,6 +120,8 @@ public:
 
   double computeExplorationGain (State v);
  
+  double computeVolumetricGain(State state);
+  
   void expandGraph (int iterations_max, Vertex* root, Vertex* goal, double radius);
   
   bool buildGlobalGraph();
