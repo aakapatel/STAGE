@@ -955,7 +955,7 @@ bool GraphManager::buildPathWaysGraph() {
 
     int id = path_ways_graph_->graph_->getVertexProperty(it);
     
-    if (path_ways_graph_->vertices_map_[id]->is_cluster_centroid) 
+    if (path_ways_graph_->vertices_map_[id]->is_cluster_centroid or path_ways_graph_->vertices_map_[id]->is_root or path_ways_graph_->vertices_map_[id]->is_frontier) 
     {
 
       Eigen::Vector3d v(path_ways_graph_->vertices_map_[id]->state[0],
@@ -972,7 +972,7 @@ bool GraphManager::buildPathWaysGraph() {
 
         if (!path_ways_graph_->vertices_map_[id]->is_frontier or !nearby_vertices[i]->is_frontier) {
 
-          if (nearby_vertices[i]->is_cluster_centroid and path_ways_graph_->vertices_map_[id]->edges < num_edges_max_ 
+          if ((nearby_vertices[i]->is_cluster_centroid or nearby_vertices[i]->is_root) and path_ways_graph_->vertices_map_[id]->edges < num_edges_max_ 
             and path_ways_graph_->distanceBetweenVertices(path_ways_graph_->vertices_map_[id], nearby_vertices[i]) < 2*max_edge_length_)
           {
 
@@ -989,7 +989,7 @@ bool GraphManager::buildPathWaysGraph() {
           }
         }
       }
-  }
+    }
   }
   
   GraphManager::visualizePathWaysGraph();
@@ -1204,10 +1204,20 @@ bool GraphManager::planGlobalPath()
 {
 
   bool path_status = true;
-
   // Dijkstra SP report from root to all vertices in global graph
   Vertex* global_root_vertex;
-  path_ways_graph_->getNearestVertex(&robotState_, &global_root_vertex);
+  // path_ways_graph_->getNearestVertex(&robotState_, &global_root_vertex);
+  
+  std::vector<Vertex *> nearby_vertices;
+  path_ways_graph_->getNearestVertices(&robotState_, 4, &nearby_vertices);
+  
+  for (int i = 0; i < nearby_vertices.size(); ++i) {
+    if (nearby_vertices[i]->is_cluster_centroid or nearby_vertices[i]->edges > 4) {
+      global_root_vertex = nearby_vertices[i];
+      break;
+    } 
+  }
+
   path_ways_graph_rep_.reset();
   if (!path_ways_graph_->findShortestPaths(global_root_vertex->id, path_ways_graph_rep_))
   {
@@ -1230,7 +1240,7 @@ bool GraphManager::planGlobalPath()
 
     int id = path_ways_graph_->graph_->getVertexProperty(it);
 
-    if (path_ways_graph_->vertices_map_[id]->is_frontier)
+    if (path_ways_graph_->vertices_map_[id]->is_frontier and path_ways_graph_->vertices_map_[id]->is_cluster_centroid)
     {
 
       std::vector<Vertex *> dijkstra_path;
@@ -1238,14 +1248,19 @@ bool GraphManager::planGlobalPath()
       dijkstra_path.clear();
 
       path_ways_graph_->getShortestPath(path_ways_graph_->vertices_map_[id]->id, path_ways_graph_rep_, true, dijkstra_path);
-
+      ROS_INFO ("checking global path \n");
       if (!dijkstra_path.empty())
       {
+        ROS_INFO ("path check pass \n");
         std::pair<std::vector<Vertex *>, double> p = std::make_pair(dijkstra_path, getPathLength(dijkstra_path));
 
         temp_global_paths.push_back(p);
       }
     }
+  }
+
+  if (temp_global_paths.empty()) {
+    return false;
   }
 
   GraphManager::visualizeGlobalPaths(temp_global_paths);
@@ -1784,8 +1799,7 @@ void GraphManager::visualizePathWaysGraph()
   for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
   {
     int id = g->getVertexProperty(it);
-    // if (v_map[id]->is_frontier)
-    if (v_map[id]->is_cluster_centroid)
+    if (v_map[id]->is_frontier)
     {
 
       geometry_msgs::Point p1;
@@ -1794,7 +1808,7 @@ void GraphManager::visualizePathWaysGraph()
       p1.z = v_map[id]->state[2];
       vertex_marker.colors.push_back(frontier_color);
       vertex_marker.points.push_back(p1);
-    } else {
+    } else if (v_map[id]->is_cluster_centroid) {
 
       geometry_msgs::Point p1;
       p1.x = v_map[id]->state[0];
