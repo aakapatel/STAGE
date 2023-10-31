@@ -733,18 +733,18 @@ bool GraphManager::buildLocalGraph()
     Eigen::Vector3d v(sub_graph_->vertices_map_[id]->state[0],
                       sub_graph_->vertices_map_[id]->state[1],
                       sub_graph_->vertices_map_[id]->state[2]);
-    MapManager::VoxelStatus vs = map_manager_->getPathStatus(v, v_r, robot_box_size_, true);
-
-    if (MapManager::VoxelStatus::kFree == vs)
-    {
-      if (sub_graph_->vertices_map_[id]->edges < num_edges_max_ and sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], root_vertex) < max_edge_length_)
-
-      {
-        sub_graph_->addEdge(sub_graph_->vertices_map_[id], root_vertex,
-                            sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], root_vertex));
-        sub_graph_->vertices_map_[id]->edges++;
-      }
-    }
+    // MapManager::VoxelStatus vs = map_manager_->getPathStatus(v, v_r, robot_box_size_, true);
+    //
+    // if (MapManager::VoxelStatus::kFree == vs)
+    // {
+    //   if (sub_graph_->vertices_map_[id]->edges < num_edges_max_ and sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], root_vertex) < max_edge_length_)
+    //
+    //   {
+    //     sub_graph_->addEdge(sub_graph_->vertices_map_[id], root_vertex,
+    //                         sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], root_vertex));
+    //     sub_graph_->vertices_map_[id]->edges++;
+    //   }
+    // }
 
     // Get nearby vertices from the current vertex and connect the them to form local edges
     std::vector<Vertex *> nearby_vertices;
@@ -895,6 +895,12 @@ bool GraphManager::planLocalPath()
     return path_status;
   }
 
+  // if (GraphManager::buildPathWaysGraph()) {
+  //   GraphManager::updatePathWays();
+  // } else {
+  //   return path_status;
+  // }
+
   return path_status;
 
 } // planLocalPath
@@ -955,7 +961,7 @@ bool GraphManager::buildPathWaysGraph() {
 
     int id = path_ways_graph_->graph_->getVertexProperty(it);
     
-    if (path_ways_graph_->vertices_map_[id]->is_cluster_centroid or path_ways_graph_->vertices_map_[id]->is_root or path_ways_graph_->vertices_map_[id]->is_frontier) 
+    if (path_ways_graph_->vertices_map_[id]->is_cluster_centroid or path_ways_graph_->vertices_map_[id]->is_root) 
     {
 
       Eigen::Vector3d v(path_ways_graph_->vertices_map_[id]->state[0],
@@ -964,7 +970,7 @@ bool GraphManager::buildPathWaysGraph() {
 
       // Get nearby vertices from the current vertex and connect the them to form local edges
       std::vector<Vertex *> nearby_vertices;
-      path_ways_graph_->getNearestVertices(&path_ways_graph_->vertices_map_[id]->state, 6*knn_range_, &nearby_vertices);
+      path_ways_graph_->getNearestVertices(&path_ways_graph_->vertices_map_[id]->state, 4*knn_range_, &nearby_vertices);
 
       for (int i = 0; i < nearby_vertices.size(); i++)
       {
@@ -972,7 +978,7 @@ bool GraphManager::buildPathWaysGraph() {
 
         if (!path_ways_graph_->vertices_map_[id]->is_frontier or !nearby_vertices[i]->is_frontier) {
 
-          if ((nearby_vertices[i]->is_cluster_centroid or nearby_vertices[i]->is_root) and path_ways_graph_->vertices_map_[id]->edges < num_edges_max_ 
+          if (nearby_vertices[i]->is_cluster_centroid and path_ways_graph_->vertices_map_[id]->edges < num_edges_max_ 
             and path_ways_graph_->distanceBetweenVertices(path_ways_graph_->vertices_map_[id], nearby_vertices[i]) < 2*max_edge_length_)
           {
 
@@ -1200,19 +1206,81 @@ bool GraphManager::buildGlobalGraph()
 
 } // buildGlobalGraph
 
+void GraphManager::updatePathWays () {
+
+
+  // Dijkstra SP report from root to all vertices in global graph
+  Vertex* global_root_vertex;
+  
+  // first find nearby vertices and choose a global root vertex (should be a centroid and should have connections with neighbours)
+  std::vector<Vertex *> nearby_vertices;
+  path_ways_graph_->getNearestVertices(&robotState_, 6, &nearby_vertices);
+  
+  for (int i = 0; i < nearby_vertices.size(); ++i) {
+    if (nearby_vertices[i]->is_cluster_centroid) {
+      global_root_vertex = nearby_vertices[i];
+      break;
+    } 
+  }
+
+  path_ways_graph_rep_.reset();
+  if (!path_ways_graph_->findShortestPaths(global_root_vertex->id, path_ways_graph_rep_))
+  {
+    ROS_WARN("Could not find dijkstra shortest paths on global graph \n");
+    return;
+  }
+
+  global_paths_.clear();
+
+  std::pair<Graph::GraphType::vertex_iterator,
+  Graph::GraphType::vertex_iterator>
+  vi;
+  path_ways_graph_->graph_->getVertexIterator(vi);
+
+  std::vector<std::pair<std::vector<Vertex *>, double>> temp_global_paths;
+
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
+  {
+
+    int id = path_ways_graph_->graph_->getVertexProperty(it);
+
+    if (path_ways_graph_->vertices_map_[id]->is_frontier and path_ways_graph_->vertices_map_[id]->is_cluster_centroid)
+    {
+
+      std::vector<Vertex *> dijkstra_path;
+
+      dijkstra_path.clear();
+
+      path_ways_graph_->getShortestPath(path_ways_graph_->vertices_map_[id]->id, path_ways_graph_rep_, true, dijkstra_path);
+      if (!dijkstra_path.empty())
+      {
+        std::pair<std::vector<Vertex *>, double> p = std::make_pair(dijkstra_path, getPathLength(dijkstra_path));
+
+        temp_global_paths.push_back(p);
+      }
+    }
+  }
+
+  if (temp_global_paths.empty()) {
+    return;
+  }
+
+  GraphManager::visualizeGlobalPaths(temp_global_paths);
+}
+
 bool GraphManager::planGlobalPath()
 {
 
   bool path_status = true;
   // Dijkstra SP report from root to all vertices in global graph
   Vertex* global_root_vertex;
-  // path_ways_graph_->getNearestVertex(&robotState_, &global_root_vertex);
   
+  // first find nearby vertices and choose a global root vertex (should be a centroid and should have connections with neighbours)
   std::vector<Vertex *> nearby_vertices;
-  path_ways_graph_->getNearestVertices(&robotState_, 4, &nearby_vertices);
+  path_ways_graph_->getNearestVertices(&robotState_, 6, &nearby_vertices);
   
   for (int i = 0; i < nearby_vertices.size(); ++i) {
-    if (nearby_vertices[i]->is_cluster_centroid or nearby_vertices[i]->edges > 4) {
+    if (nearby_vertices[i]->is_cluster_centroid) {
       global_root_vertex = nearby_vertices[i];
       break;
     } 
@@ -1248,10 +1316,8 @@ bool GraphManager::planGlobalPath()
       dijkstra_path.clear();
 
       path_ways_graph_->getShortestPath(path_ways_graph_->vertices_map_[id]->id, path_ways_graph_rep_, true, dijkstra_path);
-      ROS_INFO ("checking global path \n");
       if (!dijkstra_path.empty())
       {
-        ROS_INFO ("path check pass \n");
         std::pair<std::vector<Vertex *>, double> p = std::make_pair(dijkstra_path, getPathLength(dijkstra_path));
 
         temp_global_paths.push_back(p);
@@ -1786,10 +1852,10 @@ void GraphManager::visualizePathWaysGraph()
   vertex_marker.id = 0;
   vertex_marker.ns = "vertices";
   vertex_marker.action = visualization_msgs::Marker::ADD;
-  vertex_marker.type = visualization_msgs::Marker::CUBE_LIST;
-  vertex_marker.scale.x = 0.3;
-  vertex_marker.scale.y = 0.3;
-  vertex_marker.scale.z = 0.3;
+  vertex_marker.type = visualization_msgs::Marker::SPHERE_LIST;
+  vertex_marker.scale.x = 0.4;
+  vertex_marker.scale.y = 0.4;
+  vertex_marker.scale.z = 0.4;
   vertex_marker.frame_locked = false;
 
   std::pair<Graph::GraphType::vertex_iterator,
@@ -1799,7 +1865,7 @@ void GraphManager::visualizePathWaysGraph()
   for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
   {
     int id = g->getVertexProperty(it);
-    if (v_map[id]->is_frontier)
+    if (v_map[id]->is_frontier and v_map[id]->is_cluster_centroid)
     {
 
       geometry_msgs::Point p1;

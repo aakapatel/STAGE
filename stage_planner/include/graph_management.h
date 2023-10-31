@@ -85,6 +85,7 @@ public:
 
   bool planGlobalPath();
   
+  void updatePathWays ();
 
   void visualizeLocalGraph();
 
