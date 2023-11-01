@@ -990,7 +990,7 @@ bool GraphManager::buildPathWaysGraph() {
 
               path_ways_graph_->addEdge(path_ways_graph_->vertices_map_[id], nearby_vertices[i],
                                         path_ways_graph_->distanceBetweenVertices(path_ways_graph_->vertices_map_[id], nearby_vertices[i]));
-              // path_ways_graph_->vertices_map_[id]->edges++;
+              path_ways_graph_->vertices_map_[id]->edges++;
             }
           }
         }
