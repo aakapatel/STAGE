@@ -56,7 +56,7 @@ struct Vertex {
 
   // Unique id for each vertex (root: 0, others: positive number).
   int id;
-  // State of the vertex: x, y, z, yaw.
+  // State of the vertex: x, y, z.
   State state;
   // NBVP legacy, keeping for now if wants to build a tree to compare.
   Vertex* parent;

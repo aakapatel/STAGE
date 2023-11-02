@@ -421,7 +421,7 @@ void StageInterface::generateTrajectory()
 
     command_path.poses.push_back(pose_ref);
   }
-  // m_trajectory_Publisher.publish(trajectory_array_);
+  m_trajectory_Publisher.publish(trajectory_array_);
   // m_command_Path_Publisher.publish(command_path);
 
 } // generateTrajectory

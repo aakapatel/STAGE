@@ -68,7 +68,7 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
 
   reposition_Path_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/global_repos_path", 10);
 
-  overlap_Vis_Pub_ = nh_.advertise<visualization_msgs::Marker>("/overlap_point", 10);
+  tree_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/rrt_tree", 10);
 
   random_Nodes_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/random_nodes", 10);
 
@@ -367,14 +367,19 @@ void GraphManager::sampleNodes(std::vector<node *> &nodes, State state, int iter
       std::vector<node *>::iterator it_node;
       for (it_node = nodes.begin(); it_node != nodes.end();
       it_node++)
-      {
-        Eigen::Vector3d direction = random_state - *((*it_node)->point);
-        double new_distance = abs(direction.norm());
-        if (new_distance < distance)
-        {
-          distance = new_distance;
-          parent = *it_node;
-        }
+      { 
+        // Eigen::Vector3d r_node = *((*it_node)->point); 
+        // double angle = atan2(r_node[1] - (random_state.y()), (r_node[0] - random_state.x())) * (180 / M_PI); 
+        // if (angle < m_local_fov or angle > - m_local_fov) 
+        // {
+          Eigen::Vector3d direction = random_state - *((*it_node)->point);
+          double new_distance = abs(direction.norm());
+          if (new_distance < distance)
+          {
+            distance = new_distance;
+            parent = *it_node;
+          }
+        // }
       };
       Eigen::Vector3d start_pos(parent->point->x(), parent->point->y(), parent->point->z());
       if (MapManager::VoxelStatus::kFree ==
@@ -388,7 +393,8 @@ void GraphManager::sampleNodes(std::vector<node *> &nodes, State state, int iter
     }
     itterations++;
   }
-
+  
+  GraphManager::visualizeTree(nodes);
   // ROS_INFO_STREAM ("Sampled : " << nodes.size() << " nodes" << "\n ");
 
 } // sampleNodes
@@ -645,7 +651,7 @@ bool GraphManager::buildLocalGraph()
 {
 
   bool graph_status = false;
-  // high_resolution_clock::time_point start_total = high_resolution_clock::now();
+  high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
   GraphManager::resetLocalGraph();
 
@@ -790,6 +796,12 @@ bool GraphManager::buildLocalGraph()
     graph_status = false;
   }
 
+  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+
+  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+
+  ROS_INFO_STREAM("Local Graph build time "
+                  << duration_total.count() << " ms \n");
   return graph_status;
 
 } // buildLocalGraph
@@ -1012,7 +1024,7 @@ bool GraphManager::buildSparseGraph ()
 
   bool graph_status = true;
   
-  high_resolution_clock::time_point start_total = high_resolution_clock::now();
+  // high_resolution_clock::time_point start_total = high_resolution_clock::now();
   for (int i = 0; i < global_vertices_ids_.size(); ++i)
   {
 
@@ -1085,12 +1097,12 @@ bool GraphManager::buildSparseGraph ()
     }
   }
 
-  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
-
-  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-
-  ROS_INFO_STREAM("Sparse Graph build time "
-                  << duration_total.count() << " ms \n");
+  // high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+  //
+  // auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+  //
+  // ROS_INFO_STREAM("Sparse Graph build time "
+  //                 << duration_total.count() << " ms \n");
   GraphManager::visualizeSparseGraph();
   
   return graph_status;
@@ -1716,7 +1728,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
 {
 
-  high_resolution_clock::time_point start_total = high_resolution_clock::now();
+  // high_resolution_clock::time_point start_total = high_resolution_clock::now();
     
 
   
@@ -1772,18 +1784,65 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
       ROS_INFO("Executing path segment \n");
   }
 
-  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
-
-  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-
-  ROS_INFO_STREAM("\033[;34m Planning time \033[0m "
-                  << duration_total.count() << " \033[;34m ms \033[0m\n ");
+  // high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+  //
+  // auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+  //
+  // ROS_INFO_STREAM("\033[;34m Planning time \033[0m "
+  //                 << duration_total.count() << " \033[;34m ms \033[0m\n ");
 
   return planner_status;
 
 }
 
 // Visualization of navigation graphs
+
+void GraphManager::visualizeTree (std::vector<node *> RRT_TREE) {
+
+  visualization_msgs::MarkerArray marker_array;
+  visualization_msgs::Marker RRT_points, RRT_line_list;
+  RRT_points.header.frame_id = RRT_line_list.header.frame_id = "world";
+  RRT_points.ns = "nodes";
+  RRT_line_list.ns = "edges";
+  RRT_points.action = visualization_msgs::Marker::ADD;
+  RRT_points.pose.orientation.w = 1.0;
+  RRT_points.id = 0;
+  RRT_line_list.id = 1;
+  RRT_points.type = visualization_msgs::Marker::POINTS;
+  RRT_line_list.type = visualization_msgs::Marker::LINE_LIST;
+  RRT_points.scale.x = 0.2;
+  RRT_points.scale.y = 0.2;
+  RRT_line_list.scale.x = 0.1;
+  RRT_points.color.g = 1.0f;
+  RRT_points.color.a = 1.0;
+  RRT_line_list.color.b = 1.0;
+  RRT_line_list.color.a = 1.0;
+  std::vector<node*>::iterator it_comeon_visualizer;
+
+
+  for(it_comeon_visualizer = RRT_TREE.begin(); it_comeon_visualizer != RRT_TREE.end(); it_comeon_visualizer++){
+    geometry_msgs::Point p;
+    p.x = (*it_comeon_visualizer)->point->x();
+    p.y = (*it_comeon_visualizer)->point->y();
+    p.z = (*it_comeon_visualizer)->point->z();
+    RRT_points.points.push_back(p);
+    if((*it_comeon_visualizer)->myParent != nullptr){
+      RRT_line_list.points.push_back(p);
+      p.x = (*it_comeon_visualizer)->myParent->point->x();
+      p.y = (*it_comeon_visualizer)->myParent->point->y();
+      p.z = (*it_comeon_visualizer)->myParent->point->z();
+
+      RRT_line_list.points.push_back(p);
+    }
+  }
+  marker_array.markers.push_back(RRT_points);
+  marker_array.markers.push_back(RRT_line_list);
+  tree_Vis_Pub_.publish(marker_array);
+
+}
+
+
+
 
 void GraphManager::visualizePathWaysGraph()
 {

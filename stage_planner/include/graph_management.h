@@ -88,6 +88,7 @@ public:
   void updatePathWays ();
 
   void visualizeLocalGraph();
+  void visualizeTree (std::vector<node *> RRT_TREE);
 
   void visualizeGlobalGraph();
   
@@ -287,7 +288,7 @@ private:
   ros::Publisher overlap_Vis_Pub_;
   ros::Publisher random_Nodes_Vis_Pub_;
   ros::Publisher sparse_Graph_Vis_Pub_;
-  ros::Publisher cluster_Centers_Vis_Pub_;
+  ros::Publisher tree_Vis_Pub_;
   ros::Publisher execution_Time_Pub_;
 
 
