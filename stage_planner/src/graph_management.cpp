@@ -735,22 +735,9 @@ bool GraphManager::buildLocalGraph()
     
     // VOXBLOX CHECK
 
-    Eigen::Vector3d v_r(root_vertex->state[0], root_vertex->state[1], root_vertex->state[2]);
     Eigen::Vector3d v(sub_graph_->vertices_map_[id]->state[0],
                       sub_graph_->vertices_map_[id]->state[1],
                       sub_graph_->vertices_map_[id]->state[2]);
-    // MapManager::VoxelStatus vs = map_manager_->getPathStatus(v, v_r, robot_box_size_, true);
-    //
-    // if (MapManager::VoxelStatus::kFree == vs)
-    // {
-    //   if (sub_graph_->vertices_map_[id]->edges < num_edges_max_ and sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], root_vertex) < max_edge_length_)
-    //
-    //   {
-    //     sub_graph_->addEdge(sub_graph_->vertices_map_[id], root_vertex,
-    //                         sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], root_vertex));
-    //     sub_graph_->vertices_map_[id]->edges++;
-    //   }
-    // }
 
     // Get nearby vertices from the current vertex and connect the them to form local edges
     std::vector<Vertex *> nearby_vertices;
@@ -795,6 +782,8 @@ bool GraphManager::buildLocalGraph()
     ROS_WARN("Local graph OK but no path found! \n");
     graph_status = false;
   }
+
+  GraphManager::buildSparseGraph();
 
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
 
@@ -1039,7 +1028,7 @@ bool GraphManager::buildSparseGraph ()
     for (Vertex *v : knn)
     {
       State state_nn = v->state;
-      Vertex * sparse_graph_vertex_nn = new Vertex(sparse_graph_->generateVertexID(),state_nn);
+      Vertex * sparse_graph_vertex_nn = new Vertex(sparse_graph_->generateVertexID(), state_nn);
 
       if (v->is_leaf_vertex and v->is_global)
       {
@@ -1050,6 +1039,20 @@ bool GraphManager::buildSparseGraph ()
     }
   }
 
+  std::pair<Graph::GraphType::vertex_iterator,
+  Graph::GraphType::vertex_iterator>
+  lvi;
+
+  sub_graph_->graph_->getVertexIterator(lvi);
+
+  for (Graph::GraphType::vertex_iterator it = lvi.first; it != lvi.second; ++it)
+  {
+  
+    int id = sub_graph_->graph_->getVertexProperty(it);
+    Vertex * vertex = new Vertex (sparse_graph_->generateVertexID(), sub_graph_->vertices_map_[id]->state);
+    sparse_graph_->addVertex(vertex);
+  }
+  
   std::pair<Graph::GraphType::vertex_iterator,
   Graph::GraphType::vertex_iterator>
   vi;
@@ -1105,6 +1108,40 @@ bool GraphManager::buildSparseGraph ()
   //                 << duration_total.count() << " ms \n");
   GraphManager::visualizeSparseGraph();
   
+  
+  std::pair<Graph::GraphType::vertex_iterator,
+  Graph::GraphType::vertex_iterator>
+  rvi;
+  
+  std::vector<int> remove_these;
+  remove_these.clear();
+
+  sparse_graph_->graph_->getVertexIterator(rvi);
+
+  for (Graph::GraphType::vertex_iterator it = rvi.first; it != rvi.second; ++it)
+  {
+  
+    int id = sparse_graph_->graph_->getVertexProperty(it);
+
+    if (sparse_graph_->vertices_map_[id]->is_frontier) {
+      remove_these.push_back(id);
+    }
+  }
+  
+  for (int id : remove_these) {
+
+    std::vector<std::pair<int, double>> edge_map = sparse_graph_->edge_map_[id];
+
+    for (int i = 0; i < edge_map.size(); ++i) {
+
+      sparse_graph_->clearVertex(id);
+      sparse_graph_->clearVertex(edge_map[i].first);
+      sparse_graph_->removeVertex(edge_map[i].first);
+    }
+  }
+
+
+  GraphManager::visualizeSparseGraph();
   return graph_status;
 
 }
