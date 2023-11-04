@@ -13,6 +13,11 @@
 #include <boost/property_map/property_map.hpp>
 #include <boost/property_map/transform_value_property_map.hpp>
 
+#include <boost/config.hpp>
+#include <iostream>
+#include <string>
+#include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/graph_utility.hpp>
 // Result of the Djisktra shortest path calculation, one to all vertices.
 struct ShortestPathsReport {
   ShortestPathsReport() : status(false), source_id(0) {}
@@ -38,7 +43,8 @@ class Graph {
   //       GraphType;
   // https://www.boost.org/doc/libs/1_37_0/libs/graph/doc/adjacency_list.html
   // Edge is set to setS type to avoid duplication in adding new edges.
-  typedef boost::adjacency_list<boost::setS, boost::listS, boost::undirectedS,
+  // typedef boost::adjacency_list<boost::setS, boost::listS, boost::undirectedS,
+  typedef boost::adjacency_list<boost::listS, boost::vecS, boost::undirectedS,
                                 boost::property<boost::vertex_index_t, int>,
                                 boost::property<boost::edge_weight_t, double>,
                                 boost::no_property>

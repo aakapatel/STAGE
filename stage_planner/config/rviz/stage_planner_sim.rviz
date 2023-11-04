@@ -46,7 +46,7 @@ Panels:
   - Class: rviz/Time
     Name: Time
     SyncMode: 0
-    SyncSource: PointCloud2
+    SyncSource: ""
   - Class: stage_planner_ui/STAGE INTERFACE
     Name: STAGE INTERFACE
 Preferences:
@@ -224,8 +224,7 @@ Visualization Manager:
       Marker Topic: /sparse_graph
       Name: MarkerArray
       Namespaces:
-        edges: true
-        vertices: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -233,7 +232,6 @@ Visualization Manager:
       Marker Topic: /pose_graph
       Name: MarkerArray
       Namespaces:
-        edges: true
         vertices: true
       Queue Size: 100
       Value: true
@@ -343,7 +341,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: hummingbird/base_link
-      Yaw: 3.118705987930298
+      Yaw: 3.1437065601348877
     Saved: ~
 Window Geometry:
   Displays:

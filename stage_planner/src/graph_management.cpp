@@ -1009,7 +1009,7 @@ bool GraphManager::buildSparseGraph ()
   // Iterate through global graph, look for root vertices and their neighbours. Add them to sparse graph wwhile updating their frontier/global property.
   
   // The sparse graph should reset every iteration to plan paths in the background with latest map update 
-  GraphManager::resetSparseGraph();
+  // GraphManager::resetSparseGraph();
 
   bool graph_status = true;
   
@@ -1108,7 +1108,6 @@ bool GraphManager::buildSparseGraph ()
   //                 << duration_total.count() << " ms \n");
   GraphManager::visualizeSparseGraph();
   
-  
   std::pair<Graph::GraphType::vertex_iterator,
   Graph::GraphType::vertex_iterator>
   rvi;
@@ -1123,25 +1122,30 @@ bool GraphManager::buildSparseGraph ()
   
     int id = sparse_graph_->graph_->getVertexProperty(it);
 
-    if (sparse_graph_->vertices_map_[id]->is_frontier) {
+    if (!sparse_graph_->vertices_map_[id]->is_root) {
       remove_these.push_back(id);
     }
   }
   
-  for (int id : remove_these) {
+  ROS_INFO_STREAM("Sparse graph has \t: " << sparse_graph_->getNumVertices() << " Vertice \n");
+
+  for (const int id : remove_these) {
 
     std::vector<std::pair<int, double>> edge_map = sparse_graph_->edge_map_[id];
 
     for (int i = 0; i < edge_map.size(); ++i) {
-
-      sparse_graph_->clearVertex(id);
-      sparse_graph_->clearVertex(edge_map[i].first);
-      sparse_graph_->removeVertex(edge_map[i].first);
+      sparse_graph_->removeEdge(sparse_graph_->vertices_map_[id], sparse_graph_->vertices_map_[edge_map[i].first]);
     }
+      
+    sparse_graph_->graph_->clearVertex(id);
+    sparse_graph_->graph_->removeVertex(id);
+
+    // sparse_graph_->vertices_map_[id] = nullptr;
   }
 
 
-  GraphManager::visualizeSparseGraph();
+  ROS_INFO_STREAM(" Updated Sparse graph has \t: " << sparse_graph_->getNumVertices() << " Vertices \n");
+  // GraphManager::visualizeSparseGraph();
   return graph_status;
 
 }

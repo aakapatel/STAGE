@@ -66,6 +66,7 @@ void Graph::removeVertex (int u_id) {
     ++next;
     if (getVertexProperty(vi) == u_id) {
       // std::cout << "START \n" << std::endl;
+      boost::clear_vertex(*vi, graph_);
       boost::remove_vertex(*vi, graph_);
       // std::cout << "vertex removed \n " << std::endl;
     }
