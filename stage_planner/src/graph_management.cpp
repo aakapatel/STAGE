@@ -283,6 +283,49 @@ double GraphManager::computeExplorationGain(State state)
   // return free.size();
 }
 
+
+bool GraphManager::checkFrontierStatus(std::shared_ptr<GraphUtils> graph, int id)
+{
+
+  double step_size = 0.5;
+  bool is_frontier = false;
+  State state = graph->vertices_map_[id]->state;
+  Eigen::Vector3d check_state(state[0], state[1], state[2]);
+  Eigen::Vector3d increment(step_size, step_size, step_size);
+
+  // double occupied, free, unknown = 0;
+  MapManager::VoxelStatus vs = map_manager_->getBoxStatus(check_state, increment, true);
+  while (MapManager::VoxelStatus::kFree == vs)
+  {
+    step_size = step_size + 0.5;
+    if (step_size > 4) { break;}
+    Eigen::Vector3d increment(step_size, step_size, step_size);
+    // free++;
+    MapManager::VoxelStatus vs = map_manager_->getBoxStatus(check_state, increment, true);
+    if (vs == MapManager::VoxelStatus::kUnknown)
+      {
+        if(step_size <= 4) {
+          is_frontier = true;
+          break;
+        }
+        step_size = step_size + 0.5;
+      }
+    else if (vs == MapManager::VoxelStatus::kOccupied)
+    {
+      break;
+    }
+  }
+  
+  if (!is_frontier) {
+    graph->vertices_map_[id]->is_frontier = false;
+    graph->vertices_map_[id]->is_evaluated = true;
+  } else {
+
+    graph->vertices_map_[id]->is_frontier = true;
+  }
+  return is_frontier; 
+}
+
 void GraphManager::sampleNodes(std::vector<node *> &nodes, State state, int iterations_max, double bounding_box_size)
 {
 
@@ -2366,7 +2409,7 @@ void GraphManager::visualizeSparseGraph()
   vertex_marker.color.r = 40.0 / 255.0;
   vertex_marker.color.g = 80.0 / 255.0;
   vertex_marker.color.b = 60.0 / 255.0;
-  vertex_marker.color.a = 0.6;
+  vertex_marker.color.a = 0.8;
   // vertex_marker.lifetime = ros::Duration(graph_lifetime);
   vertex_marker.frame_locked = false;
 
@@ -2384,7 +2427,7 @@ void GraphManager::visualizeSparseGraph()
   frontier_vertex_marker.color.r = 255.0 / 255.0;
   frontier_vertex_marker.color.g = 0.0 / 255.0;
   frontier_vertex_marker.color.b = 0.0 / 255.0;
-  frontier_vertex_marker.color.a = 0.7;
+  frontier_vertex_marker.color.a = 1;
   frontier_vertex_marker.frame_locked = false;
 
   std::pair<Graph::GraphType::vertex_iterator,
@@ -2394,23 +2437,25 @@ void GraphManager::visualizeSparseGraph()
   for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
   {
     int id = g->getVertexProperty(it);
-    if (v_map[id]->is_frontier)
+    if (!v_map[id]->is_evaluated and checkFrontierStatus(sparse_graph_, id))
     {
-
       geometry_msgs::Point p1;
       p1.x = v_map[id]->state[0];
       p1.y = v_map[id]->state[1];
       p1.z = v_map[id]->state[2];
 
       frontier_vertex_marker.points.push_back(p1);
+    } else {
+   
+      geometry_msgs::Point p1;
+      p1.x = v_map[id]->state[0];
+      p1.y = v_map[id]->state[1];
+      p1.z = v_map[id]->state[2];
+
+      vertex_marker.points.push_back(p1);
+
     }
 
-    geometry_msgs::Point p1;
-    p1.x = v_map[id]->state[0];
-    p1.y = v_map[id]->state[1];
-    p1.z = v_map[id]->state[2];
-
-    vertex_marker.points.push_back(p1);
   }
   marker_array.markers.push_back(vertex_marker);
   marker_array.markers.push_back(frontier_vertex_marker);

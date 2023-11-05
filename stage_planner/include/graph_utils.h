@@ -45,6 +45,7 @@ struct Vertex {
     edges = 0;
     is_root = false;
     is_leaf_vertex = false;
+    is_evaluated = false;
     is_local = false;
     is_global = false;
     is_frontier = false;
@@ -73,6 +74,8 @@ struct Vertex {
   bool is_root;
   // If node is randomly sampled 
   bool is_leaf_vertex;
+  // If a vertex is already evaluated to be a frontier
+  bool is_evaluated;
   // If in local FOV
   bool is_local;
   // If a node is outside FOV

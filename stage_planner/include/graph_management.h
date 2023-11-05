@@ -69,11 +69,12 @@ public:
 
   std_msgs::ColorRGBA heightMapColor(double h);
 
+  bool checkFrontierStatus(std::shared_ptr<GraphUtils> graph, int id);
   void printVoxelStatus(MapManager::VoxelStatus vs);
 
   void clusterNodes (std::shared_ptr<GraphUtils> g); 
   // GRAPH AND PLANNING
-
+  
   void resetLocalGraph();
   void resetGlobalGraph();
   void resetPathWaysGraph();
