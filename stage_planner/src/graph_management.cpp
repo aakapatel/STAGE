@@ -1122,14 +1122,14 @@ bool GraphManager::buildSparseGraph ()
   
     int id = sparse_graph_->graph_->getVertexProperty(it);
 
-    if (!sparse_graph_->vertices_map_[id]->is_root) {
+    // if (!sparse_graph_->vertices_map_[id]->is_root) {
       remove_these.push_back(id);
-    }
+    // }
   }
   
   ROS_INFO_STREAM("Sparse graph has \t: " << sparse_graph_->getNumVertices() << " Vertice \n");
 
-  for (const int id : remove_these) {
+  for (int id : remove_these) {
 
     std::vector<std::pair<int, double>> edge_map = sparse_graph_->edge_map_[id];
 
@@ -1137,14 +1137,17 @@ bool GraphManager::buildSparseGraph ()
       sparse_graph_->removeEdge(sparse_graph_->vertices_map_[id], sparse_graph_->vertices_map_[edge_map[i].first]);
     }
       
-    sparse_graph_->graph_->clearVertex(id);
-    sparse_graph_->graph_->removeVertex(id);
+    sparse_graph_->clearVertex(id);
+    ROS_INFO_STREAM ("Vertex to be removed stste X \t: " << sparse_graph_->vertices_map_[id]->state[0] << "\n"); 
+    sparse_graph_->removeVertex(id);
+    ROS_INFO_STREAM ("After removal stste X \t: " << sparse_graph_->vertices_map_[id]->state[0] << "\n"); 
+    // sparse_graph_->vertices_map_.erase(id);
 
-    // sparse_graph_->vertices_map_[id] = nullptr;
   }
 
 
   ROS_INFO_STREAM(" Updated Sparse graph has \t: " << sparse_graph_->getNumVertices() << " Vertices \n");
+
   // GraphManager::visualizeSparseGraph();
   return graph_status;
 

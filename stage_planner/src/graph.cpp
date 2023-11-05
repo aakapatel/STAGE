@@ -71,6 +71,7 @@ void Graph::removeVertex (int u_id) {
       // std::cout << "vertex removed \n " << std::endl;
     }
   }
+
 }
 
 bool Graph::findDijkstraShortestPaths(int src_id, ShortestPathsReport& rep) {

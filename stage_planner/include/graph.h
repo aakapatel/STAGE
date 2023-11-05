@@ -43,8 +43,8 @@ class Graph {
   //       GraphType;
   // https://www.boost.org/doc/libs/1_37_0/libs/graph/doc/adjacency_list.html
   // Edge is set to setS type to avoid duplication in adding new edges.
-  // typedef boost::adjacency_list<boost::setS, boost::listS, boost::undirectedS,
-  typedef boost::adjacency_list<boost::listS, boost::vecS, boost::undirectedS,
+  // typedef boost::adjacency_list<boost::listS, boost::vecS, boost::undirectedS,
+  typedef boost::adjacency_list<boost::setS, boost::listS, boost::undirectedS,
                                 boost::property<boost::vertex_index_t, int>,
                                 boost::property<boost::edge_weight_t, double>,
                                 boost::no_property>
