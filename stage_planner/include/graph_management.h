@@ -129,6 +129,9 @@ public:
   
   bool buildGlobalGraph();
   bool buildSparseGraph();
+  void updateSparseGraph();
+  
+  bool insertBestPathsToSparseGraph (std::vector<Vertex *> dijkstra_path); 
   
   bool setPath();
 
@@ -151,7 +154,7 @@ public:
   
   Vertex * local_goal_vertex;
   Vertex* root_vertex;
-
+  Vertex* latest_root_vertex;
 
 private:
   ros::NodeHandle nh_;
@@ -164,9 +167,11 @@ private:
   std::shared_ptr<GraphUtils> improvement_graph_;
   std::shared_ptr<GraphUtils> pose_graph_;
   std::shared_ptr<GraphUtils> sparse_graph_;
-  
+   
   std::vector<std::shared_ptr<GraphUtils>> graph_vec_;
-
+  
+  std::unordered_map<int, std::vector<std::vector<Vertex *>>> sparse_vertices_map_;
+    
   MapManagerVoxblox<MapManagerVoxbloxServer,
                     MapManagerVoxbloxVoxel> *map_manager_;
   kdtree *kd_tree_;
@@ -178,7 +183,7 @@ private:
   ShortestPathsReport path_ways_graph_rep_;
   ShortestPathsReport pose_graph_rep_;
   ShortestPathsReport sparse_graph_rep_;
-
+  
   int vertex_id_ = -1;
   int subgraph_ind_ = -1;
   int local_target_vertex_id;
