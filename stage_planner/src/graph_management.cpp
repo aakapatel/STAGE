@@ -187,7 +187,7 @@ void GraphManager::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
       path_vertex_root->is_root = true;
       path_way_vertices.push_back(path_vertex_root);
       global_graph_->state_history_.push_back(robotState_);
-
+      
       GraphManager::buildSparseGraph();
     }
   }
@@ -857,7 +857,6 @@ bool GraphManager::planLocalPath()
   }
 
   local_paths_.clear();
-
   std::pair<Graph::GraphType::vertex_iterator,
   Graph::GraphType::vertex_iterator>
   vi;
@@ -1064,17 +1063,21 @@ bool GraphManager::buildSparseGraph ()
 {
 
   // Iterate through global graph, look for root vertices and their neighbours. Add them to sparse graph wwhile updating their frontier/global property.
-  
   // The sparse graph should reset every iteration to plan paths in the background with latest map update 
   // GraphManager::resetSparseGraph();
 
   bool graph_status = true;
   
-  // high_resolution_clock::time_point start_total = high_resolution_clock::now();
   Vertex* latest_root_vertex = new Vertex(sparse_graph_->generateVertexID(), robotState_);
   latest_root_vertex->is_root = true;
   sparse_graph_->addVertex(latest_root_vertex);
-
+  int prev_id = sparse_graph_->getIdCount();
+  if (prev_id <= 0) {
+    return false;
+  }
+  Vertex* prev_vertex = sparse_graph_->vertices_map_[prev_id-1];
+  sparse_graph_->addEdge(latest_root_vertex, prev_vertex, (latest_root_vertex->state - prev_vertex->state).norm());
+  
   std::vector<Vertex *> nearby_vertices;
   sparse_graph_->getNearestVertices(&latest_root_vertex->state, 4, &nearby_vertices);
 
@@ -1097,18 +1100,9 @@ bool GraphManager::buildSparseGraph ()
     }
   }
 
-
-  // high_resolution_clock::time_point stop_total = high_resolution_clock::now();
-  //
-  // auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-  //
-  // ROS_INFO_STREAM("Sparse Graph build time "
-  //                 << duration_total.count() << " ms \n");
   GraphManager::visualizeSparseGraph();
   
-
   return graph_status;
-
 }
 
 bool GraphManager::buildGlobalGraph()
@@ -1261,7 +1255,7 @@ void GraphManager::updatePathWays (std::shared_ptr<GraphUtils> graph, ShortestPa
     int id = graph->graph_->getVertexProperty(it);
 
     // if (graph->vertices_map_[id]->is_frontier and path_ways_graph_->vertices_map_[id]->is_cluster_centroid)
-    if (graph->vertices_map_[id]->is_frontier)
+    if (graph->vertices_map_[id]->is_frontier and checkFrontierStatus(sparse_graph_, id))
     {
       ROS_INFO ("Checking for global path \n");
       std::vector<Vertex *> dijkstra_path;
@@ -1328,8 +1322,8 @@ bool GraphManager::planGlobalPath(std::shared_ptr<GraphUtils> graph, ShortestPat
     int id = graph->graph_->getVertexProperty(it);
 
     // if (graph->vertices_map_[id]->is_frontier and path_ways_graph_->vertices_map_[id]->is_cluster_centroid)
-    if (graph->vertices_map_[id]->is_frontier)
-    {
+    // if (graph->vertices_map_[id]->is_frontier and checkFrontierStatus(sparse_graph_, id))
+    // {
       ROS_INFO ("Checking for global path \n");
       std::vector<Vertex *> dijkstra_path;
 
@@ -1343,7 +1337,7 @@ bool GraphManager::planGlobalPath(std::shared_ptr<GraphUtils> graph, ShortestPat
 
         temp_global_paths.push_back(p);
       }
-    }
+    // }
   }
 
   if (temp_global_paths.empty()) {
