@@ -286,25 +286,25 @@ double GraphManager::computeExplorationGain(State state)
 
 bool GraphManager::checkFrontierStatus(std::shared_ptr<GraphUtils> graph, int id)
 {
-
+  
   double step_size = 0.5;
   bool is_frontier = false;
   State state = graph->vertices_map_[id]->state;
   Eigen::Vector3d check_state(state[0], state[1], state[2]);
-  Eigen::Vector3d increment(step_size, step_size, step_size);
+  Eigen::Vector3d increment(step_size, step_size, step_size / 2);
 
   // double occupied, free, unknown = 0;
   MapManager::VoxelStatus vs = map_manager_->getBoxStatus(check_state, increment, true);
   while (MapManager::VoxelStatus::kFree == vs)
   {
     step_size = step_size + 0.5;
-    if (step_size > 4) { break;}
-    Eigen::Vector3d increment(step_size, step_size, step_size);
+    if (step_size > 2) { break;}
+    Eigen::Vector3d increment(step_size, step_size, step_size / 2);
     // free++;
     MapManager::VoxelStatus vs = map_manager_->getBoxStatus(check_state, increment, true);
     if (vs == MapManager::VoxelStatus::kUnknown)
       {
-        if(step_size <= 4) {
+        if(step_size <= 2) {
           is_frontier = true;
           break;
         }
@@ -336,7 +336,7 @@ void GraphManager::sampleNodes(std::vector<node *> &nodes, State state, int iter
   nodes.push_back(current_pos);
 
   Eigen::Vector3d center (robotState_[0], robotState_[1], robotState_[2]);
-  Eigen::Vector3d bb_size (bounding_box_size_, bounding_box_size_, bounding_box_size_);
+  Eigen::Vector3d bb_size (bounding_box_size_, bounding_box_size_, bounding_box_size_/4);
   std::vector<Eigen::Vector3d> occupied_voxels;
   std::vector<Eigen::Vector3d> free_voxels;
   
@@ -739,6 +739,8 @@ bool GraphManager::buildLocalGraph()
   }
 
   // Add local exploration targets to graph
+  
+  /*
 
   // for (int i = 0; i < local_exploration_targets_.size(); ++i) {
   for (int i = 0; i < exploration_targets_.size(); ++i) {
@@ -767,6 +769,8 @@ bool GraphManager::buildLocalGraph()
     }
   }
   
+  */ 
+  
   // GraphManager::clusterNodes(sub_graph_);
 
   std::pair<Graph::GraphType::vertex_iterator,
@@ -777,7 +781,6 @@ bool GraphManager::buildLocalGraph()
   {
 
     int id = sub_graph_->graph_->getVertexProperty(it);
-    
     // VOXBLOX CHECK
 
     Eigen::Vector3d v(sub_graph_->vertices_map_[id]->state[0],
@@ -790,9 +793,12 @@ bool GraphManager::buildLocalGraph()
 
     for (int i = 0; i < nearby_vertices.size(); i++)
     {
-
-      if (!nearby_vertices[i]->is_leaf_vertex)
-      {
+      
+      if ((robotState_ - nearby_vertices[i]->state).norm() > bounding_box_size_/3 and GraphManager::checkFrontierStatus(sub_graph_, nearby_vertices[i]->id)) {
+        nearby_vertices[i]->is_frontier = true;
+      }
+      // if (!nearby_vertices[i]->is_leaf_vertex)
+      // {
         // VOXBLOX EDGE CHECK
 
         if (sub_graph_->vertices_map_[id]->edges < num_edges_max_ and sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], nearby_vertices[i]) < max_edge_length_)
@@ -809,7 +815,7 @@ bool GraphManager::buildLocalGraph()
             sub_graph_->vertices_map_[id]->edges++;
           }
         }
-      }
+      // }
     }
   }
 
@@ -862,7 +868,8 @@ bool GraphManager::planLocalPath()
 
     int id = sub_graph_->graph_->getVertexProperty(it);
 
-    if (sub_graph_->vertices_map_[id]->is_local and sub_graph_->vertices_map_[id]->is_frontier)
+    // if (sub_graph_->vertices_map_[id]->is_local and sub_graph_->vertices_map_[id]->is_frontier)
+    if (sub_graph_->vertices_map_[id]->is_frontier)
     {
 
       std::vector<Vertex *> dijkstra_path;
@@ -882,7 +889,6 @@ bool GraphManager::planLocalPath()
           sparse_graph_->addVertex(global_vertex_0);
           sparse_graph_->addVertex(global_vertex_1);
           sparse_graph_->addEdge(global_vertex_0, global_vertex_1, (global_vertex_0->state - global_vertex_1->state).norm());
-          
         }
         
         Eigen::Vector3d path_goal (dijkstra_path.back()->state[0], dijkstra_path.back()->state[1], dijkstra_path.back()->state[2]);
@@ -896,7 +902,7 @@ bool GraphManager::planLocalPath()
       }
     }
   }
-  
+ 
 
   GraphManager::visualizeLocalGraph();
   if (!local_paths_.empty())
@@ -947,11 +953,11 @@ bool GraphManager::planLocalPath()
     return path_status;
   }
 
-  // if (GraphManager::buildPathWaysGraph()) {
-  //   GraphManager::updatePathWays();
-  // } else {
-  //   return path_status;
-  // }
+  if (GraphManager::buildSparseGraph()) {
+    GraphManager::updatePathWays(sparse_graph_, sparse_graph_rep_);
+  } else {
+    return path_status;
+  }
 
   return path_status;
 
@@ -1083,7 +1089,7 @@ bool GraphManager::buildSparseGraph ()
       int e = latest_root_vertex->edges;
       double weight = sparse_graph_->distanceBetweenVertices(latest_root_vertex, nearby_vertices[i]);
 
-      if (e < num_edges_max_ && weight < 2*max_edge_length_ && MapManager::VoxelStatus::kFree == map_manager_->getPathStatus(v_0, v_1, robot_box_size_, true))
+      if (e < num_edges_max_ && weight < 4*max_edge_length_ && MapManager::VoxelStatus::kFree == map_manager_->getPathStatus(v_0, v_1, robot_box_size_, true))
       {
         sparse_graph_->addEdge(latest_root_vertex, nearby_vertices[i], weight);
         latest_root_vertex->edges++;
@@ -1214,27 +1220,29 @@ bool GraphManager::buildGlobalGraph()
 
 } // buildGlobalGraph
 
-void GraphManager::updatePathWays () {
+void GraphManager::updatePathWays (std::shared_ptr<GraphUtils> graph, ShortestPathsReport rep) {
 
 
+  bool path_status = true;
   // Dijkstra SP report from root to all vertices in global graph
-  Vertex* global_root_vertex;
+  Vertex* global_root_vertex = new Vertex (graph->generateVertexID(), robotState_);
+  graph->addVertex(global_root_vertex);
   
   // first find nearby vertices and choose a global root vertex (should be a centroid and should have connections with neighbours)
   std::vector<Vertex *> nearby_vertices;
-  path_ways_graph_->getNearestVertices(&robotState_, 6, &nearby_vertices);
+  graph->getNearestVertices(&global_root_vertex->state, 2, &nearby_vertices);
   
   for (int i = 0; i < nearby_vertices.size(); ++i) {
-    if (nearby_vertices[i]->is_cluster_centroid) {
-      global_root_vertex = nearby_vertices[i];
-      break;
-    } 
+    // if (nearby_vertices[i]->is_cluster_centroid) {
+    double weight = (global_root_vertex->state - nearby_vertices[i]->state).norm();
+    graph->addEdge(global_root_vertex, nearby_vertices[i], weight);
   }
 
-  path_ways_graph_rep_.reset();
-  if (!path_ways_graph_->findShortestPaths(global_root_vertex->id, path_ways_graph_rep_))
+  rep.reset();
+  if (!graph->findShortestPaths(global_root_vertex->id, rep))
   {
     ROS_WARN("Could not find dijkstra shortest paths on global graph \n");
+    path_status = false;
     return;
   }
 
@@ -1243,25 +1251,27 @@ void GraphManager::updatePathWays () {
   std::pair<Graph::GraphType::vertex_iterator,
   Graph::GraphType::vertex_iterator>
   vi;
-  path_ways_graph_->graph_->getVertexIterator(vi);
+  graph->graph_->getVertexIterator(vi);
 
   std::vector<std::pair<std::vector<Vertex *>, double>> temp_global_paths;
 
   for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
   {
 
-    int id = path_ways_graph_->graph_->getVertexProperty(it);
+    int id = graph->graph_->getVertexProperty(it);
 
-    if (path_ways_graph_->vertices_map_[id]->is_frontier and path_ways_graph_->vertices_map_[id]->is_cluster_centroid)
+    // if (graph->vertices_map_[id]->is_frontier and path_ways_graph_->vertices_map_[id]->is_cluster_centroid)
+    if (graph->vertices_map_[id]->is_frontier)
     {
-
+      ROS_INFO ("Checking for global path \n");
       std::vector<Vertex *> dijkstra_path;
 
       dijkstra_path.clear();
 
-      path_ways_graph_->getShortestPath(path_ways_graph_->vertices_map_[id]->id, path_ways_graph_rep_, true, dijkstra_path);
+      graph->getShortestPath(graph->vertices_map_[id]->id, rep, true, dijkstra_path);
       if (!dijkstra_path.empty())
       {
+        ROS_INFO("Path found \n");
         std::pair<std::vector<Vertex *>, double> p = std::make_pair(dijkstra_path, getPathLength(dijkstra_path));
 
         temp_global_paths.push_back(p);
@@ -1274,28 +1284,29 @@ void GraphManager::updatePathWays () {
   }
 
   GraphManager::visualizeGlobalPaths(temp_global_paths);
+
 }
 
-bool GraphManager::planGlobalPath()
+bool GraphManager::planGlobalPath(std::shared_ptr<GraphUtils> graph, ShortestPathsReport rep)
 {
 
   bool path_status = true;
   // Dijkstra SP report from root to all vertices in global graph
-  Vertex* global_root_vertex;
+  Vertex* global_root_vertex = new Vertex (graph->generateVertexID(), robotState_);
+  graph->addVertex(global_root_vertex);
   
   // first find nearby vertices and choose a global root vertex (should be a centroid and should have connections with neighbours)
   std::vector<Vertex *> nearby_vertices;
-  path_ways_graph_->getNearestVertices(&robotState_, 6, &nearby_vertices);
+  graph->getNearestVertices(&global_root_vertex->state, 2, &nearby_vertices);
   
   for (int i = 0; i < nearby_vertices.size(); ++i) {
-    if (nearby_vertices[i]->is_cluster_centroid) {
-      global_root_vertex = nearby_vertices[i];
-      break;
-    } 
+    // if (nearby_vertices[i]->is_cluster_centroid) {
+    double weight = (global_root_vertex->state - nearby_vertices[i]->state).norm();
+    graph->addEdge(global_root_vertex, nearby_vertices[i], weight);
   }
 
-  path_ways_graph_rep_.reset();
-  if (!path_ways_graph_->findShortestPaths(global_root_vertex->id, path_ways_graph_rep_))
+  rep.reset();
+  if (!graph->findShortestPaths(global_root_vertex->id, rep))
   {
     ROS_WARN("Could not find dijkstra shortest paths on global graph \n");
     path_status = false;
@@ -1307,25 +1318,27 @@ bool GraphManager::planGlobalPath()
   std::pair<Graph::GraphType::vertex_iterator,
   Graph::GraphType::vertex_iterator>
   vi;
-  path_ways_graph_->graph_->getVertexIterator(vi);
+  graph->graph_->getVertexIterator(vi);
 
   std::vector<std::pair<std::vector<Vertex *>, double>> temp_global_paths;
 
   for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
   {
 
-    int id = path_ways_graph_->graph_->getVertexProperty(it);
+    int id = graph->graph_->getVertexProperty(it);
 
-    if (path_ways_graph_->vertices_map_[id]->is_frontier and path_ways_graph_->vertices_map_[id]->is_cluster_centroid)
+    // if (graph->vertices_map_[id]->is_frontier and path_ways_graph_->vertices_map_[id]->is_cluster_centroid)
+    if (graph->vertices_map_[id]->is_frontier)
     {
-
+      ROS_INFO ("Checking for global path \n");
       std::vector<Vertex *> dijkstra_path;
 
       dijkstra_path.clear();
 
-      path_ways_graph_->getShortestPath(path_ways_graph_->vertices_map_[id]->id, path_ways_graph_rep_, true, dijkstra_path);
+      graph->getShortestPath(graph->vertices_map_[id]->id, rep, true, dijkstra_path);
       if (!dijkstra_path.empty())
       {
+        ROS_INFO("Path found \n");
         std::pair<std::vector<Vertex *>, double> p = std::make_pair(dijkstra_path, getPathLength(dijkstra_path));
 
         temp_global_paths.push_back(p);
@@ -1744,7 +1757,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
             if (!GraphManager::buildPathWaysGraph()) {
               ROS_WARN ("Global graph error \n");
               break;
-            } else if (!GraphManager::planGlobalPath()) {
+            } else if (!GraphManager::planGlobalPath(sparse_graph_, sparse_graph_rep_)) {
               ROS_WARN ("No global re-pos path \n");
               break;
 
@@ -1763,7 +1776,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
           if (!GraphManager::buildPathWaysGraph()) {
             ROS_WARN ("Global graph error \n");
             break;
-          } else if (!GraphManager::planGlobalPath()) {
+          } else if (!GraphManager::planGlobalPath(sparse_graph_, sparse_graph_rep_)) {
             ROS_WARN ("No global re-pos path \n");
             break;
           } else if (GraphManager::setPath()) {
@@ -1777,7 +1790,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
     case 0:
       planner_status = GraphManager::setPath();
       res.path = exploration_path_;
-      ROS_INFO("Executing path segment \n");
+      // ROS_INFO("Executing path segment \n");
   }
 
   // high_resolution_clock::time_point stop_total = high_resolution_clock::now();

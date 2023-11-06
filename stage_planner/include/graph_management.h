@@ -84,9 +84,9 @@ public:
   bool buildPathWaysGraph(); 
   bool planLocalPath();
 
-  bool planGlobalPath();
+  bool planGlobalPath(std::shared_ptr<GraphUtils> graph, ShortestPathsReport rep);
   
-  void updatePathWays ();
+  void updatePathWays (std::shared_ptr<GraphUtils> graph, ShortestPathsReport rep);
 
   void visualizeLocalGraph();
   void visualizeTree (std::vector<node *> RRT_TREE);
