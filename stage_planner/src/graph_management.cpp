@@ -861,6 +861,9 @@ bool GraphManager::planLocalPath()
   Graph::GraphType::vertex_iterator>
   vi;
   sub_graph_->graph_->getVertexIterator(vi);
+  
+  std::vector<std::vector<Vertex *>> dijkstra_paths;
+  dijkstra_paths.clear();
 
   for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
   {
@@ -880,7 +883,7 @@ bool GraphManager::planLocalPath()
       if (!dijkstra_path.empty())
       {
         
-        GraphManager::insertBestPathsToSparseGraph(dijkstra_path);
+        dijkstra_paths.push_back(dijkstra_path);
 
         for (int i = 0; i < dijkstra_path.size() - 1; ++i) {
           Vertex* path_vert = new Vertex(++fake_id_count, dijkstra_path[i]->state);
@@ -898,18 +901,23 @@ bool GraphManager::planLocalPath()
       }
     }
   }
- 
+  
+  GraphManager::visualizeLocalPaths(local_paths_);
+  
+  if (!dijkstra_paths.empty()) {
+    GraphManager::insertBestPathsToSparseGraph(dijkstra_paths);
+  }
 
+  if (GraphManager::buildSparseGraph()) {
+    GraphManager::updatePathWays(sparse_graph_, sparse_graph_rep_);
+  } else {
+    return path_status;
+  }
+  
   GraphManager::visualizeLocalGraph();
   if (!local_paths_.empty())
     {
 
-      GraphManager::visualizeLocalPaths(local_paths_);
-      if (GraphManager::buildSparseGraph()) {
-        GraphManager::updatePathWays(sparse_graph_, sparse_graph_rep_);
-      } else {
-        return path_status;
-      }
 
       std::vector<Vertex *> path;
 
@@ -1061,20 +1069,19 @@ void GraphManager::updateSparseGraph()
   Vertex * root_vertex = new Vertex (sparse_graph_->generateVertexID(), robotState_);
   root_vertex->is_root = true;
   sparse_graph_->addVertex(root_vertex);
-  std::vector<std::vector<Vertex *>> sparse_vertices_vector;
-  std::vector<Vertex *> vertices_vec;
-  vertices_vec.push_back(root_vertex);
-  sparse_vertices_vector.push_back(vertices_vec);
-  
-  sparse_vertices_map_[root_vertex->id] = sparse_vertices_vector;
-
+  int id previous_vertex_id = sparse_graph_->getIdCount() - 1;
+  if (id >= 0) {
+    Vertex * previous_vertex = sparse_graph_->vertices_map_[previous_vertex_id];
+    double weight = (previous_vertex->state - root_vertex->sate).norm();
+    sparse_graph_->addEdge(previous_vertex, root_vertex, weight);
+  }
 }
 
-bool GraphManager::insertBestPathsToSparseGraph (std::vector<Vertex *> dijkstra_path) 
+bool GraphManager::insertBestPathsToSparseGraph (std::vector< std::vector<Vertex *>> dijkstra_paths) 
 {
 
   bool graph_status = true;
-  if (dijkstra_path.empty()) {
+  if (dijkstra_paths.empty()) {
     ROS_INFO("Best path empty. Can not insert into sparse graph \n");
     return false;
   }
@@ -1082,19 +1089,23 @@ bool GraphManager::insertBestPathsToSparseGraph (std::vector<Vertex *> dijkstra_
   std::vector<std::vector<Vertex *>> sparse_vertices_vector;
   std::vector<Vertex *> vertices_vec;
   
-  Vertex* sparse_vertex_root = new Vertex (sparse_graph_->generateVertexID(), dijkstra_path[0]->state);
+  Vertex* sparse_vertex_root = new Vertex (sparse_graph_->generateVertexID(), dijkstra_paths[0][0]->state); // Add the root which is a common vertex across paths
   sparse_graph_->addVertex(sparse_vertex_root);
   sparse_vertex_root->is_root = true;
   vertices_vec.push_back(sparse_vertex_root);
-
-  for (int i = 1; i < dijkstra_path.size(); ++i) {
-    
-    Vertex* sparse_vertex = new Vertex (sparse_graph_->generateVertexID(), dijkstra_path[i]->state);
-    sparse_graph_->addVertex(sparse_vertex);
-    vertices_vec.push_back(sparse_vertex);
-  }
   
+  for (int m = 0; m < dijkstra_paths.size(); ++m) {
+
+    for (int i = 1; i < dijkstra_paths[m].size(); ++i) {
+
+      Vertex* sparse_vertex = new Vertex (sparse_graph_->generateVertexID(), dijkstra_paths[m][i]->state);
+      sparse_graph_->addVertex(sparse_vertex);
+      vertices_vec.push_back(sparse_vertex);
+    }
+    
     sparse_vertices_vector.push_back(vertices_vec);
+
+  }
 
     sparse_vertices_map_[sparse_vertex_root->id] = sparse_vertices_vector;
   
@@ -1105,18 +1116,65 @@ bool GraphManager::insertBestPathsToSparseGraph (std::vector<Vertex *> dijkstra_
 bool GraphManager::buildSparseGraph () {
 
   bool graph_status = true;
-  
+  if (!sparse_vertices_map_.size() > 0) {
+    ROS_WARN("Empty map \n");
+    return false;
+  } 
   // Iterate through the unordered map (sparse_vertices_map_) to connect poses and corresponding best paths leading to frontiers. 
-  
 
-  for (auto it = sparse_vertices_map_.begin(); it != sparse_vertices_map_.end(); it++) {
-
+  for (auto it = sparse_vertices_map_.begin(); it != sparse_vertices_map_.end(); ++it) {
     
+    int id_0, id_1;
+    id_0 = it->first;
+  ROS_INFO ("check 1 \n");
+    id_1 = (std::next(it))->first;
+  ROS_INFO ("check 2 \n");
 
+    Vertex * v_0 = sparse_graph_->vertices_map_[id_0];
+    Vertex * v_1 = sparse_graph_->vertices_map_[id_1];
+    double weight = (v_0->state - v_1->state).norm();
+
+    if (!sparse_graph_->edgeExist(id_0, id_1)) {
+      sparse_graph_->addEdge(v_0, v_1, weight);
+    }
   }
 
 
+  for (auto it = sparse_vertices_map_.begin(); it != sparse_vertices_map_.end(); ++it) {
+    
+    int id = it->first;
+    Vertex * v_0 = sparse_graph_->vertices_map_[id];
+    std::vector<std::vector<Vertex *>> vertices_vec = it->second;
+    
+    if (vertices_vec.empty()) {
+      break;
+    }
 
+  ROS_INFO ("check 3 \n");
+    for (int i = 0; i < vertices_vec.size(); ++i) {
+      
+      std::vector<Vertex *> path_way;
+      path_way = vertices_vec[i];
+      if (path_way.empty()) {
+        break;
+      }
+      
+  ROS_INFO ("check 4 \n");
+      for (int k = 0; k < path_way.size(); ++k) {
+
+        Vertex * v_1 = path_way[k];
+        double weight = (v_0->state - v_1->state).norm();
+        if (!sparse_graph_->edgeExist(v_0->id, v_1->id)) {
+          sparse_graph_->addEdge(v_0, v_1, weight);
+        }
+
+      } 
+
+    }
+
+  }
+
+  ROS_INFO ("check 8 \n");
 
   return graph_status;
 }

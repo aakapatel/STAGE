@@ -131,7 +131,7 @@ public:
   bool buildSparseGraph();
   void updateSparseGraph();
   
-  bool insertBestPathsToSparseGraph (std::vector<Vertex *> dijkstra_path); 
+  bool insertBestPathsToSparseGraph (std::vector<std::vector<Vertex *>> dijkstra_paths); 
   
   bool setPath();
 
