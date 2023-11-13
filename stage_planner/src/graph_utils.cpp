@@ -61,6 +61,33 @@ bool GraphUtils::edgeExist (int source_id, int target_id) {
   return exist;
 }
 
+Vertex* GraphUtils::getVertex (State s) {
+
+  Vertex * v = nullptr;
+  std::shared_ptr<Graph> g = graph_;
+  std::unordered_map<int, Vertex*>& v_map = vertices_map_;
+  if (getNumVertices() == 0) return nullptr;
+
+  std::pair<Graph::GraphType::vertex_iterator, Graph::GraphType::vertex_iterator>
+      vi;
+  g->getVertexIterator(vi);
+
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
+  
+    int id = g->getVertexProperty(it);
+
+    if (v_map[id]->state == s) {
+      v = v_map[id];
+      // std::cout << "exist " << std::endl;
+    } else {
+      v = nullptr;
+      // std::cout << "null " << std::endl;
+    }
+  }
+
+  return v;
+}
+
 int GraphUtils::getIdCount () {
   return id_count_;
 }

@@ -909,6 +909,7 @@ bool GraphManager::planLocalPath()
   }
 
   if (GraphManager::buildSparseGraph()) {
+    GraphManager::visualizeSparseGraph();
     GraphManager::updatePathWays(sparse_graph_, sparse_graph_rep_);
   } else {
     return path_status;
@@ -1065,16 +1066,12 @@ bool GraphManager::buildPathWaysGraph() {
 
 void GraphManager::updateSparseGraph() 
 {
-
+  
   Vertex * root_vertex = new Vertex (sparse_graph_->generateVertexID(), robotState_);
   root_vertex->is_root = true;
   sparse_graph_->addVertex(root_vertex);
-  int id previous_vertex_id = sparse_graph_->getIdCount() - 1;
-  if (id >= 0) {
-    Vertex * previous_vertex = sparse_graph_->vertices_map_[previous_vertex_id];
-    double weight = (previous_vertex->state - root_vertex->sate).norm();
-    sparse_graph_->addEdge(previous_vertex, root_vertex, weight);
-  }
+  state_history.push_back(root_vertex);
+  
 }
 
 bool GraphManager::insertBestPathsToSparseGraph (std::vector< std::vector<Vertex *>> dijkstra_paths) 
@@ -1085,29 +1082,86 @@ bool GraphManager::insertBestPathsToSparseGraph (std::vector< std::vector<Vertex
     ROS_INFO("Best path empty. Can not insert into sparse graph \n");
     return false;
   }
-
-  std::vector<std::vector<Vertex *>> sparse_vertices_vector;
-  std::vector<Vertex *> vertices_vec;
+ 
+  Vertex * root_vertex = new Vertex (sparse_graph_->generateVertexID(), robotState_);
+  root_vertex->is_root = true;
+  sparse_graph_->addVertex(root_vertex);
+  state_history.push_back(root_vertex);
   
-  Vertex* sparse_vertex_root = new Vertex (sparse_graph_->generateVertexID(), dijkstra_paths[0][0]->state); // Add the root which is a common vertex across paths
-  sparse_graph_->addVertex(sparse_vertex_root);
-  sparse_vertex_root->is_root = true;
-  vertices_vec.push_back(sparse_vertex_root);
-  
-  for (int m = 0; m < dijkstra_paths.size(); ++m) {
+  // get nearest vertex  
 
-    for (int i = 1; i < dijkstra_paths[m].size(); ++i) {
+  for (int i = 0; i < state_history.size()-1; ++i) {
 
-      Vertex* sparse_vertex = new Vertex (sparse_graph_->generateVertexID(), dijkstra_paths[m][i]->state);
-      sparse_graph_->addVertex(sparse_vertex);
-      vertices_vec.push_back(sparse_vertex);
+    double weight = (state_history[i+1]->state - state_history[i]->state).norm();
+    if (!sparse_graph_->edgeExist(state_history[i]->id, state_history[i+1]->id)) {
+      sparse_graph_->addEdge(state_history[i], state_history[i+1], weight);
     }
-    
-    sparse_vertices_vector.push_back(vertices_vec);
-
   }
 
-    sparse_vertices_map_[sparse_vertex_root->id] = sparse_vertices_vector;
+  // Vertex* sparse_vertex_root = new Vertex (sparse_graph_->generateVertexID(), dijkstra_paths[0][0]->state); // Add the root which is a common vertex across paths
+  // sparse_graph_->addVertex(sparse_vertex_root);
+
+  // Vertex* sparse_vertex_root; // Add the root which is a common vertex across paths
+  
+  Vertex* sparse_vertex_0;
+  Vertex* sparse_vertex_1;
+  for (int m = 0; m < dijkstra_paths.size(); ++m) {
+
+    for (int i = 0; i < dijkstra_paths[m].size()-1; ++i) {
+      
+      State s_0 = dijkstra_paths[m][i]->state;
+      State s_1 = dijkstra_paths[m][i+1]->state;
+
+      if (sparse_graph_->getVertex(s_0) == nullptr) {
+
+        sparse_vertex_0 = new Vertex (sparse_graph_->generateVertexID(), s_0);
+        sparse_graph_->addVertex(sparse_vertex_0);
+      } else {
+
+        ROS_INFO ("checking 1 \n");
+        sparse_vertex_0 = sparse_graph_->getVertex(s_0);
+      }
+
+
+      if (sparse_graph_->getVertex(s_1) == nullptr) {
+
+        sparse_vertex_1 = new Vertex (sparse_graph_->generateVertexID(), s_1);
+        sparse_graph_->addVertex(sparse_vertex_1);
+      } else {
+
+        ROS_INFO ("checking 2 \n");
+        sparse_vertex_1 = sparse_graph_->getVertex(s_1);
+      }
+
+      double weight = (sparse_vertex_0->state - sparse_vertex_1->state).norm();
+      if (!sparse_graph_->edgeExist(sparse_vertex_0->id, sparse_vertex_1->id)) {
+
+        sparse_graph_->addEdge(sparse_vertex_0, sparse_vertex_1, weight);
+      }
+    }
+    
+  }
+
+  // Vertex * nearest_root = sparse_graph_->getVertex(state_history.back()->state);
+  Vertex * nearest_root = sparse_graph_->getVertex(root_vertex->state);
+  
+  Vertex * dijkstra_root = sparse_graph_->getVertex(dijkstra_paths[0][0]->state);
+
+  if (nearest_root == nullptr) {
+    ROS_INFO ("nearest root null \n");
+  }
+  
+  if (dijkstra_root == nullptr) {
+    ROS_INFO ("dijkstra root null \n");
+  }
+
+  // double weight = (nearest_root->state - dijkstra_root->state).norm();
+  // sparse_graph_->addEdge(nearest_root, dijkstra_root, weight);
+  // ROS_INFO ("checking 4 \n");
+
+  // Vertex * nearest_vertex = state_history.back();
+  // double weight = (nearest_vertex->state - sparse_vertex_root->state).norm();
+  // sparse_graph_->addEdge(nearest_vertex, sparse_vertex_root, weight);
   
   return graph_status;
 }
@@ -1116,65 +1170,24 @@ bool GraphManager::insertBestPathsToSparseGraph (std::vector< std::vector<Vertex
 bool GraphManager::buildSparseGraph () {
 
   bool graph_status = true;
-  if (!sparse_vertices_map_.size() > 0) {
-    ROS_WARN("Empty map \n");
+  if (sparse_graph_->getNumVertices() == 0) {
+    ROS_WARN("Sparse graph empty \n");
     return false;
   } 
-  // Iterate through the unordered map (sparse_vertices_map_) to connect poses and corresponding best paths leading to frontiers. 
-
-  for (auto it = sparse_vertices_map_.begin(); it != sparse_vertices_map_.end(); ++it) {
-    
-    int id_0, id_1;
-    id_0 = it->first;
-  ROS_INFO ("check 1 \n");
-    id_1 = (std::next(it))->first;
-  ROS_INFO ("check 2 \n");
-
-    Vertex * v_0 = sparse_graph_->vertices_map_[id_0];
-    Vertex * v_1 = sparse_graph_->vertices_map_[id_1];
-    double weight = (v_0->state - v_1->state).norm();
-
-    if (!sparse_graph_->edgeExist(id_0, id_1)) {
-      sparse_graph_->addEdge(v_0, v_1, weight);
-    }
-  }
-
-
-  for (auto it = sparse_vertices_map_.begin(); it != sparse_vertices_map_.end(); ++it) {
-    
-    int id = it->first;
-    Vertex * v_0 = sparse_graph_->vertices_map_[id];
-    std::vector<std::vector<Vertex *>> vertices_vec = it->second;
-    
-    if (vertices_vec.empty()) {
-      break;
-    }
-
-  ROS_INFO ("check 3 \n");
-    for (int i = 0; i < vertices_vec.size(); ++i) {
-      
-      std::vector<Vertex *> path_way;
-      path_way = vertices_vec[i];
-      if (path_way.empty()) {
-        break;
-      }
-      
-  ROS_INFO ("check 4 \n");
-      for (int k = 0; k < path_way.size(); ++k) {
-
-        Vertex * v_1 = path_way[k];
-        double weight = (v_0->state - v_1->state).norm();
-        if (!sparse_graph_->edgeExist(v_0->id, v_1->id)) {
-          sparse_graph_->addEdge(v_0, v_1, weight);
-        }
-
-      } 
-
-    }
-
-  }
-
-  ROS_INFO ("check 8 \n");
+  
+  
+  // Vertex * root_vertex = new Vertex (sparse_graph_->generateVertexID(), robotState_);
+  // root_vertex->is_root = true;
+  // sparse_graph_->addVertex(root_vertex);
+  // state_history.push_back(root_vertex);
+  //
+  // for (int i = 0; i < state_history.size()-1; ++i) {
+  //
+  //   double weight = (state_history[i+1]->state - state_history[i]->state).norm();
+  //   if (!sparse_graph_->edgeExist(state_history[i]->id, state_history[i+1]->id)) {
+  //     sparse_graph_->addEdge(state_history[i], state_history[i+1], weight);
+  //   }
+  // }
 
   return graph_status;
 }
@@ -1294,19 +1307,10 @@ void GraphManager::updatePathWays (std::shared_ptr<GraphUtils> graph, ShortestPa
 
   bool path_status = true;
   // Dijkstra SP report from root to all vertices in global graph
-  // Vertex* global_root_vertex = new Vertex (graph->generateVertexID(), robotState_);
-  // graph->addVertex(global_root_vertex);
   
-  Vertex * global_root_vertex = latest_root_vertex;
-  // first find nearby vertices and choose a global root vertex (should be a centroid and should have connections with neighbours)
-  std::vector<Vertex *> nearby_vertices;
-  graph->getNearestVertices(&global_root_vertex->state, 2, &nearby_vertices);
+  Vertex * global_root_vertex = state_history.back();
+  // graph->getNearestVertex(&robotState_, &global_root_vertex);
   
-  // for (int i = 0; i < nearby_vertices.size(); ++i) {
-  //   double weight = (global_root_vertex->state - nearby_vertices[i]->state).norm();
-  //   graph->addEdge(global_root_vertex, nearby_vertices[i], weight);
-  // }
-
   rep.reset();
   if (!graph->findShortestPaths(global_root_vertex->id, rep))
   {
@@ -1333,7 +1337,6 @@ void GraphManager::updatePathWays (std::shared_ptr<GraphUtils> graph, ShortestPa
     // if (graph->vertices_map_[id]->is_frontier and checkFrontierStatus(sparse_graph_, id))
     if (1)
     {
-      ROS_INFO ("Checking for global path \n");
       std::vector<Vertex *> dijkstra_path;
 
       dijkstra_path.clear();
@@ -1341,7 +1344,6 @@ void GraphManager::updatePathWays (std::shared_ptr<GraphUtils> graph, ShortestPa
       graph->getShortestPath(graph->vertices_map_[id]->id, rep, true, dijkstra_path);
       if (!dijkstra_path.empty())
       {
-        ROS_INFO("Path found \n");
         std::pair<std::vector<Vertex *>, double> p = std::make_pair(dijkstra_path, getPathLength(dijkstra_path));
 
         temp_global_paths.push_back(p);
@@ -1362,19 +1364,9 @@ bool GraphManager::planGlobalPath(std::shared_ptr<GraphUtils> graph, ShortestPat
 
   bool path_status = true;
   // Dijkstra SP report from root to all vertices in global graph
-  // Vertex* global_root_vertex = new Vertex (graph->generateVertexID(), robotState_);
-  // graph->addVertex(global_root_vertex);
   
-  Vertex * global_root_vertex = latest_root_vertex;
-  // first find nearby vertices and choose a global root vertex (should be a centroid and should have connections with neighbours)
-  std::vector<Vertex *> nearby_vertices;
-  graph->getNearestVertices(&global_root_vertex->state, 2, &nearby_vertices);
-  
-  for (int i = 0; i < nearby_vertices.size(); ++i) {
-    // if (nearby_vertices[i]->is_cluster_centroid) {
-    double weight = (global_root_vertex->state - nearby_vertices[i]->state).norm();
-    graph->addEdge(global_root_vertex, nearby_vertices[i], weight);
-  }
+  Vertex * global_root_vertex = state_history.back();
+  // graph->getNearestVertex(&robotState_, &global_root_vertex);
 
   rep.reset();
   if (!graph->findShortestPaths(global_root_vertex->id, rep))
@@ -1401,7 +1393,6 @@ bool GraphManager::planGlobalPath(std::shared_ptr<GraphUtils> graph, ShortestPat
     // if (graph->vertices_map_[id]->is_frontier and path_ways_graph_->vertices_map_[id]->is_cluster_centroid)
     // if (graph->vertices_map_[id]->is_frontier and checkFrontierStatus(sparse_graph_, id))
     // {
-      ROS_INFO ("Checking for global path \n");
       std::vector<Vertex *> dijkstra_path;
 
       dijkstra_path.clear();
@@ -1409,7 +1400,6 @@ bool GraphManager::planGlobalPath(std::shared_ptr<GraphUtils> graph, ShortestPat
       graph->getShortestPath(graph->vertices_map_[id]->id, rep, true, dijkstra_path);
       if (!dijkstra_path.empty())
       {
-        ROS_INFO("Path found \n");
         std::pair<std::vector<Vertex *>, double> p = std::make_pair(dijkstra_path, getPathLength(dijkstra_path));
 
         temp_global_paths.push_back(p);

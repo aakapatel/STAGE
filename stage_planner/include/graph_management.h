@@ -170,7 +170,7 @@ private:
    
   std::vector<std::shared_ptr<GraphUtils>> graph_vec_;
   
-  std::unordered_map<int, std::vector<std::vector<Vertex *>>> sparse_vertices_map_;
+  std::vector<Vertex *> state_history;
     
   MapManagerVoxblox<MapManagerVoxbloxServer,
                     MapManagerVoxbloxVoxel> *map_manager_;
