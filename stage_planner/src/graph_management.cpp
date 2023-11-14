@@ -882,7 +882,6 @@ bool GraphManager::planLocalPath()
 
       if (!dijkstra_path.empty())
       {
-        
         dijkstra_paths.push_back(dijkstra_path);
 
         for (int i = 0; i < dijkstra_path.size() - 1; ++i) {
@@ -903,17 +902,17 @@ bool GraphManager::planLocalPath()
   }
   
   GraphManager::visualizeLocalPaths(local_paths_);
-  
+ 
   if (!dijkstra_paths.empty()) {
-    GraphManager::insertBestPathsToSparseGraph(dijkstra_paths);
+
+    if (GraphManager::insertBestPathsToSparseGraph(dijkstra_paths)) {
+      GraphManager::visualizeSparseGraph();
+      GraphManager::updatePathWays(sparse_graph_, sparse_graph_rep_);
+    } else {
+      return path_status;
+    }
   }
 
-  if (GraphManager::buildSparseGraph()) {
-    GraphManager::visualizeSparseGraph();
-    GraphManager::updatePathWays(sparse_graph_, sparse_graph_rep_);
-  } else {
-    return path_status;
-  }
   
   GraphManager::visualizeLocalGraph();
   if (!local_paths_.empty())
@@ -1067,14 +1066,44 @@ bool GraphManager::buildPathWaysGraph() {
 void GraphManager::updateSparseGraph() 
 {
   
-  Vertex * root_vertex = new Vertex (sparse_graph_->generateVertexID(), robotState_);
-  root_vertex->is_root = true;
-  sparse_graph_->addVertex(root_vertex);
-  state_history.push_back(root_vertex);
+  if(sparse_graph_->getNumVertices() == 0) {
+    return;
+  }
+
+  Vertex * vertex = new Vertex (sparse_graph_->generateVertexID(), robotState_);
+  vertex->is_root = true;
+  sparse_graph_->addVertex(vertex);
+
+  std::vector<Vertex *> nearby_vertices;
+  sparse_graph_->getNearestVertices(&vertex->state, 3, &nearby_vertices);
   
+  for (int i = 0; i < nearby_vertices.size(); ++i) {
+
+    Vertex* nearby_vertex = nearby_vertices[i];
+    
+    if (nearby_vertex->edges < num_edges_max_) {
+
+      MapManager::VoxelStatus vs = map_manager_->getPathStatus(root_vertex->state, nearby_vertex->state, robot_box_size_, true);
+
+      if (MapManager::VoxelStatus::kFree == vs) {
+        
+        if (!sparse_graph_->edgeExist(vertex->id, nearby_vertex->id)) {
+
+          sparse_graph_->addEdge(vertex, nearby_vertex, (vertex->state - nearby_vertex->state).norm());
+        }
+
+      }
+
+    }
+
+  }
+
+  global_root_vertex = vertex;
+
+  GraphManager::visualizeSparseGraph();
 }
 
-bool GraphManager::insertBestPathsToSparseGraph (std::vector< std::vector<Vertex *>> dijkstra_paths) 
+bool GraphManager::insertBestPathsToSparseGraph (std::vector<std::vector<Vertex *>> dijkstra_paths) 
 {
 
   bool graph_status = true;
@@ -1082,86 +1111,45 @@ bool GraphManager::insertBestPathsToSparseGraph (std::vector< std::vector<Vertex
     ROS_INFO("Best path empty. Can not insert into sparse graph \n");
     return false;
   }
- 
-  Vertex * root_vertex = new Vertex (sparse_graph_->generateVertexID(), robotState_);
-  root_vertex->is_root = true;
-  sparse_graph_->addVertex(root_vertex);
-  state_history.push_back(root_vertex);
-  
-  // get nearest vertex  
 
-  for (int i = 0; i < state_history.size()-1; ++i) {
+  GraphManager::updateSparseGraph();
 
-    double weight = (state_history[i+1]->state - state_history[i]->state).norm();
-    if (!sparse_graph_->edgeExist(state_history[i]->id, state_history[i+1]->id)) {
-      sparse_graph_->addEdge(state_history[i], state_history[i+1], weight);
-    }
-  }
+  for (std::vector<Vertex *> dijkstra_path : dijkstra_paths) {
 
-  // Vertex* sparse_vertex_root = new Vertex (sparse_graph_->generateVertexID(), dijkstra_paths[0][0]->state); // Add the root which is a common vertex across paths
-  // sparse_graph_->addVertex(sparse_vertex_root);
+    for (int i = 0; i < dijkstra_path.size(); ++i) {
 
-  // Vertex* sparse_vertex_root; // Add the root which is a common vertex across paths
-  
-  Vertex* sparse_vertex_0;
-  Vertex* sparse_vertex_1;
-  for (int m = 0; m < dijkstra_paths.size(); ++m) {
+      Vertex* v = dijkstra_path[i];
 
-    for (int i = 0; i < dijkstra_paths[m].size()-1; ++i) {
-      
-      State s_0 = dijkstra_paths[m][i]->state;
-      State s_1 = dijkstra_paths[m][i+1]->state;
+      if (!sparse_graph_->vertexExist(v->state)) {
 
-      if (sparse_graph_->getVertex(s_0) == nullptr) {
+        std::vector<std::pair<int, double>> edge_pairs = sub_graph_->edge_map_[v->id];
+        Vertex* new_vertex = new Vertex(sparse_graph_->generateVertexID(), v->state);
+        sparse_graph_->addVertex(new_vertex);
 
-        sparse_vertex_0 = new Vertex (sparse_graph_->generateVertexID(), s_0);
-        sparse_graph_->addVertex(sparse_vertex_0);
-      } else {
+        for (std::pair<int, double> edge_pair : edge_pairs) {
 
-        ROS_INFO ("checking 1 \n");
-        sparse_vertex_0 = sparse_graph_->getVertex(s_0);
-      }
+          int id = edge_pair.first;
+          Vertex* neighbour_vertex = sub_graph_->vertices_map_[id];
 
+          if (std::find(dijkstra_path.begin(), dijkstra_path.end(), neighbour_vertex) != dijkstra_path.end()) {
 
-      if (sparse_graph_->getVertex(s_1) == nullptr) {
+            if (!sparse_graph_->vertexExist(neighbour_vertex->state)) {
 
-        sparse_vertex_1 = new Vertex (sparse_graph_->generateVertexID(), s_1);
-        sparse_graph_->addVertex(sparse_vertex_1);
-      } else {
+              Vertex* new_neighbour_vertex = new Vertex (sparse_graph_->generateVertexID(), neighbour_vertex->state);
+              sparse_graph_->addVertex(new_neighbour_vertex);
 
-        ROS_INFO ("checking 2 \n");
-        sparse_vertex_1 = sparse_graph_->getVertex(s_1);
-      }
+              double weight = (new_vertex->state - new_neighbour_vertex->state).norm();
+              sparse_graph_->addEdge(new_vertex, new_neighbour_vertex, weight);
 
-      double weight = (sparse_vertex_0->state - sparse_vertex_1->state).norm();
-      if (!sparse_graph_->edgeExist(sparse_vertex_0->id, sparse_vertex_1->id)) {
-
-        sparse_graph_->addEdge(sparse_vertex_0, sparse_vertex_1, weight);
+            }
+          }
+        }
       }
     }
-    
   }
 
-  // Vertex * nearest_root = sparse_graph_->getVertex(state_history.back()->state);
-  Vertex * nearest_root = sparse_graph_->getVertex(root_vertex->state);
-  
-  Vertex * dijkstra_root = sparse_graph_->getVertex(dijkstra_paths[0][0]->state);
-
-  if (nearest_root == nullptr) {
-    ROS_INFO ("nearest root null \n");
-  }
-  
-  if (dijkstra_root == nullptr) {
-    ROS_INFO ("dijkstra root null \n");
-  }
-
-  // double weight = (nearest_root->state - dijkstra_root->state).norm();
-  // sparse_graph_->addEdge(nearest_root, dijkstra_root, weight);
-  // ROS_INFO ("checking 4 \n");
-
-  // Vertex * nearest_vertex = state_history.back();
-  // double weight = (nearest_vertex->state - sparse_vertex_root->state).norm();
-  // sparse_graph_->addEdge(nearest_vertex, sparse_vertex_root, weight);
+  GraphManager::visualizeSparseGraph();
+  GraphManager::updatePathWays(sparse_graph_, sparse_graph_rep_);
   
   return graph_status;
 }
@@ -1176,19 +1164,6 @@ bool GraphManager::buildSparseGraph () {
   } 
   
   
-  // Vertex * root_vertex = new Vertex (sparse_graph_->generateVertexID(), robotState_);
-  // root_vertex->is_root = true;
-  // sparse_graph_->addVertex(root_vertex);
-  // state_history.push_back(root_vertex);
-  //
-  // for (int i = 0; i < state_history.size()-1; ++i) {
-  //
-  //   double weight = (state_history[i+1]->state - state_history[i]->state).norm();
-  //   if (!sparse_graph_->edgeExist(state_history[i]->id, state_history[i+1]->id)) {
-  //     sparse_graph_->addEdge(state_history[i], state_history[i+1], weight);
-  //   }
-  // }
-
   return graph_status;
 }
 
@@ -1308,7 +1283,7 @@ void GraphManager::updatePathWays (std::shared_ptr<GraphUtils> graph, ShortestPa
   bool path_status = true;
   // Dijkstra SP report from root to all vertices in global graph
   
-  Vertex * global_root_vertex = state_history.back();
+  // Vertex * global_root_vertex = state_history.back();
   // graph->getNearestVertex(&robotState_, &global_root_vertex);
   
   rep.reset();
@@ -1365,7 +1340,7 @@ bool GraphManager::planGlobalPath(std::shared_ptr<GraphUtils> graph, ShortestPat
   bool path_status = true;
   // Dijkstra SP report from root to all vertices in global graph
   
-  Vertex * global_root_vertex = state_history.back();
+  // Vertex * global_root_vertex = state_history.back();
   // graph->getNearestVertex(&robotState_, &global_root_vertex);
 
   rep.reset();

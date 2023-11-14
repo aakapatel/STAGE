@@ -114,7 +114,7 @@ public:
   
   void insertVertexKdtree (Vertex* v);
 
-  Vertex* getVertex (State s); 
+  bool vertexExist (State s); 
   bool edgeExist (int source_id, int target_id);
   // Basic functions on graph including add new vertex and edge.
   void addVertex(Vertex* v);

@@ -199,6 +199,7 @@ private:
   std::vector<std::pair<std::vector<Vertex *>, double>> global_paths_;
 
   std::vector<int> global_vertices_ids_;
+  Vertex * global_root_vertex;
 
   std::list<Vertex *> all_vertices;
   std::list<Vertex *> path_way_vertices;
