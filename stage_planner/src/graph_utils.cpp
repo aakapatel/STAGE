@@ -76,7 +76,6 @@ bool GraphUtils::vertexExist (State s) {
   
     int id = graph_->getVertexProperty(it);
 
-    // if ((vertices_map_[id]->state - s).norm() < 0.1) {
     if (vertices_map_[id]->state == s) {
       exist = true;
       // std::cout << "exist " << std::endl;
@@ -87,6 +86,34 @@ bool GraphUtils::vertexExist (State s) {
   }
 
   return exist;
+}
+
+
+Vertex* GraphUtils::getVertexByState (State s) {
+  
+  Vertex* vertex;
+  std::shared_ptr<Graph> g = graph_;
+  std::unordered_map<int, Vertex*>& v_map = vertices_map_;
+  if (getNumVertices() == 0) return nullptr;
+
+  std::pair<Graph::GraphType::vertex_iterator, Graph::GraphType::vertex_iterator>
+      vi;
+  g->getVertexIterator(vi);
+
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
+  
+    int id = graph_->getVertexProperty(it);
+
+    if (vertices_map_[id]->state == s) {
+      vertex = vertices_map_[id];
+      // std::cout << "exist " << std::endl;
+    } else {
+      vertex = nullptr;
+      // std::cout << "null " << std::endl;
+    }
+  }
+
+  return vertex;
 }
 
 int GraphUtils::getIdCount () {

@@ -129,6 +129,8 @@ public:
 
   // Vertex* getVertex(int id) { return vertices_map_[id]; }
   
+  Vertex* getVertexByState (State s);
+  
   int getIdCount ();
 
   bool findShortestPaths(ShortestPathsReport& rep);

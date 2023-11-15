@@ -6,15 +6,15 @@
 
 
 
-    <param name="state_topic" type="String" value="/state"/>
+    <param name="state_topic" type="string" value="/state"/>
     
-    <param name="path_topic" type="String" value="/command_path"/>
+    <param name="path_topic" type="string" value="/command_path"/>
     
-    <param name="odom_topic" type="String" value="/hummingbird/ground_truth/odometry"/>
+    <param name="odom_topic" type="string" value="/hummingbird/ground_truth/odometry"/>
     
-    <param name="wp_topic" type="String" value="/next_waypoint"/>
+    <param name="wp_topic" type="string" value="/next_waypoint"/>
     
-    <param name="reference_topic" type="String" value="/hummingbird/command/pose"/>
+    <param name="reference_topic" type="string" value="/hummingbird/command/pose"/>
 
     <!-- <param name="reference_topic" type="String" value="/hummingbird/reference"/> -->
     
@@ -22,7 +22,7 @@
     
     <param name="ROTATION_TOLERANCE" type="double" value="0.25"/>
     
-    <param name="frame_id" type="String" value="world"/>
+    <param name="frame_id" type="string" value="world"/>
     
 
 
