@@ -148,7 +148,7 @@ Visualization Manager:
       Buffer Length: 1
       Class: rviz/Path
       Color: 25; 255; 0
-      Enabled: false
+      Enabled: true
       Head Diameter: 0.20000000298023224
       Head Length: 0.10000000149011612
       Length: 0.30000001192092896
@@ -167,7 +167,7 @@ Visualization Manager:
       Shaft Length: 0.10000000149011612
       Topic: /command_path
       Unreliable: false
-      Value: false
+      Value: true
     - Class: rviz/MarkerArray
       Enabled: false
       Marker Topic: /local_dijkstra_paths
@@ -181,7 +181,8 @@ Visualization Manager:
       Marker Topic: /global_dijkstra_paths
       Name: MarkerArray
       Namespaces:
-        {}
+        edges: true
+        vertices: true
       Queue Size: 100
       Value: true
     - Alpha: 0.25
@@ -225,7 +226,9 @@ Visualization Manager:
       Marker Topic: /sparse_graph
       Name: MarkerArray
       Namespaces:
-        {}
+        edges: true
+        frontier: true
+        vertices: true
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -245,13 +248,14 @@ Visualization Manager:
       Queue Size: 100
       Value: false
     - Class: rviz/MarkerArray
-      Enabled: false
+      Enabled: true
       Marker Topic: /global_repos_path
       Name: MarkerArray
       Namespaces:
-        {}
+        edges: true
+        vertices: true
       Queue Size: 100
-      Value: false
+      Value: true
     - Class: rviz/MarkerArray
       Enabled: false
       Marker Topic: /improved_global_dijkstra_paths
@@ -324,7 +328,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 18.63578987121582
+      Distance: 31.00881576538086
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -332,17 +336,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 1.6938748359680176
-        Y: 0.9821557998657227
-        Z: -1.5187876224517822
+        X: 0.10464871674776077
+        Y: 0.380348265171051
+        Z: -0.24726542830467224
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.814797043800354
+      Pitch: 0.794796347618103
       Target Frame: hummingbird/base_link
-      Yaw: 3.553677558898926
+      Yaw: 3.9936296939849854
     Saved: ~
 Window Geometry:
   Displays:
