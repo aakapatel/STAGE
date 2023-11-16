@@ -696,6 +696,7 @@ bool GraphManager::buildLocalGraph()
 {
 
   bool graph_status = false;
+  run_local_planner = false;
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
   GraphManager::resetLocalGraph();
@@ -738,39 +739,6 @@ bool GraphManager::buildLocalGraph()
     global_graph_->addVertex(new Vertex(global_graph_->generateVertexID(), eigenToState(*(nodes[i]->point))));
   }
 
-  // Add local exploration targets to graph
-  
-  /*
-
-  // for (int i = 0; i < local_exploration_targets_.size(); ++i) {
-  for (int i = 0; i < exploration_targets_.size(); ++i) {
-
-    // Vertex *temp_vert = new Vertex (i, local_exploration_targets_[i]); 
-    Vertex *temp_vert = new Vertex (i, exploration_targets_[i]); 
-    temp_vert->is_leaf_vertex = true;
-    // temp_vert->is_local = true;
-    sub_graph_->insertVertexKdtree(temp_vert);
-  }
-  
-  for (int i = 0; i < sub_graph_->getNumVertices(); ++i)
-  {
-
-    std::vector<Vertex *> knn;
-    sub_graph_->getNearestVertices(&sub_graph_->vertices_map_[i]->state, 1, &knn);
-
-    for (Vertex *v : knn)
-    {
-      // if (v->is_leaf_vertex and v->is_local)
-      if (v->is_leaf_vertex)
-      {
-        sub_graph_->vertices_map_[i]->is_frontier = true;
-        // sub_graph_->vertices_map_[i]->is_local = true;
-      }
-    }
-  }
-  
-  */ 
-  
   // GraphManager::clusterNodes(sub_graph_);
 
   std::pair<Graph::GraphType::vertex_iterator,
@@ -797,8 +765,6 @@ bool GraphManager::buildLocalGraph()
       if ((robotState_ - nearby_vertices[i]->state).norm() > bounding_box_size_/3 and GraphManager::checkFrontierStatus(sub_graph_, nearby_vertices[i]->id)) {
         nearby_vertices[i]->is_frontier = true;
       }
-      // if (!nearby_vertices[i]->is_leaf_vertex)
-      // {
         // VOXBLOX EDGE CHECK
 
         if (sub_graph_->vertices_map_[id]->edges < num_edges_max_ and sub_graph_->distanceBetweenVertices(sub_graph_->vertices_map_[id], nearby_vertices[i]) < max_edge_length_)
@@ -815,7 +781,6 @@ bool GraphManager::buildLocalGraph()
             sub_graph_->vertices_map_[id]->edges++;
           }
         }
-      // }
     }
   }
 
@@ -834,11 +799,13 @@ bool GraphManager::buildLocalGraph()
   else
   {
     ROS_WARN_STREAM("Sub graph has " << sub_graph_->getNumVertices() << " nodes & " << sub_graph_->getNumEdges() << " edges\n");
+    return false;
   }
-
+  
   if(!GraphManager::planLocalPath()) {
     ROS_WARN("Local graph OK but no path found! \n");
     graph_status = false;
+    return graph_status;
   }
 
   return graph_status;
@@ -902,22 +869,22 @@ bool GraphManager::planLocalPath()
     }
   }
   
-  GraphManager::visualizeLocalPaths(local_paths_);
- 
   if (!dijkstra_paths.empty()) {
 
     if (GraphManager::insertBestPathsToSparseGraph(dijkstra_paths)) {
       GraphManager::visualizeSparseGraph();
     } else {
-      return path_status;
+      return false;
     }
+  } else {
+    return false;
   }
 
-  
   GraphManager::visualizeLocalGraph();
   if (!local_paths_.empty())
     {
-
+      GraphManager::visualizeLocalPaths(local_paths_);
+      run_local_planner = true; 
 
       std::vector<Vertex *> path;
 
@@ -937,7 +904,7 @@ bool GraphManager::planLocalPath()
 
         // ROS_INFO_STREAM (" Local Info gain : " << 100 * gain << "\n");
         // reward = (100 * gain) - path_length;
-        reward = gain/path_length;
+        reward = gain/(path_length + 2);
         if (reward > my_reward)
           {
             my_reward = reward;
@@ -956,11 +923,11 @@ bool GraphManager::planLocalPath()
     }
   else
   {
-    ROS_WARN("SG : Could not find shortest paths to frontier vertices \n");
+    ROS_WARN("SG : Could not find shortest paths to local frontier vertices \n");
+    
     path_status = false;
     return path_status;
   }
-
 
   return path_status;
 
@@ -1072,6 +1039,7 @@ void GraphManager::updateSparseGraph()
 
   Vertex * vertex = new Vertex (sparse_graph_->generateVertexID(), robotState_);
   vertex->is_root = true;
+  vertex->is_leaf_vertex = true;
   sparse_graph_->addVertex(vertex);
   
   // pose_graph_ids_.push_back(vertex->id);
@@ -1089,6 +1057,7 @@ bool GraphManager::insertBestPathsToSparseGraph (std::vector<std::vector<Vertex 
 
   Vertex * vertex = new Vertex (sparse_graph_->generateVertexID(), robotState_);
   vertex->is_root = true;
+  vertex->is_leaf_vertex = true;
   sparse_graph_->addVertex(vertex);
   
   for (std::vector<Vertex *> dijkstra_path : dijkstra_paths) {
@@ -1101,7 +1070,7 @@ bool GraphManager::insertBestPathsToSparseGraph (std::vector<std::vector<Vertex 
 
         std::vector<std::pair<int, double>> edge_pairs = sub_graph_->edge_map_[v->id];
         Vertex* new_vertex = new Vertex(sparse_graph_->generateVertexID(), v->state);
-        new_vertex->is_root = true;
+        new_vertex->is_leaf_vertex = true;
         sparse_graph_->addVertex(new_vertex);
 
         for (std::pair<int, double> edge_pair : edge_pairs) {
@@ -1114,7 +1083,7 @@ bool GraphManager::insertBestPathsToSparseGraph (std::vector<std::vector<Vertex 
             if (!sparse_graph_->vertexExist(neighbour_vertex->state)) {
 
               Vertex* new_neighbour_vertex = new Vertex (sparse_graph_->generateVertexID(), neighbour_vertex->state);
-              new_neighbour_vertex->is_root = true;
+              new_neighbour_vertex->is_leaf_vertex = true;
               sparse_graph_->addVertex(new_neighbour_vertex);
 
               double weight = (new_vertex->state - new_neighbour_vertex->state).norm();
@@ -1146,7 +1115,7 @@ bool GraphManager::insertBestPathsToSparseGraph (std::vector<std::vector<Vertex 
     std::vector<Vertex *> nearby_vertices;
     sparse_graph_->getNearestVertices(&sparse_graph_->vertices_map_[id]->state, 2, &nearby_vertices);
 
-    for (int i = 0; i < nearby_vertices.size(); i++)
+    for (int i = 0; i < nearby_vertices.size(); ++i)
     {
       
       // if ((robotState_ - nearby_vertices[i]->state).norm() > bounding_box_size_/3 and GraphManager::checkFrontierStatus(sub_graph_, nearby_vertices[i]->id)) {
@@ -1154,7 +1123,7 @@ bool GraphManager::insertBestPathsToSparseGraph (std::vector<std::vector<Vertex 
       // }
         // VOXBLOX EDGE CHECK
 
-      if (nearby_vertices[i]->is_root and sparse_graph_->vertices_map_[id]->edges < num_edges_max_ and sparse_graph_->distanceBetweenVertices(sparse_graph_->vertices_map_[id], nearby_vertices[i]) < max_edge_length_)
+      if ((nearby_vertices[i]->is_leaf_vertex) and sparse_graph_->vertices_map_[id]->edges < num_edges_max_ and sparse_graph_->distanceBetweenVertices(sparse_graph_->vertices_map_[id], nearby_vertices[i]) < max_edge_length_)
       {
 
         Eigen::Vector3d v_n(nearby_vertices[i]->state[0], nearby_vertices[i]->state[1], nearby_vertices[i]->state[2]);
@@ -1165,7 +1134,7 @@ bool GraphManager::insertBestPathsToSparseGraph (std::vector<std::vector<Vertex 
           sparse_graph_->addEdge(sparse_graph_->vertices_map_[id], nearby_vertices[i],
                                  sparse_graph_->distanceBetweenVertices(sparse_graph_->vertices_map_[id], nearby_vertices[i]));
           sparse_graph_->vertices_map_[id]->edges++;
-          nearby_vertices[i]->is_root = false;
+          nearby_vertices[i]->is_leaf_vertex = false;
         }
       }
     }
@@ -1189,7 +1158,12 @@ bool GraphManager::buildSparseGraph () {
     return false;
   } 
   
-  GraphManager::updatePathWays(sparse_graph_, sparse_graph_rep_);
+  if(!GraphManager::buildLocalGraph()) {
+    return false;
+  } else {
+
+    GraphManager::updatePathWays(sparse_graph_, sparse_graph_rep_);
+  }
   
   return graph_status;
 }
@@ -1804,11 +1778,11 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
     case 1:
 
       exploration_path_.poses.clear();
-      GraphManager::fetchExplorationTargets();
+      // GraphManager::fetchExplorationTargets();
 
-      switch (!local_exploration_targets_.empty()) {
+      // switch (!local_exploration_targets_.empty()) {
+      switch (run_local_planner) {
         case 1:
-
           if (!GraphManager::buildLocalGraph()) {
             ROS_WARN("No local path, Trigger global planner \n");
             if (!GraphManager::buildSparseGraph()) {
@@ -2235,9 +2209,9 @@ void GraphManager::visualizeGlobalPaths(std::vector<std::pair<std::vector<Vertex
   edge_marker.type = visualization_msgs::Marker::LINE_LIST;
   edge_marker.scale.x = 0.1;
   edge_marker.color.r = 0.0 / 255.0;
-  edge_marker.color.g = 0 / 255.0;
-  edge_marker.color.b = 200.0 / 255.0;
-  edge_marker.color.a = 1.0;
+  edge_marker.color.g = 200.0 / 255.0;
+  edge_marker.color.b = 0.0 / 255.0;
+  edge_marker.color.a = 0.8;
   // edge_marker.lifetime = ros::Duration(graph_lifetime);
   edge_marker.frame_locked = false;
 
@@ -2248,13 +2222,13 @@ void GraphManager::visualizeGlobalPaths(std::vector<std::pair<std::vector<Vertex
   vertex_marker.ns = "vertices";
   vertex_marker.action = visualization_msgs::Marker::ADD;
   vertex_marker.type = visualization_msgs::Marker::SPHERE_LIST;
-  vertex_marker.scale.x = 0.5;
-  vertex_marker.scale.y = 0.5;
-  vertex_marker.scale.z = 0.5;
+  vertex_marker.scale.x = 0.2;
+  vertex_marker.scale.y = 0.2;
+  vertex_marker.scale.z = 0.2;
   vertex_marker.color.r = 0.0 / 255.0;
-  vertex_marker.color.g = 0 / 255.0;
-  vertex_marker.color.b = 200.0 / 255.0;
-  vertex_marker.color.a = 1.0;
+  vertex_marker.color.g = 200 / 255.0;
+  vertex_marker.color.b = 0.0 / 255.0;
+  vertex_marker.color.a = 0.8;
   // vertex_marker.lifetime = ros::Duration(graph_lifetime);
   vertex_marker.frame_locked = false;
 

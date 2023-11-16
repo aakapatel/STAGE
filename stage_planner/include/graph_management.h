@@ -151,10 +151,13 @@ public:
   Eigen::Vector3d overlap_point;
 
   bool init = true;
-  
+  bool run_local_planner = true;
+
   Vertex * local_goal_vertex;
   Vertex* root_vertex;
   Vertex* latest_root_vertex;
+  
+
 
 private:
   ros::NodeHandle nh_;
