@@ -291,7 +291,7 @@ bool GraphManager::checkFrontierStatus(std::shared_ptr<GraphUtils> graph, int id
   bool is_frontier = false;
   State state = graph->vertices_map_[id]->state;
   Eigen::Vector3d check_state(state[0], state[1], state[2]);
-  Eigen::Vector3d increment(step_size, step_size, step_size / 2);
+  Eigen::Vector3d increment(step_size, step_size, step_size / 4);
 
   // double occupied, free, unknown = 0;
   MapManager::VoxelStatus vs = map_manager_->getBoxStatus(check_state, increment, true);
@@ -299,7 +299,7 @@ bool GraphManager::checkFrontierStatus(std::shared_ptr<GraphUtils> graph, int id
   {
     step_size = step_size + 0.5;
     if (step_size > 2) { break;}
-    Eigen::Vector3d increment(step_size, step_size, step_size / 2);
+    Eigen::Vector3d increment(step_size, step_size, step_size / 4);
     // free++;
     MapManager::VoxelStatus vs = map_manager_->getBoxStatus(check_state, increment, true);
     if (vs == MapManager::VoxelStatus::kUnknown)
@@ -696,9 +696,8 @@ bool GraphManager::buildLocalGraph()
 {
 
   bool graph_status = false;
-  run_local_planner = false;
   int frontier_vertices_count = 0;
-  high_resolution_clock::time_point start_total = high_resolution_clock::now();
+  // high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
   GraphManager::resetLocalGraph();
 
@@ -750,14 +749,14 @@ bool GraphManager::buildLocalGraph()
       
       Vertex* neighbour = nearby_vertices[i]; 
 
-      if ((robotState_ - neighbour->state).norm() > bounding_box_size_/3 and GraphManager::checkFrontierStatus(sub_graph_, neighbour->id)) 
+      if ((robotState_ - neighbour->state).norm() > knn_range_ and GraphManager::checkFrontierStatus(sub_graph_, neighbour->id)) 
       {
         nearby_vertices[i]->is_frontier = true;
         frontier_vertices_count++;
       }
         
       int num_edges = vertex->edges;
-      double weight = (vertex->state - neighbour>state).norm();
+      double weight = (vertex->state - neighbour->state).norm();
 
       if (num_edges < num_edges_max_ and weight < max_edge_length_)
       {
@@ -775,15 +774,15 @@ bool GraphManager::buildLocalGraph()
     }
   }
 
-  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
-
-  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-
-  ROS_INFO_STREAM("Local Graph build time " << duration_total.count() << " ms \n");
+  // high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+  //
+  // auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+  //
+  // ROS_INFO_STREAM("Local Graph build time " << duration_total.count() << " ms \n");
   
   ROS_DEBUG_STREAM("Sub graph has " << sub_graph_->getNumVertices() << " nodes & " << sub_graph_->getNumEdges() << " edges\n");
   
-  if (sub_graph_->getNumVertices() != 0 && sub_graph_->getNumEdges() != 0 && frontier_vertices_count != 0) {
+  if (sub_graph_->getNumVertices() != 0 && sub_graph_->getNumEdges() != 0) {
     
     GraphManager::visualizeLocalGraph();
     graph_status = true;
@@ -823,9 +822,9 @@ bool GraphManager::extractShortestPaths (std::shared_ptr<GraphUtils> graph, Shor
       std::vector<Vertex *> dijkstra_path;
       dijkstra_path.clear();
 
-      graph->getShortestPath(vertex, rep, true, dijkstra_path);
+      graph->getShortestPath(vertex->id, rep, true, dijkstra_path);
 
-      if (!dijkstra_path.empty())
+      if (!dijkstra_path.empty() and getPathLength(dijkstra_path) > 4)
       {
         dijkstra_paths.push_back(dijkstra_path);
       }
@@ -838,23 +837,15 @@ bool GraphManager::extractShortestPaths (std::shared_ptr<GraphUtils> graph, Shor
     return false;
   }
   
-  if (GraphManager::insertBestPathsToSparseGraph) {
-
-    ROS_DEBUG_STREAM("Inserted best paths into sparse graph \n");
-  }
-
-
   return path_status;
 
 }
 
-bool GraphManager::planLocalPath()
+bool GraphManager::planLocalPath(std::vector<std::vector<Vertex *>> dijkstra_paths)
 {
   
   bool path_status = true;
   local_paths_.clear();
-  std::vector<std::vector<Vertex *>> dijkstra_paths;
-  GraphManager::extractShortestPaths(sub_graph_, sub_graph_rep_, local_root_vertex, dijkstra_paths);
 
   if (!dijkstra_paths.empty()) {
 
@@ -897,7 +888,7 @@ bool GraphManager::planLocalPath()
       if (reward > my_reward)
       {
         my_reward = reward;
-        path = paths_[i].first;
+        path = local_paths_[i].first;
       }
     }
 
@@ -920,9 +911,6 @@ bool GraphManager::planLocalPath()
   return path_status;
 
 } // planLocalPath
-
-
-
 
 bool GraphManager::buildPathWaysGraph() {
 
@@ -1028,22 +1016,42 @@ void GraphManager::updateSparseGraph()
     return;
   }
 
-  Vertex * vertex = new Vertex (sparse_graph_->generateVertexID(), robotState_);
-  vertex->is_root = true;
-  vertex->is_leaf_vertex = true;
-  sparse_graph_->addVertex(vertex);
-  
+  Vertex * new_vertex = new Vertex (sparse_graph_->generateVertexID(), robotState_);
+  new_vertex->is_root = true;
+  sparse_graph_->addVertex(new_vertex);
+ 
+  std::vector<Vertex *> nearby_vertices;
+  sparse_graph_->getNearestVertices(&new_vertex->state, knn_range_, &nearby_vertices);
+
+  for (int i = 0; i < nearby_vertices.size(); ++i)
+  {
+    Vertex* neighbour = nearby_vertices[i];
+    int num_edges = new_vertex->edges;
+    double weight = (new_vertex->state - neighbour->state).norm();
+
+    if (num_edges < num_edges_max_ and weight < max_edge_length_)
+    {
+
+      if (!sparse_graph_->edgeExist(new_vertex->id, neighbour->id) and 
+        MapManager::VoxelStatus::kFree == map_manager_->getPathStatus(new_vertex->state, neighbour->state, robot_box_size_, true))
+      {
+
+        sparse_graph_->addEdge(new_vertex, neighbour, weight);
+        new_vertex->edges++;
+      }
+    }
+  } 
   // pose_graph_ids_.push_back(vertex->id);
 
 }
 
-bool GraphManager::insertBestPathsToSparseGraph (std::vector<std::vector<Vertex *>> dijkstra_paths) 
+void GraphManager::insertBestPathsToSparseGraph (std::vector<std::vector<Vertex *>> dijkstra_paths) 
 {
 
   bool graph_status = true;
   if (dijkstra_paths.empty()) {
     ROS_WARN("Best path empty. Can not insert into sparse graph \n");
-    return false;
+    return;
   }
 
   std::vector<Vertex *> newly_added_vertices;
@@ -1123,11 +1131,10 @@ bool GraphManager::insertBestPathsToSparseGraph (std::vector<std::vector<Vertex 
 
   GraphManager::visualizeSparseGraph();
   
-  return graph_status;
 }
 
 
-bool GraphManager::buildSparseGraph () {
+bool GraphManager::expandSparseGraph () {
 
   bool graph_status = true;
   if (sparse_graph_->getNumVertices() == 0) {
@@ -1135,13 +1142,67 @@ bool GraphManager::buildSparseGraph () {
     return false;
   } 
   
-  if(!GraphManager::buildLocalGraph()) {
-    return false;
-  } else {
+  std::vector<Vertex *> newly_added_vertices;
+  newly_added_vertices.clear();
+  
+  Vertex * r_vertex = new Vertex (sparse_graph_->generateVertexID(), robotState_);
+  r_vertex->is_root = true;
+  r_vertex->is_leaf_vertex = true;
+  sparse_graph_->addVertex(r_vertex);
+  newly_added_vertices.push_back(r_vertex);
+  
+  // Expand the sparse graph by adding sampled nodes around robot pose 
+  std::vector<node *> nodes;
+  nodes.clear();
 
-    GraphManager::updatePathWays(sparse_graph_, sparse_graph_rep_);
+  GraphManager::sampleNodes(nodes, robotState_, iterations_local_/4, bounding_box_size_);
+  if (nodes.empty())
+  {
+    graph_status = false;
+    ROS_WARN("Could not sample nodes in traversable space \n");
+    return graph_status;
   }
   
+  // Add randomly sampled nodes to sparse graph 
+ 
+  for (int i = 0; i < nodes.size(); ++i)
+  {
+    Vertex *vertex = new Vertex(sparse_graph_->generateVertexID(), eigenToState(*(nodes[i]->point)));
+    sparse_graph_->addVertex(vertex);
+    newly_added_vertices.push_back(vertex);
+  }
+  
+  for (Vertex* new_vertex : newly_added_vertices)
+  {
+
+    // Get nearby vertices from the current vertex and connect the them to form local edges
+    std::vector<Vertex *> nearby_vertices;
+    sparse_graph_->getNearestVertices(&new_vertex->state, knn_range_, &nearby_vertices);
+
+    for (int i = 0; i < nearby_vertices.size(); ++i)
+    {
+      Vertex* neighbour = nearby_vertices[i];
+      int num_edges = new_vertex->edges;
+      double weight = (new_vertex->state - neighbour->state).norm();
+
+      if (num_edges < num_edges_max_ and weight < max_edge_length_)
+      {
+
+        if (!sparse_graph_->edgeExist(new_vertex->id, neighbour->id) and 
+          MapManager::VoxelStatus::kFree == map_manager_->getPathStatus(new_vertex->state, neighbour->state, robot_box_size_, true))
+        {
+
+          sparse_graph_->addEdge(new_vertex, neighbour, weight);
+          new_vertex->edges++;
+        }
+      }
+    }
+  }
+
+  global_root_vertex = r_vertex;
+  
+  GraphManager::visualizeSparseGraph();
+
   return graph_status;
 }
 
@@ -1282,9 +1343,9 @@ void GraphManager::updatePathWays (std::shared_ptr<GraphUtils> graph, ShortestPa
   {
 
     int id = graph->graph_->getVertexProperty(it);
-
+    double distance = (robotState_ - graph->vertices_map_[id]->state).norm();
     // if (graph->vertices_map_[id]->is_frontier and path_ways_graph_->vertices_map_[id]->is_cluster_centroid)
-    if (graph->vertices_map_[id]->is_frontier and checkFrontierStatus(sparse_graph_, id))
+    if (distance > bounding_box_size_/3 and graph->vertices_map_[id]->is_frontier and checkFrontierStatus(sparse_graph_, id))
     // if (1)
     {
       std::vector<Vertex *> dijkstra_path;
@@ -1309,108 +1370,64 @@ void GraphManager::updatePathWays (std::shared_ptr<GraphUtils> graph, ShortestPa
 
 }
 
-bool GraphManager::planGlobalPath(std::shared_ptr<GraphUtils> graph, ShortestPathsReport rep)
+bool GraphManager::planGlobalPath(std::vector<std::vector<Vertex *>> dijkstra_paths)
 {
 
   bool path_status = true;
-  // Dijkstra SP report from root to all vertices in global graph
-  
-  rep.reset();
-  if (!graph->findShortestPaths(global_root_vertex->id, rep))
-  {
-    ROS_WARN("Could not find dijkstra shortest paths on global graph \n");
-    path_status = false;
-    return path_status;
-  }
-
   global_paths_.clear();
 
-  std::pair<Graph::GraphType::vertex_iterator,
-  Graph::GraphType::vertex_iterator>
-  vi;
-  graph->graph_->getVertexIterator(vi);
+  if (!dijkstra_paths.empty()) {
 
-  std::vector<std::pair<std::vector<Vertex *>, double>> temp_global_paths;
-
-  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
-  {
-
-    int id = graph->graph_->getVertexProperty(it);
-
-    // if (graph->vertices_map_[id]->is_frontier and path_ways_graph_->vertices_map_[id]->is_cluster_centroid)
-    if (graph->vertices_map_[id]->is_frontier and checkFrontierStatus(sparse_graph_, id))
-    {
-      std::vector<Vertex *> dijkstra_path;
-
-      dijkstra_path.clear();
-
-      graph->getShortestPath(graph->vertices_map_[id]->id, rep, true, dijkstra_path);
+    for (std::vector<Vertex *> dijkstra_path : dijkstra_paths) {
+      
       if (!dijkstra_path.empty())
       {
+        Eigen::Vector3d path_goal (dijkstra_path.back()->state[0], dijkstra_path.back()->state[1], dijkstra_path.back()->state[2]);
+
         std::pair<std::vector<Vertex *>, double> p = std::make_pair(dijkstra_path, getPathLength(dijkstra_path));
 
-        temp_global_paths.push_back(p);
+        global_paths_.push_back(p);
       }
     }
-  }
 
-  if (temp_global_paths.empty()) {
+  } else {
+    ROS_WARN_STREAM ("Global graph -> No dijkstra paths :( \n");
     return false;
   }
 
-  GraphManager::visualizeGlobalPaths(temp_global_paths);
-
-  for (int i = 0; i < temp_global_paths.size(); ++i)
+  if (!global_paths_.empty())
   {
 
-    std::vector<Vertex *> improved_path_;
-    GraphManager::improvePath(temp_global_paths[i].first, improved_path_);
-    if (!improved_path_.empty())
+    GraphManager::visualizeGlobalPaths(global_paths_);
+
+    std::vector<Vertex *> path;
+
+    double gain, path_length, reward;
+    double my_reward = -std::numeric_limits<double>::max();
+
+    for (auto i = 0; i < global_paths_.size(); i++)
     {
-      std::pair<std::vector<Vertex *>, double> p = std::make_pair(improved_path_, getPathLength(improved_path_));
-      global_paths_.push_back(p);
+
+      gain = computeExplorationGain(global_paths_[i].first.back()->state);
+      path_length = global_paths_[i].second;
+
+      reward = gain/(path_length + 2);
+      if (reward > my_reward)
+      {
+        my_reward = reward;
+        path = global_paths_[i].first;
+      }
+    }
+
+    best_path_.clear();
+    GraphManager::improvePath(path, best_path_);
+    if (best_path_.empty())
+    {
+      path_status = false;
+      ROS_WARN("GLOBAL GRPH -> Improved path is empty");
+      return path_status;
     }
   }
-
-  if (!global_paths_.empty())
-    {
-      GraphManager::visualizeImprovedGlobalPaths(global_paths_);
-
-      std::vector<Vertex *> path;
-
-      std::vector<std::pair<std::vector<Vertex *>, double>> paths_;
-
-      paths_ = global_paths_;
-
-      double gain, path_length, reward;
-      double my_reward = -std::numeric_limits<double>::max();
-
-      for (auto i = 0; i < paths_.size(); i++)
-      {
-
-        gain = computeExplorationGain(paths_[i].first.back()->state);
-        path_length = paths_[i].second;
-
-        // ROS_INFO_STREAM ("Global Info gain : " << 100 * gain << "\n");
-        // reward = (100 * gain) - 50 * path_length;
-        reward = gain/(path_length + 2);
-        if (reward > my_reward)
-        {
-          my_reward = reward;
-          path = paths_[i].first;
-        }
-      }
-
-      // best_path_.clear();
-      GraphManager::improvePath(path, best_path_);
-      // GraphManager::updateKdtree(global_graph_);
-      if (best_path_.empty())
-      {
-        path_status = false;
-        ROS_WARN("GG : Improved path is empty");
-        return path_status;
-      }
-    }
   else
   {
     path_status = false;
@@ -1745,60 +1762,105 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
 {
 
-  // high_resolution_clock::time_point start_total = high_resolution_clock::now();
-    
-
-  
   bool planner_status = true;
+  
+  high_resolution_clock::time_point start_total = high_resolution_clock::now();
   
   switch (reached_end_of_path_) {
     case 1:
 
       exploration_path_.poses.clear();
-      // GraphManager::fetchExplorationTargets();
+      if (GraphManager::buildLocalGraph()) {
+        
+        std::vector<std::vector<Vertex *>> dijkstra_paths;
+        dijkstra_paths.clear();
 
-      // switch (!local_exploration_targets_.empty()) {
-      switch (run_local_planner) {
-        case 1:
-          if (!GraphManager::buildLocalGraph()) {
-            ROS_WARN("No local path, Trigger global planner \n");
-            if (!GraphManager::buildSparseGraph()) {
-              ROS_WARN ("Global graph error \n");
-              break;
-            } else if (!GraphManager::planGlobalPath(sparse_graph_, sparse_graph_rep_)) {
-              ROS_WARN ("No global re-pos path \n");
-              break;
+        if (GraphManager::extractShortestPaths(sub_graph_, sub_graph_rep_, local_root_vertex, dijkstra_paths)) {
+          
+          GraphManager::insertBestPathsToSparseGraph(dijkstra_paths);
+          // ROS_INFO("Successfully inserted best paths \n");
+          if (GraphManager::planLocalPath(dijkstra_paths)) {
 
-            } else if (GraphManager::setPath()) {
+            // ROS_INFO("Successfully planned local path \n");
+            
+            if (GraphManager::setPath()) {
+
+              // ROS_INFO("local path set success! \n");
               res.path = exploration_path_;
-              ROS_INFO("Local path set :) \n");
+              ++planning_iteration_;
               break;
+            } else {
+              ROS_WARN("Local path set -> Failure ! \n");
             }
-          } else if (GraphManager::setPath()) {  
-            res.path = exploration_path_;
-            // ROS_INFO("Local path set :) \n");
-            break;
+          } else {
+            
+            ROS_WARN("Local planner failure ! Attempting global repositioning \n");
+        
+            std::vector<std::vector<Vertex *>> dijkstra_paths;
+            dijkstra_paths.clear();
+
+            if (GraphManager::extractShortestPaths(sparse_graph_, sparse_graph_rep_, global_root_vertex, dijkstra_paths)) {
+
+              if (GraphManager::planGlobalPath(dijkstra_paths)) {
+
+                // ROS_INFO ("Successfully planner global paths \n");
+
+                if (GraphManager::setPath()) {
+                  // ROS_INFO("Global path set success !\n");
+                  res.path = exploration_path_;
+                  ++planning_iteration_;
+                  break;
+                } else {
+                  ROS_WARN("Global planner failure \n");
+                  break;
+                }
+              }
+            }
           }
 
-        case 0:
-          if (!GraphManager::buildSparseGraph()) {
-            ROS_WARN ("Global graph error \n");
-            break;
-          } else if (!GraphManager::planGlobalPath(sparse_graph_, sparse_graph_rep_)) {
-            ROS_WARN ("No global re-pos path \n");
-            break;
-          } else if (GraphManager::setPath()) {
-            res.path = exploration_path_;
-            // ROS_INFO("Local path set :) \n");
-            break;
-          }
-      }
+        } else {
+          ROS_WARN("Could not extract shortest paths on sub graph \n");
+          
+          if (GraphManager::expandSparseGraph()) {
 
+            // ROS_INFO("Expanded sparse graph for global planning \n");
+            std::vector<std::vector<Vertex *>> dijkstra_paths;
+            dijkstra_paths.clear();
+
+            if (GraphManager::extractShortestPaths(sparse_graph_, sparse_graph_rep_, global_root_vertex, dijkstra_paths)) {
+
+              if (GraphManager::planGlobalPath(dijkstra_paths)) {
+
+                // ROS_INFO ("Successfully planner global paths \n");
+
+                if (GraphManager::setPath()) {
+                  // ROS_INFO("Global path set success !\n");
+                  res.path = exploration_path_;
+                  ++planning_iteration_;
+                  break;
+                } else {
+                  ROS_WARN("Global planner failure \n");
+                  break;
+                }
+              }
+            }
+          }
+        } 
+      } 
+      
 
     case 0:
       planner_status = GraphManager::setPath();
       res.path = exploration_path_;
       // ROS_INFO("Executing path segment \n");
+  }
+
+  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+
+  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+  if (duration_total.count() > 0) {
+
+  ROS_INFO_STREAM("\033[;34m [Planning iter -> " << planning_iteration_ << "] Exec time :" << duration_total.count() << " ms \033[0m\n");
   }
 
   // high_resolution_clock::time_point stop_total = high_resolution_clock::now();

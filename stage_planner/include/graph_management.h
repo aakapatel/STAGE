@@ -84,9 +84,9 @@ public:
 
   bool buildLocalGraph();
   bool buildPathWaysGraph(); 
-  bool planLocalPath();
+  bool planLocalPath(std::vector<std::vector<Vertex *>> dijkstra_paths);
 
-  bool planGlobalPath(std::shared_ptr<GraphUtils> graph, ShortestPathsReport rep);
+  bool planGlobalPath(std::vector<std::vector<Vertex *>> dijkstra_paths);
   
   void updatePathWays (std::shared_ptr<GraphUtils> graph, ShortestPathsReport rep);
 
@@ -130,10 +130,10 @@ public:
   void expandGraph (int iterations_max, Vertex* root, Vertex* goal, double radius);
   
   bool buildGlobalGraph();
-  bool buildSparseGraph();
+  bool expandSparseGraph();
   void updateSparseGraph();
   
-  bool insertBestPathsToSparseGraph (std::vector<std::vector<Vertex *>> dijkstra_paths); 
+  void insertBestPathsToSparseGraph (std::vector<std::vector<Vertex *>> dijkstra_paths); 
   
   bool setPath();
 

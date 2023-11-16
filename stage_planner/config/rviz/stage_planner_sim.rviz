@@ -22,6 +22,7 @@ Panels:
         - /MarkerArray9
         - /MarkerArray10
         - /MarkerArray11
+        - /PointCloud22
         - /MarkerArray12
       Splitter Ratio: 0.5
     Tree Height: 420
@@ -122,8 +123,7 @@ Visualization Manager:
       Marker Topic: /global_dijkstra_paths
       Name: MarkerArray
       Namespaces:
-        edges: true
-        vertices: true
+        {}
       Queue Size: 100
       Value: true
     - Alpha: 0.25
@@ -173,13 +173,14 @@ Visualization Manager:
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
-      Enabled: false
+      Enabled: true
       Marker Topic: /pose_graph
       Name: MarkerArray
       Namespaces:
-        {}
+        edges: true
+        vertices: true
       Queue Size: 100
-      Value: false
+      Value: true
     - Class: rviz/MarkerArray
       Enabled: false
       Marker Topic: /path_ways_graph
@@ -205,18 +206,18 @@ Visualization Manager:
         {}
       Queue Size: 100
       Value: false
-    - Alpha: 0.10000000149011612
+    - Alpha: 0.5
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 12.892648696899414
-        Min Value: -0.8771916627883911
+        Max Value: 6.330323696136475
+        Min Value: -0.18807125091552734
         Value: true
       Axis: Z
       Channel Name: intensity
       Class: rviz/PointCloud2
       Color: 255; 255; 255
-      Color Transformer: AxisColor
-      Decay Time: 99999997952
+      Color Transformer: FlatColor
+      Decay Time: 0
       Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
@@ -226,7 +227,7 @@ Visualization Manager:
       Queue Size: 10
       Selectable: true
       Size (Pixels): 3
-      Size (m): 0.004999999888241291
+      Size (m): 0.03999999910593033
       Style: Flat Squares
       Topic: /hummingbird/velodyne_points
       Unreliable: false
@@ -269,7 +270,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 31.00881576538086
+      Distance: 31.926942825317383
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -277,17 +278,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 0.10464871674776077
-        Y: 0.380348265171051
-        Z: -0.24726542830467224
+        X: 1.2745521068572998
+        Y: 1.0685924291610718
+        Z: -0.4856002628803253
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.794796347618103
+      Pitch: 1.5697963237762451
       Target Frame: hummingbird/base_link
-      Yaw: 3.9936296939849854
+      Yaw: 3.138613700866699
     Saved: ~
 Window Geometry:
   Displays:
