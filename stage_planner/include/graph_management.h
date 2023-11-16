@@ -56,6 +56,8 @@ public:
                            stage_planner::explorationPath::Response &res);
   Eigen::Quaternion<float> Euler2Quaternion(Eigen::Vector3d v);
 
+  bool extractShortestPaths (std::shared_ptr<GraphUtils> graph, ShortestPathsReport rep, Vertex* root, 
+                             std::vector<std::vector<Vertex *>> &dijkstra_paths);
   double calculateAngle(Eigen::Vector3d fpoint);
 
   bool isLocal(Eigen::Vector3d point);
@@ -154,7 +156,7 @@ public:
   bool run_local_planner = true;
 
   Vertex * local_goal_vertex;
-  Vertex* root_vertex;
+  Vertex* local_root_vertex;
   Vertex* latest_root_vertex;
   
 
