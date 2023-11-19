@@ -1790,7 +1790,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
               ++planning_iteration_;
               break;
             } else {
-              ROS_WARN("Local path set -> Failure ! \n");
+              ROS_WARN("Local path setting -> Failure ! \n");
             }
           } else {
             
