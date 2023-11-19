@@ -8,14 +8,14 @@
   
   <arg name="voxblox_config_file" default="$(find stage_planner)/config/$(arg robot_name)/voxblox_sim_config.yaml"/>
   
-  <node pkg="stage_planner" type="frontiers_extraction_node" name="frontiers_extraction_node" output="screen">
-
-    <remap from="odometry" to="/hummingbird/ground_truth/odometry" />
-    <remap from="/pointcloud" to="/hummingbird/velodyne_points" />
-    <rosparam command="load" file="$(arg voxblox_config_file)" /> 
-    <rosparam command="load" file="$(arg stage_config_file)" /> 
-  
-  </node>
+  <!-- <node pkg="stage_planner" type="frontiers_extraction_node" name="frontiers_extraction_node" output="screen"> -->
+  <!---->
+  <!--   <remap from="odometry" to="/hummingbird/ground_truth/odometry" /> -->
+  <!--   <remap from="/pointcloud" to="/hummingbird/velodyne_points" /> -->
+  <!--   <rosparam command="load" file="$(arg voxblox_config_file)" />  -->
+  <!--   <rosparam command="load" file="$(arg stage_config_file)" />  -->
+  <!--  -->
+  <!-- </node> -->
   
   <node type="rviz" name="rviz" pkg="rviz" args="-d $(find stage_planner)/config/rviz/stage_planner_sim.rviz" />
 

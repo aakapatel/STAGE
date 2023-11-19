@@ -264,7 +264,7 @@ void StageInterface::segmentPath(const nav_msgs::Path &path,
 {
   path_seg.poses.clear();
   double v_max_ = 1;
-  double yaw_rate_max_ = 0.5;
+  double yaw_rate_max_ = 0.1;
   if (path.poses.size() == 0)
     return;
   if (path.poses.size() == 1)

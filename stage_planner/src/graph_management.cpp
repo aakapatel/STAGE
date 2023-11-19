@@ -291,29 +291,31 @@ bool GraphManager::checkFrontierStatus(std::shared_ptr<GraphUtils> graph, int id
   bool is_frontier = false;
   State state = graph->vertices_map_[id]->state;
   Eigen::Vector3d check_state(state[0], state[1], state[2]);
-  Eigen::Vector3d increment(step_size, step_size, step_size / 4);
+  Eigen::Vector3d increment(step_size, step_size, step_size / 10);
 
   // double occupied, free, unknown = 0;
   MapManager::VoxelStatus vs = map_manager_->getBoxStatus(check_state, increment, true);
-  while (MapManager::VoxelStatus::kFree == vs)
+  // while (MapManager::VoxelStatus::kFree == vs)
+  while (step_size < 2)
   {
     step_size = step_size + 0.5;
-    if (step_size > 2) { break;}
-    Eigen::Vector3d increment(step_size, step_size, step_size / 4);
+    // if (step_size > 1) { break;}
+    Eigen::Vector3d increment(step_size, step_size, step_size / 10);
     // free++;
-    MapManager::VoxelStatus vs = map_manager_->getBoxStatus(check_state, increment, true);
+    vs = map_manager_->getBoxStatus(check_state, increment, true);
     if (vs == MapManager::VoxelStatus::kUnknown)
       {
         if(step_size <= 2) {
           is_frontier = true;
-          break;
+          // break;
         }
         step_size = step_size + 0.5;
       }
     else if (vs == MapManager::VoxelStatus::kOccupied)
-    {
+    { 
+      is_frontier = false;
       break;
-    }
+    } 
   }
   
   if (!is_frontier) {
@@ -816,7 +818,7 @@ bool GraphManager::extractShortestPaths (std::shared_ptr<GraphUtils> graph, Shor
     int id = graph->graph_->getVertexProperty(it);
       
     Vertex* vertex = graph->vertices_map_[id];
-    if (vertex->is_frontier)
+    if (checkFrontierStatus(graph, vertex->id))
     {
 
       std::vector<Vertex *> dijkstra_path;
@@ -1040,7 +1042,9 @@ void GraphManager::updateSparseGraph()
         new_vertex->edges++;
       }
     }
-  } 
+  }
+
+  GraphManager::visualizeSparseGraph();
   // pose_graph_ids_.push_back(vertex->id);
 
 }

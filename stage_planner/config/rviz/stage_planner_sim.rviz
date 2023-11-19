@@ -123,7 +123,8 @@ Visualization Manager:
       Marker Topic: /global_dijkstra_paths
       Name: MarkerArray
       Namespaces:
-        {}
+        edges: true
+        vertices: true
       Queue Size: 100
       Value: true
     - Alpha: 0.25
@@ -149,7 +150,7 @@ Visualization Manager:
       Size (Pixels): 2
       Size (m): 0.05999999865889549
       Style: Points
-      Topic: /frontiers_extraction_node/surface_pointcloud
+      Topic: /graph_management_node/surface_pointcloud
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
