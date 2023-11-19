@@ -287,7 +287,7 @@ double GraphManager::computeExplorationGain(State state)
 bool GraphManager::checkFrontierStatus(std::shared_ptr<GraphUtils> graph, int id)
 {
   
-  double step_size = 0.5;
+  double step_size = 0.1;
   bool is_frontier = false;
   State state = graph->vertices_map_[id]->state;
   Eigen::Vector3d check_state(state[0], state[1], state[2]);
@@ -296,20 +296,20 @@ bool GraphManager::checkFrontierStatus(std::shared_ptr<GraphUtils> graph, int id
   // double occupied, free, unknown = 0;
   MapManager::VoxelStatus vs = map_manager_->getBoxStatus(check_state, increment, true);
   // while (MapManager::VoxelStatus::kFree == vs)
-  while (step_size < 2)
+  while (step_size < 1)
   {
-    step_size = step_size + 0.5;
+    step_size = step_size + 0.1;
     // if (step_size > 1) { break;}
     Eigen::Vector3d increment(step_size, step_size, step_size / 10);
     // free++;
     vs = map_manager_->getBoxStatus(check_state, increment, true);
     if (vs == MapManager::VoxelStatus::kUnknown)
       {
-        if(step_size <= 2) {
+        if(step_size <= 1) {
           is_frontier = true;
           // break;
         }
-        step_size = step_size + 0.5;
+        step_size = step_size + 0.1;
       }
     else if (vs == MapManager::VoxelStatus::kOccupied)
     { 
