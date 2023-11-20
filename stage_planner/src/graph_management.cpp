@@ -293,31 +293,45 @@ bool GraphManager::checkFrontierStatus(std::shared_ptr<GraphUtils> graph, int id
   Eigen::Vector3d check_state(state[0], state[1], state[2]);
   Eigen::Vector3d increment(step_size, step_size, step_size / 10);
 
-  // double occupied, free, unknown = 0;
-  MapManager::VoxelStatus vs = map_manager_->getBoxStatus(check_state, increment, true);
-  // while (MapManager::VoxelStatus::kFree == vs)
-  while (step_size < 1)
-  {
-    step_size = step_size + 0.1;
-    // if (step_size > 1) { break;}
-    Eigen::Vector3d increment(step_size, step_size, step_size / 10);
-    // free++;
-    vs = map_manager_->getBoxStatus(check_state, increment, true);
-    if (vs == MapManager::VoxelStatus::kUnknown)
-      {
-        if(step_size <= 1) {
-          is_frontier = true;
-          // break;
-        }
-        step_size = step_size + 0.1;
-      }
-    else if (vs == MapManager::VoxelStatus::kOccupied)
-    { 
-      is_frontier = false;
-      break;
-    } 
+
+  Eigen::Vector3d center= check_state;
+  Eigen::Vector3d bb_size (1, 1, 0.5);
+  std::vector<Eigen::Vector3d> occupied_voxels;
+  std::vector<Eigen::Vector3d> free_voxels;
+  std::vector<Eigen::Vector3d> unknown_voxels;
+   
+  map_manager_->extractLocalMap(center, bb_size, occupied_voxels, free_voxels, unknown_voxels);
+
+  // MapManager::VoxelStatus vs = map_manager_->getBoxStatus(check_state, increment, true);
+  // while (step_size < 1)
+  // {
+  //   step_size = step_size + 0.1;
+  //   // if (step_size > 1) { break;}
+  //   Eigen::Vector3d increment(step_size, step_size, step_size / 10);
+  //   // free++;
+  //   vs = map_manager_->getBoxStatus(check_state, increment, true);
+  //   if (vs == MapManager::VoxelStatus::kUnknown)
+  //     {
+  //       if(step_size <= 1) {
+  //         is_frontier = true;
+  //         // break;
+  //       }
+  //       step_size = step_size + 0.1;
+  //     }
+  //   else if (vs == MapManager::VoxelStatus::kOccupied)
+  //   { 
+  //     is_frontier = false;
+  //     break;
+  //   } 
+  // }
+ 
+  if (occupied_voxels.size() > 0) {
+    is_frontier = false;
   }
-  
+  if (unknown_voxels.size() > free_voxels.size()/2 and !occupied_voxels.size() > 0) {
+    is_frontier = true;
+  }
+
   if (!is_frontier) {
     graph->vertices_map_[id]->is_frontier = false;
     graph->vertices_map_[id]->is_evaluated = true;
@@ -341,9 +355,10 @@ void GraphManager::sampleNodes(std::vector<node *> &nodes, State state, int iter
   Eigen::Vector3d bb_size (bounding_box_size_, bounding_box_size_, bounding_box_size_/4);
   std::vector<Eigen::Vector3d> occupied_voxels;
   std::vector<Eigen::Vector3d> free_voxels;
+  std::vector<Eigen::Vector3d> unknown_voxels;
+   
+  map_manager_->extractLocalMap(center, bb_size, occupied_voxels, free_voxels, unknown_voxels);
   
-  map_manager_->extractLocalMap(center, bb_size, occupied_voxels, free_voxels);
-
   highest_x = std::numeric_limits<float>::max();
   highest_y = std::numeric_limits<float>::max();
   highest_z = std::numeric_limits<float>::max();
@@ -441,7 +456,7 @@ void GraphManager::sampleNodes(std::vector<node *> &nodes, State state, int iter
     itterations++;
   }
   
-  GraphManager::visualizeTree(nodes);
+  // GraphManager::visualizeTree(nodes);
   // ROS_INFO_STREAM ("Sampled : " << nodes.size() << " nodes" << "\n ");
 
 } // sampleNodes

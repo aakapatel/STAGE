@@ -400,12 +400,14 @@ template <typename SDFServerType, typename SDFVoxelType>
 void MapManagerVoxblox<SDFServerType, SDFVoxelType>::extractLocalMap(
     const Eigen::Vector3d& center, const Eigen::Vector3d& bounding_box_size,
     std::vector<Eigen::Vector3d>& occupied_voxels,
-    std::vector<Eigen::Vector3d>& free_voxels) {
+    std::vector<Eigen::Vector3d>& free_voxels, 
+    std::vector<Eigen::Vector3d>& unknown_voxels) {
   // ROS_WARN_THROTTLE(5.0,
   //                   "MapManagerVoxblox::extractLocalMap --> Temporary
   //                   solution " "to be consistent with Octomap interface.");
   occupied_voxels.clear();
   free_voxels.clear();
+  unknown_voxels.clear();
   double resolution = getResolution();
 
   int Nx = std::ceil(bounding_box_size.x() / (2 * resolution)) *
@@ -434,6 +436,8 @@ void MapManagerVoxblox<SDFServerType, SDFVoxelType>::extractLocalMap(
           free_voxels.push_back(pos);
         } else if (vs == VoxelStatus::kOccupied) {
           occupied_voxels.push_back(pos);
+        } else if (vs == VoxelStatus::kUnknown) {
+          unknown_voxels.push_back(pos);
         }
       }
     }
