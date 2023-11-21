@@ -259,87 +259,95 @@ double GraphManager::computeExplorationGain(State state)
   Eigen::Vector3d check_state(state[0], state[1], state[2]);
   Eigen::Vector3d increment(step_size, step_size, step_size / 2);
 
-  // double occupied, free, unknown = 0;
-  MapManager::VoxelStatus vs = map_manager_->getBoxStatus(check_state, increment, true);
-  while (MapManager::VoxelStatus::kFree == vs)
-  {
-    step_size = step_size + 0.1;
-    Eigen::Vector3d increment(step_size, step_size, step_size / 2);
-    // free++;
-    MapManager::VoxelStatus vs = map_manager_->getBoxStatus(check_state, increment, true);
-    if (vs == MapManager::VoxelStatus::kUnknown)
-      {
-        step_size = 4 * step_size;
-        break;
-      }
-    else if (vs == MapManager::VoxelStatus::kOccupied)
-    {
-    step_size = step_size / 2;
-    break;
-  }
-  }
-
-  return 10*(step_size);
-  // return free.size();
-}
-
-
-bool GraphManager::checkFrontierStatus(std::shared_ptr<GraphUtils> graph, int id)
-{
-  
-  double step_size = 0.1;
-  bool is_frontier = false;
-  State state = graph->vertices_map_[id]->state;
-  Eigen::Vector3d check_state(state[0], state[1], state[2]);
-  Eigen::Vector3d increment(step_size, step_size, step_size / 10);
-
-
-  Eigen::Vector3d center= check_state;
-  Eigen::Vector3d bb_size (1, 1, 0.5);
+  Eigen::Vector3d center = check_state;
+  Eigen::Vector3d bb_size (1, 1, 1);
   std::vector<Eigen::Vector3d> occupied_voxels;
   std::vector<Eigen::Vector3d> free_voxels;
   std::vector<Eigen::Vector3d> unknown_voxels;
    
   map_manager_->extractLocalMap(center, bb_size, occupied_voxels, free_voxels, unknown_voxels);
+  std::vector<Eigen::Vector3d> unk_inside_frustum;
+  std::vector<Eigen::Vector3d> occ_inside_frustum;
+  std::vector<Eigen::Vector3d> fre_inside_frustum;
+  GraphManager::insideFrustumVolume(center, unknown_voxels, unk_inside_frustum);
+  GraphManager::insideFrustumVolume(center, occupied_voxels, occ_inside_frustum);
+  GraphManager::insideFrustumVolume(center, free_voxels, fre_inside_frustum);
+  
+  double average_voxels = (unk_inside_frustum.size() + occ_inside_frustum.size() + fre_inside_frustum.size()) / 3;
 
-  // MapManager::VoxelStatus vs = map_manager_->getBoxStatus(check_state, increment, true);
-  // while (step_size < 1)
-  // {
-  //   step_size = step_size + 0.1;
-  //   // if (step_size > 1) { break;}
-  //   Eigen::Vector3d increment(step_size, step_size, step_size / 10);
-  //   // free++;
-  //   vs = map_manager_->getBoxStatus(check_state, increment, true);
-  //   if (vs == MapManager::VoxelStatus::kUnknown)
-  //     {
-  //       if(step_size <= 1) {
-  //         is_frontier = true;
-  //         // break;
-  //       }
-  //       step_size = step_size + 0.1;
-  //     }
-  //   else if (vs == MapManager::VoxelStatus::kOccupied)
-  //   { 
-  //     is_frontier = false;
-  //     break;
-  //   } 
-  // }
- 
-  if (occupied_voxels.size() > 0) {
-    is_frontier = false;
-  }
-  if (unknown_voxels.size() > free_voxels.size()/2 and !occupied_voxels.size() > 0) {
+  double gain = unk_inside_frustum.size() / average_voxels;
+  
+  // ROS_INFO_STREAM("Frontier gain : " << gain << "\n");
+  return gain;
+}
+
+bool GraphManager::checkFrontierStatus(std::shared_ptr<GraphUtils> graph, int id) {
+  
+  high_resolution_clock::time_point start_total = high_resolution_clock::now();
+  
+  bool is_frontier = false;
+  State state = graph->vertices_map_[id]->state;
+  double frontier_gain = computeExplorationGain(state);
+  if (frontier_gain > 1) {
     is_frontier = true;
   }
+  // Update vertex properties based on frontier status
+  graph->vertices_map_[id]->is_frontier = is_frontier;
+  graph->vertices_map_[id]->is_evaluated = !is_frontier;
 
-  if (!is_frontier) {
-    graph->vertices_map_[id]->is_frontier = false;
-    graph->vertices_map_[id]->is_evaluated = true;
-  } else {
 
-    graph->vertices_map_[id]->is_frontier = true;
+  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+
+  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+
+  ROS_INFO_STREAM("Gain evaluation time " << duration_total.count() << " ms \n");
+
+
+  return is_frontier;
+}
+
+void GraphManager::insideFrustumVolume (State state, std::vector<Eigen::Vector3d> all_points, std::vector<Eigen::Vector3d> &inside_frustum) {
+  
+  double hFOV = 2*M_PI;
+  double vFOV = M_PI/4;
+  double range = 1;
+  inside_frustum.clear();
+
+  for (Eigen::Vector3d point : all_points) {
+
+    Eigen::Vector3d toPoint = point - state;
+    double h_angle = std::atan2(toPoint.y(), toPoint.x());
+    double v_angle = std::atan2(toPoint.z(), toPoint.norm());
+
+    if (std::abs(h_angle) <= hFOV / 2 and 
+        std::abs(v_angle) <= vFOV / 2 and 
+        toPoint.norm() <= range) {
+      
+      inside_frustum.push_back(point);
+    }
   }
-  return is_frontier; 
+
+}
+
+bool GraphManager::pointInsideFrustumVolume (State state) {
+  
+  double hFOV = 2*M_PI;
+  double vFOV = M_PI/4;
+  double range = 1;
+
+  Eigen::Vector3d toPoint = state - robotState_;
+  double h_angle = std::atan2(toPoint.y(), toPoint.x());
+  double v_angle = std::atan2(toPoint.z(), toPoint.norm());
+
+  if (std::abs(h_angle) <= hFOV / 2 and 
+    std::abs(v_angle) <= vFOV / 2 and 
+    toPoint.norm() <= range) {
+
+      return true;
+    } else {
+    return false;
+  }
+
 }
 
 void GraphManager::sampleNodes(std::vector<node *> &nodes, State state, int iterations_max, double bounding_box_size)
@@ -756,6 +764,10 @@ bool GraphManager::buildLocalGraph()
 
     int id = sub_graph_->graph_->getVertexProperty(it);
     Vertex* vertex = sub_graph_->vertices_map_[id];
+    
+    if (GraphManager::pointInsideFrustumVolume(vertex->state)) {
+      vertex->is_inside_frustum = true;
+    }
 
     // Get nearby vertices from the current vertex and connect the them to form local edges
     std::vector<Vertex *> nearby_vertices;
@@ -1536,7 +1548,7 @@ bool GraphManager::setPath()
       }
     else
     {
-      ROS_INFO_STREAM("Reached end of path \n");
+      ROS_DEBUG_STREAM("Reached end of path \n");
       exploration_path_.poses.clear();
       reached_end_of_path_ = true;
       path_iterator_ = 0;
@@ -1656,8 +1668,11 @@ bool GraphManager::isLocal(Eigen::Vector3d point)
 
 void GraphManager::updateGraph(const ros::TimerEvent &event)
 {
-
+  
   // Can off load some repetitive stuff here
+  
+  GraphManager::updateSparseGraph();
+
 }
 
 std::vector<Eigen::Vector3d> GraphManager::pointsToEigen(std::vector<geometry_msgs::Point> points)
@@ -2169,6 +2184,7 @@ void GraphManager::visualizeLocalGraph()
     vertex_marker.colors.push_back(GraphManager::heightMapColor(h));
     vertex_marker.points.push_back(p1);
     if (v_map[id]->is_frontier)
+    // if (v_map[id]->is_inside_frustum)
     // if (v_map[id]->is_cluster_centroid)
     {
 

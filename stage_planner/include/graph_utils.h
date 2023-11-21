@@ -50,6 +50,7 @@ struct Vertex {
     is_global = false;
     is_frontier = false;
     is_cluster_centroid = false;
+    is_inside_frustum = false;
     cluster_id = -1;
     sub_id = 0;
     sub_graph_id = 0;
@@ -84,6 +85,8 @@ struct Vertex {
   bool is_frontier;
   // if a vertex is a cluster centroid
   bool is_cluster_centroid;
+  // if point inside frustum
+  bool is_inside_frustum;
   // cluster id 
   int cluster_id;
   // Sub graph id to keep track while adding to global graph 

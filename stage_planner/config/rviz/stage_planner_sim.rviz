@@ -43,7 +43,7 @@ Panels:
   - Class: rviz/Time
     Name: Time
     SyncMode: 0
-    SyncSource: PointCloud2
+    SyncSource: ""
   - Class: stage_planner_ui/STAGE INTERFACE
     Name: STAGE INTERFACE
 Preferences:
@@ -79,13 +79,13 @@ Visualization Manager:
       Queue Size: 100
       Value: false
     - Class: rviz/MarkerArray
-      Enabled: false
+      Enabled: true
       Marker Topic: /local_planning_graph
       Name: MarkerArray
       Namespaces:
         {}
       Queue Size: 100
-      Value: false
+      Value: true
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
@@ -123,8 +123,7 @@ Visualization Manager:
       Marker Topic: /global_dijkstra_paths
       Name: MarkerArray
       Namespaces:
-        edges: true
-        vertices: true
+        {}
       Queue Size: 100
       Value: true
     - Alpha: 0.25
@@ -168,9 +167,7 @@ Visualization Manager:
       Marker Topic: /sparse_graph
       Name: MarkerArray
       Namespaces:
-        edges: true
-        frontier: true
-        vertices: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -178,8 +175,7 @@ Visualization Manager:
       Marker Topic: /pose_graph
       Name: MarkerArray
       Namespaces:
-        edges: true
-        vertices: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -195,8 +191,7 @@ Visualization Manager:
       Marker Topic: /global_repos_path
       Name: MarkerArray
       Namespaces:
-        edges: true
-        vertices: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray

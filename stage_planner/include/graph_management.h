@@ -74,6 +74,9 @@ public:
   bool checkFrontierStatus(std::shared_ptr<GraphUtils> graph, int id);
   void printVoxelStatus(MapManager::VoxelStatus vs);
 
+  bool pointInsideFrustumVolume (State state);
+
+  void insideFrustumVolume (State state, std::vector<Eigen::Vector3d> all_points, std::vector<Eigen::Vector3d> &inside_frustum);
   void clusterNodes (std::shared_ptr<GraphUtils> g); 
   // GRAPH AND PLANNING
   
@@ -138,6 +141,7 @@ public:
   bool setPath();
 
   void visualizeRepositionPath();
+
 
   int global_root_id = 0;
 
