@@ -283,7 +283,7 @@ double GraphManager::computeExplorationGain(State state)
 
 bool GraphManager::checkFrontierStatus(std::shared_ptr<GraphUtils> graph, int id) {
   
-  high_resolution_clock::time_point start_total = high_resolution_clock::now();
+  // high_resolution_clock::time_point start_total = high_resolution_clock::now();
   
   bool is_frontier = false;
   State state = graph->vertices_map_[id]->state;
@@ -296,11 +296,11 @@ bool GraphManager::checkFrontierStatus(std::shared_ptr<GraphUtils> graph, int id
   graph->vertices_map_[id]->is_evaluated = !is_frontier;
 
 
-  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
-
-  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-
-  ROS_INFO_STREAM("Gain evaluation time " << duration_total.count() << " ms \n");
+  // high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+  //
+  // auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+  //
+  // ROS_INFO_STREAM("Gain evaluation time " << duration_total.count() << " ms \n");
 
 
   return is_frontier;
