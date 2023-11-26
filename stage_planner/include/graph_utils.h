@@ -174,7 +174,9 @@ public:
   std::map<int, std::vector<std::pair<int, double>>> edge_map_;  
 
   int subgraph_ind_ = -1;
-  
+  int gain_max = 0;
+  int gain_min = 0;
+
   std::vector<State> state_history_;
   
   std::vector<int> state_ids_;

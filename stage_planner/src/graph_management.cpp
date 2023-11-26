@@ -255,30 +255,47 @@ double GraphManager::computeVolumetricGain(State state)
 double GraphManager::computeExplorationGain(State state)
 {
 
-  double step_size = 0.1;
-  Eigen::Vector3d check_state(state[0], state[1], state[2]);
-  Eigen::Vector3d increment(step_size, step_size, step_size / 2);
+  std::vector<Eigen::Vector3d> free, occupied, unknown;
+  GraphManager::extractVoxelsInsideFrustum(state, free, occupied, unknown);
+  double average_voxels = (free.size() + occupied.size() + unknown.size()) / 3;
 
-  Eigen::Vector3d center = check_state;
-  Eigen::Vector3d bb_size (1, 1, 1);
-  std::vector<Eigen::Vector3d> occupied_voxels;
-  std::vector<Eigen::Vector3d> free_voxels;
-  std::vector<Eigen::Vector3d> unknown_voxels;
-   
-  map_manager_->extractLocalMap(center, bb_size, occupied_voxels, free_voxels, unknown_voxels);
-  std::vector<Eigen::Vector3d> unk_inside_frustum;
-  std::vector<Eigen::Vector3d> occ_inside_frustum;
-  std::vector<Eigen::Vector3d> fre_inside_frustum;
-  GraphManager::insideFrustumVolume(center, unknown_voxels, unk_inside_frustum);
-  GraphManager::insideFrustumVolume(center, occupied_voxels, occ_inside_frustum);
-  GraphManager::insideFrustumVolume(center, free_voxels, fre_inside_frustum);
+  double gain = unknown.size() / average_voxels;
   
-  double average_voxels = (unk_inside_frustum.size() + occ_inside_frustum.size() + fre_inside_frustum.size()) / 3;
+  // another possible gain function to reduce occupied counts
 
-  double gain = unk_inside_frustum.size() / average_voxels;
-  
-  // ROS_INFO_STREAM("Frontier gain : " << gain << "\n");
+  // double gain = ( unknown.size() - occupied.size() ) / average_voxels;
   return gain;
+}
+
+void GraphManager::assignExplorationGrin (std::shared_ptr<GraphUtils> graph) 
+{
+
+  std::pair<Graph::GraphType::vertex_iterator,
+  Graph::GraphType::vertex_iterator>
+  vi;
+  graph->graph_->getVertexIterator(vi);
+  
+  double gain_max = -std::numeric_limits<double>::max();
+  double gain_min = std::numeric_limits<double>::min();
+
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
+  {
+
+    int id = graph->graph_->getVertexProperty(it);
+    Vertex* vertex = graph->vertices_map_[id];
+    
+    vertex->gain = GraphManager::computeExplorationGain(vertex->state);
+    if (vertex->gain > gain_max) {
+      gain_max = vertex->gain;
+    }
+    if (vertex->gain < gain_min) {
+      gain_min = vertex->gain;
+    }
+  } 
+
+  graph->gain_max = gain_max;
+  graph->gain_min = gain_min;
+
 }
 
 bool GraphManager::checkFrontierStatus(std::shared_ptr<GraphUtils> graph, int id) {
@@ -287,8 +304,14 @@ bool GraphManager::checkFrontierStatus(std::shared_ptr<GraphUtils> graph, int id
   
   bool is_frontier = false;
   State state = graph->vertices_map_[id]->state;
-  double frontier_gain = computeExplorationGain(state);
-  if (frontier_gain > 1) {
+  double vertex_gain = computeExplorationGain(state);
+  
+  double scaled_gain = (1.0 - std::min(std::max((vertex_gain - graph->gain_min) / (graph->gain_max - graph->gain_min), 0.0), 1.0));
+  
+  // ROS_INFO_STREAM("Vertex gain : " << vertex_gain << "\n");
+  ROS_INFO_STREAM("Scaled gain : " << scaled_gain << "\n");
+
+  if (vertex_gain > 1) {
     is_frontier = true;
   }
   // Update vertex properties based on frontier status
@@ -306,16 +329,30 @@ bool GraphManager::checkFrontierStatus(std::shared_ptr<GraphUtils> graph, int id
   return is_frontier;
 }
 
-void GraphManager::insideFrustumVolume (State state, std::vector<Eigen::Vector3d> all_points, std::vector<Eigen::Vector3d> &inside_frustum) {
+void GraphManager::extractVoxelsInsideFrustum (State state, 
+                                               std::vector<Eigen::Vector3d> &free,
+                                               std::vector<Eigen::Vector3d> &occupied,
+                                               std::vector<Eigen::Vector3d> &unknown) {
+  
+  free.clear();
+  occupied.clear();
+  unknown.clear();
+  Eigen::Vector3d box_size (1, 1, 1);
+  std::vector<Eigen::Vector3d> occupied_voxels;
+  std::vector<Eigen::Vector3d> free_voxels;
+  std::vector<Eigen::Vector3d> unknown_voxels;
+   
+  map_manager_->extractLocalMap(state, box_size, occupied_voxels, free_voxels, unknown_voxels);
   
   double hFOV = 2*M_PI;
   double vFOV = M_PI/4;
   double range = 1;
-  inside_frustum.clear();
+  
+  // TODO @ can use OMP to parallalize the following 3 loops 
 
-  for (Eigen::Vector3d point : all_points) {
+  for (Eigen::Vector3d voxel : unknown_voxels) {
 
-    Eigen::Vector3d toPoint = point - state;
+    Eigen::Vector3d toPoint = voxel - state;
     double h_angle = std::atan2(toPoint.y(), toPoint.x());
     double v_angle = std::atan2(toPoint.z(), toPoint.norm());
 
@@ -323,7 +360,35 @@ void GraphManager::insideFrustumVolume (State state, std::vector<Eigen::Vector3d
         std::abs(v_angle) <= vFOV / 2 and 
         toPoint.norm() <= range) {
       
-      inside_frustum.push_back(point);
+        unknown.push_back(voxel);
+    }
+  }
+
+  for (Eigen::Vector3d voxel : free_voxels) {
+
+    Eigen::Vector3d toPoint = voxel - state;
+    double h_angle = std::atan2(toPoint.y(), toPoint.x());
+    double v_angle = std::atan2(toPoint.z(), toPoint.norm());
+
+    if (std::abs(h_angle) <= hFOV / 2 and 
+        std::abs(v_angle) <= vFOV / 2 and 
+        toPoint.norm() <= range) {
+      
+        free.push_back(voxel);
+    }
+  }
+
+  for (Eigen::Vector3d voxel : occupied_voxels) {
+
+    Eigen::Vector3d toPoint = voxel - state;
+    double h_angle = std::atan2(toPoint.y(), toPoint.x());
+    double v_angle = std::atan2(toPoint.z(), toPoint.norm());
+
+    if (std::abs(h_angle) <= hFOV / 2 and 
+        std::abs(v_angle) <= vFOV / 2 and 
+        toPoint.norm() <= range) {
+      
+        occupied.push_back(voxel);
     }
   }
 
@@ -755,7 +820,7 @@ bool GraphManager::buildLocalGraph()
 
   // GraphManager::clusterNodes(sub_graph_);
 
-  std::pair<Graph::GraphType::vertex_iterator,
+    std::pair<Graph::GraphType::vertex_iterator,
   Graph::GraphType::vertex_iterator>
   vi;
   sub_graph_->graph_->getVertexIterator(vi);
@@ -816,6 +881,8 @@ bool GraphManager::buildLocalGraph()
     GraphManager::visualizeLocalGraph();
     graph_status = true;
   }
+
+  GraphManager::assignExplorationGrin(sub_graph_);
 
   return graph_status;
 
@@ -1159,6 +1226,8 @@ void GraphManager::insertBestPathsToSparseGraph (std::vector<std::vector<Vertex 
   } 
   
   global_root_vertex = vertex;
+  
+  GraphManager::assignExplorationGrin(sparse_graph_);
 
   GraphManager::visualizeSparseGraph();
   

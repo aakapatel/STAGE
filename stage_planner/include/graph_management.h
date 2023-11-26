@@ -76,10 +76,14 @@ public:
 
   bool pointInsideFrustumVolume (State state);
 
-  void insideFrustumVolume (State state, std::vector<Eigen::Vector3d> all_points, std::vector<Eigen::Vector3d> &inside_frustum);
+  void extractVoxelsInsideFrustum (State state, 
+                                   std::vector<Eigen::Vector3d> &free,
+                                   std::vector<Eigen::Vector3d> &occupied,
+                                   std::vector<Eigen::Vector3d> &unknown); 
   void clusterNodes (std::shared_ptr<GraphUtils> g); 
   // GRAPH AND PLANNING
   
+  void assignExplorationGrin (std::shared_ptr<GraphUtils> graph);
   void resetLocalGraph();
   void resetGlobalGraph();
   void resetPathWaysGraph();
