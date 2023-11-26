@@ -303,16 +303,21 @@ bool GraphManager::checkFrontierStatus(std::shared_ptr<GraphUtils> graph, int id
   // high_resolution_clock::time_point start_total = high_resolution_clock::now();
   
   bool is_frontier = false;
-  State state = graph->vertices_map_[id]->state;
-  double vertex_gain = computeExplorationGain(state);
-  
-  double scaled_gain = (1.0 - std::min(std::max((vertex_gain - graph->gain_min) / (graph->gain_max - graph->gain_min), 0.0), 1.0));
-  
-  // ROS_INFO_STREAM("Vertex gain : " << vertex_gain << "\n");
-  ROS_INFO_STREAM("Scaled gain : " << scaled_gain << "\n");
+  if (!graph->vertices_map_[id]->is_evaluated) {
 
-  if (vertex_gain > 1) {
-    is_frontier = true;
+    State state = graph->vertices_map_[id]->state;
+    double vertex_gain = computeExplorationGain(state);
+    double range = graph->gain_max - graph->gain_min;
+
+    double scaled_gain = ((vertex_gain - graph->gain_min) / range * (100 - 10) + 10);
+
+    graph->vertices_map_[id]->gain = scaled_gain;
+    // ROS_INFO_STREAM("Vertex gain : " << vertex_gain << "\n");
+    ROS_INFO_STREAM("Scaled gain : " << scaled_gain << "\n");
+
+    if (scaled_gain > 80) {
+      is_frontier = true;
+    }
   }
   // Update vertex properties based on frontier status
   graph->vertices_map_[id]->is_frontier = is_frontier;
@@ -818,9 +823,10 @@ bool GraphManager::buildLocalGraph()
     
   }
 
+  GraphManager::assignExplorationGrin(sub_graph_);
   // GraphManager::clusterNodes(sub_graph_);
 
-    std::pair<Graph::GraphType::vertex_iterator,
+  std::pair<Graph::GraphType::vertex_iterator,
   Graph::GraphType::vertex_iterator>
   vi;
   sub_graph_->graph_->getVertexIterator(vi);
@@ -882,7 +888,6 @@ bool GraphManager::buildLocalGraph()
     graph_status = true;
   }
 
-  GraphManager::assignExplorationGrin(sub_graph_);
 
   return graph_status;
 
