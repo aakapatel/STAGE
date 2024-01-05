@@ -50,7 +50,7 @@ RUN set -x \
 
 RUN set -x \
 	&& apt-get update \
-    && apt-get install -y ros-noetic-multi-map-server ros-noetic-multirobot-map-merge \
+    && apt-get install -y ros-noetic-multi-map-server ros-noetic-rosmon ros-noetic-multirobot-map-merge \
 	&& apt-get install -y ros-noetic-hector-sensors-gazebo \
 	&& rm -rf /var/lib/apt/lists/* 
 
@@ -66,8 +66,6 @@ RUN sudo usermod -a -G video aakapatel
 
 RUN rosdep update \
         && echo "source /opt/ros/noetic/setup.bash" >> /home/aakapatel/.bashrc
-
-RUN echo "clone success "
 
 # Clone the necessary packages for simulation. 
 #
@@ -117,7 +115,7 @@ RUN git clone https://github.com/jimeh/tmux-themepack.git ~/.tmux-themepack  \
         && git clone https://github.com/tmux-plugins/tmux-resurrect ~/.tmux-resurrect
 COPY --chown=user:user ./.tmux.conf /home/aakapatel/.tmux.conf
 COPY --chown=user:user ./.powerline.sh /home/aakapatel/.powerline.sh
-#COPY --chown=user:user ./ref.yml /home/aakapatel/.config/tmuxinator/ref.yml
+COPY --chown=user:user ./stage_planning.yml /home/aakapatel/.config/tmuxinator/stage_planning.yml
 
 #
 # Set some decent colors if the container needs to be accessed via /bin/bash.
@@ -127,7 +125,11 @@ RUN echo LS_COLORS=$LS_COLORS:\'di=1\;33:ln=36\' >> ~/.bashrc \
         && echo 'alias tmux="tmux -2"' >> ~/.bashrc \
         && echo 'PATH=~/bin:$PATH' >> ~/.bashrc \
         && touch ~/.sudo_as_admin_successful # To surpress the sudo message at run.
-RUN echo "source /home/user/catkin_ws/devel/setup.bash --extend" >> /home/aakapatel/.bashrc
+
+
+
+RUN echo "source /home/aakapatel/catkin_workspaces/exploration_ws/devel/setup.bash --extend" >> /home/aakapatel/.bashrc
+
 
 STOPSIGNAL SIGTERM
 
