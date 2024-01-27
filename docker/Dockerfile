@@ -14,11 +14,15 @@ ENV NVIDIA_VISIBLE_DEVICES \
 ENV NVIDIA_DRIVER_CAPABILITIES \
     ${NVIDIA_DRIVER_CAPABILITIES:+$NVIDIA_DRIVER_CAPABILITIES,}graphics
 
+ENV LD_LIBRARY_PATH=/usr/lib/nvidia:$LD_LIBRARY_PATH
+
+
 # Install some handy tools.
 RUN set -x \
 	&& apt-get update \
 	&& apt-get --with-new-pkgs upgrade -y \
 	&& apt-get install -y mesa-utils \
+  && apt-get install -y libgl1-mesa-glx \
   && apt-get install -y vim \
   && apt-get install -y tmuxinator \
   && apt-get install -y python3-catkin-tools \
@@ -43,16 +47,12 @@ RUN set -x \
   && apt-get install -y ros-noetic-gmapping ros-noetic-slam-gmapping ros-noetic-openslam-gmapping \
 	&& pip3 install powerline-shell dearpygui \
 	&& rm -rf /var/lib/apt/lists/* \
-	&& useradd -ms /bin/bash aakapatel \
-	&& echo "aakapatel:aakapatel" | chpasswd && adduser aakapatel sudo \
-	&& echo "aakapatel ALL=(ALL) NOPASSWD: ALL " >> /etc/sudoers
+	# && useradd -ms /bin/bash aakapatel \
+	# && echo "aakapatel:aakapatel" | chpasswd && adduser aakapatel sudo \
+	# && echo "aakapatel ALL=(ALL) NOPASSWD: ALL " >> /etc/sudoers
+  && useradd -m -s /bin/bash aakapatel \
+    && echo 'aakapatel ALL=(ALL:ALL) NOPASSWD:ALL' >> /etc/sudoers
 
-
-RUN set -x \
-	&& apt-get update \
-    && apt-get install -y ros-noetic-multi-map-server ros-noetic-rosmon ros-noetic-multirobot-map-merge \
-	&& apt-get install -y ros-noetic-hector-sensors-gazebo \
-	&& rm -rf /var/lib/apt/lists/* 
 
 # The OSRF contianer didn't link python3 to python, causing ROS scripts to fail.
 RUN ln -s /usr/bin/python3 /usr/bin/python
@@ -67,49 +67,6 @@ RUN sudo usermod -a -G video aakapatel
 RUN rosdep update \
         && echo "source /opt/ros/noetic/setup.bash" >> /home/aakapatel/.bashrc
 
-# Clone the necessary packages for simulation. 
-#
-
-# RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; cd /home/aakapatel/catkin_ws; catkin config --extend /opt/ros/noetic'
-# RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; cd /home/aakapatel/catkin_ws; catkin config --cmake-args -DCMAKE_BUILD_TYPE=Release'
-#
-# RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; cd /home/aakapatel/catkin_ws/src; git clone https://github.com/ethz-asl/eigen_checks.git'
-# RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; cd /home/aakapatel/catkin_ws/src; git clone https://github.com/catkin/catkin_simple.git'
-# RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; cd /home/aakapatel/catkin_ws/src; git clone https://github.com/ethz-asl/eigen_catkin.git'
-# RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; cd /home/aakapatel/catkin_ws/src; git clone https://github.com/ntnu-arl/lidar_simulator.git'
-# RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; cd /home/aakapatel/catkin_ws/src; git clone https://github.com/ethz-asl/mav_comm.git'
-# RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; cd /home/aakapatel/catkin_ws/src; git clone https://github.com/ros-planning/navigation_msgs.git'
-# RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; cd /home/aakapatel/catkin_ws/src; git clone https://github.com/ethz-asl/numpy_eigen.git'
-# RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; cd /home/aakapatel/catkin_ws/src; git clone https://github.com/ros-perception/perception_pcl.git'
-# RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; cd /home/aakapatel/catkin_ws/src; git clone https://github.com/ros/xacro.git'
-# RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; cd /home/aakapatel/catkin_ws/src; git clone https://github.com/ethz-asl/catkin_boost_python_buildtool.git'
-# RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; cd /home/aakapatel/catkin_ws/src; git clone https://github.com/aakapatel/geometry2.git'
-#
-#
-#
-# RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; cd /home/aakapatel/catkin_ws/src; git clone https://github.com/jhu-asco/dsl.git'
-# RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; cd /home/aakapatel/catkin_ws/src/dsl; git checkout 61cf588668309e87de209cd95f03a0f792a16c33; mkdir build'
-# RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; cd /home/aakapatel/catkin_ws/src/dsl/build; cmake -DCMAKE_BUILD_TYPE=Release ..'
-# RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; cd /home/aakapatel/catkin_ws/src/dsl/build; sudo make install'
-#
-# # DSP - Risk aware global path planner from LTU_RAI 
-# RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; cd /home/aakapatel/catkin_ws/src; git clone https://github.com/LTU-RAI/Dsp.git'
-#
-# RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; cd /home/aakapatel/catkin_ws/src; git clone https://github.com/LTU-RAI/darpa_subt_worlds.git'
-#
-# RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; cd /home/aakapatel/catkin_ws/src; git clone https://github.com/aakapatel/rotors_simulator.git'
-# RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; cd /home/aakapatel/catkin_ws/src/rotors_simulator; git pull'
-#
-# # Controller for MAVs from ethz-asl
-# RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; cd /home/aakapatel/catkin_ws/src; git clone https://github.com/aakapatel/mav_control_rw.git'
-#
-#
-# RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; cd /home/aakapatel/catkin_ws/src; git clone https://github.com/aakapatel/voxblox.git'
-#
-#
-# RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; cd /home/aakapatel/catkin_ws/; catkin build'
-
-#RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; mkdir /home/aakapatel/.config/tmuxinator'
 
 RUN git clone https://github.com/jimeh/tmux-themepack.git ~/.tmux-themepack  \
         && git clone https://github.com/tmux-plugins/tmux-resurrect ~/.tmux-resurrect
