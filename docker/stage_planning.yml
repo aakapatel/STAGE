@@ -1,5 +1,5 @@
 # ~/.tmuxinator/stage_planning.yml 
-
+tmux_options: '-2'
 define: &initialize_stage "rosservice call /initialize_planner \"initialize: true\" " 
 
 name: stage_planning
@@ -9,11 +9,11 @@ windows:
       layout: even-horizontal 
       panes:
         - stage_interface:
-          - source /home/aakapatel/catkin_workspaces/exploration_ws/devel/setup.bash
+          - cde
           - sleep 2  
           - mon launch stage_planner stage_interface.launch 
         - graph_management:
-          - source /home/aakapatel/catkin_workspaces/exploration_ws/devel/setup.bash
+          - cde 
           - sleep 6 
           - mon launch stage_planner graph_management.launch
 
@@ -22,15 +22,15 @@ windows:
       layout: tiled 
       panes:
         - rotors:
-          - source /home/aakapatel/catkin_workspaces/exploration_ws/devel/setup.bash
+          - cde
           - sleep 1  
           - roslaunch rotors_gazebo custom_drone.launch 
         - initialization:
-          - source /home/aakapatel/catkin_workspaces/exploration_ws/devel/setup.bash
+          - cde 
           - sleep 8 
           - *initialize_stage 
         - controller:  
-          - source /home/aakapatel/catkin_workspaces/exploration_ws/devel/setup.bash
+          - cde 
           - sleep 4
           - roslaunch mav_linear_mpc mav_linear_mpc_sim.launch mav_name:=hummingbird
         - roscore: 
