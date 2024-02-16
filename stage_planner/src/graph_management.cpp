@@ -309,11 +309,11 @@ bool GraphManager::checkFrontierStatus(std::shared_ptr<GraphUtils> graph, int id
     double vertex_gain = computeExplorationGain(state);
     double range = graph->gain_max - graph->gain_min;
 
-    double scaled_gain = ((vertex_gain - graph->gain_min) / range * (100 - 10) + 10);
-
+    // double scaled_gain = ((vertex_gain - graph->gain_min) / range * (100 - 10) + 10);
+    double scaled_gain = (vertex_gain / graph->gain_max) * 100;
     graph->vertices_map_[id]->gain = scaled_gain;
-    // ROS_INFO_STREAM("Vertex gain : " << vertex_gain << "\n");
-    /* ROS_INFO_STREAM("Scaled gain : " << scaled_gain << "\n"); */
+    ROS_INFO_STREAM("Vertex gain : " << vertex_gain << "\n");
+    ROS_INFO_STREAM("Scaled gain : " << scaled_gain << "\n"); 
 
     if (scaled_gain > 80) {
       is_frontier = true;

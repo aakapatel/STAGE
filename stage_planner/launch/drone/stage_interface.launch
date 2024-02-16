@@ -14,7 +14,7 @@
     <param name ="reference_topic" value="/hummingbird/command/pose" />
 
     <param name ="init_x" value="1" />
-    <param name ="init_y" value="2" />
+    <param name ="init_y" value="0" />
     <param name ="init_z" value="0.4" />
 
     <param name ="distance_to_new_path" value="0.5" />
