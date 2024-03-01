@@ -215,7 +215,6 @@ void GraphManager::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
   robotState_[1] = pose->pose.pose.position.y;
   robotState_[2] = pose->pose.pose.position.z;
 
-  // GraphManager::visualizeFrontierGraph();
   GraphManager::visualizePoseGraph();
 }
 
@@ -271,9 +270,6 @@ double GraphManager::computeExplorationGain(State state)
   gain = gain / (3 * average_voxels);
   // double gain = unknown.size() / average_voxels;
   
-  // ROS_INFO_STREAM("Vertex gain : " << gain/ (3 * average_voxels) << "\n");
-  // another possible gain function to reduce occupied counts
-
   // double gain = ( unknown.size() - occupied.size() ) / average_voxels;
   return gain;
 }
@@ -1701,7 +1697,7 @@ void GraphManager::improvePath(std::vector<Vertex *> raw_path, std::vector<Verte
 
       double edge_length = improvement_graph_->distanceBetweenVertices(improvement_graph_->vertices_map_[id], nearby_vertices[i]);
 
-      if (edge_length < 3 * max_edge_length_ and MapManager::VoxelStatus::kFree == vn)
+      if (edge_length < 1.5 * max_edge_length_ and MapManager::VoxelStatus::kFree == vn)
       {
 
         improvement_graph_->addEdge(improvement_graph_->vertices_map_[id], nearby_vertices[i],

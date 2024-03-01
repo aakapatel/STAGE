@@ -8,8 +8,8 @@ max_edge_length: 4
 sampling_iterations: 2000
 knn_range: 2
 robot_type: "kAerial" #"kLegged"     
-safety_margin: [0.2, 0.2, 0.2]
-robot_size: [0.2, 0.2, 0.2]
+safety_margin: [0.3, 0.3, 0.3]
+robot_size: [0.4, 0.4, 0.4]
 octree_resolution: 0.5
 frontier_detection_range: 10
 frontier_clearing_range: 8
