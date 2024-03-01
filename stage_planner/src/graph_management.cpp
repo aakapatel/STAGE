@@ -258,16 +258,27 @@ double GraphManager::computeExplorationGain(State state)
   std::vector<Eigen::Vector3d> free, occupied, unknown;
   GraphManager::extractVoxelsInsideFrustum(state, free, occupied, unknown);
   double average_voxels = (free.size() + occupied.size() + unknown.size()) / 3;
+  double gain = 0;
 
-  double gain = unknown.size() / average_voxels;
+  for (int i = 0; i != unknown.size(); i++) { 
+
+    if (MapManager::VoxelStatus::kOccupied !=
+      map_manager_->getPathStatus(unknown[i], state, robot_box_size_, false)) {
+      gain = gain + 1;
+    }
+  }
   
+  gain = gain / (3 * average_voxels);
+  // double gain = unknown.size() / average_voxels;
+  
+  // ROS_INFO_STREAM("Vertex gain : " << gain/ (3 * average_voxels) << "\n");
   // another possible gain function to reduce occupied counts
 
   // double gain = ( unknown.size() - occupied.size() ) / average_voxels;
   return gain;
 }
 
-void GraphManager::assignExplorationGrin (std::shared_ptr<GraphUtils> graph) 
+void GraphManager::assignExplorationGain (std::shared_ptr<GraphUtils> graph) 
 {
 
   std::pair<Graph::GraphType::vertex_iterator,
@@ -307,15 +318,11 @@ bool GraphManager::checkFrontierStatus(std::shared_ptr<GraphUtils> graph, int id
 
     State state = graph->vertices_map_[id]->state;
     double vertex_gain = computeExplorationGain(state);
-    double range = graph->gain_max - graph->gain_min;
 
-    // double scaled_gain = ((vertex_gain - graph->gain_min) / range * (100 - 10) + 10);
-    double scaled_gain = (vertex_gain / graph->gain_max) * 100;
-    graph->vertices_map_[id]->gain = scaled_gain;
-    // ROS_INFO_STREAM("Vertex gain : " << vertex_gain << "\n");
-    // ROS_INFO_STREAM("Scaled gain : " << scaled_gain << "\n"); 
+    double scaled_gain = vertex_gain * 100;
+    ROS_INFO_STREAM("Scaled gain : " << scaled_gain << "\n"); 
 
-    if (scaled_gain > 80) {
+    if (scaled_gain > 30) {
       is_frontier = true;
     }
   }
@@ -823,7 +830,7 @@ bool GraphManager::buildLocalGraph()
     
   }
 
-  GraphManager::assignExplorationGrin(sub_graph_);
+  GraphManager::assignExplorationGain(sub_graph_);
   // GraphManager::clusterNodes(sub_graph_);
 
   std::pair<Graph::GraphType::vertex_iterator,
@@ -1232,7 +1239,7 @@ void GraphManager::insertBestPathsToSparseGraph (std::vector<std::vector<Vertex 
   
   global_root_vertex = vertex;
   
-  GraphManager::assignExplorationGrin(sparse_graph_);
+  GraphManager::assignExplorationGain(sparse_graph_);
 
   GraphManager::visualizeSparseGraph();
   

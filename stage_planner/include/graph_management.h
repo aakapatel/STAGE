@@ -83,7 +83,7 @@ public:
   void clusterNodes (std::shared_ptr<GraphUtils> g); 
   // GRAPH AND PLANNING
   
-  void assignExplorationGrin (std::shared_ptr<GraphUtils> graph);
+  void assignExplorationGain (std::shared_ptr<GraphUtils> graph);
   void resetLocalGraph();
   void resetGlobalGraph();
   void resetPathWaysGraph();
