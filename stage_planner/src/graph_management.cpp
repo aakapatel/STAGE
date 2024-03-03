@@ -256,18 +256,22 @@ double GraphManager::computeExplorationGain(State state)
 
   std::vector<Eigen::Vector3d> free, occupied, unknown;
   GraphManager::extractVoxelsInsideFrustum(state, free, occupied, unknown);
-  double average_voxels = (free.size() + occupied.size() + unknown.size()) / 3;
+  double total_voxels = (free.size() + occupied.size() + unknown.size());
   double gain = 0;
 
   for (int i = 0; i != unknown.size(); i++) { 
 
-    if (MapManager::VoxelStatus::kOccupied !=
+    Eigen::Vector3d directionaToVertex = (unknown[i] - robotState_).normalized();
+    Eigen::Vector3d directionalVector = (state - robotState_).normalized();
+    
+    double angle = acos(directionalVector.dot(directionaToVertex) / (directionalVector.norm() * directionaToVertex.norm() )) * 180/M_PI;
+
+    if (angle <= 30 and MapManager::VoxelStatus::kOccupied !=
       map_manager_->getPathStatus(unknown[i], state, robot_box_size_, false)) {
       gain = gain + 1;
     }
   }
-  
-  gain = gain / (3 * average_voxels);
+
   // double gain = unknown.size() / average_voxels;
   
   // double gain = ( unknown.size() - occupied.size() ) / average_voxels;
@@ -314,11 +318,15 @@ bool GraphManager::checkFrontierStatus(std::shared_ptr<GraphUtils> graph, int id
 
     State state = graph->vertices_map_[id]->state;
     double vertex_gain = computeExplorationGain(state);
-
-    double scaled_gain = vertex_gain * 100;
-    ROS_INFO_STREAM("Scaled gain : " << scaled_gain << "\n"); 
-
-    if (scaled_gain > 30) {
+    double scaled_gain;
+    if (graph->gain_max != 0) {
+    scaled_gain = 1 - (vertex_gain/graph->gain_max);
+    } else {
+      scaled_gain = 0;
+    }
+    ROS_INFO_STREAM("Scaled gain : " << 100 * vertex_gain/graph->gain_max  << "\n"); 
+    scaled_gain = (vertex_gain / graph->gain_max) * 100;
+    if (scaled_gain > 80) {
       is_frontier = true;
     }
   }
@@ -406,12 +414,13 @@ bool GraphManager::pointInsideFrustumVolume (State state) {
   
   double hFOV = 2*M_PI;
   double vFOV = M_PI/4;
-  double range = 1;
+  double range = bounding_box_size_;
 
   Eigen::Vector3d toPoint = state - robotState_;
   double h_angle = std::atan2(toPoint.y(), toPoint.x());
   double v_angle = std::atan2(toPoint.z(), toPoint.norm());
 
+  // if (std::abs(h_angle) <= hFOV / 2 and 
   if (std::abs(h_angle) <= hFOV / 2 and 
     std::abs(v_angle) <= vFOV / 2 and 
     toPoint.norm() <= range) {
