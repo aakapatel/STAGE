@@ -137,7 +137,6 @@ public:
   
   void expandGraph (int iterations_max, Vertex* root, Vertex* goal, double radius);
   
-  bool buildGlobalGraph();
   bool expandSparseGraph();
   void updateSparseGraph();
   
@@ -178,7 +177,7 @@ private:
   SensorParams sensor_params_;
   SensorParams free_frustum_params_;
   StateVec robotStateWithYaw_;
-  Eigen::Vector4d robotState_;
+  StateVec robotState_;
   std::shared_ptr<GraphUtils> sub_graph_;
   std::shared_ptr<GraphUtils> global_graph_;
   std::shared_ptr<GraphUtils> path_ways_graph_;

@@ -61,7 +61,7 @@ bool GraphUtils::edgeExist (int source_id, int target_id) {
   return exist;
 }
 
-bool GraphUtils::vertexExist (State s) {
+bool GraphUtils::vertexExist (StateVec s) {
   
   bool exist = false;
   std::shared_ptr<Graph> g = graph_;
@@ -89,7 +89,7 @@ bool GraphUtils::vertexExist (State s) {
 }
 
 
-Vertex* GraphUtils::getVertexByState (State s) {
+Vertex* GraphUtils::getVertexByState (StateVec s) {
   
   Vertex* vertex;
   std::shared_ptr<Graph> g = graph_;
@@ -206,7 +206,7 @@ void GraphUtils::removeVertex (int id) {
   graph_->removeVertex(id);
 }
 
-bool GraphUtils::getNearestVertex(const State* state, Vertex** v_res) {
+bool GraphUtils::getNearestVertex(const StateVec* state, Vertex** v_res) {
   if (getNumVertices() <= 0) return false;
   kdres* nearest = kd_nearest3(kd_tree_, state->x(), state->y(), state->z());
   if (kd_res_size(nearest) <= 0) {
@@ -218,7 +218,7 @@ bool GraphUtils::getNearestVertex(const State* state, Vertex** v_res) {
   return true;
 }
 
-bool GraphUtils::getNearestVertexInRange(const State* state, double range,
+bool GraphUtils::getNearestVertexInRange(const StateVec* state, double range,
                                            Vertex** v_res) {
   if (getNumVertices() <= 0) return false;
   kdres* nearest = kd_nearest3(kd_tree_, state->x(), state->y(), state->z());
@@ -235,7 +235,7 @@ bool GraphUtils::getNearestVertexInRange(const State* state, double range,
   return true;
 }
 
-bool GraphUtils::getNearestVertices(const State* state, double range,
+bool GraphUtils::getNearestVertices(const StateVec* state, double range,
                                       std::vector<Vertex*>* v_res) {
   // Notice that this might include the same vertex in the result.
   // if that vertex is added to the tree before.

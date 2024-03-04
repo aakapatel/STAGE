@@ -72,9 +72,10 @@ struct VolumetricGain {
 };
 
 struct Vertex {
-  Vertex(int v_id, State v_state) {
+  Vertex(int v_id, StateVec v_state) {
     id = v_id;
-    state << v_state[0], v_state[1], v_state[2];
+    state << v_state[0], v_state[1], v_state[2], v_state[3];
+    state_3d << v_state[0], v_state[1], v_state[2];
     vol_gain.reset();
     parent = NULL;
     distance = 0;
@@ -97,7 +98,8 @@ struct Vertex {
   // Unique id for each vertex (root: 0, others: positive number).
   int id;
   // State of the vertex: x, y, z.
-  State state;
+  StateVec state;
+  Eigen::Vector3d state_3d;
   VolumetricGain vol_gain;
   // NBVP legacy, keeping for now if wants to build a tree to compare.
   Vertex* parent;
@@ -156,7 +158,7 @@ public:
   
   void insertVertexKdtree (Vertex* v);
 
-  bool vertexExist (State s); 
+  bool vertexExist (StateVec s); 
   bool edgeExist (int source_id, int target_id);
   // Basic functions on graph including add new vertex and edge.
   void addVertex(Vertex* v);
@@ -171,7 +173,7 @@ public:
 
   // Vertex* getVertex(int id) { return vertices_map_[id]; }
   
-  Vertex* getVertexByState (State s);
+  Vertex* getVertexByState (StateVec s);
   
   int getIdCount ();
 
@@ -193,10 +195,10 @@ public:
                                   const ShortestPathsReport& rep);
 
   // Nearest neigbor lookup.
-  bool getNearestVertex(const State* state, Vertex** v_res);
-  bool getNearestVertexInRange(const State* state, double range,
+  bool getNearestVertex(const StateVec* state, Vertex** v_res);
+  bool getNearestVertexInRange(const StateVec* state, double range,
                                Vertex** v_res);
-  bool getNearestVertices(const State* state, double range,
+  bool getNearestVertices(const StateVec* state, double range,
                           std::vector<Vertex*>* v_res);
   
   Vertex* getVertexBySubId (int s_id);
@@ -218,7 +220,7 @@ public:
   int gain_max = 1;
   int gain_min = 0;
 
-  std::vector<State> state_history_;
+  std::vector<StateVec> state_history_;
   
   std::vector<int> state_ids_;
   std::vector<int> frontier_ids_;
