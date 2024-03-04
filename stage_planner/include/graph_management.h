@@ -64,6 +64,8 @@ public:
 
   bool isLocal(Eigen::Vector3d point);
   
+  bool orientVertices (std::shared_ptr<GraphUtils> graph, const ShortestPathsReport& rep); 
+  
   StateVec eigenToState(Eigen::Vector3d v);
 
   void segmentPath(std::vector<Vertex *> path,
@@ -133,7 +135,7 @@ public:
 
   double computeExplorationGain (StateVec v);
  
-  double computeVolumetricGain(StateVec state);
+  void computeVolumetricGainRayCasting(StateVec& state, VolumetricGain& vgain);
   
   void expandGraph (int iterations_max, Vertex* root, Vertex* goal, double radius);
   
