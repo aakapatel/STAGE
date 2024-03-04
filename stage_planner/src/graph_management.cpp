@@ -256,7 +256,7 @@ double GraphManager::computeExplorationGain(State state)
 
   std::vector<Eigen::Vector3d> free, occupied, unknown;
   GraphManager::extractVoxelsInsideFrustum(state, free, occupied, unknown);
-  double total_voxels = (free.size() + occupied.size() + unknown.size());
+  // double total_voxels = (free.size() + occupied.size() + unknown.size());
   double gain = 0;
 
   for (int i = 0; i != unknown.size(); i++) { 
@@ -275,7 +275,7 @@ double GraphManager::computeExplorationGain(State state)
   // double gain = unknown.size() / average_voxels;
   
   // double gain = ( unknown.size() - occupied.size() ) / average_voxels;
-  return gain;
+  return gain *10;
 }
 
 void GraphManager::assignExplorationGain (std::shared_ptr<GraphUtils> graph) 
@@ -353,7 +353,9 @@ void GraphManager::extractVoxelsInsideFrustum (State state,
   std::vector<Eigen::Vector3d> occupied_voxels;
   std::vector<Eigen::Vector3d> free_voxels;
   std::vector<Eigen::Vector3d> unknown_voxels;
-   
+  
+  free_voxels.clear();
+  occupied_voxels.clear();
   map_manager_->extractLocalMap(state, box_size, occupied_voxels, free_voxels, unknown_voxels);
   
   double hFOV = 2*M_PI;
@@ -376,33 +378,33 @@ void GraphManager::extractVoxelsInsideFrustum (State state,
     }
   }
 
-  for (Eigen::Vector3d voxel : free_voxels) {
-
-    Eigen::Vector3d toPoint = voxel - state;
-    double h_angle = std::atan2(toPoint.y(), toPoint.x());
-    double v_angle = std::atan2(toPoint.z(), toPoint.norm());
-
-    if (std::abs(h_angle) <= hFOV / 2 and 
-        std::abs(v_angle) <= vFOV / 2 and 
-        toPoint.norm() <= range) {
-      
-        free.push_back(voxel);
-    }
-  }
-
-  for (Eigen::Vector3d voxel : occupied_voxels) {
-
-    Eigen::Vector3d toPoint = voxel - state;
-    double h_angle = std::atan2(toPoint.y(), toPoint.x());
-    double v_angle = std::atan2(toPoint.z(), toPoint.norm());
-
-    if (std::abs(h_angle) <= hFOV / 2 and 
-        std::abs(v_angle) <= vFOV / 2 and 
-        toPoint.norm() <= range) {
-      
-        occupied.push_back(voxel);
-    }
-  }
+  // for (Eigen::Vector3d voxel : free_voxels) {
+  //
+  //   Eigen::Vector3d toPoint = voxel - state;
+  //   double h_angle = std::atan2(toPoint.y(), toPoint.x());
+  //   double v_angle = std::atan2(toPoint.z(), toPoint.norm());
+  //
+  //   if (std::abs(h_angle) <= hFOV / 2 and 
+  //       std::abs(v_angle) <= vFOV / 2 and 
+  //       toPoint.norm() <= range) {
+  //     
+  //       free.push_back(voxel);
+  //   }
+  // }
+  //
+  // for (Eigen::Vector3d voxel : occupied_voxels) {
+  //
+  //   Eigen::Vector3d toPoint = voxel - state;
+  //   double h_angle = std::atan2(toPoint.y(), toPoint.x());
+  //   double v_angle = std::atan2(toPoint.z(), toPoint.norm());
+  //
+  //   if (std::abs(h_angle) <= hFOV / 2 and 
+  //       std::abs(v_angle) <= vFOV / 2 and 
+  //       toPoint.norm() <= range) {
+  //     
+  //       occupied.push_back(voxel);
+  //   }
+  // }
 
 }
 
