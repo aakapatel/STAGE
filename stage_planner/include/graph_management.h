@@ -37,6 +37,8 @@ struct node
   }
 };
 
+
+
 class GraphManager
 {
 
@@ -46,8 +48,8 @@ public:
 
   virtual void odomCallback(const nav_msgs::Odometry::ConstPtr &pos);
   Eigen::Vector3d quaternion_to_rpy(Eigen::Quaterniond q);
-  double calculateDistance(State s1, State s2);
-  void sampleNodes(std::vector<node *> &nodes, State state, int iterations_max, double bounding_box_size);
+  double calculateDistance(StateVec s1, StateVec s2);
+  void sampleNodes(std::vector<node *> &nodes, StateVec state, int iterations_max, double bounding_box_size);
   std::vector<Eigen::Vector3d> pointsToEigen(std::vector<geometry_msgs::Point> points);
   void fetchExplorationTargets();
   bool isLastTargetFrontier(geometry_msgs::Point last_target_frontier);
@@ -62,11 +64,10 @@ public:
 
   bool isLocal(Eigen::Vector3d point);
   
-  State eigenToState(Eigen::Vector3d v);
+  StateVec eigenToState(Eigen::Vector3d v);
 
   void segmentPath(std::vector<Vertex *> path,
                    nav_msgs::Path &path_seg);
-
   void improvePath(std::vector<Vertex *> raw_path, std::vector<Vertex *> &path);
 
   std_msgs::ColorRGBA heightMapColor(double h);
@@ -74,9 +75,9 @@ public:
   bool checkFrontierStatus(std::shared_ptr<GraphUtils> graph, int id);
   void printVoxelStatus(MapManager::VoxelStatus vs);
 
-  bool pointInsideFrustumVolume (State state);
+  bool pointInsideFrustumVolume (StateVec state);
 
-  void extractVoxelsInsideFrustum (State state, 
+  void extractVoxelsInsideFrustum (StateVec state, 
                                    std::vector<Eigen::Vector3d> &free,
                                    std::vector<Eigen::Vector3d> &occupied,
                                    std::vector<Eigen::Vector3d> &unknown); 
@@ -117,7 +118,7 @@ public:
   
   void visualizePoseGraph ();
 
-  bool getNeighbours(const State *state, double range, std::vector<Vertex *> *v_res);
+  bool getNeighbours(const StateVec *state, double range, std::vector<Vertex *> *v_res);
   void insertVertexKdtree(Vertex *v);
   void resetKdtree();
 
@@ -130,9 +131,9 @@ public:
   bool setLocalPath();
   bool setGlobalPath();
 
-  double computeExplorationGain (State v);
+  double computeExplorationGain (StateVec v);
  
-  double computeVolumetricGain(State state);
+  double computeVolumetricGain(StateVec state);
   
   void expandGraph (int iterations_max, Vertex* root, Vertex* goal, double radius);
   
@@ -172,8 +173,12 @@ public:
 private:
   ros::NodeHandle nh_;
   ros::NodeHandle nh_private_;
-
-  Eigen::Vector3d robotState_;
+  
+  std::string sensor_name;
+  SensorParams sensor_params_;
+  SensorParams free_frustum_params_;
+  StateVec robotStateWithYaw_;
+  Eigen::Vector4d robotState_;
   std::shared_ptr<GraphUtils> sub_graph_;
   std::shared_ptr<GraphUtils> global_graph_;
   std::shared_ptr<GraphUtils> path_ways_graph_;

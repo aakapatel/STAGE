@@ -10,6 +10,7 @@
 #include <numeric>
 #include <unordered_map>
 
+#include "params.h"
 #include <eigen3/Eigen/Dense>
 #include <geometry_msgs/PointStamped.h>
 #include <geometry_msgs/Polygon.h>
@@ -34,17 +35,54 @@
 
 typedef Eigen::Vector3d State; // x, y, z
 
+struct VolumetricGain {
+  VolumetricGain()
+      : gain(0),
+        accumulative_gain(0),
+        num_unknown_voxels(0),
+        num_free_voxels(0),
+        num_occupied_voxels(0),
+        num_unknown_surf_voxels(0) {}
+
+  void reset() {
+    gain = 0;
+    accumulative_gain = 0;
+    num_unknown_voxels = 0;
+    num_free_voxels = 0;
+    num_occupied_voxels = 0;
+    num_unknown_surf_voxels = 0;
+    is_frontier = false;
+    unseen_voxel_hash_keys.clear();
+  }
+
+  double gain;
+  double accumulative_gain;
+  int num_unknown_voxels;
+  int num_free_voxels;
+  int num_occupied_voxels;
+  int num_unknown_surf_voxels;
+  std::vector<std::size_t> unseen_voxel_hash_keys;
+
+  bool is_frontier;
+
+  void printGain() {
+    std::cout << "Gains: " << gain << ", " << num_unknown_voxels << ", "
+              << num_occupied_voxels << ", " << num_free_voxels << std::endl;
+  }
+};
+
 struct Vertex {
   Vertex(int v_id, State v_state) {
     id = v_id;
-    state << v_state[0], v_state[1], v_state[2], v_state[3];
+    state << v_state[0], v_state[1], v_state[2];
+    vol_gain.reset();
     parent = NULL;
     distance = 0;
     gain = 0;
     volumetric_gain = 0;
     edges = 0;
     is_root = false;
-    is_leaf_vertex = false;
+    is_leaf_vertex = true;
     is_evaluated = false;
     is_local = false;
     is_global = false;
@@ -60,6 +98,7 @@ struct Vertex {
   int id;
   // State of the vertex: x, y, z.
   State state;
+  VolumetricGain vol_gain;
   // NBVP legacy, keeping for now if wants to build a tree to compare.
   Vertex* parent;
   std::vector<Vertex*> children;
@@ -162,6 +201,8 @@ public:
   
   Vertex* getVertexBySubId (int s_id);
   
+  void findLeafVertices(const ShortestPathsReport& rep);
+  Vertex* getVertex(int id) { return vertices_map_[id]; }
   int getNumNeighbours (Vertex* v);
 
   void clearStateHistory ();

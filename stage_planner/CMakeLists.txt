@@ -133,6 +133,7 @@ add_library(${PROJECT_NAME}
   src/graph_utils.cpp
   src/voxblox/voxblox_common_impl.cpp
   src/voxblox/voxblox_alt_impl.cpp
+  src/params.cpp
 )
 
 
