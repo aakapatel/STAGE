@@ -169,7 +169,7 @@ void GraphManager::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
                    m_prevPose.pose.pose.position.y,
                    m_prevPose.pose.pose.position.z);
 
-    if (calculateDistance(newPoint, oldPoint) > 1)
+    if (calculateDistance(newPoint, oldPoint) > 0.2)
     {
       m_prevPose = *pose;
 
@@ -1132,7 +1132,7 @@ void GraphManager::updateSparseGraph()
   sparse_graph_->addVertex(new_vertex);
  
   std::vector<Vertex *> nearby_vertices;
-  sparse_graph_->getNearestVertices(&new_vertex->state, knn_range_, &nearby_vertices);
+  sparse_graph_->getNearestVertices(&new_vertex->state, knn_range_/2, &nearby_vertices);
 
   for (int i = 0; i < nearby_vertices.size(); ++i)
   {
