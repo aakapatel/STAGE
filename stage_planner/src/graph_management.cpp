@@ -288,6 +288,8 @@ void GraphManager::assignExplorationGain (std::shared_ptr<GraphUtils> graph)
   
   double gain_max = -std::numeric_limits<double>::max();
   double gain_min = std::numeric_limits<double>::min();
+  
+  double total_gain = 0;
 
   for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
   {
@@ -296,16 +298,18 @@ void GraphManager::assignExplorationGain (std::shared_ptr<GraphUtils> graph)
     Vertex* vertex = graph->vertices_map_[id];
     
     vertex->gain = GraphManager::computeExplorationGain(vertex->state);
-    if (vertex->gain > gain_max) {
-      gain_max = vertex->gain;
-    }
-    if (vertex->gain < gain_min) {
-      gain_min = vertex->gain;
-    }
+    total_gain = total_gain + vertex->gain;
+    // if (vertex->gain > gain_max) {
+    //   gain_max = vertex->gain;
+    // }
+    // if (vertex->gain < gain_min) {
+    //   gain_min = vertex->gain;
+    // }
   } 
 
-  graph->gain_max = gain_max;
-  graph->gain_min = gain_min;
+  if (graph->getNumVertices() != 0) {
+    graph->gain_max = total_gain/graph->getNumVertices();
+  }
 
 }
 
@@ -318,15 +322,7 @@ bool GraphManager::checkFrontierStatus(std::shared_ptr<GraphUtils> graph, int id
 
     State state = graph->vertices_map_[id]->state;
     double vertex_gain = computeExplorationGain(state);
-    double scaled_gain;
-    if (graph->gain_max != 0) {
-    scaled_gain = 1 - (vertex_gain/graph->gain_max);
-    } else {
-      scaled_gain = 0;
-    }
-    ROS_INFO_STREAM("Scaled gain : " << 100 * vertex_gain/graph->gain_max  << "\n"); 
-    scaled_gain = (vertex_gain / graph->gain_max) * 100;
-    if (scaled_gain > 80) {
+    if (vertex_gain > graph->gain_max) {
       is_frontier = true;
     }
   }
@@ -372,8 +368,8 @@ void GraphManager::extractVoxelsInsideFrustum (State state,
     double h_angle = std::atan2(toPoint.y(), toPoint.x());
     double v_angle = std::atan2(toPoint.z(), toPoint.norm());
 
-    if (std::abs(h_angle) <= hFOV / 2 and 
-        std::abs(v_angle) <= vFOV / 2 and 
+    // if (std::abs(h_angle) <= hFOV / 2 and 
+    if (std::abs(v_angle) <= vFOV / 2 and 
         toPoint.norm() <= range) {
       
         unknown.push_back(voxel);
