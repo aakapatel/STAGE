@@ -870,13 +870,13 @@ bool GraphManager::buildLocalGraph()
 {
   
 
-  Eigen::Vector3d check_pos_1 (robotStateWithYaw_[0] + 4, robotStateWithYaw_[1], robotStateWithYaw_[2]);
-  Eigen::Vector3d check_pos_2 (robotStateWithYaw_[0] + 1, robotStateWithYaw_[1], robotStateWithYaw_[2] + 30);
+  // Eigen::Vector3d check_pos_1 (robotStateWithYaw_[0] + 4, robotStateWithYaw_[1], robotStateWithYaw_[2]);
+  // Eigen::Vector3d check_pos_2 (robotStateWithYaw_[0] + 1, robotStateWithYaw_[1], robotStateWithYaw_[2] + 30);
   
-  bool status_1 = sensor_params_.sensor[sensor_name].isInsideFOV(robotStateWithYaw_, check_pos_1);
-  bool status_2 = sensor_params_.sensor[sensor_name].isInsideFOV(robotStateWithYaw_, check_pos_2);
+  // bool status_1 = sensor_params_.sensor[sensor_name].isInsideFOV(robotStateWithYaw_, check_pos_1);
+  // bool status_2 = sensor_params_.sensor[sensor_name].isInsideFOV(robotStateWithYaw_, check_pos_2);
   
-  ROS_INFO_STREAM ("Status 1 --> " << status_1 << " \t status 2 --> " << status_2 <<"\n");
+  // ROS_INFO_STREAM ("Status 1 --> " << status_1 << " \t status 2 --> " << status_2 <<"\n");
 
   bool graph_status = false;
   int frontier_vertices_count = 0;
@@ -1958,7 +1958,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
   auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
   if (duration_total.count() > 0) {
 
-  ROS_INFO_STREAM("\033[;34m [Planning iter -> " << planning_iteration_ << "] Exec time :" << duration_total.count() << " ms \033[0m\n");
+  ROS_INFO_STREAM("\033[;34m[Planning iter -> " << planning_iteration_ << "] \t Exec time :" << duration_total.count() << " ms \033[0m\n");
   }
 
   // high_resolution_clock::time_point stop_total = high_resolution_clock::now();
