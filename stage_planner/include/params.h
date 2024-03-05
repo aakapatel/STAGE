@@ -142,7 +142,7 @@ struct SensorParamsBase {
   void getFrustumEdges(StateVec& state, std::vector<Eigen::Vector3d>& edges);
   // Check if this is potential frontier given sensor FOV.
   // Number of unknow voxels perceived, scaled to map resolution (per meter).
-  bool isFrontier(double num_unknown_voxels_normalized);
+  bool isFrontier(double num_unknown_voxels_normalized, double& unknown_percentage);
   // Convert points from body frame of robot to frame of this sensor
   void convertBodyToSensor(pcl::PointCloud<pcl::PointXYZ>::Ptr ep,
                            pcl::PointCloud<pcl::PointXYZ>::Ptr ep_s);

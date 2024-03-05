@@ -148,11 +148,17 @@ Vertex* GraphUtils::getVertexBySubId (int s_id) {
   return v;
 }
 
-void GraphUtils::findLeafVertices(const ShortestPathsReport& rep) {
+void GraphUtils::findLeafVertices(std::vector<Vertex*>& leaf_vertices ,const ShortestPathsReport& rep) {
   int num_vertices = getNumVertices();
   for (int id = 0; id < num_vertices; ++id) {
     int pid = getParentIDFromShortestPath(id, rep);
     getVertex(pid)->is_leaf_vertex = false;
+  }
+
+  for (int id = 0; id < num_vertices; ++id) {
+    if (vertices_map_[id]->is_leaf_vertex) {
+      leaf_vertices.push_back(vertices_map_[id]);
+    }
   }
 }
 int GraphUtils::getNumNeighbours (Vertex* v) {

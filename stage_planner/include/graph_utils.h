@@ -39,6 +39,7 @@ struct VolumetricGain {
   VolumetricGain()
       : gain(0),
         accumulative_gain(0),
+        unknown_percentage(0),
         num_unknown_voxels(0),
         num_free_voxels(0),
         num_occupied_voxels(0),
@@ -47,6 +48,7 @@ struct VolumetricGain {
   void reset() {
     gain = 0;
     accumulative_gain = 0;
+    unknown_percentage = 0;
     num_unknown_voxels = 0;
     num_free_voxels = 0;
     num_occupied_voxels = 0;
@@ -57,6 +59,7 @@ struct VolumetricGain {
 
   double gain;
   double accumulative_gain;
+  double unknown_percentage;
   int num_unknown_voxels;
   int num_free_voxels;
   int num_occupied_voxels;
@@ -68,6 +71,7 @@ struct VolumetricGain {
   void printGain() {
     std::cout << "Gains: " << gain << ", " << num_unknown_voxels << ", "
               << num_occupied_voxels << ", " << num_free_voxels << std::endl;
+    std::cout << "Unknown percentage : " << unknown_percentage << "\n"; 
   }
 };
 
@@ -203,7 +207,7 @@ public:
   
   Vertex* getVertexBySubId (int s_id);
   
-  void findLeafVertices(const ShortestPathsReport& rep);
+  void findLeafVertices(std::vector<Vertex *>& leaf_vertices, const ShortestPathsReport& rep);
   Vertex* getVertex(int id) { return vertices_map_[id]; }
   int getNumNeighbours (Vertex* v);
 

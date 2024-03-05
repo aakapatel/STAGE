@@ -175,7 +175,7 @@ void GraphManager::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
                       m_prevPose.pose.pose.position.z,
                       tf::getYaw(pose->pose.pose.orientation));
 
-    if (calculateDistance(newPoint, oldPoint) > 0.2)
+    if (calculateDistance(newPoint, oldPoint) > 1)
     {
       m_prevPose = *pose;
 
@@ -280,10 +280,10 @@ void GraphManager::computeVolumetricGainRayCasting(StateVec& state, VolumetricGa
   gain_log.push_back(std::make_tuple(num_unknown_voxels, num_free_voxels,
                                      num_occupied_voxels,
                                      num_unknown_surf_voxels));
-
+  
   // Check if it is a potential frontier.
   if (sensor_params_.sensor[sensor_name].isFrontier(
-    num_unknown_voxels * map_manager_->getResolution())) {
+    num_unknown_voxels * map_manager_->getResolution(), vgain.unknown_percentage)) {
     vgain.is_frontier = true;  // Event E2
   }
 
@@ -325,71 +325,7 @@ double GraphManager::computeExplorationGain(StateVec state)
   return gain;
 }
 
-void GraphManager::assignExplorationGain (std::shared_ptr<GraphUtils> graph) 
-{
 
-  std::pair<Graph::GraphType::vertex_iterator,
-  Graph::GraphType::vertex_iterator>
-  vi;
-  graph->graph_->getVertexIterator(vi);
-  
-  double gain_max = -std::numeric_limits<double>::max();
-  double gain_min = std::numeric_limits<double>::min();
-  
-  double total_gain = 0;
-  int total_vertices = 0;
-  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
-  {
-  
-    int id = graph->graph_->getVertexProperty(it);
-    Vertex* vertex = graph->vertices_map_[id];
-    
-    vertex->gain = GraphManager::computeExplorationGain(vertex->state);
-    total_gain = total_gain + vertex->gain;
-    total_vertices = total_vertices + 1;
-
-    // if (vertex->gain > gain_max) {
-    //   gain_max = vertex->gain;
-    // }
-    // if (vertex->gain < gain_min) {
-    //   gain_min = vertex->gain;
-    // }
-  } 
-
-  if (total_vertices != 0) {
-    graph->gain_max = total_gain/total_vertices;
-  }
-
-}
-
-bool GraphManager::checkFrontierStatus(std::shared_ptr<GraphUtils> graph, int id) {
-  
-  // high_resolution_clock::time_point start_total = high_resolution_clock::now();
-  
-  bool is_frontier = false;
-  if (!graph->vertices_map_[id]->is_evaluated) {
-
-    StateVec state = graph->vertices_map_[id]->state;
-    double vertex_gain = computeExplorationGain(state);
-    if (vertex_gain > graph->gain_max) {
-      is_frontier = true;
-      // ROS_INFO_STREAM("Frontier gain --> " << vertex_gain << "\n");
-    }
-  }
-  // Update vertex properties based on frontier status
-  graph->vertices_map_[id]->is_frontier = is_frontier;
-  graph->vertices_map_[id]->is_evaluated = !is_frontier;
-
-
-  // high_resolution_clock::time_point stop_total = high_resolution_clock::now();
-  //
-  // auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-  //
-  // ROS_INFO_STREAM("Gain evaluation time " << duration_total.count() << " ms \n");
-
-
-  return is_frontier;
-}
 
 void GraphManager::extractVoxelsInsideFrustum (StateVec state, 
                                                std::vector<Eigen::Vector3d> &free,
@@ -694,7 +630,7 @@ void GraphManager::resetKdtree()
   kd_tree_ = kd_create(3);
 }
 
-bool GraphManager::orientVertices (std::shared_ptr<GraphUtils> graph, const ShortestPathsReport& rep) 
+void GraphManager::orientVertices (std::shared_ptr<GraphUtils> graph, const ShortestPathsReport& rep) 
 {
 
   // Assign the heading angle to the vertices based on shortest path report.
@@ -801,24 +737,12 @@ void GraphManager::printVoxelStatus(MapManager::VoxelStatus vs)
 
 void GraphManager::clusterNodes (std::shared_ptr<GraphUtils> g) 
 {
-
-  
+  // cluster frontier nodes based on relative volumetric gain for efficient insertion into sparse graph  
   std::pair<Graph::GraphType::vertex_iterator,
   Graph::GraphType::vertex_iterator>
   vi;
   g->graph_->getVertexIterator(vi);
 
-
-  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
-  {
-
-    int id = g->graph_->getVertexProperty(it);
-    StateVec v_s = g->vertices_map_[id]->state;
-    Vertex * v = g->vertices_map_[id];
-    // v->volumetric_gain = computeVolumetricGain(v_s);
-
-  }
-  
   int cluster_count = 0;
 
   for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
@@ -828,56 +752,35 @@ void GraphManager::clusterNodes (std::shared_ptr<GraphUtils> g)
     StateVec v_s = g->vertices_map_[id]->state;
     Vertex * v = g->vertices_map_[id];
     std::vector<Vertex *> nearby_vertices;
-    // double vol_gain = -std::numeric_limits<double>::max();
-    g->getNearestVertices(&g->vertices_map_[id]->state, 2.5, &nearby_vertices);
+    double my_gain = -std::numeric_limits<double>::max();
+    g->getNearestVertices(&g->vertices_map_[id]->state, knn_range_, &nearby_vertices);
     
     Vertex * centroid_vertex;
-    for (int i = 0; i < nearby_vertices.size(); i++)
+    for (int i = 0; i < nearby_vertices.size() and nearby_vertices[i]->is_leaf_vertex; i++)
     {
       
       Vertex * nearby_vertex = nearby_vertices[i];
-      // if (nearby_vertex->cluster_id == -1 and nearby_vertex->volumetric_gain > vol_gain) {
-        // vol_gain = nearby_vertex->volumetric_gain;
-        // centroid_vertex->cluster_id = cluster_count;
-        // centroid_vertex = nearby_vertex;
+      if (nearby_vertex->cluster_id == -1 and nearby_vertex->vol_gain.gain > my_gain) {
+        
+        my_gain = nearby_vertex->vol_gain.gain;
+        centroid_vertex->cluster_id = cluster_count;
+        centroid_vertex = nearby_vertex;
 
-      // } else {
-        // nearby_vertex->cluster_id = cluster_count;
-      // }
+      } else {
+        nearby_vertex->cluster_id = cluster_count;
+      }
 
     }
     centroid_vertex->is_cluster_centroid = true;
     cluster_count = cluster_count + 1;
   }
 
-  std::vector<int> centroids;
-
-  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
-  {
-
-    int id = g->graph_->getVertexProperty(it);
-    StateVec v_s = g->vertices_map_[id]->state;
-    Vertex * v = g->vertices_map_[id];
-    
-    if (v->is_cluster_centroid) {
-      centroids.push_back(v->id);
-    }
-  }
 }
 
 
 bool GraphManager::buildLocalGraph()
 {
   
-
-  // Eigen::Vector3d check_pos_1 (robotStateWithYaw_[0] + 4, robotStateWithYaw_[1], robotStateWithYaw_[2]);
-  // Eigen::Vector3d check_pos_2 (robotStateWithYaw_[0] + 1, robotStateWithYaw_[1], robotStateWithYaw_[2] + 30);
-  
-  // bool status_1 = sensor_params_.sensor[sensor_name].isInsideFOV(robotStateWithYaw_, check_pos_1);
-  // bool status_2 = sensor_params_.sensor[sensor_name].isInsideFOV(robotStateWithYaw_, check_pos_2);
-  
-  // ROS_INFO_STREAM ("Status 1 --> " << status_1 << " \t status 2 --> " << status_2 <<"\n");
-
   bool graph_status = false;
   int frontier_vertices_count = 0;
   // high_resolution_clock::time_point start_total = high_resolution_clock::now();
@@ -886,7 +789,6 @@ bool GraphManager::buildLocalGraph()
 
   local_root_vertex = new Vertex(sub_graph_->generateVertexID(), robotState_);
   local_root_vertex->is_root = true;
-  local_root_vertex->gain = computeExplorationGain(local_root_vertex->state);
   sub_graph_->addVertex(local_root_vertex);
   
   // Insert the sub graph vertedx to global graph to re-use the SG
@@ -906,13 +808,9 @@ bool GraphManager::buildLocalGraph()
   for (int i = 0; i < nodes.size(); ++i)
   {
     Vertex *vertex = new Vertex(sub_graph_->generateVertexID(), eigenToState(*(nodes[i]->point)));
-    vertex->gain = computeExplorationGain(vertex->state);
     sub_graph_->addVertex(vertex);
     
   }
-
-  GraphManager::assignExplorationGain(sub_graph_);
-  // GraphManager::clusterNodes(sub_graph_);
 
   std::pair<Graph::GraphType::vertex_iterator,
   Graph::GraphType::vertex_iterator>
@@ -937,12 +835,6 @@ bool GraphManager::buildLocalGraph()
       
       Vertex* neighbour = nearby_vertices[i]; 
 
-      // if ((robotState_ - neighbour->state).norm() > knn_range_ and GraphManager::checkFrontierStatus(sub_graph_, neighbour->id)) 
-      // {
-      //   nearby_vertices[i]->is_frontier = true;
-      //   frontier_vertices_count++;
-      // }
-        
       int num_edges = vertex->edges;
       double weight = (vertex->state - neighbour->state).norm();
 
@@ -990,32 +882,35 @@ bool GraphManager::extractShortestPaths (std::shared_ptr<GraphUtils> graph, Shor
   // Fetch shortest path report from root vertex to all vertices in the graph
   if (!graph->findShortestPaths(root->id, rep))
   {
-    ROS_WARN("Could not find dijkstra shortest paths on sub graph \n");
+    ROS_WARN("Could not find dijkstra shortest paths on the graph \n");
     return path_status;
-  } else {
+  } 
+  // else {
     // GraphManager::orientVertices(graph, rep);
-  }
+  // }
   
-  graph->findLeafVertices(rep);
+  std::vector<Vertex *> leaf_vertices;
   dijkstra_paths.clear();
+  leaf_vertices.clear(); 
+  graph->findLeafVertices(leaf_vertices, rep);
  
   std::pair<Graph::GraphType::vertex_iterator,
   Graph::GraphType::vertex_iterator> vi;
   graph->graph_->getVertexIterator(vi);
 
-  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
+  high_resolution_clock::time_point start_total = high_resolution_clock::now();
+  for (Vertex * vertex : leaf_vertices)
   {
-
-    int id = graph->graph_->getVertexProperty(it);
-      
-    Vertex* vertex = graph->vertices_map_[id];
+    int id = vertex->id;
     
-    computeVolumetricGainRayCasting(vertex->state, vertex->vol_gain);
-
-    // if (checkFrontierStatus(graph, vertex->id))
-    if (vertex->vol_gain.is_frontier)
+    // compute and assign volumetric gain to the vertex
+    GraphManager::computeVolumetricGainRayCasting(vertex->state, vertex->vol_gain);
+    
+    // cluster the nodes based on their volumetric gain 
+    GraphManager::clusterNodes(graph); 
+    
+    if (vertex->vol_gain.is_frontier and vertex->is_cluster_centroid)
     {
-
       std::vector<Vertex *> dijkstra_path;
       dijkstra_path.clear();
 
@@ -1027,6 +922,10 @@ bool GraphManager::extractShortestPaths (std::shared_ptr<GraphUtils> graph, Shor
       }
     }
   }
+  
+  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+  ROS_INFO_STREAM("Gain Evaluation and clustering takes \t " << duration_total.count() << " ms \n");
 
   if (!dijkstra_paths.empty()) {
     path_status = true;
@@ -1077,9 +976,11 @@ bool GraphManager::planLocalPath(std::vector<std::vector<Vertex *>> dijkstra_pat
     for (auto i = 0; i < local_paths_.size(); i++)
     {
 
-      gain = computeExplorationGain(local_paths_[i].first.back()->state);
-
+      gain = 100 * local_paths_[i].first.back()->vol_gain.unknown_percentage;
+      
       path_length = local_paths_[i].second;
+      
+      // ROS_INFO_STREAM ("Vertex Gain --> " << gain << "\t Path length --> " << path_length << "\n");
 
       reward = gain/(path_length + 2);
       if (reward > my_reward)
@@ -1109,103 +1010,6 @@ bool GraphManager::planLocalPath(std::vector<std::vector<Vertex *>> dijkstra_pat
 
 } // planLocalPath
 
-bool GraphManager::buildPathWaysGraph() {
-
-  bool graph_status = true;
-  
-  GraphManager::resetPathWaysGraph();
-
-  // std::vector<Eigen::Vector3d> frontiers;
-  // GraphManager::getFrontiers(frontiers);
-  
-  // for (Eigen::Vector3d v : frontiers) {
-  for (Eigen::Vector3d v : exploration_targets_) {
-    
-    StateVec vert_state;
-    vert_state[0] = v[0];
-    vert_state[1] = v[1];
-    vert_state[2] = v[2];
-
-    Vertex* vert = new Vertex (++fake_id_count, vert_state);
-    vert->is_frontier= true;
-    path_way_vertices.push_back(vert);
-
-  }
-
-  std::vector<Vertex *> frontiers_to_update;
-
-  for (auto it : path_way_vertices) {
-
-    // Iterate through reserved vertices from local path planning step and make path ways graph
-    StateVec v_state = (it)->state;
-    Vertex* path_way_vertex = new Vertex (path_ways_graph_->generateVertexID(), v_state);
-    if ((it)->is_frontier) {
-      path_way_vertex->is_frontier = true;
-      path_ways_graph_->addVertex(path_way_vertex);
-      
-      frontiers_to_update.push_back(it);
-    } else { 
-      path_ways_graph_->addVertex(path_way_vertex);
-    }
-  }
-
-  for (auto i : frontiers_to_update) {
-    path_way_vertices.remove(i);
-  }
- 
-  GraphManager::clusterNodes(path_ways_graph_);
-
-  std::pair<Graph::GraphType::vertex_iterator,
-  Graph::GraphType::vertex_iterator>
-  vi;
-  path_ways_graph_->graph_->getVertexIterator(vi);
-
-  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
-  {
-
-    int id = path_ways_graph_->graph_->getVertexProperty(it);
-    
-    if (path_ways_graph_->vertices_map_[id]->is_cluster_centroid or path_ways_graph_->vertices_map_[id]->is_root) 
-    {
-
-      Eigen::Vector3d v(path_ways_graph_->vertices_map_[id]->state[0],
-                        path_ways_graph_->vertices_map_[id]->state[1],
-                        path_ways_graph_->vertices_map_[id]->state[2]);
-
-      // Get nearby vertices from the current vertex and connect the them to form local edges
-      std::vector<Vertex *> nearby_vertices;
-      path_ways_graph_->getNearestVertices(&path_ways_graph_->vertices_map_[id]->state, 4*knn_range_, &nearby_vertices);
-
-      for (int i = 0; i < nearby_vertices.size(); i++)
-      {
-        // VOXBLOX EDGE CHECK
-
-        if (!path_ways_graph_->vertices_map_[id]->is_frontier or !nearby_vertices[i]->is_frontier) {
-
-          if (nearby_vertices[i]->is_cluster_centroid and path_ways_graph_->vertices_map_[id]->edges < num_edges_max_ 
-            and path_ways_graph_->distanceBetweenVertices(path_ways_graph_->vertices_map_[id], nearby_vertices[i]) < 2*max_edge_length_)
-          {
-
-            Eigen::Vector3d v_n(nearby_vertices[i]->state[0], nearby_vertices[i]->state[1], nearby_vertices[i]->state[2]);
-            MapManager::VoxelStatus vn = map_manager_->getPathStatus(v, v_n, robot_box_size_, true);
-
-            if (MapManager::VoxelStatus::kFree == vn)
-            {
-
-              path_ways_graph_->addEdge(path_ways_graph_->vertices_map_[id], nearby_vertices[i],
-                                        path_ways_graph_->distanceBetweenVertices(path_ways_graph_->vertices_map_[id], nearby_vertices[i]));
-              path_ways_graph_->vertices_map_[id]->edges++;
-            }
-          }
-        }
-      }
-    }
-  }
-  
-  GraphManager::visualizePathWaysGraph();
-  return graph_status;
-}
-
 void GraphManager::updateSparseGraph() 
 {
   
@@ -1218,7 +1022,7 @@ void GraphManager::updateSparseGraph()
   sparse_graph_->addVertex(new_vertex);
  
   std::vector<Vertex *> nearby_vertices;
-  sparse_graph_->getNearestVertices(&new_vertex->state, knn_range_/2, &nearby_vertices);
+  sparse_graph_->getNearestVertices(&new_vertex->state, knn_range_, &nearby_vertices);
 
   for (int i = 0; i < nearby_vertices.size(); ++i)
   {
@@ -1249,7 +1053,7 @@ void GraphManager::insertBestPathsToSparseGraph (std::vector<std::vector<Vertex 
 
   bool graph_status = true;
   if (dijkstra_paths.empty()) {
-    ROS_WARN("Best path empty. Can not insert into sparse graph \n");
+    ROS_WARN("Best path empty. Can not insert paths into sparse graph \n");
     return;
   }
 
@@ -1258,7 +1062,6 @@ void GraphManager::insertBestPathsToSparseGraph (std::vector<std::vector<Vertex 
   
   Vertex * vertex = new Vertex (sparse_graph_->generateVertexID(), robotState_);
   vertex->is_root = true;
-  // vertex->is_leaf_vertex = true;
   sparse_graph_->addVertex(vertex);
   newly_added_vertices.push_back(vertex);
 
@@ -1272,6 +1075,7 @@ void GraphManager::insertBestPathsToSparseGraph (std::vector<std::vector<Vertex 
 
         std::vector<std::pair<int, double>> edge_pairs = sub_graph_->edge_map_[v->id];
         Vertex* new_vertex = new Vertex(sparse_graph_->generateVertexID(), v->state);
+        new_vertex->vol_gain = v->vol_gain;
         sparse_graph_->addVertex(new_vertex);
         newly_added_vertices.push_back(new_vertex);
 
@@ -1285,6 +1089,7 @@ void GraphManager::insertBestPathsToSparseGraph (std::vector<std::vector<Vertex 
             if (!sparse_graph_->vertexExist(neighbour_vertex->state)) {
 
               Vertex* new_neighbour_vertex = new Vertex (sparse_graph_->generateVertexID(), neighbour_vertex->state);
+              new_neighbour_vertex->vol_gain = neighbour_vertex->vol_gain;
               sparse_graph_->addVertex(new_neighbour_vertex);
               newly_added_vertices.push_back(new_vertex);
               
@@ -1328,8 +1133,6 @@ void GraphManager::insertBestPathsToSparseGraph (std::vector<std::vector<Vertex 
   
   global_root_vertex = vertex;
   
-  GraphManager::assignExplorationGain(sparse_graph_);
-
   GraphManager::visualizeSparseGraph();
   
 }
@@ -1408,60 +1211,6 @@ bool GraphManager::expandSparseGraph () {
 }
 
 
-void GraphManager::updatePathWays (std::shared_ptr<GraphUtils> graph, ShortestPathsReport rep) {
-
-
-  bool path_status = true;
-  // Dijkstra SP report from root to all vertices in global graph
-  
-  rep.reset();
-  if (!graph->findShortestPaths(global_root_vertex->id, rep))
-  {
-    ROS_WARN("Could not find dijkstra shortest paths on global graph \n");
-    path_status = false;
-    return;
-  }
-
-  global_paths_.clear();
-
-  std::pair<Graph::GraphType::vertex_iterator,
-  Graph::GraphType::vertex_iterator>
-  vi;
-  graph->graph_->getVertexIterator(vi);
-
-  std::vector<std::pair<std::vector<Vertex *>, double>> temp_global_paths;
-
-  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
-  {
-
-    int id = graph->graph_->getVertexProperty(it);
-    double distance = (robotState_ - graph->vertices_map_[id]->state).norm();
-    // if (graph->vertices_map_[id]->is_frontier and path_ways_graph_->vertices_map_[id]->is_cluster_centroid)
-    // if (distance > bounding_box_size_/3 and graph->vertices_map_[id]->is_frontier and checkFrontierStatus(sparse_graph_, id))
-    if (distance > bounding_box_size_/3 and graph->vertices_map_[id]->is_frontier )
-    // if (1)
-    {
-      std::vector<Vertex *> dijkstra_path;
-
-      dijkstra_path.clear();
-
-      graph->getShortestPath(graph->vertices_map_[id]->id, rep, true, dijkstra_path);
-      if (!dijkstra_path.empty())
-      {
-        std::pair<std::vector<Vertex *>, double> p = std::make_pair(dijkstra_path, getPathLength(dijkstra_path));
-
-        temp_global_paths.push_back(p);
-      }
-    }
-  }
-
-  if (temp_global_paths.empty()) {
-    return;
-  }
-
-  GraphManager::visualizeGlobalPaths(temp_global_paths);
-
-}
 
 bool GraphManager::planGlobalPath(std::vector<std::vector<Vertex *>> dijkstra_paths)
 {
@@ -1501,7 +1250,7 @@ bool GraphManager::planGlobalPath(std::vector<std::vector<Vertex *>> dijkstra_pa
     for (auto i = 0; i < global_paths_.size(); i++)
     {
 
-      gain = computeExplorationGain(global_paths_[i].first.back()->state);
+      gain = 100 * global_paths_[i].first.back()->vol_gain.unknown_percentage;
       path_length = global_paths_[i].second;
 
       reward = gain/(path_length + 2);
@@ -1517,7 +1266,7 @@ bool GraphManager::planGlobalPath(std::vector<std::vector<Vertex *>> dijkstra_pa
     if (best_path_.empty())
     {
       path_status = false;
-      ROS_WARN("GLOBAL GRPH -> Improved path is empty");
+      ROS_WARN("GLOBAL GRPH -> Improved path is empty \n");
       return path_status;
     }
   }
@@ -1731,7 +1480,7 @@ bool GraphManager::isLocal(Eigen::Vector3d point)
 void GraphManager::updateGraph(const ros::TimerEvent &event)
 {
   
-  // Can off load some repetitive stuff here
+  // Can off load some repetitive stuff here : executed  ehile robot is navigated so not added to time complexity
   
   GraphManager::updateSparseGraph();
 
@@ -1749,80 +1498,6 @@ std::vector<Eigen::Vector3d> GraphManager::pointsToEigen(std::vector<geometry_ms
   }
 
   return vec;
-}
-
-void GraphManager::fetchExplorationTargets()
-{
-
-  stage_planner::frontierRequest frontier_srv;
-  global_repos_targets_.clear();
-  local_exploration_targets_.clear();
-  exploration_targets_.clear();
-
-  frontier_srv.request.explore = true;
-
-  if (m_frontier_client.call(frontier_srv))
-  {
-
-    if (frontier_srv.response.frontiers_exist)
-    {
-
-      // get a frontier target in local FOV
-      local_exploration_targets_ = pointsToEigen(frontier_srv.response.local_targets);
-
-      global_repos_targets_ = pointsToEigen(frontier_srv.response.global_targets);
-
-      if (global_repos_targets_.empty() and local_exploration_targets_.empty())
-      {
-        return;
-      }
-      std::vector<double> gains;
-      gains.clear();
-      if (!local_exploration_targets_.empty())
-      {
-
-        for (auto i : local_exploration_targets_)
-        {
-          exploration_targets_.push_back(i);
-        }
-      }
-
-      if (!global_repos_targets_.empty())
-      {
-
-        for (auto i : global_repos_targets_)
-        {
-          exploration_targets_.push_back(i);
-        }
-      }
-
-      average_gain = std::accumulate(gains.begin(), gains.end(), 0.0) / gains.size();
-
-      // ROS_INFO_STREAM ("Fetched " << local_exploration_targets_.size() << " Local & "
-      // << global_repos_targets_.size() << " Global frontiers \n");
-    }
-  }
-}
-
-void GraphManager::getFrontiers(std::vector<Eigen::Vector3d> &frontiers)
-{
-
-  stage_planner::frontierRequest frontier_srv;
-  frontiers.clear();
-
-  frontier_srv.request.explore = true;
-
-  if (m_frontier_client.call(frontier_srv))
-  {
-
-    if (frontier_srv.response.frontiers_exist)
-    {
-
-      frontiers = pointsToEigen(frontier_srv.response.all_targets);
-
-      // ROS_INFO_STREAM ("Fetched " << frontiers.size() << " frontiers \n");
-    }
-  }
 }
 
 bool GraphManager::isLastTargetFrontier(geometry_msgs::Point last_target_frontier)
@@ -1873,7 +1548,6 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
         if (GraphManager::extractShortestPaths(sub_graph_, sub_graph_rep_, local_root_vertex, dijkstra_paths)) {
           
-          // sub_graph_->findLeafVertices(sub_graph_rep_);
           visualizeLocalGraph();
           GraphManager::insertBestPathsToSparseGraph(dijkstra_paths);
           // ROS_INFO("Successfully inserted best paths \n");
@@ -1960,13 +1634,6 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
   ROS_INFO_STREAM("\033[;34m[Planning iter -> " << planning_iteration_ << "] \t Exec time :" << duration_total.count() << " ms \033[0m\n");
   }
-
-  // high_resolution_clock::time_point stop_total = high_resolution_clock::now();
-  //
-  // auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-  //
-  // ROS_INFO_STREAM("\033[;34m Planning time \033[0m "
-  //                 << duration_total.count() << " \033[;34m ms \033[0m\n ");
 
   return planner_status;
 
@@ -2249,7 +1916,7 @@ void GraphManager::visualizeLocalGraph()
     vertex_marker.points.push_back(p1);
     // if (v_map[id]->is_frontier)
     // if (v_map[id]->is_leaf_vertex)
-    if (v_map[id]->vol_gain.is_frontier)
+    if (v_map[id]->vol_gain.is_frontier and v_map[id]->is_cluster_centroid)
     {
 
       geometry_msgs::Point p1;
@@ -2615,7 +2282,6 @@ void GraphManager::visualizeSparseGraph()
   for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
   {
     int id = g->getVertexProperty(it);
-    // if (!v_map[id]->is_evaluated and checkFrontierStatus(sparse_graph_, id))
     if (!v_map[id]->is_evaluated and v_map[id]->vol_gain.is_frontier)
     {
       geometry_msgs::Point p1;

@@ -423,8 +423,8 @@ bool SensorParamsBase::isInsideFOV(StateVec& state, Eigen::Vector3d& pos) {
   return true;
 }
 
-bool SensorParamsBase::isFrontier(double num_unknown_voxels_normalized) {
-  double unknown_percentage =
+bool SensorParamsBase::isFrontier(double num_unknown_voxels_normalized, double& unknown_percentage) {
+  unknown_percentage =
     num_unknown_voxels_normalized / num_voxels_full_fov;
   if (unknown_percentage >= frontier_percentage_threshold)
     return true;

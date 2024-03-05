@@ -51,9 +51,7 @@ public:
   double calculateDistance(StateVec s1, StateVec s2);
   void sampleNodes(std::vector<node *> &nodes, StateVec state, int iterations_max, double bounding_box_size);
   std::vector<Eigen::Vector3d> pointsToEigen(std::vector<geometry_msgs::Point> points);
-  void fetchExplorationTargets();
   bool isLastTargetFrontier(geometry_msgs::Point last_target_frontier);
-  void getFrontiers(std::vector<Eigen::Vector3d> &frontiers);
   bool nextExplorationPath(stage_planner::explorationPath::Request &req,
                            stage_planner::explorationPath::Response &res);
   Eigen::Quaternion<float> Euler2Quaternion(Eigen::Vector3d v);
@@ -64,7 +62,7 @@ public:
 
   bool isLocal(Eigen::Vector3d point);
   
-  bool orientVertices (std::shared_ptr<GraphUtils> graph, const ShortestPathsReport& rep); 
+  void orientVertices (std::shared_ptr<GraphUtils> graph, const ShortestPathsReport& rep); 
   
   StateVec eigenToState(Eigen::Vector3d v);
 
@@ -74,7 +72,6 @@ public:
 
   std_msgs::ColorRGBA heightMapColor(double h);
 
-  bool checkFrontierStatus(std::shared_ptr<GraphUtils> graph, int id);
   void printVoxelStatus(MapManager::VoxelStatus vs);
 
   bool pointInsideFrustumVolume (StateVec state);
@@ -86,22 +83,19 @@ public:
   void clusterNodes (std::shared_ptr<GraphUtils> g); 
   // GRAPH AND PLANNING
   
-  void assignExplorationGain (std::shared_ptr<GraphUtils> graph);
   void resetLocalGraph();
   void resetGlobalGraph();
   void resetPathWaysGraph();
   void resetSparseGraph();
 
   bool buildLocalGraph();
-  bool buildPathWaysGraph(); 
   bool planLocalPath(std::vector<std::vector<Vertex *>> dijkstra_paths);
 
   bool planGlobalPath(std::vector<std::vector<Vertex *>> dijkstra_paths);
   
-  void updatePathWays (std::shared_ptr<GraphUtils> graph, ShortestPathsReport rep);
-
   void visualizeLocalGraph();
-  void visualizeTree (std::vector<node *> RRT_TREE);
+  
+    void visualizeTree (std::vector<node *> RRT_TREE);
 
   void visualizeGlobalGraph();
   
