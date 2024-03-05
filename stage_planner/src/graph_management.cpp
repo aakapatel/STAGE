@@ -738,6 +738,9 @@ void GraphManager::printVoxelStatus(MapManager::VoxelStatus vs)
 
 void GraphManager::clusterNodes (std::shared_ptr<GraphUtils> g) 
 {
+  if (g->getNumVertices() == 0) {
+    return;
+  }
   // cluster frontier nodes based on relative volumetric gain for efficient insertion into sparse graph  
   std::pair<Graph::GraphType::vertex_iterator,
   Graph::GraphType::vertex_iterator>
@@ -761,7 +764,6 @@ void GraphManager::clusterNodes (std::shared_ptr<GraphUtils> g)
     {
       
       Vertex * nearby_vertex = nearby_vertices[i];
-      // computeVolumetricGainRayCasting(nearby_vertex->state, nearby_vertex->vol_gain);
       if (nearby_vertex->cluster_id == -1 and nearby_vertex->vol_gain.gain > my_gain) {
         
         my_gain = nearby_vertex->vol_gain.gain;
@@ -901,6 +903,9 @@ bool GraphManager::extractShortestPaths (std::shared_ptr<GraphUtils> graph, Shor
   graph->graph_->getVertexIterator(vi);
 
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
+  if (leaf_vertices.empty()) {
+    return false;
+  }
   for (Vertex * vertex : leaf_vertices)
   {
     int id = vertex->id;
@@ -1407,7 +1412,7 @@ void GraphManager::improvePath(std::vector<Vertex *> raw_path, std::vector<Verte
   // Not ideal, but check nearest neighbours to add edges in a graph that will improve the path
   // by shortcutting some edges
 
-  for (std::vector<Vertex *>::iterator it_vert = raw_path.begin(); it_vert != std::prev(raw_path.end(), 1); it_vert++)
+  for (std::vector<Vertex *>::iterator it_vert = raw_path.begin(); it_vert != std::prev(raw_path.end(), 0); it_vert++)
   {
 
     Vertex *imp_vertex = new Vertex(improvement_graph_->generateVertexID(), (*it_vert)->state);
@@ -1491,7 +1496,7 @@ void GraphManager::updateGraph(const ros::TimerEvent &event)
   
   // Can off load some repetitive stuff here : executed  ehile robot is navigated so not added to time complexity
   
-  GraphManager::updateSparseGraph();
+  // GraphManager::updateSparseGraph();
 
 }
 
