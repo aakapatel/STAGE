@@ -54,6 +54,7 @@ struct VolumetricGain {
     num_occupied_voxels = 0;
     num_unknown_surf_voxels = 0;
     is_frontier = false;
+    // is_evaluated = false;
     unseen_voxel_hash_keys.clear();
   }
 
@@ -67,6 +68,7 @@ struct VolumetricGain {
   std::vector<std::size_t> unseen_voxel_hash_keys;
 
   bool is_frontier;
+  // bool is_evaluated = !is_frontier;
 
   void printGain() {
     std::cout << "Gains: " << gain << ", " << num_unknown_voxels << ", "

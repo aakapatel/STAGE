@@ -170,6 +170,7 @@ Visualization Manager:
       Name: MarkerArray
       Namespaces:
         edges: true
+        frontier: true
         vertices: true
       Queue Size: 100
       Value: true
@@ -279,17 +280,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -6.483651638031006
-        Y: 0.047386281192302704
-        Z: -1.7406806945800781
+        X: 0.19037288427352905
+        Y: -1.7473360300064087
+        Z: -1.566749930381775
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5697963237762451
+      Pitch: 1.544796347618103
       Target Frame: hummingbird/base_link
-      Yaw: 1.5735995769500732
+      Yaw: 3.1336026191711426
     Saved: ~
 Window Geometry:
   Displays:

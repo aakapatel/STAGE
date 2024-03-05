@@ -194,7 +194,7 @@ void GraphManager::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
       path_way_vertices.push_back(path_vertex_root);
       global_graph_->state_history_.push_back(robotState_);
       
-      GraphManager::updateSparseGraph();
+      // GraphManager::updateSparseGraph();
     }
   }
 
@@ -285,6 +285,7 @@ void GraphManager::computeVolumetricGainRayCasting(StateVec& state, VolumetricGa
   if (sensor_params_.sensor[sensor_name].isFrontier(
     num_unknown_voxels * map_manager_->getResolution(), vgain.unknown_percentage)) {
     vgain.is_frontier = true;  // Event E2
+    // vgain.is_evaluated = false;
   }
 
   // Return gain values.
@@ -760,6 +761,7 @@ void GraphManager::clusterNodes (std::shared_ptr<GraphUtils> g)
     {
       
       Vertex * nearby_vertex = nearby_vertices[i];
+      // computeVolumetricGainRayCasting(nearby_vertex->state, nearby_vertex->vol_gain);
       if (nearby_vertex->cluster_id == -1 and nearby_vertex->vol_gain.gain > my_gain) {
         
         my_gain = nearby_vertex->vol_gain.gain;
@@ -904,10 +906,11 @@ bool GraphManager::extractShortestPaths (std::shared_ptr<GraphUtils> graph, Shor
     int id = vertex->id;
     
     // compute and assign volumetric gain to the vertex
+
     GraphManager::computeVolumetricGainRayCasting(vertex->state, vertex->vol_gain);
+    GraphManager::clusterNodes(graph); 
     
     // cluster the nodes based on their volumetric gain 
-    GraphManager::clusterNodes(graph); 
     
     if (vertex->vol_gain.is_frontier and vertex->is_cluster_centroid)
     {
@@ -1030,7 +1033,8 @@ void GraphManager::updateSparseGraph()
     int num_edges = new_vertex->edges;
     double weight = (new_vertex->state - neighbour->state).norm();
 
-    if (num_edges < num_edges_max_ and weight < max_edge_length_)
+    // if (num_edges < num_edges_max_ and weight < max_edge_length_)
+    if (weight < max_edge_length_ and weight > 0.2)
     {
 
       if (!sparse_graph_->edgeExist(new_vertex->id, neighbour->id) and 
@@ -1075,7 +1079,7 @@ void GraphManager::insertBestPathsToSparseGraph (std::vector<std::vector<Vertex 
 
         std::vector<std::pair<int, double>> edge_pairs = sub_graph_->edge_map_[v->id];
         Vertex* new_vertex = new Vertex(sparse_graph_->generateVertexID(), v->state);
-        new_vertex->vol_gain = v->vol_gain;
+        // new_vertex->vol_gain = v->vol_gain;
         sparse_graph_->addVertex(new_vertex);
         newly_added_vertices.push_back(new_vertex);
 
@@ -1089,7 +1093,7 @@ void GraphManager::insertBestPathsToSparseGraph (std::vector<std::vector<Vertex 
             if (!sparse_graph_->vertexExist(neighbour_vertex->state)) {
 
               Vertex* new_neighbour_vertex = new Vertex (sparse_graph_->generateVertexID(), neighbour_vertex->state);
-              new_neighbour_vertex->vol_gain = neighbour_vertex->vol_gain;
+              // new_neighbour_vertex->vol_gain = neighbour_vertex->vol_gain;
               sparse_graph_->addVertex(new_neighbour_vertex);
               newly_added_vertices.push_back(new_vertex);
               
@@ -1108,6 +1112,9 @@ void GraphManager::insertBestPathsToSparseGraph (std::vector<std::vector<Vertex 
   {
 
     // Get nearby vertices from the current vertex and connect the them to form local edges
+
+    // GraphManager::computeVolumetricGainRayCasting(new_vertex->state, new_vertex->vol_gain);
+    
     std::vector<Vertex *> nearby_vertices;
     sparse_graph_->getNearestVertices(&new_vertex->state, knn_range_, &nearby_vertices);
 
@@ -1117,7 +1124,8 @@ void GraphManager::insertBestPathsToSparseGraph (std::vector<std::vector<Vertex 
       int num_edges = new_vertex->edges;
       double weight = (new_vertex->state - neighbour->state).norm();
 
-      if (num_edges < num_edges_max_ and weight < max_edge_length_)
+      // if (num_edges < num_edges_max_ and weight < max_edge_length_)
+      if (weight < max_edge_length_ and weight > 0.2)
       {
 
         if (!sparse_graph_->edgeExist(new_vertex->id, neighbour->id) and 
@@ -1131,12 +1139,12 @@ void GraphManager::insertBestPathsToSparseGraph (std::vector<std::vector<Vertex 
     }
   } 
   
+  GraphManager::clusterNodes(sparse_graph_); 
   global_root_vertex = vertex;
   
   GraphManager::visualizeSparseGraph();
   
 }
-
 
 bool GraphManager::expandSparseGraph () {
 
@@ -1189,7 +1197,8 @@ bool GraphManager::expandSparseGraph () {
       int num_edges = new_vertex->edges;
       double weight = (new_vertex->state - neighbour->state).norm();
 
-      if (num_edges < num_edges_max_ and weight < max_edge_length_)
+      // if (num_edges < num_edges_max_ and weight < max_edge_length_)
+      if (weight < max_edge_length_)
       {
 
         if (!sparse_graph_->edgeExist(new_vertex->id, neighbour->id) and 
@@ -2282,7 +2291,7 @@ void GraphManager::visualizeSparseGraph()
   for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
   {
     int id = g->getVertexProperty(it);
-    if (!v_map[id]->is_evaluated and v_map[id]->vol_gain.is_frontier)
+    if (v_map[id]->vol_gain.is_frontier and v_map[id]->is_cluster_centroid)
     {
       geometry_msgs::Point p1;
       p1.x = v_map[id]->state[0];
