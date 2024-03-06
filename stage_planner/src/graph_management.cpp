@@ -1292,7 +1292,7 @@ bool GraphManager::planGlobalPath(std::vector<std::vector<Vertex *>> dijkstra_pa
       gain = 100 * global_paths_[i].first.back()->vol_gain.unknown_percentage;
       path_length = global_paths_[i].second;
 
-      reward = gain/(path_length + 2);
+      reward = gain - (path_length);
       if (reward > my_reward)
       {
         my_reward = reward;
@@ -1663,7 +1663,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
     case 0:
       planner_status = GraphManager::setPath();
       res.path = exploration_path_;
-      ROS_INFO("Executing path segment \n");
+      // ROS_INFO("Executing path segment \n");
   }
 
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
