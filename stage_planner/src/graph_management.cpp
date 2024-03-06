@@ -2032,6 +2032,7 @@ void GraphManager::improvePath(std::vector<Vertex *> raw_path, std::vector<Verte
   }
 
   improvement_graph_->getShortestPath(goal_vertex->id, improvement_graph_rep_, true, path);
+
 }
 
 // Calculate relative Angle of a point wrt robot's current heading vector
