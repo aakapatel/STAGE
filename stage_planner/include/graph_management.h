@@ -66,6 +66,15 @@ public:
   
   StateVec eigenToState(Eigen::Vector3d v);
 
+
+  bool modifyPath(pcl::PointCloud<pcl::PointXYZ>* obstacle_pcl,
+                  Eigen::Vector3d& p0, Eigen::Vector3d& p1,
+                  Eigen::Vector3d& p1_mod); 
+
+  bool improveFreePath(const std::vector<geometry_msgs::Pose>& path_orig,
+                       std::vector<geometry_msgs::Pose>& path_mod,
+                       bool relaxed);
+
   void segmentPath(std::vector<Vertex *> path,
                    nav_msgs::Path &path_seg);
   void improvePath(std::vector<Vertex *> raw_path, std::vector<Vertex *> &path);
@@ -172,6 +181,12 @@ private:
   std::string sensor_name;
   SensorParams sensor_params_;
   SensorParams free_frustum_params_;
+  RobotParams robot_params_;
+  BoundedSpaceParams local_space_params_;
+  BoundedSpaceParams global_space_params_;
+  PlanningParams planning_params_;
+  
+  std::vector<BoundedSpaceParams> no_gain_zones_;
   StateVec robotStateWithYaw_;
   StateVec robotState_;
   std::shared_ptr<GraphUtils> sub_graph_;
@@ -181,6 +196,10 @@ private:
   std::shared_ptr<GraphUtils> pose_graph_;
   std::shared_ptr<GraphUtils> sparse_graph_;
    
+  std::shared_ptr<GeofenceManager> geofence_manager_;
+  std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> obs_pcl_;
+  std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> feasible_corridor_pcl_;
+  
   std::vector<std::shared_ptr<GraphUtils>> graph_vec_;
   
   std::vector<Vertex *> state_history;
@@ -296,6 +315,7 @@ private:
 
   // Publisher
   ros::Publisher m_frontierPub;
+  ros::Publisher m_modified_Path_Pub;
   ros::Publisher m_frontierSelectionPub;
   ros::Publisher command_pub;
   ros::Publisher local_Paths_Vis_Pub_;

@@ -51,6 +51,7 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
   // publishers
 
   m_frontierPub = nh_.advertise<visualization_msgs::MarkerArray>("/frontier_nodes_vis", 10);
+  m_modified_Path_Pub = nh_.advertise<nav_msgs::Path>("/modified_path", 10);
 
   local_Graph_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/local_planning_graph", 10);
 
@@ -97,6 +98,15 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
   std::string ns = ros::this_node::getName();
   sensor_params_.loadParams(ns + "/SensorParams");
   sensor_name = sensor_params_.sensor_list[0];
+  robot_params_.loadParams(ns + "/RobotParams");
+  global_space_params_.loadParams(ns + "/BoundedSpaceParams/Global");
+  local_space_params_.loadParams(ns + "/BoundedSpaceParams/Local");
+  planning_params_.loadParams(ns + "/PlanningParams");
+  
+  geofence_manager_.reset(new GeofenceManager());
+  geofence_manager_->loadParams(ns + "/GeofenceParams");
+  // ROS_INFO_STREAM ("planning param traverse length max = " << planning_params_.traverse_length_max << "\n");
+
   map_manager_->setRobotRadius(robot_box_size_.norm() / 2.0);
 };
 
@@ -1021,7 +1031,44 @@ bool GraphManager::planLocalPath(std::vector<std::vector<Vertex *>> dijkstra_pat
 
     best_path_.clear();
     GraphManager::improvePath(path, best_path_);
-    if (best_path_.empty())
+    std::vector<geometry_msgs::Pose> original_path;
+    std::vector<geometry_msgs::Pose> modified_path;
+    original_path.clear();
+    modified_path.clear();
+    geometry_msgs::Pose path_pose;
+    for (int i = 0; i != best_path_.size(); ++i) {
+      path_pose.position.x = best_path_[i]->state[0];
+      path_pose.position.y = best_path_[i]->state[1];
+      path_pose.position.z = best_path_[i]->state[2];
+      path_pose.orientation.x = 0;
+      path_pose.orientation.y = 0;
+      path_pose.orientation.z = 0.2;
+      path_pose.orientation.w = 1;
+      original_path.push_back(path_pose);
+    }
+
+    ROS_INFO_STREAM (" ** check check ** \n");
+    bool success = GraphManager::improveFreePath (original_path, modified_path, true);
+    
+    if (success) {
+      ROS_INFO_STREAM (" **** The modified path size is : " << modified_path.size() << " *** \n");
+      geometry_msgs::PoseStamped pose_mod;
+      nav_msgs::Path mod_path;
+      pose_mod.header.frame_id = m_worldFrameId;
+      pose_mod.header.stamp = ros::Time::now();
+      mod_path.header.frame_id = m_worldFrameId;
+      mod_path.header.stamp = ros::Time::now();
+
+      for (int i = 0; i != modified_path.size(); ++i){
+        pose_mod.pose.position.x = modified_path[i].position.x;
+        pose_mod.pose.position.y = modified_path[i].position.y;
+        pose_mod.pose.position.z = modified_path[i].position.z;
+        mod_path.poses.push_back(pose_mod);
+      }
+    
+      m_modified_Path_Pub.publish(mod_path);
+    } 
+    if (best_path_.empty()) 
     {
       ROS_WARN("Sub graph -> Improved local path is empty \n");
       path_status = false;
@@ -1411,6 +1458,463 @@ bool GraphManager::setPath()
   return path_set;
 
 }
+
+
+
+bool GraphManager::modifyPath(pcl::PointCloud<pcl::PointXYZ>* obstacle_pcl,
+                     Eigen::Vector3d& p0, Eigen::Vector3d& p1,
+                     Eigen::Vector3d& p1_mod) {
+  p1_mod = p1;
+
+  Eigen::Vector3d p_center;
+  p_center = (p0 + p1) / 2.0;
+  Eigen::Vector3d p_dir;
+  p_dir = (p1 - p0);
+  double radius = p_dir.norm() / 2.0;
+  Eigen::Vector3d x_axis(1.0, 0.0, 0.0);
+  Eigen::Quaternion<double> quat_W2S;
+  // Use the spherical with Cartesian (Forward, left, up) coordinate
+  Eigen::Vector3d p_dir_norm = p_dir.normalized();
+  double yaw_angle = std::atan2(p_dir_norm.y(), p_dir_norm.x());
+  double pitch_angle =
+      -std::atan2(p_dir_norm.z(), std::sqrt(p_dir_norm.x() * p_dir_norm.x() +
+                                            p_dir_norm.y() * p_dir_norm.y()));
+  quat_W2S = Eigen::AngleAxisd(yaw_angle, Eigen::Vector3d::UnitZ()) *
+             Eigen::AngleAxisd(pitch_angle, Eigen::Vector3d::UnitY());
+
+  pcl::PointCloud<pcl::PointXYZ>* pcl_tf(new pcl::PointCloud<pcl::PointXYZ>());
+  Eigen::Translation<double, 3> trans_W2S(p_center);
+  Eigen::Transform<double, 3, Eigen::Affine> tf_W2S(trans_W2S * quat_W2S);
+  pcl::transformPointCloud(*obstacle_pcl, *pcl_tf, tf_W2S.inverse());
+
+  // add a local bounding box
+  double kDx = robot_params_.safety_extension[0];
+  double kDy = robot_params_.safety_extension[1];
+  double kDz = robot_params_.safety_extension[2];
+
+  // 6 rectanges in form:  ax+by+cz = 1
+  std::vector<Eigen::Vector3d> u_l;
+  std::vector<Eigen::Vector3d> p_l;
+  u_l.push_back(Eigen::Vector3d(1.0, 0.0, 0.0));
+  u_l.push_back(Eigen::Vector3d(1.0, 0.0, 0.0));
+  u_l.push_back(Eigen::Vector3d(0.0, 1.0, 0.0));
+  u_l.push_back(Eigen::Vector3d(0.0, 1.0, 0.0));
+  u_l.push_back(Eigen::Vector3d(0.0, 0.0, 1.0));
+  u_l.push_back(Eigen::Vector3d(0.0, 0.0, 1.0));
+  p_l.push_back(Eigen::Vector3d(-radius - kDx, 0.0, 0.0));
+  p_l.push_back(Eigen::Vector3d(radius + kDx, 0.0, 0.0));
+  p_l.push_back(Eigen::Vector3d(0.0, -kDy, 0.0));
+  p_l.push_back(Eigen::Vector3d(0.0, kDy, 0.0));
+  p_l.push_back(Eigen::Vector3d(0.0, 0.0, -kDz));
+  p_l.push_back(Eigen::Vector3d(0.0, 0.0, kDz));
+  std::vector<Eigen::Vector3d> hyperplane_list;
+  std::vector<Eigen::Vector3d> tangent_point_list;
+  for (int i = 0; i < 6; ++i) {
+    Eigen::Vector3d a_l;
+    a_l = u_l[i] / (u_l[i].dot(p_l[i]));
+    tangent_point_list.push_back(p_l[i]);
+    hyperplane_list.push_back(a_l);
+  }
+
+  // Keep points inside the local box only
+  pcl::PointCloud<pcl::PointXYZ>* pcl_in_box(
+      new pcl::PointCloud<pcl::PointXYZ>());
+  for (auto p = pcl_tf->begin(); p != pcl_tf->end(); ++p) {
+    // Check all 6 hyperplanes
+    const double kDSign = 0.05;  // numeric issue
+    double sign;
+    int i = 0;
+    for (i = 0; i < 6; ++i) {
+      sign = p->x * hyperplane_list[i].x() + p->y * hyperplane_list[i].y() +
+             p->z * hyperplane_list[i].z() - 1;
+      if (sign > kDSign) break;
+    }
+    if (i == 6) {
+      // inside the local box
+      pcl_in_box->push_back(*p);
+    }
+  }
+  if (pcl_in_box->size())
+    pcl::copyPointCloud(*pcl_in_box, *pcl_tf);
+  else {
+    // full free space --> keep current vertex.
+    return true;
+  }
+
+  // Find closest point
+  double dist_min_sq = std::numeric_limits<double>::max();
+  Eigen::Vector3d p_tangent;
+  for (auto p = pcl_tf->begin(); p != pcl_tf->end(); ++p) {
+    double dist_t = p->x * p->x + p->y * p->y + p->z * p->z;
+    if (dist_t < dist_min_sq) {
+      dist_min_sq = dist_t;
+      p_tangent << p->x, p->y, p->z;
+    }
+  }
+
+  const double kDDist = 0.01;  // deal with numeric error.
+  if ((dist_min_sq == std::numeric_limits<double>::max()) ||
+      (dist_min_sq < kDDist)) {
+    // the path is too close to obstacle.
+    ROS_WARN_COND(global_verbosity >= Verbosity::DEBUG, "[IMPRV] Path too close to obstacle");
+    return false;
+  }
+
+  double a = radius, b = radius, c = radius;  // dimensions of the ellipsoid.
+  // Check if we need to adjust the sphere to ellipsoid.
+  if (dist_min_sq < (radius * radius)) {
+    // Reduce other axes
+    b = std::sqrt(
+        (p_tangent.y() * p_tangent.y() + p_tangent.z() * p_tangent.z()) /
+        (1 - p_tangent.x() * p_tangent.x() / (a * a)));
+    c = b;  // Set equal b for now; but could increase.???
+    // Fit the first hyperplane: x x_l + y y_l + z z_l = 1
+    Eigen::Vector3d hyperplane_last =
+        Eigen::Vector3d(p_tangent.x() / (a * a), p_tangent.y() / (b * b),
+                        p_tangent.z() / (c * c));
+    hyperplane_list.push_back(hyperplane_last);
+    tangent_point_list.push_back(p_tangent);
+  }
+
+  // Increase the ellipsoid and repeat.
+  bool stop = false;
+  int n_max = 0;  // magic number: max 50 hyperplanes
+  while ((!stop) && (n_max < 50)) {
+    ++n_max;
+    pcl::PointCloud<pcl::PointXYZ>* pcl_reduced(
+        new pcl::PointCloud<pcl::PointXYZ>());
+    // Also re-scale each dimension followed the dimentions of ellipsoid
+    if (hyperplane_list.size()) {
+      Eigen::Vector3d hyperplane_last;
+      hyperplane_last = hyperplane_list.back();
+      // Reduce point: keep points on the same side with zero origin (sign < 0)
+      for (auto p = pcl_tf->begin(); p != pcl_tf->end(); ++p) {
+        double sign = p->x * hyperplane_last.x() + p->y * hyperplane_last.y() +
+                      p->z * hyperplane_last.z() - 1;
+        const double kDSign = -0.05;  // numeric issue
+        if (sign < kDSign) {
+          // same side with the ellipsoid.
+          pcl_reduced->push_back(*p);
+        }
+      }
+    } else {
+      pcl::copyPointCloud(*pcl_tf, *pcl_reduced);
+    }
+
+    Eigen::Vector3d p_tangent1;
+    dist_min_sq = std::numeric_limits<double>::max();
+    for (auto p = pcl_reduced->begin(); p != pcl_reduced->end(); ++p) {
+      // Scale to get next closest point.
+      pcl::PointXYZ pv;
+      pv.x = p->x / a;
+      pv.y = p->y / b;
+      pv.z = p->z / c;
+      double dist_t = pv.x * pv.x + pv.y * pv.y + pv.z * pv.z;
+      if (dist_t < dist_min_sq) {
+        dist_min_sq = dist_t;
+        p_tangent1 << p->x, p->y, p->z;
+      }
+    }
+    if ((pcl_reduced->size() == 0) ||
+        (dist_min_sq == std::numeric_limits<double>::max())) {
+      stop = true;
+    } else {
+      double e_ext = dist_min_sq;
+      Eigen::Vector3d hyperplane_new = Eigen::Vector3d(
+          p_tangent1.x() / (a * a * e_ext), p_tangent1.y() / (b * b * e_ext),
+          p_tangent1.z() / (c * c * e_ext));
+      hyperplane_list.push_back(hyperplane_new);
+      tangent_point_list.push_back(p_tangent1);
+      pcl_tf->clear();
+      pcl::copyPointCloud(*pcl_reduced, *pcl_tf);
+    }
+  }
+  if (!stop) {
+    // Require too many hyperplanes
+    return false;
+  }
+
+  // Find the polygon formed from intersections between the bisector plane vs.
+  // all hyperplanes Not sure how to get the closed-form solution, also issue
+  // with unknown voxels
+  //  --> get average from uniform sampling on the y-z plane (body coordinate)
+  std::vector<Eigen::Vector3d> feasible_samples;
+  for (double dy = -kDy; dy < kDy; dy += 0.1) {
+    for (double dz = -kDz; dz < kDz; dz += 0.1) {
+      Eigen::Vector3d p(radius, dy, dz);
+      // check if this is inside all hyperplanes.
+      const double kDSign = -0.05;  // numeric issue
+      double sign;
+      int i = 0;
+      for (i = 0; i < hyperplane_list.size(); ++i) {
+        sign = p.x() * hyperplane_list[i].x() + p.y() * hyperplane_list[i].y() +
+               p.z() * hyperplane_list[i].z() - 1;
+        if (sign > kDSign) break;
+      }
+      if (i == hyperplane_list.size()) {
+        feasible_samples.push_back(p);
+      }
+    }
+  }
+
+  for (int i = 0; i < hyperplane_list.size(); ++i) {
+    tangent_point_list[i] =
+        tf_W2S * tangent_point_list[i];  // convert back to world
+    Eigen::Matrix4d tf_inv_T = tf_W2S.matrix().inverse().transpose();
+    Eigen::Vector4d v_t;
+    v_t = tf_inv_T * Eigen::Vector4d(hyperplane_list[i].x(),
+                                     hyperplane_list[i].y(),
+                                     hyperplane_list[i].z(), -1.0);
+    v_t = v_t / (-v_t[3]);
+    hyperplane_list[i] << v_t.x(), v_t.y(), v_t.z();
+  }
+
+  p1_mod << 0.0, 0.0, 0.0;
+  int feasible_count = 0;
+  for (int i = 0; i < feasible_samples.size(); ++i) {
+    feasible_samples[i] =
+        tf_W2S * feasible_samples[i];  // convert back to world
+    // check if this is free voxel to deal with occluded area.
+    if (map_manager_->getVoxelStatus(feasible_samples[i]) ==
+        MapManager::VoxelStatus::kFree) {
+      feasible_corridor_pcl_->push_back(pcl::PointXYZ(feasible_samples[i].x(),
+                                                      feasible_samples[i].y(),
+                                                      feasible_samples[i].z()));
+      p1_mod = p1_mod + feasible_samples[i];
+      ++feasible_count;
+    }
+  }
+
+  if (feasible_count) {
+    p1_mod = p1_mod / feasible_count;
+  } else {
+    return false;
+  }
+
+  return true;
+}
+
+bool GraphManager::improveFreePath(const std::vector<geometry_msgs::Pose>& path_orig,
+                          std::vector<geometry_msgs::Pose>& path_mod,
+                          bool relaxed) {
+  // Few heuristics to improve the path.
+  // a) Shorten path by reducing intermidiate nodes. (be careful with turning
+  // cases) Shorten/reduce some very short paths to prevent small motion and
+  // sudden change in angles. b) Adjust nodes to its neighbors to improve safety
+  // c) Ignore leaf node of the path to prevent the robot to come too close the
+  // obstacle
+
+  if (path_orig.empty()) return false;
+
+  // Interpolate path
+  std::vector<geometry_msgs::Pose> path_orig_interp = path_orig;
+  double kInterpolationDistance =
+      planning_params_.path_interpolation_distance * 2.0;
+  std::vector<geometry_msgs::Pose> interp_path_orig;
+  if (Trajectory::interpolatePath(path_orig, kInterpolationDistance,
+                                  interp_path_orig)) {
+    path_orig_interp = interp_path_orig;
+  }
+
+  // Feature a) Remove short intermidiate vertices.
+  std::vector<geometry_msgs::Pose> path_mod1 = path_orig_interp;
+
+  const double kSegmentLenMin = 0.5;
+  bool cont_refine = true;
+  while (cont_refine) {
+    cont_refine = false;
+    if (path_mod1.size() > 2) {
+      for (int i = 0; i < (path_mod1.size() - 2); ++i) {
+        Eigen::Vector3d p_start(path_mod1[i].position.x,
+                                path_mod1[i].position.y,
+                                path_mod1[i].position.z);
+        Eigen::Vector3d p_int(path_mod1[i + 1].position.x,
+                              path_mod1[i + 1].position.y,
+                              path_mod1[i + 1].position.z);
+        Eigen::Vector3d p_end(path_mod1[i + 2].position.x,
+                              path_mod1[i + 2].position.y,
+                              path_mod1[i + 2].position.z);
+        Eigen::Vector3d segment = p_int - p_start;
+        double segment_len = segment.norm();
+        // ROS_WARN_COND(global_verbosity >= Verbosity::WARN, "Segment length %f.", segment_len);
+        if (segment_len < kSegmentLenMin) {
+          if ((MapManager::VoxelStatus::kFree ==
+               map_manager_->getPathStatus(p_start, p_end, robot_box_size_,
+                                           false)) &&
+              (!planning_params_.geofence_checking_enable ||
+               (GeofenceManager::CoordinateStatus::kOK ==
+                geofence_manager_->getPathStatus(
+                    Eigen::Vector2d(p_start[0], p_start[1]),
+                    Eigen::Vector2d(p_end[0], p_end[1]),
+                    Eigen::Vector2d(robot_box_size_[0],
+                                    robot_box_size_[1]))))) {
+            // ignore the intermidiate nore, combine the first to the last node.
+            ROS_WARN_COND(global_verbosity >= Verbosity::WARN, "Combine nodes to remove short segments.");
+            path_mod1.erase(path_mod1.begin() + i + 1);
+            cont_refine = true;
+            break;
+          }
+        }
+      }
+    } else {
+      return false;
+    }
+  }
+
+  // Implement (b) first: form a safe corridor along each path from cutting
+  // hyperplanes.
+  feasible_corridor_pcl_.reset(new pcl::PointCloud<pcl::PointXYZ>());
+  geometry_msgs::Pose pose0;
+  pose0.position.x = path_mod1[0].position.x;
+  pose0.position.y = path_mod1[0].position.y;
+  pose0.position.z = path_mod1[0].position.z;
+  pose0.orientation.x = path_mod1[0].orientation.x;
+  pose0.orientation.y = path_mod1[0].orientation.y;
+  pose0.orientation.z = path_mod1[0].orientation.z;
+  pose0.orientation.w = path_mod1[0].orientation.w;
+  path_mod.push_back(pose0);
+  bool mod_success = true;
+
+  for (int i = 1; i < path_mod1.size(); ++i) {
+    Eigen::Vector3d p0(path_mod1[i - 1].position.x, path_mod1[i - 1].position.y,
+                       path_mod1[i - 1].position.z);
+    Eigen::Vector3d p0_mod(path_mod[i - 1].position.x,
+                           path_mod[i - 1].position.y,
+                           path_mod[i - 1].position.z);
+    Eigen::Vector3d p1(path_mod1[i].position.x, path_mod1[i].position.y,
+                       path_mod1[i].position.z);
+    Eigen::Vector3d p1_parallel = p0_mod + p1 - p0;
+
+    Eigen::Vector3d p2;
+    bool do_check_p2 = false;
+    if (i < path_mod1.size() - 1) {
+      do_check_p2 = true;
+      p2 = Eigen::Vector3d(path_mod1[i + 1].position.x,
+                           path_mod1[i + 1].position.y,
+                           path_mod1[i + 1].position.z);
+    }
+
+    Eigen::Vector3d p1_target;
+    bool seg_free = true;
+
+    bool e1_admissible = false;
+    bool e2_admissible = false;
+    if (robot_params_.type == RobotType::kAerialRobot) {
+      MapManager::VoxelStatus vs1 = map_manager_->getPathStatus(
+          p0_mod, p1_parallel, robot_box_size_, true);
+      if (vs1 == MapManager::VoxelStatus::kFree) e1_admissible = true;
+      MapManager::VoxelStatus vs2 =
+          map_manager_->getPathStatus(p0_mod, p1, robot_box_size_, true);
+      if (vs2 == MapManager::VoxelStatus::kFree) e2_admissible = true;
+    } 
+    if (e1_admissible) {
+      p1_target = p1_parallel;
+    } else if (e2_admissible) {
+      p1_target = p1;
+    } else {
+      ROS_WARN("Segment not free \n");
+      seg_free = false;
+    }
+
+    Eigen::Vector3d p1_mod;
+    geometry_msgs::Pose pose;
+
+    Eigen::Vector3d p_center;
+    p_center = (p0_mod + p1_target) / 2.0;
+    Eigen::Vector3d p_dir;
+    p_dir = (p1 - p0);
+    double radius = p_dir.norm() / 2.0;
+    // add a local bounding box
+    Eigen::Vector3d safety_extension;
+    safety_extension = robot_params_.safety_extension;
+    if (relaxed)
+      safety_extension(1) *= planning_params_.relaxed_corridor_multiplier;
+    Eigen::Vector3d local_bbx(2 * (radius + safety_extension[0]),
+                              2 * safety_extension[1], 2 * safety_extension[2]);
+    std::vector<Eigen::Vector3d> occupied_voxels;
+    std::vector<Eigen::Vector3d> free_voxels;
+    map_manager_->extractLocalMapAlongAxis(p_center, p_dir, local_bbx,
+                                           occupied_voxels, free_voxels);
+
+    pcl::PointCloud<pcl::PointXYZ>* obstacle_pcl(
+        new pcl::PointCloud<pcl::PointXYZ>());
+    for (auto& v : occupied_voxels) {
+      obstacle_pcl->push_back(pcl::PointXYZ(v.x(), v.y(), v.z()));
+    }
+    
+    ROS_INFO("check before mod ");
+
+    bool modification_successful =
+        (modifyPath(obstacle_pcl, p0_mod, p1_target, p1_mod));
+    ROS_INFO("check after mod ");
+    if (seg_free && modification_successful) {
+      bool e1_admissible = false;
+      bool e2_admissible = false;
+      if (robot_params_.type == RobotType::kAerialRobot) {
+        MapManager::VoxelStatus vs1 =
+            map_manager_->getPathStatus(p0_mod, p1_mod, robot_box_size_, true);
+        if (vs1 == MapManager::VoxelStatus::kFree) e1_admissible = true;
+        MapManager::VoxelStatus vs2 =
+            map_manager_->getPathStatus(p1_mod, p2, robot_box_size_, true);
+        if (vs2 == MapManager::VoxelStatus::kFree) e2_admissible = true;
+      } 
+
+      if (!(e1_admissible) ||
+          (planning_params_.geofence_checking_enable &&
+           (GeofenceManager::CoordinateStatus::kViolated ==
+            geofence_manager_->getPathStatus(
+                Eigen::Vector2d(p0_mod[0], p0_mod[1]),
+                Eigen::Vector2d(p1_mod[0], p1_mod[1]),
+                Eigen::Vector2d(robot_box_size_[0], robot_box_size_[1])))) ||
+          (do_check_p2 && (!(e2_admissible) ||
+                           (planning_params_.geofence_checking_enable &&
+                            (GeofenceManager::CoordinateStatus::kViolated ==
+                             geofence_manager_->getPathStatus(
+                                 Eigen::Vector2d(p1_mod[0], p1_mod[1]),
+                                 Eigen::Vector2d(p2[0], p2[1]),
+                                 Eigen::Vector2d(robot_box_size_[0],
+                                                 robot_box_size_[1]))))))) {
+        p1_mod = p1;
+        mod_success = false;
+        ROS_WARN("Newly modified path is not collision-free.");
+        // break; // break to save time @recheck
+      }
+    } else {
+      p1_mod = p1;
+      // mod_success = false;
+      // break; // break to save time @recheck
+    }
+    pose.position.x = p1_mod.x();
+    pose.position.y = p1_mod.y();
+    pose.position.z = p1_mod.z();
+    path_mod.push_back(pose);
+  }
+
+  // Correct the heading angle tangent with the moving direction again.
+  // Re-Assign the first heading
+  path_mod[0].orientation.x = path_orig_interp[0].orientation.x;
+  path_mod[0].orientation.y = path_orig_interp[0].orientation.y;
+  path_mod[0].orientation.z = path_orig_interp[0].orientation.z;
+  path_mod[0].orientation.w = path_orig_interp[0].orientation.w;
+  // if ((mod_success) && (planning_params_.yaw_tangent_correction)) {
+  //   for (int i = 1; i < path_mod.size(); ++i) {
+  //     Eigen::Vector3d vec(path_mod[i].position.x - path_mod[i - 1].position.x,
+  //                         path_mod[i].position.y - path_mod[i - 1].position.y,
+  //                         path_mod[i].position.z - path_mod[i - 1].position.z);
+  //     if (planning_params_.planning_backward) vec = -vec;
+  //     double yawhalf = 0.5 * std::atan2(vec[1], vec[0]);
+  //     path_mod[i].orientation.x = 0.0;
+  //     path_mod[i].orientation.y = 0.0;
+  //     path_mod[i].orientation.z = sin(yawhalf);
+  //     path_mod[i].orientation.w = cos(yawhalf);
+  //   }
+  // }
+
+  // visualization_->visualizePCL(feasible_corridor_pcl_.get());
+  return mod_success;
+}
+
+
 void GraphManager::improvePath(std::vector<Vertex *> raw_path, std::vector<Vertex *> &path)
 {
 

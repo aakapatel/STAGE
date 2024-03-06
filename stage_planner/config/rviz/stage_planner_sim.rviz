@@ -24,6 +24,7 @@ Panels:
         - /MarkerArray11
         - /PointCloud22
         - /MarkerArray12
+        - /Path2
       Splitter Ratio: 0.5
     Tree Height: 770
   - Class: rviz/Selection
@@ -125,8 +126,7 @@ Visualization Manager:
       Marker Topic: /global_dijkstra_paths
       Name: MarkerArray
       Namespaces:
-        edges: true
-        vertices: true
+        {}
       Queue Size: 100
       Value: true
     - Alpha: 0.029999999329447746
@@ -171,7 +171,6 @@ Visualization Manager:
       Name: MarkerArray
       Namespaces:
         edges: true
-        frontier: true
         vertices: true
       Queue Size: 100
       Value: true
@@ -245,6 +244,30 @@ Visualization Manager:
         {}
       Queue Size: 100
       Value: false
+    - Alpha: 1
+      Buffer Length: 1
+      Class: rviz/Path
+      Color: 25; 255; 0
+      Enabled: true
+      Head Diameter: 0.30000001192092896
+      Head Length: 0.20000000298023224
+      Length: 0.30000001192092896
+      Line Style: Billboards
+      Line Width: 0.20000000298023224
+      Name: Path
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Pose Color: 255; 85; 255
+      Pose Style: None
+      Queue Size: 10
+      Radius: 0.029999999329447746
+      Shaft Diameter: 0.10000000149011612
+      Shaft Length: 0.10000000149011612
+      Topic: /modified_path
+      Unreliable: false
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 0; 0; 0
@@ -273,7 +296,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 101.55740356445312
+      Distance: 19.218368530273438
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -281,9 +304,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 8.567037582397461
-        Y: 26.855091094970703
-        Z: -1.164555549621582
+        X: 0.9864455461502075
+        Y: 0.8576313853263855
+        Z: -1.28465735912323
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -291,7 +314,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: hummingbird/base_link
-      Yaw: 3.1385786533355713
+      Yaw: 3.1435742378234863
     Saved: ~
 Window Geometry:
   Displays:
