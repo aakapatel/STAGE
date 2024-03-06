@@ -118,7 +118,7 @@ PlanningParams:
   leafs_only_for_volumetric_gain: true # Whether to calculate gain of the entire path or only the leaf nodes
   cluster_vertices_for_gain: true
   clustering_radius: 0.5
-  path_interpolation_distance: 0.5
+  path_interpolation_distance: 1.5
   
   time_budget_limit: 480 # seconds
   auto_homing_enable: true

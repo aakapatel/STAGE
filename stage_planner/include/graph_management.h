@@ -75,7 +75,7 @@ public:
                        std::vector<geometry_msgs::Pose>& path_mod,
                        bool relaxed);
 
-  void segmentPath(std::vector<Vertex *> path,
+  void segmentPath(nav_msgs::Path path,
                    nav_msgs::Path &path_seg);
   void improvePath(std::vector<Vertex *> raw_path, std::vector<Vertex *> &path);
 
@@ -263,7 +263,7 @@ private:
   bool reached_end_of_path_ = true;
   int path_iterator_ = 0;
   std::vector<Vertex *> best_path_;
-
+  nav_msgs::Path mod_path_;
 
   //
   
