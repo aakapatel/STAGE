@@ -209,7 +209,7 @@ public:
   
   Vertex* getVertexBySubId (int s_id);
   
-  void findLeafVertices(std::vector<Vertex *>& leaf_vertices, const ShortestPathsReport& rep);
+  void findLeafVertices(const ShortestPathsReport& rep);
   Vertex* getVertex(int id) { return vertices_map_[id]; }
   int getNumNeighbours (Vertex* v);
 
@@ -230,7 +230,7 @@ public:
   
   std::vector<int> state_ids_;
   std::vector<int> frontier_ids_;
-
+  std::vector<int> leaf_vertices_ids_;
 private:
   
   // IDs are non-negative integer from 0 (root node)

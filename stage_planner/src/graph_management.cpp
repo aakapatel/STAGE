@@ -893,29 +893,49 @@ bool GraphManager::extractShortestPaths (std::shared_ptr<GraphUtils> graph, Shor
     // GraphManager::orientVertices(graph, rep);
   // }
   
-  std::vector<Vertex *> leaf_vertices;
   dijkstra_paths.clear();
-  leaf_vertices.clear(); 
-  graph->findLeafVertices(leaf_vertices, rep);
+  graph->findLeafVertices(rep);
  
   std::pair<Graph::GraphType::vertex_iterator,
   Graph::GraphType::vertex_iterator> vi;
   graph->graph_->getVertexIterator(vi);
 
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
-  if (leaf_vertices.empty()) {
+  if (graph->leaf_vertices_ids_.empty()) {
     return false;
   }
-  for (Vertex * vertex : leaf_vertices)
+  for (int id : graph->leaf_vertices_ids_)
   {
-    int id = vertex->id;
+    Vertex * vertex = graph->vertices_map_[id];
     
-    // compute and assign volumetric gain to the vertex
+    if (!vertex->is_evaluated) {
+      
+      // compute and assign volumetric gain to the vertex
+      // Assign same gain and frontier status to the neighbours for efficient expansion
+      GraphManager::computeVolumetricGainRayCasting(vertex->state, vertex->vol_gain);
+      std::vector<Vertex *> nearby_vertices;
+      graph->getNearestVertices(&graph->vertices_map_[id]->state, knn_range_, &nearby_vertices);
 
-    GraphManager::computeVolumetricGainRayCasting(vertex->state, vertex->vol_gain);
-    GraphManager::clusterNodes(graph); 
+      for (int i = 0; i < nearby_vertices.size(); i++)
+      {
+
+        Vertex* neighbour = nearby_vertices[i]; 
+        neighbour->vol_gain.gain = vertex->vol_gain.gain;
+        neighbour->vol_gain.is_frontier = vertex->vol_gain.is_frontier;
+        vertex->is_evaluated = true;
+        neighbour->is_evaluated = true;
+      }
+    }
+
+  }
+
+  // cluster the nodes based on their volumetric gain 
     
-    // cluster the nodes based on their volumetric gain 
+  GraphManager::clusterNodes(graph); 
+  
+  for (int id : graph->leaf_vertices_ids_)
+  {
+    Vertex * vertex = graph->vertices_map_[id];
     
     if (vertex->vol_gain.is_frontier and vertex->is_cluster_centroid)
     {
@@ -929,6 +949,7 @@ bool GraphManager::extractShortestPaths (std::shared_ptr<GraphUtils> graph, Shor
         dijkstra_paths.push_back(dijkstra_path);
       }
     }
+
   }
   
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
@@ -1053,7 +1074,6 @@ void GraphManager::updateSparseGraph()
   }
 
   GraphManager::visualizeSparseGraph();
-  // pose_graph_ids_.push_back(vertex->id);
 
 }
 
@@ -1144,8 +1164,11 @@ void GraphManager::insertBestPathsToSparseGraph (std::vector<std::vector<Vertex 
     }
   } 
   
+  ROS_INFO("Check before clustering --");
   GraphManager::clusterNodes(sparse_graph_); 
+  ROS_INFO("Check after clustering --");
   global_root_vertex = vertex;
+  ROS_INFO("Check after vertex lookup --");
   
   GraphManager::visualizeSparseGraph();
   
@@ -1217,7 +1240,9 @@ bool GraphManager::expandSparseGraph () {
     }
   }
 
+  ROS_INFO("Check before --");
   global_root_vertex = r_vertex;
+  ROS_INFO("Check after --");
   
   GraphManager::visualizeSparseGraph();
 
@@ -1564,14 +1589,14 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
           
           visualizeLocalGraph();
           GraphManager::insertBestPathsToSparseGraph(dijkstra_paths);
-          // ROS_INFO("Successfully inserted best paths \n");
+          ROS_INFO("Successfully inserted best paths \n");
           if (GraphManager::planLocalPath(dijkstra_paths)) {
 
-            // ROS_INFO("Successfully planned local path \n");
+            ROS_INFO("Successfully planned local path \n");
             
             if (GraphManager::setPath()) {
 
-              // ROS_INFO("local path set success! \n");
+              ROS_INFO("local path set success! \n");
               res.path = exploration_path_;
               ++planning_iteration_;
               break;
@@ -1589,10 +1614,10 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
               if (GraphManager::planGlobalPath(dijkstra_paths)) {
 
-                // ROS_INFO ("Successfully planner global paths \n");
+                ROS_INFO ("Successfully planner global paths \n");
 
                 if (GraphManager::setPath()) {
-                  // ROS_INFO("Global path set success !\n");
+                  ROS_INFO("Global path set success !\n");
                   res.path = exploration_path_;
                   ++planning_iteration_;
                   break;
@@ -1609,7 +1634,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
           
           if (GraphManager::expandSparseGraph()) {
 
-            // ROS_INFO("Expanded sparse graph for global planning \n");
+            ROS_INFO("Expanded sparse graph for global planning \n");
             std::vector<std::vector<Vertex *>> dijkstra_paths;
             dijkstra_paths.clear();
 
@@ -1617,10 +1642,10 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
               if (GraphManager::planGlobalPath(dijkstra_paths)) {
 
-                // ROS_INFO ("Successfully planner global paths \n");
+                ROS_INFO ("Successfully planner global paths \n");
 
                 if (GraphManager::setPath()) {
-                  // ROS_INFO("Global path set success !\n");
+                  ROS_INFO("Global path set success !\n");
                   res.path = exploration_path_;
                   ++planning_iteration_;
                   break;
@@ -1638,7 +1663,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
     case 0:
       planner_status = GraphManager::setPath();
       res.path = exploration_path_;
-      // ROS_INFO("Executing path segment \n");
+      ROS_INFO("Executing path segment \n");
   }
 
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
