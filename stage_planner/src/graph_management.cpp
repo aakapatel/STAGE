@@ -1842,11 +1842,8 @@ bool GraphManager::improveFreePath(const std::vector<geometry_msgs::Pose>& path_
       obstacle_pcl->push_back(pcl::PointXYZ(v.x(), v.y(), v.z()));
     }
     
-    ROS_INFO("check before mod ");
-
     bool modification_successful =
         (modifyPath(obstacle_pcl, p0_mod, p1_target, p1_mod));
-    ROS_INFO("check after mod ");
     if (seg_free && modification_successful) {
       bool e1_admissible = false;
       bool e2_admissible = false;
