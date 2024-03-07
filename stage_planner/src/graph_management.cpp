@@ -929,7 +929,7 @@ bool GraphManager::extractShortestPaths (std::shared_ptr<GraphUtils> graph, Shor
         if (vertex->vol_gain.is_frontier) {
 
           vertex->is_evaluated = false;
-          neighbour->is_evaluated = true;
+          neighbour->is_evaluated = false;
         } else {
 
           vertex->is_evaluated = true;
@@ -948,7 +948,8 @@ bool GraphManager::extractShortestPaths (std::shared_ptr<GraphUtils> graph, Shor
   {
     Vertex * vertex = graph->vertices_map_[id];
     
-    if (vertex->vol_gain.is_frontier and vertex->is_cluster_centroid)
+    // if (vertex->vol_gain.is_frontier and vertex->is_cluster_centroid)
+    if (vertex->vol_gain.is_frontier)
     {
       std::vector<Vertex *> dijkstra_path;
       dijkstra_path.clear();
@@ -1196,7 +1197,9 @@ void GraphManager::insertBestPathsToSparseGraph (std::vector<std::vector<Vertex 
       if (weight < max_edge_length_ and weight > 0.2)
       {
 
-        if (!sparse_graph_->edgeExist(new_vertex->id, neighbour->id) and 
+        // if (!sparse_graph_->edgeExist(new_vertex->id, neighbour->id) and 
+        //   MapManager::VoxelStatus::kFree == map_manager_->getPathStatus(new_vertex->state_3d, neighbour->state_3d, robot_box_size_, true))
+        if ( 
           MapManager::VoxelStatus::kFree == map_manager_->getPathStatus(new_vertex->state_3d, neighbour->state_3d, robot_box_size_, true))
         {
 
