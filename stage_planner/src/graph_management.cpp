@@ -823,7 +823,6 @@ bool GraphManager::buildLocalGraph()
   {
     Vertex *vertex = new Vertex(sub_graph_->generateVertexID(), eigenToState(*(nodes[i]->point)));
     sub_graph_->addVertex(vertex);
-    
   }
 
   std::pair<Graph::GraphType::vertex_iterator,
@@ -836,13 +835,9 @@ bool GraphManager::buildLocalGraph()
     int id = sub_graph_->graph_->getVertexProperty(it);
     Vertex* vertex = sub_graph_->vertices_map_[id];
     
-    if (GraphManager::pointInsideFrustumVolume(vertex->state)) {
-      vertex->is_inside_frustum = true;
-    }
-
     // Get nearby vertices from the current vertex and connect the them to form local edges
     std::vector<Vertex *> nearby_vertices;
-    sub_graph_->getNearestVertices(&sub_graph_->vertices_map_[id]->state, 2, &nearby_vertices);
+    sub_graph_->getNearestVertices(&sub_graph_->vertices_map_[id]->state, knn_range_, &nearby_vertices);
 
     for (int i = 0; i < nearby_vertices.size(); i++)
     {
@@ -910,7 +905,6 @@ bool GraphManager::extractShortestPaths (std::shared_ptr<GraphUtils> graph, Shor
   Graph::GraphType::vertex_iterator> vi;
   graph->graph_->getVertexIterator(vi);
 
-  high_resolution_clock::time_point start_total = high_resolution_clock::now();
   if (graph->leaf_vertices_ids_.empty()) {
     return false;
   }
@@ -932,8 +926,15 @@ bool GraphManager::extractShortestPaths (std::shared_ptr<GraphUtils> graph, Shor
         Vertex* neighbour = nearby_vertices[i]; 
         neighbour->vol_gain.gain = vertex->vol_gain.gain;
         neighbour->vol_gain.is_frontier = vertex->vol_gain.is_frontier;
-        vertex->is_evaluated = true;
-        neighbour->is_evaluated = true;
+        if (vertex->vol_gain.is_frontier) {
+
+          vertex->is_evaluated = false;
+          neighbour->is_evaluated = true;
+        } else {
+
+          vertex->is_evaluated = true;
+          neighbour->is_evaluated = true;
+        }
       }
     }
 
@@ -962,9 +963,6 @@ bool GraphManager::extractShortestPaths (std::shared_ptr<GraphUtils> graph, Shor
 
   }
   
-  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
-  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-  ROS_INFO_STREAM("Gain Evaluation and clustering takes \t " << duration_total.count() << " ms \n");
 
   if (!dijkstra_paths.empty()) {
     path_status = true;
@@ -1126,7 +1124,7 @@ void GraphManager::insertBestPathsToSparseGraph (std::vector<std::vector<Vertex 
 
   bool graph_status = true;
   if (dijkstra_paths.empty()) {
-    ROS_WARN("Best path empty. Can not insert paths into sparse graph \n");
+    ROS_WARN("Dijkstra paths are empty. Can not insert paths into sparse graph \n");
     return;
   }
 
@@ -1162,7 +1160,7 @@ void GraphManager::insertBestPathsToSparseGraph (std::vector<std::vector<Vertex 
             if (!sparse_graph_->vertexExist(neighbour_vertex->state)) {
 
               Vertex* new_neighbour_vertex = new Vertex (sparse_graph_->generateVertexID(), neighbour_vertex->state);
-              // new_neighbour_vertex->vol_gain = neighbour_vertex->vol_gain;
+              new_neighbour_vertex->vol_gain = neighbour_vertex->vol_gain;
               sparse_graph_->addVertex(new_neighbour_vertex);
               newly_added_vertices.push_back(new_vertex);
               
@@ -1176,6 +1174,7 @@ void GraphManager::insertBestPathsToSparseGraph (std::vector<std::vector<Vertex 
     }
   }
   
+  high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
   for (Vertex* new_vertex : newly_added_vertices)
   {
@@ -1211,6 +1210,9 @@ void GraphManager::insertBestPathsToSparseGraph (std::vector<std::vector<Vertex 
   // GraphManager::clusterNodes(sparse_graph_); 
   global_root_vertex = vertex;
   
+  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+  ROS_INFO_STREAM("Principle paths insertion time \t " << duration_total.count() << " ms \n");
   GraphManager::visualizeSparseGraph();
   
 }
@@ -1236,7 +1238,7 @@ bool GraphManager::expandSparseGraph () {
   std::vector<node *> nodes;
   nodes.clear();
 
-  GraphManager::sampleNodes(nodes, robotState_, iterations_local_/4, bounding_box_size_);
+  GraphManager::sampleNodes(nodes, robotState_, iterations_local_/10, bounding_box_size_);
   if (nodes.empty())
   {
     graph_status = false;
