@@ -40,14 +40,6 @@
 #include <visualization_msgs/MarkerArray.h>
 #include <nav_msgs/OccupancyGrid.h>
 #include <std_msgs/String.h>
-#include <ufo/map/occupancy_map.h>
-#include <ufo/map/occupancy_map_color.h>
-#include <ufomap_msgs/conversions.h>
-#include <ufomap_msgs/UFOMapMetaData.h>
-#include <ufomap_msgs/UFOMapStamped.h>
-#include <ufomap_ros/conversions.h>
-#include <ufo/map/types.h>
-#include <ufo/math/vector3.h>
 #include <ros/ros.h>
 #include <list>
 #include <chrono>
@@ -151,7 +143,6 @@ public:
 
     std::vector<Eigen::Vector3d> fetchLocallyTraversableFrontiers();
 
-    double computeVolumetricGain(Eigen::Vector3d frontier, ufo::map::OccupancyMapColor const &map);
 
     Eigen::Vector3d fetchInformativeFrontier();
 
@@ -193,7 +184,6 @@ private:
     double m_local_range;
     double m_local_fov;
     bool map_received;
-    std::string m_ufomap;
     double max_allowed_height_;
     double OBB_RADIUS;
     int mapDepth_;
@@ -257,7 +247,6 @@ private:
     tf::MessageFilter<sensor_msgs::PointCloud2> *m_tfPointCloudSubscriber;
 
     ros::Subscriber m_poseSubscriber;
-    ros::Subscriber m_ufoMapSubscriber;
     ros::Subscriber m_voxblox_sub;
 
     // Publisher

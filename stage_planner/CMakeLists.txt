@@ -51,8 +51,6 @@ endif()
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp
-  ufomap_msgs
-  ufomap_ros
   tf2_ros
   roslib
   geometry_msgs
@@ -70,14 +68,12 @@ find_package(catkin REQUIRED COMPONENTS
   actionlib
   actionlib_msgs
   message_generation
-  ufomap_mapping
   roscpp_serialization
   kdtree
   voxblox_ros
   voxblox
 )
 
-find_package(ufomap REQUIRED)
 find_package(catkin_simple REQUIRED)
 find_package(Boost REQUIRED)
 find_package(Eigen3 REQUIRED)
@@ -148,7 +144,6 @@ target_link_libraries(
    ${OCTOMAP_LIBRARIES}
    ${PCL_LIBRARIES}
     ${CMAKE_DL_LIBS}
-    UFO::Map
    )
 
 
@@ -161,7 +156,6 @@ add_executable(graph_management_node src/graph_management_node.cpp)
    ${OCTOMAP_LIBRARIES}
    ${PCL_LIBRARIES}
     ${CMAKE_DL_LIBS}
-    UFO::Map
    )
 
 add_executable(stage_interface_node src/stage_interface_node.cpp)
@@ -173,7 +167,6 @@ add_executable(stage_interface_node src/stage_interface_node.cpp)
    ${OCTOMAP_LIBRARIES}
    ${PCL_LIBRARIES}
   ${CMAKE_DL_LIBS}
-  UFO::Map
 )
 add_executable(control_interface src/control_interface.cpp)
 ## Specify libraries to link a library or executable target against
