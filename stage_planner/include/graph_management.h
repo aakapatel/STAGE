@@ -1,7 +1,6 @@
 #ifndef GRAPH_MANAGEMENT_H
 #define GRAPH_MANAGEMENT_H
 
-#include "frontiers_extraction.h"
 #include "graph_utils.h"
 
 
