@@ -912,6 +912,10 @@ bool GraphManager::extractShortestPaths (std::shared_ptr<GraphUtils> graph, Shor
   {
     Vertex * vertex = graph->vertices_map_[id];
     
+    GraphManager::computeVolumetricGainRayCasting(vertex->state, vertex->vol_gain);
+    
+    /*
+
     if (!vertex->is_evaluated) {
       
       // compute and assign volumetric gain to the vertex
@@ -937,7 +941,9 @@ bool GraphManager::extractShortestPaths (std::shared_ptr<GraphUtils> graph, Shor
         }
       }
     }
-
+  
+   */
+  
   }
 
   // cluster the nodes based on their volumetric gain 
@@ -948,8 +954,8 @@ bool GraphManager::extractShortestPaths (std::shared_ptr<GraphUtils> graph, Shor
   {
     Vertex * vertex = graph->vertices_map_[id];
     
-    // if (vertex->vol_gain.is_frontier and vertex->is_cluster_centroid)
-    if (vertex->vol_gain.is_frontier)
+    if (vertex->vol_gain.is_frontier and vertex->is_cluster_centroid)
+    // if (vertex->vol_gain.is_frontier)
     {
       std::vector<Vertex *> dijkstra_path;
       dijkstra_path.clear();
@@ -2473,18 +2479,18 @@ void GraphManager::visualizeLocalGraph()
   {
 
     int id = g->getVertexProperty(it);
-    if (v_map[id]->gain > maxZ)
+    if (v_map[id]->vol_gain.gain > maxZ)
     // if (v_map[id]->state[2] > maxZ)
     {
       // maxZ = v_map[id]->state[2];
-      maxZ = v_map[id]->gain;
+      maxZ = v_map[id]->vol_gain.gain;
     }
 
-    if (v_map[id]->gain < minZ)
+    if (v_map[id]->vol_gain.gain < minZ)
     // if (v_map[id]->state[2] < minZ)
     {
       // minZ = v_map[id]->state[2];
-      minZ = v_map[id]->gain;
+      minZ = v_map[id]->vol_gain.gain;
     }
   }
 
@@ -2495,13 +2501,14 @@ void GraphManager::visualizeLocalGraph()
     p1.x = v_map[id]->state[0];
     p1.y = v_map[id]->state[1];
     p1.z = v_map[id]->state[2];
-    double gain = v_map[id]->gain;
+    double gain = v_map[id]->vol_gain.gain;
     // double h = (1.0 - std::min(std::max((p1.z - minZ) / (maxZ - minZ), 0.0), 1.0)) * 0.8;
     double h = (1.0 - std::min(std::max((gain - minZ) / (maxZ - minZ), 0.0), 1.0)) * 0.8;
     vertex_marker.colors.push_back(GraphManager::heightMapColor(h));
     vertex_marker.points.push_back(p1);
     // if (v_map[id]->is_frontier)
     // if (v_map[id]->is_leaf_vertex)
+    // if (v_map[id]->vol_gain.is_frontier and v_map[id]->is_cluster_centroid)
     if (v_map[id]->vol_gain.is_frontier and v_map[id]->is_cluster_centroid)
     {
 

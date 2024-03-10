@@ -18,10 +18,10 @@ class StageInterface
                                         stage_planner::homePlanning::Response &res);
 
     Eigen::Vector3d quaternion_to_rpy(Eigen::Quaterniond q);
-    Eigen::Quaternion<float> Euler2Quaternion(Eigen::Vector3d v);
+    Eigen::Quaternion<float> Euler2Quaternion(ufo::math::Vector3 v);
     void odomCallback(const nav_msgs::Odometry::ConstPtr &pos);
-    Eigen::Vector3d fetchCurrentPosition ();
-    double calculateDistance (Eigen::Vector3d p1, Eigen::Vector3d p2);
+    ufo::math::Vector3 fetchCurrentPosition ();
+    double calculateDistance (ufo::math::Vector3 p1, ufo::math::Vector3 p2);
     bool fetchExplorationPath ();
     void segmentPath(const nav_msgs::Path& path,
                                  nav_msgs::Path& path_seg);
@@ -65,9 +65,9 @@ class StageInterface
     nav_msgs::Odometry m_currentPose;
     nav_msgs::Odometry m_prevPose;
     nav_msgs::Path command_path;
-    Eigen::Vector3d m_currentPosition;
+    ufo::math::Vector3 m_currentPosition;
     double m_currentHeading;
-    Eigen::Vector3d home_position;
+    ufo::math::Vector3 home_position;
     nav_msgs::Path exploration_path_;
     bool planning_status_local = false;
     bool planning_status_global = false;

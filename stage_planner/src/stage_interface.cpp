@@ -121,7 +121,7 @@ Eigen::Vector3d StageInterface::quaternion_to_rpy(Eigen::Quaterniond q)
   return Eigen::Vector3d{roll, pitch, yaw};
 }
 
-Eigen::Quaternion<float> StageInterface::Euler2Quaternion(Eigen::Vector3d v)
+Eigen::Quaternion<float> StageInterface::Euler2Quaternion(ufo::math::Vector3 v)
 {
   float roll = v.x();
   float pitch = v.y();
@@ -149,10 +149,10 @@ void StageInterface::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
   {
     m_currentPose = *pose;
 
-    Eigen::Vector3d newPoint(pose->pose.pose.position.x,
+    ufo::math::Vector3 newPoint(pose->pose.pose.position.x,
                                 pose->pose.pose.position.y,
                                 pose->pose.pose.position.z);
-    Eigen::Vector3d oldPoint(m_prevPose.pose.pose.position.x,
+    ufo::math::Vector3 oldPoint(m_prevPose.pose.pose.position.x,
                                 m_prevPose.pose.pose.position.y,
                                 m_prevPose.pose.pose.position.z);
 
@@ -189,13 +189,13 @@ void StageInterface::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
   robotState_[3] = yaw * (180 / M_PI);
 }
 
-Eigen::Vector3d StageInterface::fetchCurrentPosition()
+ufo::math::Vector3 StageInterface::fetchCurrentPosition()
 {
   return m_currentPosition;
 }
 
-double StageInterface::calculateDistance(Eigen::Vector3d point1,
-                                         Eigen::Vector3d point2)
+double StageInterface::calculateDistance(ufo::math::Vector3 point1,
+                                         ufo::math::Vector3 point2)
 {
 
   double d;
@@ -423,7 +423,7 @@ void StageInterface::generateTrajectory()
 bool StageInterface::reachedEndOfPath()
 {
 
-  Eigen::Vector3d end_of_path;
+  ufo::math::Vector3 end_of_path;
   end_of_path.x() = command_path.poses.back().pose.position.x;
   end_of_path.y() = command_path.poses.back().pose.position.y;
   end_of_path.z() = command_path.poses.back().pose.position.z;
