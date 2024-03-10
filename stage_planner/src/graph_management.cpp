@@ -50,7 +50,6 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
 
   // publishers
 
-  m_frontierPub = nh_.advertise<visualization_msgs::MarkerArray>("/frontier_nodes_vis", 10);
   m_modified_Path_Pub = nh_.advertise<nav_msgs::Path>("/modified_path", 10);
 
   local_Graph_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/local_planning_graph", 10);
@@ -78,9 +77,6 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
   execution_Time_Pub_ = nh_.advertise<std_msgs::Int64>("/stage_execution_time", 1);
 
   // Services
-  m_frontier_client = nh_.serviceClient<stage_planner::frontierRequest>("request_frontier_target");
-
-  m_target_query_client = nh_.serviceClient<stage_planner::isFrontier>("query_frontier_target");
 
   m_exploration_path_srv = nh_.advertiseService("next_exploration_path", &GraphManager::nextExplorationPath, this);
 
@@ -2091,34 +2087,6 @@ std::vector<Eigen::Vector3d> GraphManager::pointsToEigen(std::vector<geometry_ms
 
   return vec;
 }
-
-bool GraphManager::isLastTargetFrontier(geometry_msgs::Point last_target_frontier)
-{
-
-  stage_planner::isFrontier frontier_query_srv;
-  bool is_last_target_frontier;
-
-  last_target_frontier.x = exploration_target.x();
-  last_target_frontier.y = exploration_target.y();
-  last_target_frontier.z = exploration_target.z();
-
-  frontier_query_srv.request.frontier_point = last_target_frontier;
-
-  if (m_target_query_client.call(frontier_query_srv))
-  {
-
-    if (frontier_query_srv.response.is_frontier)
-      {
-        is_last_target_frontier = true;
-      }
-    else
-    {
-      is_last_target_frontier = false;
-    }
-  }
-  return is_last_target_frontier;
-}
-
 
 bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &req,
                                        stage_planner::explorationPath::Response &res)

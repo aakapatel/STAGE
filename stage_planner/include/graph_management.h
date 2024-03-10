@@ -50,7 +50,6 @@ public:
   double calculateDistance(StateVec s1, StateVec s2);
   void sampleNodes(std::vector<node *> &nodes, StateVec state, int iterations_max, double bounding_box_size);
   std::vector<Eigen::Vector3d> pointsToEigen(std::vector<geometry_msgs::Point> points);
-  bool isLastTargetFrontier(geometry_msgs::Point last_target_frontier);
   bool nextExplorationPath(stage_planner::explorationPath::Request &req,
                            stage_planner::explorationPath::Response &res);
   Eigen::Quaternion<float> Euler2Quaternion(Eigen::Vector3d v);
@@ -313,7 +312,6 @@ private:
   // message_filters::Subscriber<nav_msgs::Odometry> *m_poseSubscriber;
 
   // Publisher
-  ros::Publisher m_frontierPub;
   ros::Publisher m_modified_Path_Pub;
   ros::Publisher m_frontierSelectionPub;
   ros::Publisher command_pub;
@@ -333,8 +331,6 @@ private:
 
 
     // Services
-  ros::ServiceClient m_frontier_client;
-  ros::ServiceClient m_target_query_client;
   ros::ServiceServer m_exploration_path_srv;
 };
 
