@@ -126,13 +126,13 @@ typedef Eigen::Vector3d State; // x, y, z
 
 struct VolumetricGain {
   VolumetricGain()
-      : gain(0),
-        accumulative_gain(0),
-        unknown_percentage(0),
-        num_unknown_voxels(0),
-        num_free_voxels(0),
-        num_occupied_voxels(0),
-        num_unknown_surf_voxels(0) {}
+    : gain(0),
+    accumulative_gain(0),
+    unknown_percentage(0),
+    num_unknown_voxels(0),
+    num_free_voxels(0),
+    num_occupied_voxels(0),
+    num_unknown_surf_voxels(0) {}
 
   void reset() {
     gain = 0;
@@ -161,7 +161,7 @@ struct VolumetricGain {
 
   void printGain() {
     std::cout << "Gains: " << gain << ", " << num_unknown_voxels << ", "
-              << num_occupied_voxels << ", " << num_free_voxels << std::endl;
+      << num_occupied_voxels << ", " << num_free_voxels << std::endl;
     std::cout << "Unknown percentage : " << unknown_percentage << "\n"; 
   }
 };
@@ -238,19 +238,19 @@ struct Vertex {
 
 class GraphUtils {
 public:
-  
+
   GraphUtils();
 
   // Initialize a new graph.
   void reset();
-  
+
   double distanceBetweenVertices (Vertex* v, Vertex* u);
 
   // Could change an index to break down the graph into sug-graphs.
   int generateSubgraphIndex();
   // Generate ID for new vertex.
   int generateVertexID();
-  
+
   void insertVertexKdtree (Vertex* v);
 
   bool vertexExist (StateVec s); 
@@ -267,9 +267,9 @@ public:
   int getNumEdges() { return graph_->getNumEdges(); }
 
   // Vertex* getVertex(int id) { return vertices_map_[id]; }
-  
+
   Vertex* getVertexByState (StateVec s);
-  
+
   int getIdCount ();
 
   bool findShortestPaths(ShortestPathsReport& rep);
@@ -295,9 +295,9 @@ public:
                                Vertex** v_res);
   bool getNearestVertices(const StateVec* state, double range,
                           std::vector<Vertex*>* v_res);
-  
+
   Vertex* getVertexBySubId (int s_id);
-  
+
   void findLeafVertices(const ShortestPathsReport& rep);
   Vertex* getVertex(int id) { return vertices_map_[id]; }
   int getNumNeighbours (Vertex* v);
@@ -316,17 +316,17 @@ public:
   int gain_min = 0;
 
   std::vector<StateVec> state_history_;
-  
+
   std::vector<int> state_ids_;
   std::vector<int> frontier_ids_;
   std::vector<int> leaf_vertices_ids_;
 private:
-  
+
   // IDs are non-negative integer from 0 (root node)
   // and increased as adding new sub-graph or new vertices.
   // int subgraph_ind_ = -1;
   int id_count_;
-  
+
   // Kd-tree for nearest neigbor lookup, also keep all vertices.
   kdtree* kd_tree_;
 

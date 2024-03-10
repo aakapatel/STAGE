@@ -3,15 +3,15 @@
 using namespace std;
 
 StageInterface::StageInterface(const ros::NodeHandle &nh, const ros::NodeHandle &nh_private)
-    : nh_(nh),
-      nh_private_(nh_private),
-      m_odometry("/hummingbird/ground_truth/odometry"),
-      m_reference_topic("/hummingbird/command/pose"),
-      robot_aerial_(false),
-      init_x_(1),
-      init_y_(1),
-      init_z_(1),
-      distance_to_new_path_(1)
+  : nh_(nh),
+  nh_private_(nh_private),
+  m_odometry("/hummingbird/ground_truth/odometry"),
+  m_reference_topic("/hummingbird/command/pose"),
+  robot_aerial_(false),
+  init_x_(1),
+  init_y_(1),
+  init_z_(1),
+  distance_to_new_path_(1)
 {
 
   // Set variables
@@ -44,7 +44,7 @@ StageInterface::StageInterface(const ros::NodeHandle &nh, const ros::NodeHandle 
   // Ros services
 
   m_exploration_path_client = nh_.serviceClient<stage_planner::explorationPath>(
-      "next_exploration_path");
+    "next_exploration_path");
 
   m_planner_initialization_srv = nh_.advertiseService("initialize_planner", &StageInterface::initializePlanner, this);
 
@@ -130,8 +130,8 @@ Eigen::Quaternion<float> StageInterface::Euler2Quaternion(Eigen::Vector3d v)
   Eigen::Quaternion<float> q;
 
   q = Eigen::AngleAxisf(roll, Eigen::Vector3f::UnitX()) *
-      Eigen::AngleAxisf(pitch, Eigen::Vector3f::UnitY()) *
-      Eigen::AngleAxisf(yaw, Eigen::Vector3f::UnitZ());
+    Eigen::AngleAxisf(pitch, Eigen::Vector3f::UnitY()) *
+    Eigen::AngleAxisf(yaw, Eigen::Vector3f::UnitZ());
 
   return q;
 }
@@ -146,15 +146,15 @@ void StageInterface::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
     firstTime = false;
   }
   else
-  {
+{
     m_currentPose = *pose;
 
     Eigen::Vector3d newPoint(pose->pose.pose.position.x,
-                                pose->pose.pose.position.y,
-                                pose->pose.pose.position.z);
+                             pose->pose.pose.position.y,
+                             pose->pose.pose.position.z);
     Eigen::Vector3d oldPoint(m_prevPose.pose.pose.position.x,
-                                m_prevPose.pose.pose.position.y,
-                                m_prevPose.pose.pose.position.z);
+                             m_prevPose.pose.pose.position.y,
+                             m_prevPose.pose.pose.position.z);
 
     if (calculateDistance(newPoint, oldPoint) > 2)
     {
@@ -166,7 +166,7 @@ void StageInterface::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
   m_currentPosition.z() = m_currentPose.pose.pose.position.z;
 
   Eigen::Quaterniond attitude{pose->pose.pose.orientation.w, pose->pose.pose.orientation.x,
-                              pose->pose.pose.orientation.y, pose->pose.pose.orientation.z};
+    pose->pose.pose.orientation.y, pose->pose.pose.orientation.z};
 
   Eigen::Vector3d euler = quaternion_to_rpy(attitude);
 
@@ -175,10 +175,10 @@ void StageInterface::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
   quat_ = Q;
 
   tf::Quaternion q(
-      pose->pose.pose.orientation.x,
-      pose->pose.pose.orientation.y,
-      pose->pose.pose.orientation.z,
-      pose->pose.pose.orientation.w);
+    pose->pose.pose.orientation.x,
+    pose->pose.pose.orientation.y,
+    pose->pose.pose.orientation.z,
+    pose->pose.pose.orientation.w);
   tf::Matrix3x3 m(q);
   double roll, pitch, yaw;
   m.getRPY(roll, pitch, yaw);
@@ -207,7 +207,7 @@ double StageInterface::calculateDistance(Eigen::Vector3d point1,
              pow(point1.z() - point2.z(), 2));
   }
   else
-  {
+{
 
     d = sqrt(pow(point1.x() - point2.x(), 2) + pow(point1.y() - point2.y(), 2));
   }
@@ -245,7 +245,7 @@ bool StageInterface::fetchExplorationPath()
       exploration_path_ = exploration_path_srv.response.path;
     }
     else
-    {
+  {
       got_new_path = false;
     }
 
@@ -362,7 +362,7 @@ void StageInterface::generateTrajectory()
     initialization = false;
   }
   else
-  {
+{
 
     raw_path = exploration_path_;
   }
@@ -403,7 +403,7 @@ void StageInterface::generateTrajectory()
     pose_ref = new_path.poses[i];
 
     mav_msgs::msgMultiDofJointTrajectoryPointFromEigen(
-        trajectory_point_, &trajectory_point_msg_);
+      trajectory_point_, &trajectory_point_msg_);
     time_sum += dt_;
     trajectory_point_msg_.time_from_start = ros::Duration(time_sum);
     // trajectory_array_.points.insert(trajectory_array_.points.begin(),trajectory_point_msg_);
@@ -436,7 +436,7 @@ bool StageInterface::reachedEndOfPath()
     return true;
   }
   else
-  {
+{
     fetch_new_path_ = false;
     return false;
   }

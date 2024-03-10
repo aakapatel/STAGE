@@ -59,9 +59,9 @@ public:
   double calculateAngle(Eigen::Vector3d fpoint);
 
   bool isLocal(Eigen::Vector3d point);
-  
+
   void orientVertices (std::shared_ptr<GraphUtils> graph, const ShortestPathsReport& rep); 
-  
+
   StateVec eigenToState(Eigen::Vector3d v);
 
 
@@ -89,7 +89,7 @@ public:
                                    std::vector<Eigen::Vector3d> &unknown); 
   void clusterNodes (std::shared_ptr<GraphUtils> g); 
   // GRAPH AND PLANNING
-  
+
   void resetLocalGraph();
   void resetGlobalGraph();
   void resetPathWaysGraph();
@@ -99,13 +99,13 @@ public:
   bool planLocalPath(std::vector<std::vector<Vertex *>> dijkstra_paths);
 
   bool planGlobalPath(std::vector<std::vector<Vertex *>> dijkstra_paths);
-  
+
   void visualizeLocalGraph();
-  
-    void visualizeTree (std::vector<node *> RRT_TREE);
+
+  void visualizeTree (std::vector<node *> RRT_TREE);
 
   void visualizeGlobalGraph();
-  
+
   void visualizeSparseGraph();
 
   void visualize();
@@ -118,7 +118,7 @@ public:
   void visualizeImprovedGlobalPaths(std::vector<std::pair<std::vector<Vertex *>, double>> global_paths);
 
   void visualizePathWaysGraph();
-  
+
   void visualizePoseGraph ();
 
   bool getNeighbours(const StateVec *state, double range, std::vector<Vertex *> *v_res);
@@ -135,16 +135,16 @@ public:
   bool setGlobalPath();
 
   double computeExplorationGain (StateVec v);
- 
+
   void computeVolumetricGainRayCasting(StateVec& state, VolumetricGain& vgain);
-  
+
   void expandGraph (int iterations_max, Vertex* root, Vertex* goal, double radius);
-  
+
   bool expandSparseGraph();
   void updateSparseGraph();
-  
+
   void insertBestPathsToSparseGraph (std::vector<std::vector<Vertex *>> dijkstra_paths); 
-  
+
   bool setPath();
 
   void visualizeRepositionPath();
@@ -153,11 +153,11 @@ public:
   int global_root_id = 0;
 
   ros::Timer graph_timer_;
-  
+
   double average_gain;
 
   double truncate_sample_Z_ = 1;
-  
+
 
   Eigen::Vector3d latest_root;
   Eigen::Vector3d previous_root;
@@ -169,13 +169,13 @@ public:
   Vertex * local_goal_vertex;
   Vertex* local_root_vertex;
   Vertex* latest_root_vertex;
-  
+
 
 
 private:
   ros::NodeHandle nh_;
   ros::NodeHandle nh_private_;
-  
+
   std::string sensor_name;
   SensorParams sensor_params_;
   SensorParams free_frustum_params_;
@@ -183,7 +183,7 @@ private:
   BoundedSpaceParams local_space_params_;
   BoundedSpaceParams global_space_params_;
   PlanningParams planning_params_;
-  
+
   std::vector<BoundedSpaceParams> no_gain_zones_;
   StateVec robotStateWithYaw_;
   StateVec robotState_;
@@ -193,17 +193,17 @@ private:
   std::shared_ptr<GraphUtils> improvement_graph_;
   std::shared_ptr<GraphUtils> pose_graph_;
   std::shared_ptr<GraphUtils> sparse_graph_;
-   
+
   std::shared_ptr<GeofenceManager> geofence_manager_;
   std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> obs_pcl_;
   std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> feasible_corridor_pcl_;
-  
+
   std::vector<std::shared_ptr<GraphUtils>> graph_vec_;
-  
+
   std::vector<Vertex *> state_history;
-    
+
   MapManagerVoxblox<MapManagerVoxbloxServer,
-                    MapManagerVoxbloxVoxel> *map_manager_;
+  MapManagerVoxbloxVoxel> *map_manager_;
   kdtree *kd_tree_;
 
   ShortestPathsReport sub_graph_rep_;
@@ -213,7 +213,7 @@ private:
   ShortestPathsReport path_ways_graph_rep_;
   ShortestPathsReport pose_graph_rep_;
   ShortestPathsReport sparse_graph_rep_;
-  
+
   int vertex_id_ = -1;
   int subgraph_ind_ = -1;
   int local_target_vertex_id;
@@ -237,7 +237,7 @@ private:
 
   std::list<Vertex *> sparse_vertices;
   // variables
-  
+
   std::vector<double> safety_margin;
   std::vector<double> robot_box_size;
   Eigen::Vector3d robot_box_size_;
@@ -246,7 +246,7 @@ private:
   double knn_range_ = 4;
 
   bool build_global_graph_ = false;
- 
+
   // Global re-positioning in presence of unknown change in environment variables
 
   bool reached_end_of_local_path_ = true;
@@ -264,7 +264,7 @@ private:
   nav_msgs::Path mod_path_;
 
   //
-  
+
 
   std::string robot_type_ = "kAerial";
   Eigen::Quaterniond quat_;
@@ -279,7 +279,7 @@ private:
   double m_volumetric_gain_threashold;
   bool check = false;
   float SCALER_X, SCALER_Y, SCALER_Z, highest_x, highest_y,
-      highest_z, lowest_x, lowest_y, lowest_z;
+  highest_z, lowest_x, lowest_y, lowest_z;
   double m_min_dist_bw_nodes;
   std::vector<Eigen::Vector3d> local_exploration_targets_;
   std::vector<Eigen::Vector3d> global_repos_targets_;
@@ -330,7 +330,7 @@ private:
   ros::Publisher execution_Time_Pub_;
 
 
-    // Services
+  // Services
   ros::ServiceServer m_exploration_path_srv;
 };
 
