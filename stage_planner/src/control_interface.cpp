@@ -7,9 +7,9 @@ ControlInterface::ControlInterface(ros::NodeHandle nh, ros::NodeHandle nh_privat
     if (!nh_private_.getParam("state_topic", state_topic))
         state_topic = "state";
     if (!nh_private_.getParam("path_topic", path_topic))
-        path_topic = "/command_path";
+        path_topic = "command_path";
     if (!nh_private_.getParam("odom_topic", odom_topic))
-        odom_topic = "/hummingbird/ground_truth/odometry";
+        odom_topic = "ground_truth/odometry";
     if (!nh_private_.getParam("wp_topic", wp_topic))
         wp_topic = "/frontier/pose";
     if (!nh_private_.getParam("WP_SIZE", WP_SIZE))
@@ -17,11 +17,11 @@ ControlInterface::ControlInterface(ros::NodeHandle nh, ros::NodeHandle nh_privat
     if (!nh_private_.getParam("ROTATION_TOLERANCE", ROT_ERROR))
         ROT_ERROR = 0.25;
     if (!nh_private_.getParam("reference_topic", pub_topic))
-        pub_topic = "/hummingbird/command/pose";
+        pub_topic = "command/pose";
     if (!nh_private_.getParam("frame_id", frame_id))
         frame_id = "world";
-    if (!nh_private_.getParam("robot_aerial", robot_aerial_))
-        robot_aerial_ = false;
+    if (!nh_private_.getParam("robot_type", robot_type_))
+        robot_type_ = "kAerial";
 
     // subscribers
     state_sub = nh_.subscribe<std_msgs::String>(state_topic, 1, &ControlInterface::stateCallback, this);
@@ -200,7 +200,7 @@ geometry_msgs::Quaternion ControlInterface::quartToPoint(geometry_msgs::Point po
 
 bool ControlInterface::atPoint(geometry_msgs::Point point)
 {
-    if (robot_aerial_)
+    if (robot_type_ == "kAerial")
     {
         return sqrt(pow(odom.pose.position.x - point.x, 2) +
                     pow(odom.pose.position.y - point.y, 2) + pow(odom.pose.position.z - point.z, 2)) < WP_SIZE;

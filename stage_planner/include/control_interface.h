@@ -44,7 +44,7 @@ private:
     std::string odom_topic;
 
     std::string frame_id;
-    bool robot_aerial_;
+    std::string robot_type_ = "kAerial";
 
     geometry_msgs::PoseStamped odom;
     nav_msgs::Path path;

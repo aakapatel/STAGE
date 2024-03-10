@@ -39,6 +39,7 @@ class StageInterface
    
     ros::Timer run_loop_timer_;
     
+    std::string robot_type_ = "kAerial";
     
     State robotState_;
 

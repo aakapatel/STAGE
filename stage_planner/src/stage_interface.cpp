@@ -7,19 +7,19 @@ StageInterface::StageInterface(const ros::NodeHandle &nh, const ros::NodeHandle 
   nh_private_(nh_private),
   m_odometry("/hummingbird/ground_truth/odometry"),
   m_reference_topic("/hummingbird/command/pose"),
-  robot_aerial_(false),
   init_x_(1),
   init_y_(1),
   init_z_(1),
-  distance_to_new_path_(1)
+  distance_to_new_path_(1),
+  robot_type_("kAerial")
+
 {
 
   // Set variables
-  nh_private_.param("odometry", m_odometry, m_odometry);
+  nh_private_.param("odometry_topic", m_odometry, m_odometry);
   nh_private_.param("reference_topic", m_reference_topic, m_reference_topic);
 
-  nh_private_.param("robot_aerial", robot_aerial_, robot_aerial_);
-
+  nh_private_.param("robot_type", robot_type_, robot_type_);
   nh_private_.param("init_x", init_x_, init_x_);
   nh_private_.param("init_y", init_y_, init_y_);
   nh_private_.param("init_z", init_z_, init_z_);
@@ -35,9 +35,9 @@ StageInterface::StageInterface(const ros::NodeHandle &nh, const ros::NodeHandle 
 
   // Register publishers
 
-  m_trajectory_Publisher = nh_.advertise<trajectory_msgs::MultiDOFJointTrajectory>("/hummingbird/command/trajectory", 1, true);
+  m_trajectory_Publisher = nh_.advertise<trajectory_msgs::MultiDOFJointTrajectory>("command/trajectory", 1, true);
 
-  m_command_Path_Publisher = nh_.advertise<nav_msgs::Path>("/command_path", 1, true);
+  m_command_Path_Publisher = nh_.advertise<nav_msgs::Path>("command_path", 1, true);
 
   m_reference_Publisher = nh_.advertise<geometry_msgs::PoseStamped>(m_reference_topic, 1, true);
 
@@ -52,9 +52,9 @@ StageInterface::StageInterface(const ros::NodeHandle &nh, const ros::NodeHandle 
 
   m_planner_homing_srv = nh_.advertiseService("start_homing_planner", &StageInterface::homingPlanner, this);
 
-  if (!robot_aerial_)
+  if (robot_type_ == "kGround")
   {
-    init_z_ = 1;
+    init_z_ = 0;
   }
 };
 
@@ -200,14 +200,14 @@ double StageInterface::calculateDistance(Eigen::Vector3d point1,
 
   double d;
 
-  if (robot_aerial_)
+  if (robot_type_ == "kAerial")
   {
 
     d = sqrt(pow(point1.x() - point2.x(), 2) + pow(point1.y() - point2.y(), 2) +
              pow(point1.z() - point2.z(), 2));
   }
   else
-{
+  {
 
     d = sqrt(pow(point1.x() - point2.x(), 2) + pow(point1.y() - point2.y(), 2));
   }

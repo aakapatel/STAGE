@@ -50,31 +50,31 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
 
   // publishers
 
-  m_modified_Path_Pub = nh_.advertise<nav_msgs::Path>("/modified_path", 10);
+  m_modified_Path_Pub = nh_.advertise<nav_msgs::Path>("modified_path", 10);
 
-  local_Graph_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/local_planning_graph", 10);
+  local_Graph_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("local_planning_graph", 10);
 
-  global_Graph_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/global_planning_graph", 10);
+  global_Graph_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("global_planning_graph", 10);
 
-  path_Ways_Graph_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/path_ways_graph", 10);
+  path_Ways_Graph_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("path_ways_graph", 10);
 
-  pose_Graph_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/pose_graph", 10);
+  pose_Graph_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("pose_graph", 10);
 
-  local_Paths_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/local_dijkstra_paths", 10);
+  local_Paths_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("local_dijkstra_paths", 10);
 
-  global_Paths_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/global_dijkstra_paths", 10);
+  global_Paths_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("global_dijkstra_paths", 10);
 
-  improved_global_Paths_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/improved_global_dijkstra_paths", 10);
+  improved_global_Paths_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("improved_global_dijkstra_paths", 10);
 
-  reposition_Path_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/global_repos_path", 10);
+  reposition_Path_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("global_repos_path", 10);
 
-  tree_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/rrt_tree", 10);
+  tree_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("rrt_tree", 10);
 
-  random_Nodes_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/random_nodes", 10);
+  random_Nodes_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("random_nodes", 10);
 
-  sparse_Graph_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/sparse_graph", 10);
+  sparse_Graph_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("sparse_graph", 10);
 
-  execution_Time_Pub_ = nh_.advertise<std_msgs::Int64>("/stage_execution_time", 1);
+  execution_Time_Pub_ = nh_.advertise<std_msgs::Int64>("stage_execution_time", 1);
 
   // Services
 
@@ -86,7 +86,7 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
 
   safety_margin_ << safety_margin[0], safety_margin[1], safety_margin[2];
 
-  if (robot_type_ == "kLegged")
+  if (robot_type_ == "kGround")
   {
     truncate_sample_Z_ = 1;
   }

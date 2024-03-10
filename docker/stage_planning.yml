@@ -1,6 +1,6 @@
 # ~/.tmuxinator/stage_planning.yml 
 tmux_options: '-2'
-define: &initialize_stage "rosservice call /initialize_planner \"initialize: true\" " 
+define: &initialize_stage "rosservice call /hummingbird/initialize_planner \"initialize: true\" " 
 
 name: stage_planning
 root: ~/
@@ -11,11 +11,11 @@ windows:
         - stage_interface:
           - cde
           - sleep 2  
-          - mon launch stage_planner stage_interface.launch 
+          - mon launch stage_planner stage_interface_sim.launch 
         - graph_management:
           - cde 
           - sleep 6 
-          - mon launch stage_planner graph_management.launch
+          - mon launch stage_planner graph_management_sim.launch
 
   - publishers:
       # layout: main-vertical 

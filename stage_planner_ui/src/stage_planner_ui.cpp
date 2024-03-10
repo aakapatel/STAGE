@@ -10,10 +10,10 @@ stage_planner_panel::stage_planner_panel(QWidget* parent) : rviz::Panel(parent) 
   planner_client_set_state = nh.advertise<std_msgs::String>(
       "/state", 1); 
   planner_client_stop_planner = nh.serviceClient<stage_planner::stopPlanning>(
-      "/stop_planner");
+      "/hummingbird/stop_planner");
   planner_client_init_motion =
       nh.serviceClient<stage_planner::initializePlanning>(
-          "/initialize_planner");
+          "/hummingbird/initialize_planner");
 
 
   QGridLayout* grid_layout = new QGridLayout;
@@ -31,7 +31,11 @@ stage_planner_panel::stage_planner_panel(QWidget* parent) : rviz::Panel(parent) 
   // SET TEXT ON BUTTON 
  
 
+  button_init_motion->setFixedWidth(100);
+  button_init_motion->setFixedHeight(60);
 
+  button_stop_planner->setFixedWidth(100);
+  button_stop_planner->setFixedHeight(60);
 
   font->setPointSize(22);
   stateLabel->setFont(*font);
@@ -39,11 +43,11 @@ stage_planner_panel::stage_planner_panel(QWidget* parent) : rviz::Panel(parent) 
         "    background: red;"
         "    height: 400px; /* Set groove height */"
         "    border: 1px solid #999999;"
-        "    border-radius: 20px; /* Set border radius */"
+        "    border-radius: 40px; /* Set border radius */"
         "}"
         "QSlider::handle:horizontal {"
         "    background: qradialgradient(spread:pad, cx:0.5, cy:0.5,"
-        "                                radius:0.5, fx:0.5, fy:0.5,"
+        "                                radius:1, fx:1, fy:1,"
         "                                stop:0.6 #0000ff, stop:0.8 #0000ff);"
         "    width: 20px; /* Set handle width */"
         "    height: 400px; /* Set handle height */"
@@ -56,10 +60,10 @@ stage_planner_panel::stage_planner_panel(QWidget* parent) : rviz::Panel(parent) 
   stateLabel->setAlignment(Qt::AlignCenter);
 
 
-  button_init_motion->setText("Initialize STAGE");
+  button_init_motion->setText("Initialize \n STAGE");
   button_init_motion->setStyleSheet("background-color : Yellow");
   
-  button_stop_planner->setText("Stop Planning");
+  button_stop_planner->setText("Stop \n Planning");
   button_stop_planner->setStyleSheet("background-color : Orange");
   
   // BUTTONS LAYOUT 
