@@ -1,7 +1,4 @@
-frame_id: "world"
-odometry_topic: "/hummingbird/ground_truth/odometry"
-point_cloud_topic: "/hummingbird/velodyne_points"
-reference_topic: "/hummingbird/command/pose"
+frame_id: "shafterx1/world"
 local_AABB_size: 20 
 local_FOV: 40
 num_edges_max: 10
@@ -18,7 +15,7 @@ unknowns_threashold: 4
 truncate_frontier_Z: 6
 truncate_sample_Z: 4
 distance_to_new_path: 0.8
-WP_SIZE: 0.5
+WP_SIZE: 0.8
 #-------------------------------------------------------------------------------
 # SENSOR CONFIGURATION
 #  sensor_list: Define a set of sensors relevant to the exploration task.
