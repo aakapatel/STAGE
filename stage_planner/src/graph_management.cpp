@@ -10,7 +10,7 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
   : nh_(nh),
   nh_private_(nh_private),
   map_manager_(map_manager),
-  m_worldFrameId("world"),
+  m_worldFrameId(m_worldFrameId),
   m_odometry("/hummingbird/ground_truth/odometry"),
   bounding_box_size_(12),
   m_local_fov(40),
@@ -373,34 +373,6 @@ void GraphManager::extractVoxelsInsideFrustum (StateVec state,
       unknown.push_back(voxel);
     }
   }
-
-  // for (Eigen::Vector3d voxel : free_voxels) {
-  //
-  //   Eigen::Vector3d toPoint = voxel - state;
-  //   double h_angle = std::atan2(toPoint.y(), toPoint.x());
-  //   double v_angle = std::atan2(toPoint.z(), toPoint.norm());
-  //
-  //   if (std::abs(h_angle) <= hFOV / 2 and 
-  //       std::abs(v_angle) <= vFOV / 2 and 
-  //       toPoint.norm() <= range) {
-  //     
-  //       free.push_back(voxel);
-  //   }
-  // }
-  //
-  // for (Eigen::Vector3d voxel : occupied_voxels) {
-  //
-  //   Eigen::Vector3d toPoint = voxel - state;
-  //   double h_angle = std::atan2(toPoint.y(), toPoint.x());
-  //   double v_angle = std::atan2(toPoint.z(), toPoint.norm());
-  //
-  //   if (std::abs(h_angle) <= hFOV / 2 and 
-  //       std::abs(v_angle) <= vFOV / 2 and 
-  //       toPoint.norm() <= range) {
-  //     
-  //       occupied.push_back(voxel);
-  //   }
-  // }
 
 }
 
@@ -2205,7 +2177,7 @@ void GraphManager::visualizeTree (std::vector<node *> RRT_TREE) {
 
   visualization_msgs::MarkerArray marker_array;
   visualization_msgs::Marker RRT_points, RRT_line_list;
-  RRT_points.header.frame_id = RRT_line_list.header.frame_id = "world";
+  RRT_points.header.frame_id = RRT_line_list.header.frame_id = m_worldFrameId;
   RRT_points.ns = "nodes";
   RRT_line_list.ns = "edges";
   RRT_points.action = visualization_msgs::Marker::ADD;
@@ -2275,7 +2247,7 @@ void GraphManager::visualizePathWaysGraph()
   visualization_msgs::Marker edge_marker;
   edge_marker.header.stamp = ros::Time::now();
   edge_marker.header.seq = 0;
-  edge_marker.header.frame_id = "world";
+  edge_marker.header.frame_id = m_worldFrameId;
   edge_marker.id = 0;
   edge_marker.ns = "edges";
   edge_marker.action = visualization_msgs::Marker::ADD;
@@ -2311,7 +2283,7 @@ void GraphManager::visualizePathWaysGraph()
   visualization_msgs::Marker vertex_marker;
   vertex_marker.header.stamp = ros::Time::now();
   vertex_marker.header.seq = 0;
-  vertex_marker.header.frame_id = "world";
+  vertex_marker.header.frame_id = m_worldFrameId;
   vertex_marker.id = 0;
   vertex_marker.ns = "vertices";
   vertex_marker.action = visualization_msgs::Marker::ADD;
@@ -2367,7 +2339,7 @@ void GraphManager::visualizeLocalGraph()
   visualization_msgs::Marker edge_marker;
   edge_marker.header.stamp = ros::Time::now();
   edge_marker.header.seq = 0;
-  edge_marker.header.frame_id = "world";
+  edge_marker.header.frame_id = m_worldFrameId;
   edge_marker.id = 0;
   edge_marker.ns = "edges";
   edge_marker.action = visualization_msgs::Marker::ADD;
@@ -2404,7 +2376,7 @@ void GraphManager::visualizeLocalGraph()
   visualization_msgs::Marker vertex_marker;
   vertex_marker.header.stamp = ros::Time::now();
   vertex_marker.header.seq = 0;
-  vertex_marker.header.frame_id = "world";
+  vertex_marker.header.frame_id = m_worldFrameId;
   vertex_marker.id = 0;
   vertex_marker.ns = "vertices";
   vertex_marker.action = visualization_msgs::Marker::ADD;
@@ -2421,7 +2393,7 @@ void GraphManager::visualizeLocalGraph()
   visualization_msgs::Marker frontier_vertex_marker;
   frontier_vertex_marker.header.stamp = ros::Time::now();
   frontier_vertex_marker.header.seq = 0;
-  frontier_vertex_marker.header.frame_id = "world";
+  frontier_vertex_marker.header.frame_id = m_worldFrameId;
   frontier_vertex_marker.id = 0;
   frontier_vertex_marker.ns = "frontier";
   frontier_vertex_marker.action = visualization_msgs::Marker::ADD;
@@ -2502,7 +2474,7 @@ void GraphManager::visualizeLocalPaths(std::vector<std::pair<std::vector<Vertex 
   visualization_msgs::Marker vertex_marker;
   edge_marker.header.stamp = ros::Time::now();
   edge_marker.header.seq = 0;
-  edge_marker.header.frame_id = "world";
+  edge_marker.header.frame_id = m_worldFrameId;
   edge_marker.id = 0;
   edge_marker.ns = "edges";
   edge_marker.action = visualization_msgs::Marker::ADD;
@@ -2517,7 +2489,7 @@ void GraphManager::visualizeLocalPaths(std::vector<std::pair<std::vector<Vertex 
 
   vertex_marker.header.stamp = ros::Time::now();
   vertex_marker.header.seq = 0;
-  vertex_marker.header.frame_id = "world";
+  vertex_marker.header.frame_id = m_worldFrameId;
   vertex_marker.id = 0;
   vertex_marker.ns = "vertices";
   vertex_marker.action = visualization_msgs::Marker::ADD;
@@ -2568,7 +2540,7 @@ void GraphManager::visualizeGlobalPaths(std::vector<std::pair<std::vector<Vertex
   visualization_msgs::Marker vertex_marker;
   edge_marker.header.stamp = ros::Time::now();
   edge_marker.header.seq = 0;
-  edge_marker.header.frame_id = "world";
+  edge_marker.header.frame_id = m_worldFrameId;
   edge_marker.id = 0;
   edge_marker.ns = "edges";
   edge_marker.action = visualization_msgs::Marker::ADD;
@@ -2583,7 +2555,7 @@ void GraphManager::visualizeGlobalPaths(std::vector<std::pair<std::vector<Vertex
 
   vertex_marker.header.stamp = ros::Time::now();
   vertex_marker.header.seq = 0;
-  vertex_marker.header.frame_id = "world";
+  vertex_marker.header.frame_id = m_worldFrameId;
   vertex_marker.id = 0;
   vertex_marker.ns = "vertices";
   vertex_marker.action = visualization_msgs::Marker::ADD;
@@ -2634,7 +2606,7 @@ void GraphManager::visualizeImprovedGlobalPaths(std::vector<std::pair<std::vecto
   visualization_msgs::Marker vertex_marker;
   edge_marker.header.stamp = ros::Time::now();
   edge_marker.header.seq = 0;
-  edge_marker.header.frame_id = "world";
+  edge_marker.header.frame_id = m_worldFrameId;
   edge_marker.id = 0;
   edge_marker.ns = "edges";
   edge_marker.action = visualization_msgs::Marker::ADD;
@@ -2649,7 +2621,7 @@ void GraphManager::visualizeImprovedGlobalPaths(std::vector<std::pair<std::vecto
 
   vertex_marker.header.stamp = ros::Time::now();
   vertex_marker.header.seq = 0;
-  vertex_marker.header.frame_id = "world";
+  vertex_marker.header.frame_id = m_worldFrameId;
   vertex_marker.id = 0;
   vertex_marker.ns = "vertices";
   vertex_marker.action = visualization_msgs::Marker::ADD;
@@ -2700,7 +2672,7 @@ void GraphManager::visualizeRepositionPath()
   visualization_msgs::Marker vertex_marker;
   edge_marker.header.stamp = ros::Time::now();
   edge_marker.header.seq = 0;
-  edge_marker.header.frame_id = "world";
+  edge_marker.header.frame_id = m_worldFrameId;
   edge_marker.id = 0;
   edge_marker.ns = "edges";
   edge_marker.action = visualization_msgs::Marker::ADD;
@@ -2715,7 +2687,7 @@ void GraphManager::visualizeRepositionPath()
 
   vertex_marker.header.stamp = ros::Time::now();
   vertex_marker.header.seq = 0;
-  vertex_marker.header.frame_id = "world";
+  vertex_marker.header.frame_id = m_worldFrameId;
   vertex_marker.id = 0;
   vertex_marker.ns = "vertices";
   vertex_marker.action = visualization_msgs::Marker::ADD;
@@ -2769,7 +2741,7 @@ void GraphManager::visualizeSparseGraph()
   visualization_msgs::Marker edge_marker;
   edge_marker.header.stamp = ros::Time::now();
   edge_marker.header.seq = 0;
-  edge_marker.header.frame_id = "world";
+  edge_marker.header.frame_id = m_worldFrameId;
   edge_marker.id = 0;
   edge_marker.ns = "edges";
   edge_marker.action = visualization_msgs::Marker::ADD;
@@ -2805,7 +2777,7 @@ void GraphManager::visualizeSparseGraph()
   visualization_msgs::Marker vertex_marker;
   vertex_marker.header.stamp = ros::Time::now();
   vertex_marker.header.seq = 0;
-  vertex_marker.header.frame_id = "world";
+  vertex_marker.header.frame_id = m_worldFrameId;
   vertex_marker.id = 0;
   vertex_marker.ns = "vertices";
   vertex_marker.action = visualization_msgs::Marker::ADD;
@@ -2822,7 +2794,7 @@ void GraphManager::visualizeSparseGraph()
   visualization_msgs::Marker frontier_vertex_marker;
   frontier_vertex_marker.header.stamp = ros::Time::now();
   frontier_vertex_marker.header.seq = 0;
-  frontier_vertex_marker.header.frame_id = "world";
+  frontier_vertex_marker.header.frame_id = m_worldFrameId;
   frontier_vertex_marker.id = 0;
   frontier_vertex_marker.ns = "frontier";
   frontier_vertex_marker.action = visualization_msgs::Marker::ADD;
@@ -2883,7 +2855,7 @@ void GraphManager::visualizeGlobalGraph()
   visualization_msgs::Marker edge_marker;
   edge_marker.header.stamp = ros::Time::now();
   edge_marker.header.seq = 0;
-  edge_marker.header.frame_id = "world";
+  edge_marker.header.frame_id = m_worldFrameId;
   edge_marker.id = 0;
   edge_marker.ns = "edges";
   edge_marker.action = visualization_msgs::Marker::ADD;
@@ -2922,7 +2894,7 @@ void GraphManager::visualizeGlobalGraph()
   visualization_msgs::Marker vertex_marker;
   vertex_marker.header.stamp = ros::Time::now();
   vertex_marker.header.seq = 0;
-  vertex_marker.header.frame_id = "world";
+  vertex_marker.header.frame_id = m_worldFrameId;
   vertex_marker.id = 0;
   vertex_marker.ns = "vertices";
   vertex_marker.action = visualization_msgs::Marker::ADD;
@@ -2940,7 +2912,7 @@ void GraphManager::visualizeGlobalGraph()
   visualization_msgs::Marker frontier_vertex_marker;
   frontier_vertex_marker.header.stamp = ros::Time::now();
   frontier_vertex_marker.header.seq = 0;
-  frontier_vertex_marker.header.frame_id = "world";
+  frontier_vertex_marker.header.frame_id = m_worldFrameId;
   frontier_vertex_marker.id = 0;
   frontier_vertex_marker.ns = "frontier";
   frontier_vertex_marker.action = visualization_msgs::Marker::ADD;
@@ -2999,7 +2971,7 @@ void GraphManager::visualizePoseGraph()
   visualization_msgs::Marker edge_marker;
   edge_marker.header.stamp = ros::Time::now();
   edge_marker.header.seq = 0;
-  edge_marker.header.frame_id = "world";
+  edge_marker.header.frame_id = m_worldFrameId;
   edge_marker.id = 0;
   edge_marker.ns = "edges";
   edge_marker.action = visualization_msgs::Marker::ADD;
@@ -3038,7 +3010,7 @@ void GraphManager::visualizePoseGraph()
   visualization_msgs::Marker vertex_marker;
   vertex_marker.header.stamp = ros::Time::now();
   vertex_marker.header.seq = 0;
-  vertex_marker.header.frame_id = "world";
+  vertex_marker.header.frame_id = m_worldFrameId;
   vertex_marker.id = 0;
   vertex_marker.ns = "vertices";
   vertex_marker.action = visualization_msgs::Marker::ADD;

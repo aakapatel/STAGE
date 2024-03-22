@@ -19,7 +19,7 @@ ControlInterface::ControlInterface(ros::NodeHandle nh, ros::NodeHandle nh_privat
     if (!nh_private_.getParam("reference_topic", pub_topic))
         pub_topic = "command/pose";
     if (!nh_private_.getParam("frame_id", frame_id))
-        frame_id = "world";
+        frame_id = "shafterx3/world";
     if (!nh_private_.getParam("robot_type", robot_type_))
         robot_type_ = "kAerial";
 

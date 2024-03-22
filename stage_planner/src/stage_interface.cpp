@@ -381,14 +381,14 @@ void StageInterface::generateTrajectory()
 
   trajectory_array_.header.seq = n_seq_;
   trajectory_array_.header.stamp = ros::Time::now();
-  trajectory_array_.header.frame_id = "world";
+  trajectory_array_.header.frame_id = "shafterx3/world";
   trajectory_array_.points.clear();
   double time_sum = 0;
 
   geometry_msgs::PoseStamped pose_ref;
   command_path.poses.clear();
-  pose_ref.header.frame_id = "world";
-  command_path.header.frame_id = "world";
+  pose_ref.header.frame_id = "shafterx3/world";
+  command_path.header.frame_id = "shafterx3/world";
 
   for (int i = 0; i < new_path.poses.size(); i++)
   {

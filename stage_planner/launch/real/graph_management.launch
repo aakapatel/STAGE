@@ -1,7 +1,7 @@
 <?xml version="1.0" ?>
 <launch>
 
-  <arg name="robot_name" default="shafterx1"/>
+  <arg name="robot_name" default="shafterx3"/>
 
   <env name="ROSCONSOLE_FORMAT" value="[${severity}] : ${message}"/>
   
@@ -12,7 +12,7 @@
     
     <node pkg="stage_planner" type="graph_management_node" name="graph_management_node" respawn="false" output="screen">
 
-      <param name="frame_id" type="string" value="shafterx1/world" />
+      <param name="frame_id" type="string" value="shafterx3/world" />
       
       <param name="odometry_topic" value="odometry/imu" />
 
