@@ -1,4 +1,3 @@
-frame_id: "shafterx3/world"
 local_AABB_size: 20 
 local_FOV: 40
 num_edges_max: 10

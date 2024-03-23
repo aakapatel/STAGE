@@ -1,4 +1,3 @@
-world_frame: "shafterx3/world"
 use_tf_transforms: True
 use_freespace_pointcloud: True
 tsdf_voxels_per_side: 16

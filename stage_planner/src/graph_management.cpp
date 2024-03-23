@@ -10,7 +10,7 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
   : nh_(nh),
   nh_private_(nh_private),
   map_manager_(map_manager),
-  m_worldFrameId(m_worldFrameId),
+  m_worldFrameId("world"),
   m_odometry("/hummingbird/ground_truth/odometry"),
   bounding_box_size_(12),
   m_local_fov(40),

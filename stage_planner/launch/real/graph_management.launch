@@ -13,6 +13,7 @@
     <node pkg="stage_planner" type="graph_management_node" name="graph_management_node" respawn="false" output="screen">
 
       <param name="frame_id" type="string" value="shafterx3/world" />
+      <param name="world_frame" value="shafterx3/world" />
       
       <param name="odometry_topic" value="odometry/imu" />
 

@@ -5,6 +5,7 @@ using namespace std;
 StageInterface::StageInterface(const ros::NodeHandle &nh, const ros::NodeHandle &nh_private)
   : nh_(nh),
   nh_private_(nh_private),
+  m_worldFrameId("world"),
   m_odometry("/hummingbird/ground_truth/odometry"),
   m_reference_topic("/hummingbird/command/pose"),
   init_x_(1),
@@ -19,6 +20,7 @@ StageInterface::StageInterface(const ros::NodeHandle &nh, const ros::NodeHandle 
   nh_private_.param("odometry_topic", m_odometry, m_odometry);
   nh_private_.param("reference_topic", m_reference_topic, m_reference_topic);
 
+  nh_private_.param("frame_id", m_worldFrameId, m_worldFrameId);
   nh_private_.param("robot_type", robot_type_, robot_type_);
   nh_private_.param("init_x", init_x_, init_x_);
   nh_private_.param("init_y", init_y_, init_y_);
@@ -381,14 +383,14 @@ void StageInterface::generateTrajectory()
 
   trajectory_array_.header.seq = n_seq_;
   trajectory_array_.header.stamp = ros::Time::now();
-  trajectory_array_.header.frame_id = "shafterx3/world";
+  trajectory_array_.header.frame_id = m_worldFrameId;
   trajectory_array_.points.clear();
   double time_sum = 0;
 
   geometry_msgs::PoseStamped pose_ref;
   command_path.poses.clear();
-  pose_ref.header.frame_id = "shafterx3/world";
-  command_path.header.frame_id = "shafterx3/world";
+  pose_ref.header.frame_id = m_worldFrameId;
+  command_path.header.frame_id = m_worldFrameId;
 
   for (int i = 0; i < new_path.poses.size(); i++)
   {

@@ -13,6 +13,7 @@
     <node pkg="stage_planner" type="graph_management_node" name="graph_management_node" respawn="false" output="screen">
 
       <param name="odometry_topic" value="ground_truth/odometry" />
+      <param name="world_frame" value="world" />
 
       <remap from="odometry" to="ground_truth/odometry" />
       <remap from="pointcloud" to="velodyne_points" />
