@@ -48,7 +48,7 @@ RUN set -x \
 	&& apt-get install -y bash-completion \
 	&& apt-get install -y libcanberra-gtk3-0 \
   && apt-get install -y ros-noetic-gmapping ros-noetic-slam-gmapping ros-noetic-openslam-gmapping \
-	&& pip3 install powerline-shell dearpygui \
+	# && pip3 install powerline-shell dearpygui \
 	&& rm -rf /var/lib/apt/lists/* \
   && useradd -m -s /bin/bash aakapatel \
     && echo 'aakapatel ALL=(ALL:ALL) NOPASSWD:ALL' >> /etc/sudoers
@@ -73,9 +73,8 @@ RUN git clone https://github.com/jimeh/tmux-themepack.git ~/.tmux-themepack  \
 COPY --chown=user:user ./.tmux.conf /home/aakapatel/.tmux.conf
 COPY --chown=user:user ./statusline.conf /home/aakapatel/statusline.conf
 COPY --chown=user:user ./utility.conf /home/aakapatel/utility.conf
-COPY --chown=user:user ./.powerline.sh /home/aakapatel/.powerline.sh
+# COPY --chown=user:user ./.powerline.sh /home/aakapatel/.powerline.sh
 COPY --chown=user:user ./stage_planning.yml /home/aakapatel/.config/tmuxinator/stage_planning.yml
-
 
 # Install Rust using rustup
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
@@ -88,7 +87,7 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 # Set some decent colors if the container needs to be accessed via /bin/bash.
 RUN echo LS_COLORS=$LS_COLORS:\'di=1\;33:ln=36\' >> ~/.bashrc \
         && echo export LS_COLORS >> ~/.bashrc \
-        && echo 'source ~/.powerline.sh' >> ~/.bashrc \
+        # && echo 'source ~/.powerline.sh' >> ~/.bashrc \
         && echo 'alias tmux="tmux -2"' >> ~/.bashrc \
         && echo 'PATH=~/bin:$PATH' >> ~/.bashrc \
         && touch ~/.sudo_as_admin_successful # To surpress the sudo message at run.
@@ -96,7 +95,7 @@ RUN echo LS_COLORS=$LS_COLORS:\'di=1\;33:ln=36\' >> ~/.bashrc \
 
 # some automatic sourcing for convenience.
 RUN echo "source /home/aakapatel/catkin_workspaces/exploration_ws/devel/setup.bash --extend" >> /home/aakapatel/.bashrc
-
+RUN echo "export PS1='\u@\h:\W\$ '" >> /home/aakapatel/.bashrc 
 RUN echo "source $HOME/.cargo/env " >> /home/aakapatel/.bashrc
 RUN echo "alias err=\"sudo catkin build errt\" " >> /home/aakapatel/.bashrc
 RUN echo "alias tmkill=\"tmux kill-session\" " >> /home/aakapatel/.bashrc
