@@ -33,5 +33,9 @@ windows:
           - cde 
           - sleep 4
           - roslaunch mav_linear_mpc mav_linear_mpc_sim.launch mav_name:=hummingbird
+        # - DLIO:  
+        #   - cde 
+        #   - sleep 4
+        #   - roslaunch direct_lidar_inertial_odometry dlio.launch
         - roscore: 
           - roscore 

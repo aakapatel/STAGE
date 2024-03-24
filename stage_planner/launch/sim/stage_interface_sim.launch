@@ -31,6 +31,8 @@
 
       <param name="state_topic" type="string" value="/state"/>
 
+      <param name="frame_id" type="string" value="world" />
+      
       <param name="path_topic" type="string" value="command_path"/>
 
       <param name="odom_topic" type="string" value="ground_truth/odometry"/>
