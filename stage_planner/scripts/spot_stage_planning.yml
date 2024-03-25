@@ -1,0 +1,57 @@
+# ~/.tmuxinator/stage_planning.yml 
+tmux_options: '-2'
+define: &initialize_stage "rosservice call /initialize_planner \"initialize: true\" " 
+
+name: stage_planning
+root: ~/
+windows:
+  - stage_main:
+      layout: tiled 
+      panes:
+        - stage_interface:
+          - cde
+          - sleep 2  
+          - mon launch stage_planner stage_interface_spot.launch 
+        - graph_management:
+          - cde 
+          - sleep 6 
+          - mon launch stage_planner graph_management_spot.launch
+        - controller:
+          - cdg 
+          - cd src/rai-SPOT-api 
+        
+        - GENTLE_STOP:
+          - cdg
+
+  - GUI:
+      layout: tiled 
+      panes:
+        - spot_api:
+          - cde
+          - sleep 4 
+          - cd src/rai-SPOT-api
+          - python3 spot_gui_map.py  
+          
+
+  - sensors:
+      # layout: main-vertical 
+      layout: tiled 
+      panes:
+        - velodyne:
+          - cds
+          - sleep 1  
+          - roslaunch velodyne_pointcloud VLP16_points.launch 
+        - vectornav:
+          - cds
+          - sleep 1 
+          - roslaunch vectornav vectornav.launch 
+        - LIO:  
+          - cdg 
+          - sleep 2
+          - roslaunch lio_sam run_VLP16.launch
+        - spot_drivers:
+          - cdg 
+          - sleep 2 
+          - roslaunch spot_driver driver.launch 
+        - roscore: 
+          - roscore 
