@@ -1,0 +1,28 @@
+<?xml version="1.0" ?>
+<launch>
+
+  <arg name="robot_name" default="spot"/>
+
+  <env name="ROSCONSOLE_FORMAT" value="[${severity}] : ${message}"/>
+  
+  <arg name="mapping_config" default="$(find stage_planner)/config/voxblox_sim_config.yaml"/>
+  <arg name="stage_config" default="$(find stage_planner)/config/stage_config.yaml"/>
+  
+  <group ns = "$(arg robot_name)"> 
+    
+    <node pkg="stage_planner" type="graph_management_node" name="graph_management_node" respawn="false" output="screen">
+
+      <param name="frame_id" type="string" value="world" />
+      <param name="world_frame" value="world" />
+      
+      <param name="odometry_topic" value="odometry/imu" />
+
+      <remap from="odometry" to="odometry/imu" />
+      <remap from="pointcloud" to="velodyne_points" />
+      <rosparam command="load" file="$(arg mapping_config)" /> 
+      <rosparam command="load" file="$(arg stage_config)" /> 
+
+    </node>
+  </group>
+
+</launch>
