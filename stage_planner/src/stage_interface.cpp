@@ -5,15 +5,15 @@ using namespace std;
 StageInterface::StageInterface(const ros::NodeHandle &nh, const ros::NodeHandle &nh_private)
   : nh_(nh),
   nh_private_(nh_private),
+  ac_("stage_interface_path", true),
   m_worldFrameId("world"),
   m_odometry("/hummingbird/ground_truth/odometry"),
   m_reference_topic("/hummingbird/command/pose"),
   init_x_(1),
-  init_y_(1),
+  init_y_(0),
   init_z_(1),
   distance_to_new_path_(1),
   robot_type_("kAerial")
-
 {
 
   // Set variables
@@ -72,6 +72,15 @@ bool StageInterface::initializePlanner(stage_planner::initializePlanning::Reques
     StageInterface::generateTrajectory();
 
     m_command_Path_Publisher.publish(command_path);
+
+
+    // ac_.waitForServer();
+    // if (ac_.waitForServer(ros::Duration(serverWatingTimeout))) {
+    ac_.sendGoal(
+      goal, boost::bind(&StageInterface::actionDoneCallback, this, _1, _2),
+      boost::bind(&StageInterface::actionActiveCallback, this),
+      boost::bind(&StageInterface::actionFeedbackCallback, this, _1));
+    // ROS_INFO("Goal set.");
 
     // if (reachedEndOfPath()) {
     res.success = true;
@@ -209,12 +218,39 @@ double StageInterface::calculateDistance(Eigen::Vector3d point1,
              pow(point1.z() - point2.z(), 2));
   }
   else
-  {
+{
 
     d = sqrt(pow(point1.x() - point2.x(), 2) + pow(point1.y() - point2.y(), 2));
   }
 
   return d;
+}
+
+
+void StageInterface::actionActiveCallback() { 
+  ROS_INFO("Action Server : Goal went active"); 
+}
+
+void StageInterface::actionFeedbackCallback(
+    const stage_planner::pathFollowerActionFeedbackConstPtr& feedback) {
+  
+  // leavingempty for now, can do something here based on path follow feedback 
+}
+
+bool StageInterface::actionDoneCallback(
+    const actionlib::SimpleClientGoalState& state,
+    const stage_planner::pathFollowerActionResultConstPtr& result) {
+  ROS_INFO("Finished follow action.");
+  if (state == actionlib::SimpleClientGoalState::SUCCEEDED) {
+    
+    // trigger replanning here ?
+
+  } 
+
+  else {
+    // can have action server error output here  
+  }
+  return true;
 }
 
 bool StageInterface::fetchExplorationPath()
@@ -381,6 +417,10 @@ void StageInterface::generateTrajectory()
   trajectory_msgs::MultiDOFJointTrajectoryPoint trajectory_point_msg_;
   std::vector<geometry_msgs::Pose> executing_path_;
 
+  // set actions server goal 
+
+  goal_path.clear();
+
   trajectory_array_.header.seq = n_seq_;
   trajectory_array_.header.stamp = ros::Time::now();
   trajectory_array_.header.frame_id = m_worldFrameId;
@@ -414,7 +454,11 @@ void StageInterface::generateTrajectory()
     // TODO Need to optimize this insertion! may be assign new_path directly to command path?
 
     command_path.poses.push_back(pose_ref);
+    goal_path.push_back(pose_ref);
+
   }
+
+  goal.path = goal_path;
   m_trajectory_Publisher.publish(trajectory_array_);
   // m_command_Path_Publisher.publish(command_path);
 
@@ -459,6 +503,20 @@ void StageInterface::mainLoop(const ros::TimerEvent &event)
         generateTrajectory();
 
         m_command_Path_Publisher.publish(command_path);
+
+        ROS_INFO ("Ready to set goal to Action Server \n");
+        ac_.waitForServer();
+        // if (ac_.waitForServer(ros::Duration(serverWatingTimeout))) {
+          ac_.sendGoal(
+            goal, boost::bind(&StageInterface::actionDoneCallback, this, _1, _2),
+            boost::bind(&StageInterface::actionActiveCallback, this),
+            boost::bind(&StageInterface::actionFeedbackCallback, this, _1));
+          ROS_INFO("Goal set.");
+        
+        // } else {
+        //   ROS_ERROR("not possible to set goal to Action Server.");
+        // }
+
       }
     }
   }

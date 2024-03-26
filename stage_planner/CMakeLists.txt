@@ -101,6 +101,11 @@ add_service_files(
 
 )
 
+add_action_files(
+ FILES
+ pathFollowerAction.action
+)
+
 generate_messages(
   DEPENDENCIES
   geometry_msgs
@@ -132,6 +137,7 @@ add_library(${PROJECT_NAME}
   src/params.cpp
   src/trajectory.cpp
   src/geofence_manager.cpp
+  src/pure_pursuit.cpp
 )
 
 
@@ -160,6 +166,17 @@ add_executable(control_interface src/control_interface.cpp)
 ## Specify libraries to link a library or executable target against
  target_link_libraries(
    control_interface
+   ${catkin_LIBRARIES}
+   ${OCTOMAP_LIBRARIES}
+   ${PCL_LIBRARIES}
+  ${CMAKE_DL_LIBS}
+)
+
+add_executable(smb_path_tracker_ros_node src/path_tracker_node.cpp)
+## Specify libraries to link a library or executable target against
+ target_link_libraries(
+   smb_path_tracker_ros_node
+   stage_planner
    ${catkin_LIBRARIES}
    ${OCTOMAP_LIBRARIES}
    ${PCL_LIBRARIES}

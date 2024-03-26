@@ -86,10 +86,10 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
 
   safety_margin_ << safety_margin[0], safety_margin[1], safety_margin[2];
 
-  if (robot_type_ == "kGround")
-  {
-    truncate_sample_Z_ = 1;
-  }
+  // if (robot_type_ == "kGround")
+  // {
+  //   truncate_sample_Z_ = 1;
+  // }
 
   std::string ns = ros::this_node::getName();
   sensor_params_.loadParams(ns + "/SensorParams");
@@ -838,7 +838,7 @@ bool GraphManager::buildLocalGraph()
   //
   // ROS_INFO_STREAM("Local Graph build time " << duration_total.count() << " ms \n");
 
-  ROS_DEBUG_STREAM("Sub graph has " << sub_graph_->getNumVertices() << " nodes & " << sub_graph_->getNumEdges() << " edges\n");
+  ROS_INFO_STREAM("Sub graph has " << sub_graph_->getNumVertices() << " nodes & " << sub_graph_->getNumEdges() << " edges\n");
 
   if (sub_graph_->getNumVertices() != 0 && sub_graph_->getNumEdges() != 0) {
 
