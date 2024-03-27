@@ -147,6 +147,7 @@ public:
 
   bool setPath();
 
+  void goalCallback(const geometry_msgs::PoseStamped::ConstPtr& goal_msg);
   void visualizeRepositionPath();
 
   double projectSample(Eigen::Vector3d& sample,
@@ -303,6 +304,7 @@ private:
   nav_msgs::Path homing_path_;
   Eigen::Vector3d home_position;
 
+  geometry_msgs::PoseStamped exploration_dir_pose;
   nav_msgs::Path exploration_path_;
 
   // ros::NodeHandle m_nh;
@@ -315,6 +317,7 @@ private:
 
   // Subscriber
   ros::Subscriber m_poseSubscriber;
+  ros::Subscriber m_goalSubscriber;
 
   // message_filters::Subscriber<nav_msgs::Odometry> *m_poseSubscriber;
 

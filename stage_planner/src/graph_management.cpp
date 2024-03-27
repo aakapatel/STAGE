@@ -47,7 +47,7 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
   // Subscribers
 
   m_poseSubscriber = nh_.subscribe(m_odometry, 1, &GraphManager::odomCallback, this);
-
+  m_goalSubscriber = nh_.subscribe("/move_base_simple/goal", 1, &GraphManager::goalCallback, this);
   // publishers
 
   m_modified_Path_Pub = nh_.advertise<nav_msgs::Path>("modified_path", 10);
@@ -1472,7 +1472,6 @@ bool GraphManager::setPath()
                           mod_path_.poses[path_iterator_ - 1].pose.position.x - mod_path_.poses[path_iterator_ - 2].pose.position.x);
       Eigen::Vector3d v(0, 0, angle);
       Eigen::Quaternion<float> q = Euler2Quaternion(v);
-      geometry_msgs::PoseStamped exploration_dir_pose;
       exploration_dir_pose.pose.position.x = mod_path_.poses[path_iterator_ - 1].pose.position.x;
       exploration_dir_pose.pose.position.y = mod_path_.poses[path_iterator_ - 1].pose.position.y;
       exploration_dir_pose.pose.position.z = mod_path_.poses[path_iterator_ - 1].pose.position.z;
@@ -2252,8 +2251,8 @@ bool GraphManager::isLocal(Eigen::Vector3d point)
 {
 
   double angle = calculateAngle(point);
-  double distance = calculateDistance(eigenToState(point), robotState_);
 
+  double distance = calculateDistance(eigenToState(point), robotState_);
   if (((angle < m_local_fov) && (angle > -m_local_fov)) && distance < (bounding_box_size_ + 2))
   {
     return true;
@@ -2262,6 +2261,31 @@ bool GraphManager::isLocal(Eigen::Vector3d point)
 {
     return false;
   }
+}
+
+void GraphManager::goalCallback(const geometry_msgs::PoseStamped::ConstPtr& goal_msg) {
+
+
+  float yaw_angle = atan2(goal_msg->pose.position.y - exploration_dir_pose.pose.position.y,
+                          goal_msg->pose.position.x - exploration_dir_pose.pose.position.x);
+  Eigen::Vector3d v(0, 0, yaw_angle);
+  Eigen::Quaternion<float> q = Euler2Quaternion(v);
+  geometry_msgs::PoseStamped goal_dir;
+  goal_dir.pose.position.x = goal_msg->pose.position.x;
+  goal_dir.pose.position.y = goal_msg->pose.position.y;
+  goal_dir.pose.position.z = goal_msg->pose.position.z;
+  goal_dir.pose.orientation.x = q.x();
+  goal_dir.pose.orientation.y = q.y();
+  goal_dir.pose.orientation.z = q.z();
+  goal_dir.pose.orientation.w = q.w();
+
+  Eigen::Quaterniond q1(exploration_dir_pose.pose.orientation.w, exploration_dir_pose.pose.orientation.x, exploration_dir_pose.pose.orientation.y, exploration_dir_pose.pose.orientation.z);
+  Eigen::Quaterniond q2(goal_dir.pose.orientation.w, goal_dir.pose.orientation.x, goal_dir.pose.orientation.y, goal_dir.pose.orientation.z);
+
+  double angle = std::acos(q1.dot(q2)) * 2.0 * 180/M_PI;
+  
+  ROS_INFO_STREAM ("angle between goal and exp dir : " << angle << "\n");
+
 }
 
 void GraphManager::updateGraph(const ros::TimerEvent &event)
