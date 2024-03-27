@@ -954,6 +954,12 @@ bool GraphManager::extractShortestPaths (std::shared_ptr<GraphUtils> graph, Shor
 bool GraphManager::planLocalPath(std::vector<std::vector<Vertex *>> dijkstra_paths)
 {
 
+
+
+  exploration_dir_pose.header.frame_id = m_worldFrameId;
+  exploration_dir_pose.header.stamp = ros::Time::now();
+  exploration_Direction_Pub.publish(exploration_dir_pose);
+
   bool path_status = true;
   local_paths_.clear();
 
@@ -965,12 +971,12 @@ bool GraphManager::planLocalPath(std::vector<std::vector<Vertex *>> dijkstra_pat
       {
         Eigen::Vector3d path_goal (dijkstra_path.back()->state[0], dijkstra_path.back()->state[1], dijkstra_path.back()->state[2]);
 
-        if (isLocal(path_goal)) {
+        // if (getRelativeAngle(path_goal) < 40) {
 
           std::pair<std::vector<Vertex *>, double> p = std::make_pair(dijkstra_path, getPathLength(dijkstra_path));
 
           local_paths_.push_back(p);
-        }
+        // }
       }
     }
 
@@ -994,9 +1000,13 @@ bool GraphManager::planLocalPath(std::vector<std::vector<Vertex *>> dijkstra_pat
 
       path_length = local_paths_[i].second;
 
-      // ROS_INFO_STREAM ("Vertex Gain --> " << gain << "\t Path length --> " << path_length << "\n");
+      Eigen::Vector3d p_goal (local_paths_[i].first.back()->state[0], local_paths_[i].first.back()->state[1], local_paths_[i].first.back()->state[2]);
+      double ang = getRelativeAngle(p_goal);
+      ROS_INFO_STREAM ("Vertex Gain --> " << gain << "\t Angle --> " << ang << "\t Path length --> " << path_length << "\n");
+      reward = exp(gain/(ang+1)); 
+      ROS_INFO_STREAM ("new reward = " << reward << "\n");
 
-      reward = gain/(path_length + 2);
+      // reward = gain/(path_length + 2);
       if (reward > my_reward)
       {
         my_reward = reward;
@@ -1479,10 +1489,10 @@ bool GraphManager::setPath()
       exploration_dir_pose.pose.orientation.y = q.y();
       exploration_dir_pose.pose.orientation.z = q.z();
       exploration_dir_pose.pose.orientation.w = q.w();
-      exploration_dir_pose.header.frame_id = m_worldFrameId;
-      exploration_dir_pose.header.stamp = ros::Time::now();
-
-      exploration_Direction_Pub.publish(exploration_dir_pose);
+      // exploration_dir_pose.header.frame_id = m_worldFrameId;
+      // exploration_dir_pose.header.stamp = ros::Time::now();
+      //
+      // exploration_Direction_Pub.publish(exploration_dir_pose);
 
     }
     else
@@ -2247,20 +2257,29 @@ double GraphManager::calculateAngle(Eigen::Vector3d fpoint)
   return atan2((fpoint.y() - robotState_[1]), (fpoint.x() - robotState_[0])) * (180 / M_PI) - yaw_;
 }
 
-bool GraphManager::isLocal(Eigen::Vector3d point)
+double GraphManager::getRelativeAngle(Eigen::Vector3d point)
 {
 
-  double angle = calculateAngle(point);
+  float yaw_angle = atan2(point[1] - exploration_dir_pose.pose.position.y,
+                          point[0] - exploration_dir_pose.pose.position.x);
+  Eigen::Vector3d v(0, 0, yaw_angle);
+  Eigen::Quaternion<float> q = Euler2Quaternion(v);
+  geometry_msgs::PoseStamped goal_dir;
+  goal_dir.pose.position.x = point[0];
+  goal_dir.pose.position.y = point[1];
+  goal_dir.pose.position.z = point[2];
+  goal_dir.pose.orientation.x = q.x();
+  goal_dir.pose.orientation.y = q.y();
+  goal_dir.pose.orientation.z = q.z();
+  goal_dir.pose.orientation.w = q.w();
 
-  double distance = calculateDistance(eigenToState(point), robotState_);
-  if (((angle < m_local_fov) && (angle > -m_local_fov)) && distance < (bounding_box_size_ + 2))
-  {
-    return true;
-  }
-  else
-{
-    return false;
-  }
+  Eigen::Quaterniond q1(exploration_dir_pose.pose.orientation.w, exploration_dir_pose.pose.orientation.x, exploration_dir_pose.pose.orientation.y, exploration_dir_pose.pose.orientation.z);
+  Eigen::Quaterniond q2(goal_dir.pose.orientation.w, goal_dir.pose.orientation.x, goal_dir.pose.orientation.y, goal_dir.pose.orientation.z);
+
+  double angle = std::acos(q1.dot(q2)) * 2.0 * 180/M_PI;
+
+  return angle;
+
 }
 
 void GraphManager::goalCallback(const geometry_msgs::PoseStamped::ConstPtr& goal_msg) {
@@ -2315,6 +2334,19 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
                                        stage_planner::explorationPath::Response &res)
 
 {
+
+  if (init_path) {
+
+      exploration_dir_pose.pose.position.x = robotState_[0];
+      exploration_dir_pose.pose.position.y = robotState_[1];
+      exploration_dir_pose.pose.position.z = robotState_[2];
+      exploration_dir_pose.pose.orientation.x = 0;
+      exploration_dir_pose.pose.orientation.y = 0;
+      exploration_dir_pose.pose.orientation.z = 0;
+      exploration_dir_pose.pose.orientation.w = 1;
+
+    init_path = false;
+  }
 
   bool planner_status = true;
 

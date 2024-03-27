@@ -58,7 +58,7 @@ public:
                              std::vector<std::vector<Vertex *>> &dijkstra_paths);
   double calculateAngle(Eigen::Vector3d fpoint);
 
-  bool isLocal(Eigen::Vector3d point);
+  double getRelativeAngle(Eigen::Vector3d point);
 
   void orientVertices (std::shared_ptr<GraphUtils> graph, const ShortestPathsReport& rep); 
 
@@ -318,7 +318,7 @@ private:
   // Subscriber
   ros::Subscriber m_poseSubscriber;
   ros::Subscriber m_goalSubscriber;
-
+  bool init_path = true;
   // message_filters::Subscriber<nav_msgs::Odometry> *m_poseSubscriber;
 
   // Publisher
