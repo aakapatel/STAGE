@@ -65,21 +65,19 @@ Visualization Manager:
       Show Trail: false
       Value: true
     - Class: rviz/MarkerArray
-      Enabled: true
+      Enabled: false
       Marker Topic: /smb/global_planning_graph
       Name: MarkerArray
       Namespaces:
         {}
       Queue Size: 100
-      Value: true
+      Value: false
     - Class: rviz/MarkerArray
       Enabled: true
       Marker Topic: /smb/local_planning_graph
       Name: MarkerArray
       Namespaces:
-        edges: false
-        frontier: true
-        vertices: true
+        {}
       Queue Size: 100
       Value: true
     - Alpha: 1
@@ -119,8 +117,7 @@ Visualization Manager:
       Marker Topic: /smb/global_dijkstra_paths
       Name: MarkerArray
       Namespaces:
-        edges: true
-        vertices: true
+        {}
       Queue Size: 100
       Value: true
     - Alpha: 0.029999999329447746
@@ -189,8 +186,7 @@ Visualization Manager:
       Marker Topic: /smb/global_repos_path
       Name: MarkerArray
       Namespaces:
-        edges: true
-        vertices: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -312,7 +308,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 12.306264877319336
+      Distance: 22.91453742980957
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -328,9 +324,9 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.3697967529296875
+      Pitch: 1.2947967052459717
       Target Frame: velodyne
-      Yaw: 3.11543607711792
+      Yaw: 3.100433349609375
     Saved: ~
 Window Geometry:
   Displays:
