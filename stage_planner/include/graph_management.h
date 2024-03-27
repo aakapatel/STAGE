@@ -149,6 +149,12 @@ public:
 
   void visualizeRepositionPath();
 
+  double projectSample(Eigen::Vector3d& sample,
+                       MapManager::VoxelStatus& voxel_status);
+  ProjectedEdgeStatus getProjectedEdgeStatus(
+      const Eigen::Vector3d& start, const Eigen::Vector3d& end,
+      const Eigen::Vector3d& box_size, bool stop_at_unknown_voxel,
+      std::vector<Eigen::Vector3d>& projected_edge, bool);
 
   int global_root_id = 0;
 

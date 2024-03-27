@@ -16,7 +16,7 @@
 
       <param name ="reference_topic" value="command/pose" />
 
-      <param name ="init_x" value="12" />
+      <param name ="init_x" value="2" />
       <param name ="init_y" value="0" />
       <param name ="init_z" value="1" />
 

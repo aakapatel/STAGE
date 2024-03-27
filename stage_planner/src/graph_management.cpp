@@ -1714,8 +1714,8 @@ bool GraphManager::modifyPath(pcl::PointCloud<pcl::PointXYZ>* obstacle_pcl,
 }
 
 bool GraphManager::improveFreePath(const std::vector<geometry_msgs::Pose>& path_orig,
-                                   std::vector<geometry_msgs::Pose>& path_mod,
-                                   bool relaxed) {
+                          std::vector<geometry_msgs::Pose>& path_mod,
+                          bool relaxed) {
   // Few heuristics to improve the path.
   // a) Shorten path by reducing intermidiate nodes. (be careful with turning
   // cases) Shorten/reduce some very short paths to prevent small motion and
@@ -1728,7 +1728,7 @@ bool GraphManager::improveFreePath(const std::vector<geometry_msgs::Pose>& path_
   // Interpolate path
   std::vector<geometry_msgs::Pose> path_orig_interp = path_orig;
   double kInterpolationDistance =
-    planning_params_.path_interpolation_distance * 2.0;
+      planning_params_.path_interpolation_distance * 2.0;
   std::vector<geometry_msgs::Pose> interp_path_orig;
   if (Trajectory::interpolatePath(path_orig, kInterpolationDistance,
                                   interp_path_orig)) {
@@ -1758,15 +1758,15 @@ bool GraphManager::improveFreePath(const std::vector<geometry_msgs::Pose>& path_
         // ROS_WARN_COND(global_verbosity >= Verbosity::WARN, "Segment length %f.", segment_len);
         if (segment_len < kSegmentLenMin) {
           if ((MapManager::VoxelStatus::kFree ==
-            map_manager_->getPathStatus(p_start, p_end, robot_box_size_,
-                                        false)) &&
-            (!planning_params_.geofence_checking_enable ||
-            (GeofenceManager::CoordinateStatus::kOK ==
-            geofence_manager_->getPathStatus(
-              Eigen::Vector2d(p_start[0], p_start[1]),
-              Eigen::Vector2d(p_end[0], p_end[1]),
-              Eigen::Vector2d(robot_box_size_[0],
-                              robot_box_size_[1]))))) {
+               map_manager_->getPathStatus(p_start, p_end, robot_box_size_,
+                                           false)) &&
+              (!planning_params_.geofence_checking_enable ||
+               (GeofenceManager::CoordinateStatus::kOK ==
+                geofence_manager_->getPathStatus(
+                    Eigen::Vector2d(p_start[0], p_start[1]),
+                    Eigen::Vector2d(p_end[0], p_end[1]),
+                    Eigen::Vector2d(robot_box_size_[0],
+                                    robot_box_size_[1]))))) {
             // ignore the intermidiate nore, combine the first to the last node.
             ROS_WARN_COND(global_verbosity >= Verbosity::WARN, "Combine nodes to remove short segments.");
             path_mod1.erase(path_mod1.begin() + i + 1);
@@ -1820,18 +1820,31 @@ bool GraphManager::improveFreePath(const std::vector<geometry_msgs::Pose>& path_
     bool e2_admissible = false;
     if (robot_params_.type == RobotType::kAerialRobot) {
       MapManager::VoxelStatus vs1 = map_manager_->getPathStatus(
-        p0_mod, p1_parallel, robot_box_size_, true);
+          p0_mod, p1_parallel, robot_box_size_, true);
       if (vs1 == MapManager::VoxelStatus::kFree) e1_admissible = true;
       MapManager::VoxelStatus vs2 =
-        map_manager_->getPathStatus(p0_mod, p1, robot_box_size_, true);
+          map_manager_->getPathStatus(p0_mod, p1, robot_box_size_, true);
       if (vs2 == MapManager::VoxelStatus::kFree) e2_admissible = true;
-    } 
+    } else if (robot_params_.type == RobotType::kGroundRobot) {
+      std::vector<Eigen::Vector3d> pr1, pr2;
+      ProjectedEdgeStatus e_pr1, e_pr2;
+      e_pr1 = getProjectedEdgeStatus(p0_mod, p1_parallel, robot_box_size_,
+                                     false, pr1, false);
+      if (ProjectedEdgeStatus::kAdmissible == e_pr1 ||
+          ProjectedEdgeStatus::kSteep == e_pr1)
+        e1_admissible = true;
+      e_pr2 = getProjectedEdgeStatus(p0_mod, p1, robot_box_size_, false, pr2,
+                                     false);
+      if (ProjectedEdgeStatus::kAdmissible == e_pr2 ||
+          ProjectedEdgeStatus::kSteep == e_pr2)
+        e2_admissible = true;
+    }
     if (e1_admissible) {
       p1_target = p1_parallel;
     } else if (e2_admissible) {
       p1_target = p1;
     } else {
-      ROS_WARN("Segment not free \n");
+      ROS_WARN_COND(global_verbosity >= Verbosity::WARN, "Segment not free");
       seg_free = false;
     }
 
@@ -1856,43 +1869,56 @@ bool GraphManager::improveFreePath(const std::vector<geometry_msgs::Pose>& path_
                                            occupied_voxels, free_voxels);
 
     pcl::PointCloud<pcl::PointXYZ>* obstacle_pcl(
-      new pcl::PointCloud<pcl::PointXYZ>());
+        new pcl::PointCloud<pcl::PointXYZ>());
     for (auto& v : occupied_voxels) {
       obstacle_pcl->push_back(pcl::PointXYZ(v.x(), v.y(), v.z()));
     }
 
     bool modification_successful =
-      (modifyPath(obstacle_pcl, p0_mod, p1_target, p1_mod));
+        (modifyPath(obstacle_pcl, p0_mod, p1_target, p1_mod));
     if (seg_free && modification_successful) {
       bool e1_admissible = false;
       bool e2_admissible = false;
       if (robot_params_.type == RobotType::kAerialRobot) {
         MapManager::VoxelStatus vs1 =
-          map_manager_->getPathStatus(p0_mod, p1_mod, robot_box_size_, true);
+            map_manager_->getPathStatus(p0_mod, p1_mod, robot_box_size_, true);
         if (vs1 == MapManager::VoxelStatus::kFree) e1_admissible = true;
         MapManager::VoxelStatus vs2 =
-          map_manager_->getPathStatus(p1_mod, p2, robot_box_size_, true);
+            map_manager_->getPathStatus(p1_mod, p2, robot_box_size_, true);
         if (vs2 == MapManager::VoxelStatus::kFree) e2_admissible = true;
-      } 
+      } else if (robot_params_.type == RobotType::kGroundRobot) {
+        std::vector<Eigen::Vector3d> pr1, pr2;
+        ProjectedEdgeStatus es1, es2;
+        es1 = getProjectedEdgeStatus(p0_mod, p1_mod, robot_box_size_, false,
+                                     pr1, false);
+        if (!(ProjectedEdgeStatus::kAdmissible != es1 &&
+              (!relaxed || ProjectedEdgeStatus::kSteep != es1)))
+          e1_admissible = true;
+        es2 = getProjectedEdgeStatus(p1_mod, p2, robot_box_size_, false, pr2,
+                                     false);
+        if (!(ProjectedEdgeStatus::kAdmissible != es2 &&
+              (!relaxed || ProjectedEdgeStatus::kSteep != es2)))
+          e2_admissible = true;
+      }
 
       if (!(e1_admissible) ||
-        (planning_params_.geofence_checking_enable &&
-        (GeofenceManager::CoordinateStatus::kViolated ==
-        geofence_manager_->getPathStatus(
-          Eigen::Vector2d(p0_mod[0], p0_mod[1]),
-          Eigen::Vector2d(p1_mod[0], p1_mod[1]),
-          Eigen::Vector2d(robot_box_size_[0], robot_box_size_[1])))) ||
-        (do_check_p2 && (!(e2_admissible) ||
-        (planning_params_.geofence_checking_enable &&
-        (GeofenceManager::CoordinateStatus::kViolated ==
-        geofence_manager_->getPathStatus(
-          Eigen::Vector2d(p1_mod[0], p1_mod[1]),
-          Eigen::Vector2d(p2[0], p2[1]),
-          Eigen::Vector2d(robot_box_size_[0],
-                          robot_box_size_[1]))))))) {
+          (planning_params_.geofence_checking_enable &&
+           (GeofenceManager::CoordinateStatus::kViolated ==
+            geofence_manager_->getPathStatus(
+                Eigen::Vector2d(p0_mod[0], p0_mod[1]),
+                Eigen::Vector2d(p1_mod[0], p1_mod[1]),
+                Eigen::Vector2d(robot_box_size_[0], robot_box_size_[1])))) ||
+          (do_check_p2 && (!(e2_admissible) ||
+                           (planning_params_.geofence_checking_enable &&
+                            (GeofenceManager::CoordinateStatus::kViolated ==
+                             geofence_manager_->getPathStatus(
+                                 Eigen::Vector2d(p1_mod[0], p1_mod[1]),
+                                 Eigen::Vector2d(p2[0], p2[1]),
+                                 Eigen::Vector2d(robot_box_size_[0],
+                                                 robot_box_size_[1]))))))) {
         p1_mod = p1;
         mod_success = false;
-        ROS_WARN("Newly modified path is not collision-free.");
+        ROS_WARN_COND(global_verbosity >= Verbosity::WARN, "Newly modified path is not collision-free.");
         // break; // break to save time @recheck
       }
     } else {
@@ -1912,22 +1938,199 @@ bool GraphManager::improveFreePath(const std::vector<geometry_msgs::Pose>& path_
   path_mod[0].orientation.y = path_orig_interp[0].orientation.y;
   path_mod[0].orientation.z = path_orig_interp[0].orientation.z;
   path_mod[0].orientation.w = path_orig_interp[0].orientation.w;
-  // if ((mod_success) && (planning_params_.yaw_tangent_correction)) {
-  //   for (int i = 1; i < path_mod.size(); ++i) {
-  //     Eigen::Vector3d vec(path_mod[i].position.x - path_mod[i - 1].position.x,
-  //                         path_mod[i].position.y - path_mod[i - 1].position.y,
-  //                         path_mod[i].position.z - path_mod[i - 1].position.z);
-  //     if (planning_params_.planning_backward) vec = -vec;
-  //     double yawhalf = 0.5 * std::atan2(vec[1], vec[0]);
-  //     path_mod[i].orientation.x = 0.0;
-  //     path_mod[i].orientation.y = 0.0;
-  //     path_mod[i].orientation.z = sin(yawhalf);
-  //     path_mod[i].orientation.w = cos(yawhalf);
-  //   }
-  // }
+  if ((mod_success) && (planning_params_.yaw_tangent_correction)) {
+    for (int i = 1; i < path_mod.size(); ++i) {
+      Eigen::Vector3d vec(path_mod[i].position.x - path_mod[i - 1].position.x,
+                          path_mod[i].position.y - path_mod[i - 1].position.y,
+                          path_mod[i].position.z - path_mod[i - 1].position.z);
+      if (planning_params_.planning_backward) vec = -vec;
+      double yawhalf = 0.5 * std::atan2(vec[1], vec[0]);
+      path_mod[i].orientation.x = 0.0;
+      path_mod[i].orientation.y = 0.0;
+      path_mod[i].orientation.z = sin(yawhalf);
+      path_mod[i].orientation.w = cos(yawhalf);
+    }
+  }
 
   // visualization_->visualizePCL(feasible_corridor_pcl_.get());
   return mod_success;
+}
+
+double GraphManager::projectSample(Eigen::Vector3d& sample,
+                          MapManager::VoxelStatus& voxel_status) {
+  double max_proj_len = 5.0;
+
+  float voxel_size = map_manager_->getResolution();
+
+  int unknown_count = 0;
+  double central_ray_len = 0.0;
+  std::vector<Eigen::Vector3d> extra_samples(5, Eigen::Vector3d::Zero());
+  extra_samples[0] = Eigen::Vector3d(0.0, 0.0, 0.0);
+  extra_samples[1] = Eigen::Vector3d(0.5, 0.0, 0.5);
+  extra_samples[2] = Eigen::Vector3d(-0.5, 0.0, 0.5);
+  extra_samples[3] = Eigen::Vector3d(0.0, 0.5, 0.5);
+  extra_samples[4] = Eigen::Vector3d(0.0, -0.5, 0.5);
+  for (int i = 0; i < extra_samples.size(); ++i) {
+    Eigen::Vector3d delta = extra_samples[i];
+    Eigen::Vector3d start = sample + delta;
+    Eigen::Vector3d end = start - Eigen::Vector3d(0.0, 0.0, max_proj_len);
+
+    if (planning_params_.interpolate_projection_distance) {
+      double ground_dist = 0.0;
+      Eigen::Vector3d point = start;
+      while (ground_dist < max_proj_len) {
+        double tsdf_dist = map_manager_->getPointDistance(point);
+        if (tsdf_dist < 0.0) {
+          // Hit Unknown
+          if (i == 0) {
+            central_ray_len = (point - start).norm();
+          }
+          ++unknown_count;
+          break;
+        } else {
+          if (tsdf_dist <= voxel_size) {
+            // Hit occupied
+            voxel_status = MapManager::VoxelStatus::kOccupied;
+            sample(0) = start(0);
+            sample(1) = start(1);
+            return ground_dist + tsdf_dist;
+          } else {
+            // Still in free
+            ground_dist += tsdf_dist;
+            point -= Eigen::Vector3d(0.0, 0.0, tsdf_dist - 0.02);
+          }
+        }
+      }
+    } else {
+      Eigen::Vector3d end_voxel;
+      double tsdf_dist;
+      MapManager::VoxelStatus vs =
+          map_manager_->getRayStatus(start, end, true, end_voxel, tsdf_dist);
+
+      if (vs == MapManager::VoxelStatus::kOccupied) {
+        double ray_len = std::abs(start(2) - end_voxel(2));
+        if (i == 0) {
+          central_ray_len = ray_len;
+        }
+        voxel_status = MapManager::VoxelStatus::kOccupied;
+        sample(0) = start(0);
+        sample(1) = start(1);
+        return ray_len;
+      } else if (vs == MapManager::VoxelStatus::kUnknown) {
+        double ray_len = std::abs(start(2) - end_voxel(2));
+        if (i == 0) {
+          central_ray_len = ray_len;
+        }
+        ++unknown_count;
+      }
+    }
+  }
+
+  if (unknown_count >= extra_samples.size()) {
+    voxel_status = MapManager::VoxelStatus::kUnknown;
+    return central_ray_len;
+  }
+
+  voxel_status = MapManager::VoxelStatus::kFree;
+  return -1.0;
+}
+
+ProjectedEdgeStatus GraphManager::getProjectedEdgeStatus(
+    const Eigen::Vector3d& start, const Eigen::Vector3d& end,
+    const Eigen::Vector3d& box_size, bool stop_at_unknown_voxel,
+    std::vector<Eigen::Vector3d>& projected_edge_out, bool is_hanging) {
+  double step_size = 2.0 * map_manager_->getResolution();
+  double max_inclination = planning_params_.max_inclination;
+
+  std::vector<Eigen::Vector3d> projected_edge;
+  Eigen::Vector3d ray = end - start;
+  double edge_incl = std::atan2(std::abs(ray(2)), std::abs(ray.head(2).norm()));
+  if (edge_incl > max_inclination) {
+    return ProjectedEdgeStatus::kSteep;
+  }
+
+  double ray_len = ray.norm();
+  Eigen::Vector3d ray_normed = ray / ray_len;
+
+  if ((end - start).norm() >= 2 * step_size) {
+    Eigen::Vector3d last_point;
+    for (double step = 0.0; step < ray_len; step += step_size) {
+      Eigen::Vector3d edge_point = start + step * ray_normed;
+      last_point = edge_point;
+      MapManager::VoxelStatus vs;
+      double ground_height = projectSample(edge_point, vs);
+      // Only allow intermediate hanging vertices if either of the end vertices
+      // are hanging:
+      if (vs == MapManager::VoxelStatus::kUnknown || ground_height < 0.0) {
+        if (!is_hanging) {
+          return ProjectedEdgeStatus::kHanging;
+        }
+      }
+      Eigen::Vector3d projected_edge_pt = edge_point;
+      // Get the point on the ground at a heigh of
+      // planning_params_.max_ground_height
+      projected_edge_pt(2) -=
+          (ground_height - planning_params_.max_ground_height);
+      projected_edge.push_back(projected_edge_pt);
+    }
+    if ((last_point - end).norm() < 0.75 * step_size) {
+      projected_edge.erase(projected_edge.end());
+    }
+  } else {
+    MapManager::VoxelStatus vs;
+    Eigen::Vector3d start_m = start;
+    Eigen::Vector3d end_m = end;
+    double ground_height = projectSample(start_m, vs);
+    // Project start and end points (extra check)
+    if (vs == MapManager::VoxelStatus::kUnknown || ground_height < 0.0) {
+      if (!is_hanging) {
+        return ProjectedEdgeStatus::kHanging;
+      }
+    }
+    ground_height = projectSample(end_m, vs);
+    if (vs == MapManager::VoxelStatus::kUnknown || ground_height < 0.0) {
+      if (!is_hanging) {
+        return ProjectedEdgeStatus::kHanging;
+      }
+    }
+    projected_edge.push_back(start);
+  }
+
+  MapManager::VoxelStatus vs;
+  Eigen::Vector3d end_m = end;
+  double ground_height = projectSample(end_m, vs);
+  if (vs == MapManager::VoxelStatus::kUnknown || ground_height < 0.0) {
+    if (!is_hanging) {
+      return ProjectedEdgeStatus::kHanging;
+    }
+  }
+  projected_edge.push_back(end_m);
+
+  // Check edge segment inclination. Cheaper than collision check
+  for (int i = 1; i < projected_edge.size(); ++i) {
+    Eigen::Vector3d segment = projected_edge[i] - projected_edge[i - 1];
+    double theta =
+        std::atan2(std::abs(segment(2)), std::abs(segment.head(2).norm()));
+    if (std::abs(theta) > max_inclination) {
+      return ProjectedEdgeStatus::kSteep;
+    }
+  }
+
+  // Check edge collision:
+  for (int i = 1; i < projected_edge.size(); ++i) {
+    MapManager::VoxelStatus vs =
+        map_manager_->getPathStatus(projected_edge[i - 1], projected_edge[i],
+                                    box_size, stop_at_unknown_voxel);
+    if (vs == MapManager::VoxelStatus::kUnknown) {
+      return ProjectedEdgeStatus::kUnknown;
+    } else if (vs == MapManager::VoxelStatus::kOccupied) {
+      return ProjectedEdgeStatus::kOccipied;
+    }
+  }
+
+  // Edge is admissible
+  projected_edge_out = projected_edge;
+  return ProjectedEdgeStatus::kAdmissible;
 }
 
 

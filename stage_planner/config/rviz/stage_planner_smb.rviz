@@ -77,7 +77,9 @@ Visualization Manager:
       Marker Topic: /smb/local_planning_graph
       Name: MarkerArray
       Namespaces:
-        {}
+        edges: false
+        frontier: true
+        vertices: true
       Queue Size: 100
       Value: true
     - Alpha: 1
@@ -186,7 +188,8 @@ Visualization Manager:
       Marker Topic: /smb/global_repos_path
       Name: MarkerArray
       Namespaces:
-        {}
+        edges: true
+        vertices: true
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -308,7 +311,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 22.91453742980957
+      Distance: 27.765031814575195
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -316,17 +319,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 3.90106463432312
-        Y: -0.21245089173316956
-        Z: -2.617276668548584
+        X: -1.2383888959884644
+        Y: 0.003008667379617691
+        Z: -3.151327610015869
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.2947967052459717
+      Pitch: 1.5697963237762451
       Target Frame: velodyne
-      Yaw: 3.100433349609375
+      Yaw: 3.1054327487945557
     Saved: ~
 Window Geometry:
   Displays:

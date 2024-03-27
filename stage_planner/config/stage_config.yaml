@@ -29,14 +29,15 @@ SensorParams:
 
 #-------------------------------------------------------------------------------
 RobotParams:
-  type:               kAerialRobot
+  # type:               kAerialRobot
+  type:               kGroundRobot 
   size:               [0.2, 0.2, 0.2] # Actual size of the robot in meters [x, y, z]
   size_extension_min: [0.1, 0.1, 0.1] # minimum extension outside of robot size allowed to operate
   size_extension:     [0.2, 0.2, 0.2] # maximum extension outside of the robot size
   center_offset:      [0.0, 0.0, 0.0]
   relax_ratio:        0.5 # Used to define an intermediate size between size_extension_min and size_extension for planning
   bound_mode:         kExtendedBound
-  safety_extension:   [3.0, 4.0, 3.0] # Safety extension outside the bounding box of a path segment used to improve it by pushing it away from obstacles
+  safety_extension:   [2.0, 3.0, 0.2] # Safety extension outside the bounding box of a path segment used to improve it by pushing it away from obstacles
 #-------------------------------------------------------------------------------
 # SAMPLING SPACE CONFIGURATION
 #   Global: Strictly defined bounds for the whole environment.
