@@ -23,6 +23,7 @@ Panels:
         - /MarkerArray10
         - /MarkerArray11
         - /Path2
+        - /Pose1
         - /Odometry1
       Splitter Ratio: 0.5
     Tree Height: 716
@@ -58,9 +59,9 @@ Visualization Manager:
     - Alpha: 1
       Class: rviz/Axes
       Enabled: true
-      Length: 2
+      Length: 1
       Name: Axes
-      Radius: 0.20000000298023224
+      Radius: 0.10000000149011612
       Reference Frame: velodyne
       Show Trail: false
       Value: true
@@ -73,15 +74,13 @@ Visualization Manager:
       Queue Size: 100
       Value: false
     - Class: rviz/MarkerArray
-      Enabled: true
+      Enabled: false
       Marker Topic: /smb/local_planning_graph
       Name: MarkerArray
       Namespaces:
-        edges: false
-        frontier: true
-        vertices: true
+        {}
       Queue Size: 100
-      Value: true
+      Value: false
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
@@ -184,14 +183,13 @@ Visualization Manager:
       Queue Size: 100
       Value: false
     - Class: rviz/MarkerArray
-      Enabled: true
+      Enabled: false
       Marker Topic: /smb/global_repos_path
       Name: MarkerArray
       Namespaces:
-        edges: true
-        vertices: true
+        {}
       Queue Size: 100
-      Value: true
+      Value: false
     - Class: rviz/MarkerArray
       Enabled: true
       Marker Topic: /smb/improved_global_dijkstra_paths
@@ -230,6 +228,22 @@ Visualization Manager:
       Shaft Diameter: 0.10000000149011612
       Shaft Length: 0.10000000149011612
       Topic: /smb/modified_path
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Axes Length: 1
+      Axes Radius: 0.10000000149011612
+      Class: rviz/Pose
+      Color: 85; 255; 255
+      Enabled: true
+      Head Length: 0.800000011920929
+      Head Radius: 0.5
+      Name: Pose
+      Queue Size: 10
+      Shaft Length: 1
+      Shaft Radius: 0.20000000298023224
+      Shape: Arrow
+      Topic: /smb/exploration_direction
       Unreliable: false
       Value: true
     - Angle Tolerance: 0.10000000149011612
@@ -311,7 +325,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 27.765031814575195
+      Distance: 17.61349105834961
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -319,17 +333,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -1.2383888959884644
-        Y: 0.003008667379617691
-        Z: -3.151327610015869
+        X: 0.5005697011947632
+        Y: 0.501183032989502
+        Z: -3.2788314819335938
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5697963237762451
+      Pitch: 1.4447964429855347
       Target Frame: velodyne
-      Yaw: 3.1054327487945557
+      Yaw: 2.370415449142456
     Saved: ~
 Window Geometry:
   Displays:

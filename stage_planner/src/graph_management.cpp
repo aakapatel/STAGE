@@ -51,6 +51,8 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
   // publishers
 
   m_modified_Path_Pub = nh_.advertise<nav_msgs::Path>("modified_path", 10);
+  
+  exploration_Direction_Pub = nh_.advertise<geometry_msgs::PoseStamped>("exploration_direction", 10);
 
   local_Graph_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("local_planning_graph", 10);
 
@@ -838,7 +840,7 @@ bool GraphManager::buildLocalGraph()
   //
   // ROS_INFO_STREAM("Local Graph build time " << duration_total.count() << " ms \n");
 
-  ROS_INFO_STREAM("Sub graph has " << sub_graph_->getNumVertices() << " nodes & " << sub_graph_->getNumEdges() << " edges\n");
+  // ROS_INFO_STREAM("Sub graph has " << sub_graph_->getNumVertices() << " nodes & " << sub_graph_->getNumEdges() << " edges\n");
 
   if (sub_graph_->getNumVertices() != 0 && sub_graph_->getNumEdges() != 0) {
 
@@ -1380,6 +1382,8 @@ bool GraphManager::planGlobalPath(std::vector<std::vector<Vertex *>> dijkstra_pa
 bool GraphManager::setPath()
 {
 
+    Eigen::Vector3d v_root;
+    Eigen::Vector3d v_vert;
   bool path_set = true;
   if (mod_path_.poses.empty()) {
     path_set = false;
@@ -1389,8 +1393,7 @@ bool GraphManager::setPath()
     GraphManager::visualizeRepositionPath();
     nav_msgs::Path path_seg;
     path_seg.poses.clear();
-    Eigen::Vector3d v_root;
-    if (path_iterator_ < mod_path_.poses.size())
+      if (path_iterator_ < mod_path_.poses.size())
     {
 
       if (path_iterator_ == 0)
@@ -1402,7 +1405,7 @@ bool GraphManager::setPath()
         v_root = Eigen::Vector3d(mod_path_.poses[path_iterator_ - 1].pose.position.x, mod_path_.poses[path_iterator_ - 1].pose.position.y, mod_path_.poses[path_iterator_ - 1].pose.position.z);
       }
 
-      Eigen::Vector3d v_vert(mod_path_.poses[path_iterator_].pose.position.x, mod_path_.poses[path_iterator_].pose.position.y, mod_path_.poses[path_iterator_].pose.position.z);
+      v_vert = Eigen::Vector3d(mod_path_.poses[path_iterator_].pose.position.x, mod_path_.poses[path_iterator_].pose.position.y, mod_path_.poses[path_iterator_].pose.position.z);
       MapManager::VoxelStatus vs = map_manager_->getPathStatus(v_root, v_vert, robot_box_size_, true);
 
       if (MapManager::VoxelStatus::kFree == vs or MapManager::VoxelStatus::kUnknown == vs)
@@ -1460,21 +1463,43 @@ bool GraphManager::setPath()
         path_set =  false;
         return path_set;
       }
+    
+      exploration_direction_ = Eigen::Vector3d(mod_path_.poses[path_iterator_ - 1].pose.position.x - mod_path_.poses[path_iterator_ - 2].pose.position.x,
+                                               mod_path_.poses[path_iterator_ - 1].pose.position.y - mod_path_.poses[path_iterator_ - 2].pose.position.y,
+                                               mod_path_.poses[path_iterator_ - 1].pose.position.z - mod_path_.poses[path_iterator_ - 2].pose.position.z);
+
+      float angle = atan2(mod_path_.poses[path_iterator_ - 1].pose.position.y - mod_path_.poses[path_iterator_ - 2].pose.position.y,
+                          mod_path_.poses[path_iterator_ - 1].pose.position.x - mod_path_.poses[path_iterator_ - 2].pose.position.x);
+      Eigen::Vector3d v(0, 0, angle);
+      Eigen::Quaternion<float> q = Euler2Quaternion(v);
+      geometry_msgs::PoseStamped exploration_dir_pose;
+      exploration_dir_pose.pose.position.x = mod_path_.poses[path_iterator_ - 1].pose.position.x;
+      exploration_dir_pose.pose.position.y = mod_path_.poses[path_iterator_ - 1].pose.position.y;
+      exploration_dir_pose.pose.position.z = mod_path_.poses[path_iterator_ - 1].pose.position.z;
+      exploration_dir_pose.pose.orientation.x = q.x();
+      exploration_dir_pose.pose.orientation.y = q.y();
+      exploration_dir_pose.pose.orientation.z = q.z();
+      exploration_dir_pose.pose.orientation.w = q.w();
+      exploration_dir_pose.header.frame_id = m_worldFrameId;
+      exploration_dir_pose.header.stamp = ros::Time::now();
+
+      exploration_Direction_Pub.publish(exploration_dir_pose);
+
     }
     else
-  {
-      ROS_DEBUG_STREAM("Reached end of path \n");
-      exploration_path_.poses.clear();
-      reached_end_of_path_ = true;
-      path_iterator_ = 0;
-      mod_path_.poses.clear();
-      best_path_.clear();
-      path_set =  false;
-      return path_set;
-    }
+      {
+        ROS_DEBUG_STREAM("Reached end of path \n");
+    exploration_path_.poses.clear();
+    reached_end_of_path_ = true;
+    path_iterator_ = 0;
+    mod_path_.poses.clear();
+    best_path_.clear();
+    path_set =  false;
+    return path_set;
   }
+}
 
-  return path_set;
+return path_set;
 
 }
 
@@ -1952,7 +1977,6 @@ bool GraphManager::improveFreePath(const std::vector<geometry_msgs::Pose>& path_
     }
   }
 
-  // visualization_->visualizePCL(feasible_corridor_pcl_.get());
   return mod_success;
 }
 
@@ -2284,11 +2308,14 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
         if (GraphManager::extractShortestPaths(sub_graph_, sub_graph_rep_, local_root_vertex, dijkstra_paths)) {
 
           visualizeLocalGraph();
-          GraphManager::insertBestPathsToSparseGraph(dijkstra_paths);
-          ROS_INFO("Successfully inserted best paths \n");
+          // GraphManager::insertBestPathsToSparseGraph(dijkstra_paths);
+          // ROS_INFO("Successfully inserted best paths \n");
           if (GraphManager::planLocalPath(dijkstra_paths)) {
 
             ROS_INFO("Successfully planned local path \n");
+            
+            GraphManager::insertBestPathsToSparseGraph(dijkstra_paths);
+            ROS_INFO("Successfully inserted best paths \n");
 
             if (GraphManager::setPath()) {
 

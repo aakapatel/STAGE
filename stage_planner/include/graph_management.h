@@ -248,6 +248,7 @@ private:
   std::vector<double> robot_box_size;
   Eigen::Vector3d robot_box_size_;
   Eigen::Vector3d safety_margin_;
+  Eigen::Vector3d exploration_direction_;
   int num_edges_max_;
   double knn_range_ = 4;
 
@@ -334,7 +335,7 @@ private:
   ros::Publisher sparse_Graph_Vis_Pub_;
   ros::Publisher tree_Vis_Pub_;
   ros::Publisher execution_Time_Pub_;
-
+  ros::Publisher exploration_Direction_Pub;
 
   // Services
   ros::ServiceServer m_exploration_path_srv;

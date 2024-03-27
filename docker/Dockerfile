@@ -48,7 +48,10 @@ RUN set -x \
 	&& apt-get install -y bash-completion \
 	&& apt-get install -y libcanberra-gtk3-0 \
   && apt-get install -y ros-noetic-gmapping ros-noetic-slam-gmapping ros-noetic-openslam-gmapping \
-	# && pip3 install powerline-shell dearpygui \
+  && apt-get install -y ros-noetic-joy \
+  && apt-get install -y ros-noetic-twist-mux \
+  && apt-get install -y ros-noetic-interactive-marker-twist-server \
+  # && pip3 install powerline-shell dearpygui \
 	&& rm -rf /var/lib/apt/lists/* \
   && useradd -m -s /bin/bash aakapatel \
     && echo 'aakapatel ALL=(ALL:ALL) NOPASSWD:ALL' >> /etc/sudoers
