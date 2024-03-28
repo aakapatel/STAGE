@@ -1,0 +1,45 @@
+# ~/.tmuxinator/smb_stage_planning.yml 
+tmux_options: '-2'
+define: &initialize_stage "rosservice call /smb/initialize_planner \"initialize: true\" " 
+
+name: smb_stage_planning
+root: ~/
+windows:
+  - stage_main:
+      layout: even-horizontal 
+      panes:
+        - stage_interface:
+          - cde
+          - sleep 2  
+          - mon launch stage_planner stage_interface_smb.launch 
+        - graph_management:
+          - cde 
+          - sleep 4 
+          - mon launch stage_planner graph_management_smb.launch
+
+  - publishers:
+      # layout: main-vertical 
+      layout: tiled 
+      panes:
+        - smb_gazebo:
+          - cde
+          - sleep 1  
+          - roslaunch smb_gazebo smb_subt.launch
+        - odom_repub:
+          - cde
+          - sleep 3
+          - cd src/mission_scripts 
+          - python3 odom_re_pub.py
+        - initialization:
+          - cde 
+          - sleep 8 
+          - *initialize_stage 
+        - controller:  
+          - cde 
+          - sleep 4
+        # - DLIO:  
+        #   - cde 
+        #   - sleep 4
+        #   - roslaunch direct_lidar_inertial_odometry dlio.launch
+        - roscore: 
+          - roscore 

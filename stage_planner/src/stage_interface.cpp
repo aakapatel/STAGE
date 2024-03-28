@@ -54,10 +54,10 @@ StageInterface::StageInterface(const ros::NodeHandle &nh, const ros::NodeHandle 
 
   m_planner_homing_srv = nh_.advertiseService("start_homing_planner", &StageInterface::homingPlanner, this);
 
-  if (robot_type_ == "kGround")
-  {
-    init_z_ = 0;
-  }
+  // if (robot_type_ == "kGround")
+  // {
+  //   init_z_ = 0;
+  // }
 };
 
 bool StageInterface::initializePlanner(stage_planner::initializePlanning::Request &req,

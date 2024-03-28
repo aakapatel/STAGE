@@ -951,6 +951,11 @@ bool GraphManager::extractShortestPaths (std::shared_ptr<GraphUtils> graph, Shor
 
 }
 
+bool GraphManager::compareAngles (const std::pair<std::vector<Vertex *>, double>& a, const std::pair<std::vector<Vertex *>, double>& b) {
+  
+  return a.second < b.second; 
+}
+
 bool GraphManager::planLocalPath(std::vector<std::vector<Vertex *>> dijkstra_paths)
 {
 
@@ -984,12 +989,14 @@ bool GraphManager::planLocalPath(std::vector<std::vector<Vertex *>> dijkstra_pat
     ROS_WARN_STREAM ("Sub graph -> No dijkstra paths :( \n");
     return false;
   }
-
+  
+  std::vector<std::pair<std::vector<Vertex*>, double>> paths_unordered;
+  paths_unordered.clear();
+  
   if (!local_paths_.empty())
   {
     GraphManager::visualizeLocalPaths(local_paths_);
 
-    std::vector<Vertex *> path;
     double gain, path_length, reward;
     double my_reward = -std::numeric_limits<double>::max();
 
@@ -1002,18 +1009,31 @@ bool GraphManager::planLocalPath(std::vector<std::vector<Vertex *>> dijkstra_pat
 
       Eigen::Vector3d p_goal (local_paths_[i].first.back()->state[0], local_paths_[i].first.back()->state[1], local_paths_[i].first.back()->state[2]);
       double ang = getRelativeAngle(p_goal);
-      ROS_INFO_STREAM ("Vertex Gain --> " << gain << "\t Angle --> " << ang << "\t Path length --> " << path_length << "\n");
-      reward = exp(gain/(ang+1)); 
-      ROS_INFO_STREAM ("new reward = " << reward << "\n");
-
-      // reward = gain/(path_length + 2);
-      if (reward > my_reward)
-      {
-        my_reward = reward;
-        path = local_paths_[i].first;
-      }
+      // ROS_INFO_STREAM ("Vertex Gain --> " << gain << "\t Angle --> " << ang << "\t Path length --> " << path_length << "\n");
+      reward = gain - 10*exp(ang*M_PI/180); 
+      // ROS_INFO_STREAM ("new reward = " << reward << "\n");
+      
+      
+      std::pair<std::vector<Vertex *>, double> path_reward_pair = std::make_pair(local_paths_[i].first, reward);
+      paths_unordered.push_back(path_reward_pair);
+      // if (reward > my_reward)
+      // {
+      //   my_reward = reward;
+      //   path = local_paths_[i].first;
+      // }
     }
+    
+    // sort the paths in descending order based on the leaf vertices exploration reward. 
 
+    std::sort(paths_unordered.begin(), paths_unordered.end(), 
+              [](const std::pair<std::vector<Vertex *>, double>& a, const std::pair<std::vector<Vertex *>, double>& b) 
+              { return a.second>b.second; } );
+        
+    // ROS_INFO_STREAM ("first and last element reward << " << paths_unordered.front().second << " , " << paths_unordered.back().second << "\n");
+    
+    for (int j = 0; j < paths_unordered.size(); j++) {
+
+    std::vector<Vertex *> path = paths_unordered[j].first;
     best_path_.clear();
     GraphManager::improvePath(path, best_path_);
     std::vector<geometry_msgs::Pose> original_path;
@@ -1049,16 +1069,20 @@ bool GraphManager::planLocalPath(std::vector<std::vector<Vertex *>> dijkstra_pat
       }
 
       m_modified_Path_Pub.publish(mod_path_);
+      break;
     } 
-    if (mod_path_.poses.empty()) 
+    else if (j == (paths_unordered.size() - 1))
     {
       ROS_WARN("Sub graph -> Improved local path is empty \n");
       path_status = false;
       return path_status;
     }
+
+    }
+
   } 
   else 
-{
+  {
     ROS_WARN("Sub graph -> No shortest paths to local frontier vertices \n");
     path_status = false;
     return path_status;

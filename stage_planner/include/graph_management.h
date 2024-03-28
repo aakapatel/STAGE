@@ -150,6 +150,7 @@ public:
   void goalCallback(const geometry_msgs::PoseStamped::ConstPtr& goal_msg);
   void visualizeRepositionPath();
 
+  bool compareAngles (const std::pair<std::vector<Vertex *>, double>& a, const std::pair<std::vector<Vertex *>, double>& b);
   double projectSample(Eigen::Vector3d& sample,
                        MapManager::VoxelStatus& voxel_status);
   ProjectedEdgeStatus getProjectedEdgeStatus(
