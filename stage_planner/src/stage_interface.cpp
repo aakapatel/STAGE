@@ -76,11 +76,13 @@ bool StageInterface::initializePlanner(stage_planner::initializePlanning::Reques
 
     // ac_.waitForServer();
     // if (ac_.waitForServer(ros::Duration(serverWatingTimeout))) {
+    if (robot_type_ == "kGround") {
+
     ac_.sendGoal(
       goal, boost::bind(&StageInterface::actionDoneCallback, this, _1, _2),
       boost::bind(&StageInterface::actionActiveCallback, this),
       boost::bind(&StageInterface::actionFeedbackCallback, this, _1));
-    // ROS_INFO("Goal set.");
+    }
 
     // if (reachedEndOfPath()) {
     res.success = true;
@@ -504,14 +506,15 @@ void StageInterface::mainLoop(const ros::TimerEvent &event)
 
         m_command_Path_Publisher.publish(command_path);
 
-        ROS_INFO ("Ready to set goal to Action Server \n");
-        ac_.waitForServer();
-        // if (ac_.waitForServer(ros::Duration(serverWatingTimeout))) {
+        if (robot_type_ == "kGround") {
+
+          ROS_INFO ("Ready to set goal to Action Server \n");
+          ac_.waitForServer();
           ac_.sendGoal(
             goal, boost::bind(&StageInterface::actionDoneCallback, this, _1, _2),
             boost::bind(&StageInterface::actionActiveCallback, this),
             boost::bind(&StageInterface::actionFeedbackCallback, this, _1));
-          ROS_INFO("Goal set.");
+        }
         
         // } else {
         //   ROS_ERROR("not possible to set goal to Action Server.");

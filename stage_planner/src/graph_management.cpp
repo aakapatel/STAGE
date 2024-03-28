@@ -959,8 +959,6 @@ bool GraphManager::compareAngles (const std::pair<std::vector<Vertex *>, double>
 bool GraphManager::planLocalPath(std::vector<std::vector<Vertex *>> dijkstra_paths)
 {
 
-
-
   exploration_dir_pose.header.frame_id = m_worldFrameId;
   exploration_dir_pose.header.stamp = ros::Time::now();
   exploration_Direction_Pub.publish(exploration_dir_pose);
@@ -976,12 +974,9 @@ bool GraphManager::planLocalPath(std::vector<std::vector<Vertex *>> dijkstra_pat
       {
         Eigen::Vector3d path_goal (dijkstra_path.back()->state[0], dijkstra_path.back()->state[1], dijkstra_path.back()->state[2]);
 
-        // if (getRelativeAngle(path_goal) < 40) {
+        std::pair<std::vector<Vertex *>, double> p = std::make_pair(dijkstra_path, getPathLength(dijkstra_path));
 
-          std::pair<std::vector<Vertex *>, double> p = std::make_pair(dijkstra_path, getPathLength(dijkstra_path));
-
-          local_paths_.push_back(p);
-        // }
+        local_paths_.push_back(p);
       }
     }
 
@@ -1016,11 +1011,6 @@ bool GraphManager::planLocalPath(std::vector<std::vector<Vertex *>> dijkstra_pat
       
       std::pair<std::vector<Vertex *>, double> path_reward_pair = std::make_pair(local_paths_[i].first, reward);
       paths_unordered.push_back(path_reward_pair);
-      // if (reward > my_reward)
-      // {
-      //   my_reward = reward;
-      //   path = local_paths_[i].first;
-      // }
     }
     
     // sort the paths in descending order based on the leaf vertices exploration reward. 
@@ -1330,12 +1320,12 @@ bool GraphManager::planGlobalPath(std::vector<std::vector<Vertex *>> dijkstra_pa
     return false;
   }
 
+  std::vector<std::pair<std::vector<Vertex*>, double>> paths_unordered;
+  paths_unordered.clear();
+
   if (!global_paths_.empty())
   {
-
     GraphManager::visualizeGlobalPaths(global_paths_);
-
-    std::vector<Vertex *> path;
 
     double gain, path_length, reward;
     double my_reward = -std::numeric_limits<double>::max();
@@ -1344,63 +1334,78 @@ bool GraphManager::planGlobalPath(std::vector<std::vector<Vertex *>> dijkstra_pa
     {
 
       gain = 100 * global_paths_[i].first.back()->vol_gain.unknown_percentage;
+
       path_length = global_paths_[i].second;
 
-      reward = gain - (path_length);
-      if (reward > my_reward)
+      Eigen::Vector3d p_goal (global_paths_[i].first.back()->state[0], global_paths_[i].first.back()->state[1], global_paths_[i].first.back()->state[2]);
+      double ang = getRelativeAngle(p_goal);
+      // ROS_INFO_STREAM ("Vertex Gain --> " << gain << "\t Angle --> " << ang << "\t Path length --> " << path_length << "\n");
+      // reward = gain - 10*exp(ang*M_PI/180); 
+      reward = gain/(path_length + 2); 
+      // ROS_INFO_STREAM ("new reward = " << reward << "\n");
+
+
+      std::pair<std::vector<Vertex *>, double> path_reward_pair = std::make_pair(global_paths_[i].first, reward);
+      paths_unordered.push_back(path_reward_pair);
+    }
+
+    // sort the paths in descending order based on the leaf vertices exploration reward. 
+
+    std::sort(paths_unordered.begin(), paths_unordered.end(), 
+              [](const std::pair<std::vector<Vertex *>, double>& a, const std::pair<std::vector<Vertex *>, double>& b) 
+              { return a.second>b.second; } );
+
+    // ROS_INFO_STREAM ("first and last element reward << " << paths_unordered.front().second << " , " << paths_unordered.back().second << "\n");
+
+    for (int j = 0; j < paths_unordered.size(); j++) {
+
+      std::vector<Vertex *> path = paths_unordered[j].first;
+      best_path_.clear();
+      GraphManager::improvePath(path, best_path_);
+      std::vector<geometry_msgs::Pose> original_path;
+      std::vector<geometry_msgs::Pose> modified_path;
+      original_path.clear();
+      modified_path.clear();
+      geometry_msgs::Pose path_pose;
+      for (int i = 0; i != best_path_.size(); ++i) {
+        path_pose.position.x = best_path_[i]->state[0];
+        path_pose.position.y = best_path_[i]->state[1];
+        path_pose.position.z = best_path_[i]->state[2];
+        path_pose.orientation.x = 0;
+        path_pose.orientation.y = 0;
+        path_pose.orientation.z = 0.2;
+        path_pose.orientation.w = 1;
+        original_path.push_back(path_pose);
+      }
+
+      bool improvement_success = GraphManager::improveFreePath (original_path, modified_path, true);
+
+      if (improvement_success) {
+        geometry_msgs::PoseStamped pose_mod;
+        pose_mod.header.frame_id = m_worldFrameId;
+        pose_mod.header.stamp = ros::Time::now();
+        mod_path_.header.frame_id = m_worldFrameId;
+        mod_path_.header.stamp = ros::Time::now();
+
+        for (int i = 0; i != modified_path.size(); ++i){
+          pose_mod.pose.position.x = modified_path[i].position.x;
+          pose_mod.pose.position.y = modified_path[i].position.y;
+          pose_mod.pose.position.z = modified_path[i].position.z;
+          mod_path_.poses.push_back(pose_mod);
+        }
+
+        m_modified_Path_Pub.publish(mod_path_);
+        break;
+      } 
+      else if (j == (paths_unordered.size() - 1))
       {
-        my_reward = reward;
-        path = global_paths_[i].first;
-      }
-    }
-
-    best_path_.clear();
-    GraphManager::improvePath(path, best_path_);
-
-
-    std::vector<geometry_msgs::Pose> original_path;
-    std::vector<geometry_msgs::Pose> modified_path;
-    original_path.clear();
-    modified_path.clear();
-    geometry_msgs::Pose path_pose;
-    for (int i = 0; i != best_path_.size(); ++i) {
-      path_pose.position.x = best_path_[i]->state[0];
-      path_pose.position.y = best_path_[i]->state[1];
-      path_pose.position.z = best_path_[i]->state[2];
-      path_pose.orientation.x = 0;
-      path_pose.orientation.y = 0;
-      path_pose.orientation.z = 0.2;
-      path_pose.orientation.w = 1;
-      original_path.push_back(path_pose);
-    }
-
-    bool improvement_success = GraphManager::improveFreePath (original_path, modified_path, true);
-
-    if (improvement_success) {
-      geometry_msgs::PoseStamped pose_mod;
-
-      pose_mod.header.frame_id = m_worldFrameId;
-      pose_mod.header.stamp = ros::Time::now();
-      mod_path_.header.frame_id = m_worldFrameId;
-      mod_path_.header.stamp = ros::Time::now();
-
-      for (int i = 0; i != modified_path.size(); ++i){
-        pose_mod.pose.position.x = modified_path[i].position.x;
-        pose_mod.pose.position.y = modified_path[i].position.y;
-        pose_mod.pose.position.z = modified_path[i].position.z;
-        mod_path_.poses.push_back(pose_mod);
+        ROS_WARN("GLobal graph -> Improved global path is empty \n");
+        path_status = false;
+        return path_status;
       }
 
-      m_modified_Path_Pub.publish(mod_path_);
-    } 
-
-
-    if (mod_path_.poses.empty())
-    {
-      path_status = false;
-      ROS_WARN("GLOBAL GRPH -> Improved path is empty \n");
-      return path_status;
     }
+
   }
   else
 {
