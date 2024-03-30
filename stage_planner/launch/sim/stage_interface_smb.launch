@@ -47,6 +47,7 @@
 
     <node name="smb_path_tracker_node" pkg="stage_planner" type="smb_path_tracker_ros_node" output="screen">
       <remap from="cmd_vel" to="/smb_velocity_controller/cmd_vel" />
+      <!-- <remap from="cmd_vel" to="/husky_velocity_controller/cmd_vel" /> -->
       <remap from="odometry" to="/ground_truth/odometry" />
       <param name="critical_angle" value="0.52"/>
       <param name="max_ang_vel" value="0.5"/>

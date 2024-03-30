@@ -228,7 +228,9 @@ bool PurePursuitController::computeCommandVelocity()
 
 	int lin_vel_sign = (carrot_waypoint_robot.position.x >= 0) ? 1 : -1;
 	double delta_theta = std::atan2(carrot_waypoint_robot.position.y, carrot_waypoint_robot.position.x);
-	if(lin_vel_sign < 0)
+  
+	int ang_vel_sign = (delta_theta >= 0) ? 1 : -1;
+  if(lin_vel_sign < 0)
 	{
 		if(delta_theta > 0)
 		{
@@ -239,7 +241,7 @@ bool PurePursuitController::computeCommandVelocity()
 			delta_theta += M_PI;
 		}
 	}
-	int ang_vel_sign = (delta_theta >= 0) ? 1 : -1;
+	// int ang_vel_sign = (delta_theta >= 0) ? 1 : -1;
 
 	double radius = std::pow(carrot_vec_robot.head(2).norm(), 2) / (2.0 * (std::abs(carrot_waypoint_robot.position.y) + 0.01));
 	double radius_min = carrot_vec_robot.head(2).norm() / (2.0 * std::sin(curvature_scaling_angle_));

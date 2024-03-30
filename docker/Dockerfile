@@ -51,7 +51,17 @@ RUN set -x \
   && apt-get install -y ros-noetic-joy \
   && apt-get install -y ros-noetic-twist-mux \
   && apt-get install -y ros-noetic-interactive-marker-twist-server \
-  # && pip3 install powerline-shell dearpygui \
+  && apt-get install -y ros-noetic-fath-pivot-mount-description \
+  && apt-get install -y ros-noetic-flir-camera-description \
+  && apt-get install -y ros-noetic-realsense2-description \
+  && apt-get install -y ros-noetic-lms1xx \
+  && apt-get install -y ros-noetic-robot-localization \
+  && apt-get install -y ros-noetic-teleop-twist-keyboard \
+  && apt-get install -y ros-noetic-teleop-twist-joy \
+  && apt-get install -y ros-noetic-rviz-imu-plugin \
+  && apt-get install -y ros-noetic-gmapping \
+
+# && pip3 install powerline-shell dearpygui \
 	&& rm -rf /var/lib/apt/lists/* \
   && useradd -m -s /bin/bash aakapatel \
     && echo 'aakapatel ALL=(ALL:ALL) NOPASSWD:ALL' >> /etc/sudoers
@@ -81,7 +91,7 @@ COPY --chown=user:user ./stage_planning.yml /home/aakapatel/.config/tmuxinator/s
 COPY --chown=user:user ./smb_stage_planning.yml /home/aakapatel/.config/tmuxinator/smb_stage_planning.yml
 
 # Install Rust using rustup
-RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
+# RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
 
 # Add Rust binaries to the PATH
 ENV PATH="/root/.cargo/bin:${PATH}"
