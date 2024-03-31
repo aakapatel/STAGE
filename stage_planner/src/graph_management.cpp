@@ -518,7 +518,7 @@ void GraphManager::sampleNodes(std::vector<node *> &nodes, StateVec state, int i
   }
 
   // GraphManager::visualizeTree(nodes);
-  // ROS_INFO_STREAM ("Sampled : " << nodes.size() << " nodes" << "\n ");
+  ROS_DEBUG_STREAM ("Sampled : " << nodes.size() << " nodes" << "\n ");
 
 } // sampleNodes
 
@@ -704,15 +704,15 @@ void GraphManager::printVoxelStatus(MapManager::VoxelStatus vs)
 
   if (MapManager::VoxelStatus::kUnknown == vs)
   {
-    ROS_INFO("Unknown box \n");
+    ROS_DEBUG("Unknown box \n");
   }
   if (MapManager::VoxelStatus::kFree == vs)
   {
-    ROS_INFO("Free box \n");
+    ROS_DEBUG("Free box \n");
   }
   if (MapManager::VoxelStatus::kOccupied == vs)
   {
-    ROS_INFO("Occupied box \n");
+    ROS_DEBUG("Occupied box \n");
   }
 }
 
@@ -838,9 +838,9 @@ bool GraphManager::buildLocalGraph()
   //
   // auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
   //
-  // ROS_INFO_STREAM("Local Graph build time " << duration_total.count() << " ms \n");
+  // ROS_DEBUG_STREAM("Local Graph build time " << duration_total.count() << " ms \n");
 
-  // ROS_INFO_STREAM("Sub graph has " << sub_graph_->getNumVertices() << " nodes & " << sub_graph_->getNumEdges() << " edges\n");
+  ROS_DEBUG_STREAM("Sub graph has " << sub_graph_->getNumVertices() << " nodes & " << sub_graph_->getNumEdges() << " edges\n");
 
   if (sub_graph_->getNumVertices() != 0 && sub_graph_->getNumEdges() != 0) {
 
@@ -1004,9 +1004,9 @@ bool GraphManager::planLocalPath(std::vector<std::vector<Vertex *>> dijkstra_pat
 
       Eigen::Vector3d p_goal (local_paths_[i].first.back()->state[0], local_paths_[i].first.back()->state[1], local_paths_[i].first.back()->state[2]);
       double ang = getRelativeAngle(p_goal);
-      // ROS_INFO_STREAM ("Vertex Gain --> " << gain << "\t Angle --> " << ang << "\t Path length --> " << path_length << "\n");
+      // ROS_DEBUG_STREAM ("Vertex Gain --> " << gain << "\t Angle --> " << ang << "\t Path length --> " << path_length << "\n");
       reward = gain - 10*exp(ang*M_PI/180); 
-      // ROS_INFO_STREAM ("new reward = " << reward << "\n");
+      // ROS_DEBUG_STREAM ("new reward = " << reward << "\n");
       
       
       std::pair<std::vector<Vertex *>, double> path_reward_pair = std::make_pair(local_paths_[i].first, reward);
@@ -1019,7 +1019,7 @@ bool GraphManager::planLocalPath(std::vector<std::vector<Vertex *>> dijkstra_pat
               [](const std::pair<std::vector<Vertex *>, double>& a, const std::pair<std::vector<Vertex *>, double>& b) 
               { return a.second>b.second; } );
         
-    // ROS_INFO_STREAM ("first and last element reward << " << paths_unordered.front().second << " , " << paths_unordered.back().second << "\n");
+    // ROS_DEBUG_STREAM ("first and last element reward << " << paths_unordered.front().second << " , " << paths_unordered.back().second << "\n");
     
     for (int j = 0; j < paths_unordered.size(); j++) {
 
@@ -1215,7 +1215,7 @@ void GraphManager::insertBestPathsToSparseGraph (std::vector<std::vector<Vertex 
 
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
   auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-  ROS_INFO_STREAM("Principle paths insertion time \t " << duration_total.count() << " ms \n");
+  ROS_DEBUG_STREAM("Principle paths insertion time \t " << duration_total.count() << " ms \n");
   GraphManager::visualizeSparseGraph();
 
 }
@@ -1339,10 +1339,10 @@ bool GraphManager::planGlobalPath(std::vector<std::vector<Vertex *>> dijkstra_pa
 
       Eigen::Vector3d p_goal (global_paths_[i].first.back()->state[0], global_paths_[i].first.back()->state[1], global_paths_[i].first.back()->state[2]);
       double ang = getRelativeAngle(p_goal);
-      // ROS_INFO_STREAM ("Vertex Gain --> " << gain << "\t Angle --> " << ang << "\t Path length --> " << path_length << "\n");
+      // ROS_DEBUG_STREAM ("Vertex Gain --> " << gain << "\t Angle --> " << ang << "\t Path length --> " << path_length << "\n");
       // reward = gain - 10*exp(ang*M_PI/180); 
       reward = gain/(path_length + 2); 
-      // ROS_INFO_STREAM ("new reward = " << reward << "\n");
+      // ROS_DEBUG_STREAM ("new reward = " << reward << "\n");
 
 
       std::pair<std::vector<Vertex *>, double> path_reward_pair = std::make_pair(global_paths_[i].first, reward);
@@ -1350,12 +1350,13 @@ bool GraphManager::planGlobalPath(std::vector<std::vector<Vertex *>> dijkstra_pa
     }
 
     // sort the paths in descending order based on the leaf vertices exploration reward. 
+    // The lambda expression to compare reward 
 
     std::sort(paths_unordered.begin(), paths_unordered.end(), 
               [](const std::pair<std::vector<Vertex *>, double>& a, const std::pair<std::vector<Vertex *>, double>& b) 
               { return a.second>b.second; } );
 
-    // ROS_INFO_STREAM ("first and last element reward << " << paths_unordered.front().second << " , " << paths_unordered.back().second << "\n");
+    // ROS_DEBUG_STREAM ("first and last element reward << " << paths_unordered.front().second << " , " << paths_unordered.back().second << "\n");
 
     for (int j = 0; j < paths_unordered.size(); j++) {
 
@@ -2268,7 +2269,7 @@ void GraphManager::improvePath(std::vector<Vertex *> raw_path, std::vector<Verte
 
   if (improvement_graph_->findShortestPaths(root_vertex->id, improvement_graph_rep_))
   {
-    // ROS_INFO ("Improvement graph dijkstra report : PASS \n");
+    // ROS_DEBUG ("Improvement graph dijkstra report : PASS \n");
   }
   else
 {
@@ -2332,7 +2333,7 @@ void GraphManager::goalCallback(const geometry_msgs::PoseStamped::ConstPtr& goal
 
   double angle = std::acos(q1.dot(q2)) * 2.0 * 180/M_PI;
   
-  ROS_INFO_STREAM ("angle between goal and exp dir : " << angle << "\n");
+  ROS_DEBUG_STREAM ("angle between goal and exp dir : " << angle << "\n");
 
 }
 
@@ -2394,17 +2395,17 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
           visualizeLocalGraph();
           // GraphManager::insertBestPathsToSparseGraph(dijkstra_paths);
-          // ROS_INFO("Successfully inserted best paths \n");
+          // ROS_DEBUG("Successfully inserted best paths \n");
           if (GraphManager::planLocalPath(dijkstra_paths)) {
 
-            ROS_INFO("Successfully planned local path \n");
+            ROS_DEBUG("Successfully planned local path \n");
             
             GraphManager::insertBestPathsToSparseGraph(dijkstra_paths);
-            ROS_INFO("Successfully inserted best paths \n");
+            ROS_DEBUG("Successfully inserted best paths \n");
 
             if (GraphManager::setPath()) {
 
-              ROS_INFO("local path set success! \n");
+              ROS_DEBUG("local path set success! \n");
               res.path = exploration_path_;
               ++planning_iteration_;
               break;
@@ -2422,7 +2423,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
               if (GraphManager::planGlobalPath(dijkstra_paths)) {
 
-                ROS_INFO ("Successfully planner global paths \n");
+                ROS_DEBUG ("Successfully planner global paths \n");
 
                 if (GraphManager::setPath()) {
                   ROS_INFO("Global path set success !\n");
@@ -2450,7 +2451,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
               if (GraphManager::planGlobalPath(dijkstra_paths)) {
 
-                ROS_INFO ("Successfully planner global paths \n");
+                ROS_DEBUG ("Successfully planner global paths \n");
 
                 if (GraphManager::setPath()) {
                   ROS_INFO("Global path set success !\n");

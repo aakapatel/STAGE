@@ -4,7 +4,7 @@
   <arg name="robot_name" default="smb"/>
 
   <env name="ROSCONSOLE_FORMAT" value="[${severity}] : ${message}"/>
-  
+  <!-- <env name="ROSCONSOLE_CONFIG_FILE" value="$(find stage_planner)/custom_rosconsole.conf"/> -->
   <arg name="mapping_config" default="$(find stage_planner)/config/voxblox_sim_config.yaml"/>
   <arg name="stage_config" default="$(find stage_planner)/config/stage_config.yaml"/>
   
@@ -21,7 +21,7 @@
       <remap from="pointcloud" to="/velodyne_points" />
       <rosparam command="load" file="$(arg mapping_config)" /> 
       <rosparam command="load" file="$(arg stage_config)" /> 
-
+      <param name="debug" value="true" />
     </node>
   </group>
 
