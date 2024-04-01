@@ -878,10 +878,11 @@ bool GraphManager::extractShortestPaths (std::shared_ptr<GraphUtils> graph, Shor
   if (graph->leaf_vertices_ids_.empty()) {
     return false;
   }
+  ROS_INFO_STREAM ("Total vertices : " << graph->getNumVertices() << " \t Leaf vertices " << graph->leaf_vertices_ids_.size() << "\n");
   for (int id : graph->leaf_vertices_ids_)
   {
     Vertex * vertex = graph->vertices_map_[id];
-
+    vertex->is_leaf_vertex = true;
     GraphManager::computeVolumetricGainRayCasting(vertex->state, vertex->vol_gain);
 
     /*
@@ -1338,7 +1339,7 @@ bool GraphManager::planGlobalPath(std::vector<std::vector<Vertex *>> dijkstra_pa
       path_length = global_paths_[i].second;
 
       Eigen::Vector3d p_goal (global_paths_[i].first.back()->state[0], global_paths_[i].first.back()->state[1], global_paths_[i].first.back()->state[2]);
-      double ang = getRelativeAngle(p_goal);
+      // double ang = getRelativeAngle(p_goal);
       // ROS_DEBUG_STREAM ("Vertex Gain --> " << gain << "\t Angle --> " << ang << "\t Path length --> " << path_length << "\n");
       // reward = gain - 10*exp(ang*M_PI/180); 
       reward = gain/(path_length + 2); 
@@ -2401,6 +2402,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
             ROS_DEBUG("Successfully planned local path \n");
             
             GraphManager::insertBestPathsToSparseGraph(dijkstra_paths);
+            
             ROS_DEBUG("Successfully inserted best paths \n");
 
             if (GraphManager::setPath()) {
@@ -2420,6 +2422,8 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
             dijkstra_paths.clear();
 
             if (GraphManager::extractShortestPaths(sparse_graph_, sparse_graph_rep_, global_root_vertex, dijkstra_paths)) {
+            
+              GraphManager::insertBestPathsToSparseGraph(dijkstra_paths);
 
               if (GraphManager::planGlobalPath(dijkstra_paths)) {
 
@@ -2764,7 +2768,6 @@ void GraphManager::visualizeLocalGraph()
     vertex_marker.points.push_back(p1);
     // if (v_map[id]->is_frontier)
     // if (v_map[id]->is_leaf_vertex)
-    // if (v_map[id]->vol_gain.is_frontier and v_map[id]->is_cluster_centroid)
     if (v_map[id]->vol_gain.is_frontier and v_map[id]->is_cluster_centroid)
     {
 
@@ -3132,6 +3135,7 @@ void GraphManager::visualizeSparseGraph()
   {
     int id = g->getVertexProperty(it);
     if (v_map[id]->vol_gain.is_frontier and v_map[id]->is_cluster_centroid)
+    // if (v_map[id]->is_leaf_vertex)
     {
       geometry_msgs::Point p1;
       p1.x = v_map[id]->state[0];
