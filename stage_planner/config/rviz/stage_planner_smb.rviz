@@ -80,7 +80,7 @@ Visualization Manager:
       Namespaces:
         edges: false
         frontier: true
-        vertices: true
+        vertices: false
       Queue Size: 100
       Value: true
     - Alpha: 1
@@ -160,13 +160,15 @@ Visualization Manager:
       Queue Size: 100
       Value: false
     - Class: rviz/MarkerArray
-      Enabled: false
+      Enabled: true
       Marker Topic: /smb/sparse_graph
       Name: MarkerArray
       Namespaces:
-        {}
+        edges: true
+        frontier: true
+        vertices: true
       Queue Size: 100
-      Value: false
+      Value: true
     - Class: rviz/MarkerArray
       Enabled: true
       Marker Topic: /smb/pose_graph
@@ -328,7 +330,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 38.391727447509766
+      Distance: 38.75867462158203
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -336,9 +338,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 0.9807531237602234
-        Y: -12.472691535949707
-        Z: -3.575632095336914
+        X: -4.67964506149292
+        Y: -3.7804434299468994
+        Z: -3.5815601348876953
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false

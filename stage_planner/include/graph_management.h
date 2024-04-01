@@ -56,6 +56,8 @@ public:
 
   bool extractShortestPaths (std::shared_ptr<GraphUtils> graph, ShortestPathsReport rep, Vertex* root, 
                              std::vector<std::vector<Vertex *>> &dijkstra_paths);
+  bool extractShortestPathsSparseGraph (std::shared_ptr<GraphUtils> graph, ShortestPathsReport rep, Vertex* root, 
+                             std::vector<std::vector<Vertex *>> &dijkstra_paths);
   double calculateAngle(Eigen::Vector3d fpoint);
 
   double getRelativeAngle(Eigen::Vector3d point);

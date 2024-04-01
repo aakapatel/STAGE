@@ -163,6 +163,17 @@ void GraphUtils::findLeafVertices(const ShortestPathsReport& rep) {
     }
   }
 }
+
+void GraphUtils::updateFrontierVertices () {
+
+  for (std::list<int>::iterator i = frontier_vertices_ids_.begin(); i != frontier_vertices_ids_.end(); i++) {
+    if (!vertices_map_[*i]->vol_gain.is_frontier) {
+      i = frontier_vertices_ids_.erase(i);
+    }
+  }
+
+}
+
 int GraphUtils::getNumNeighbours (Vertex* v) {
 
   std::vector<Vertex*> nearby_vertices;

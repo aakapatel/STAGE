@@ -94,7 +94,7 @@ COPY --chown=user:user ./smb_stage_planning.yml /home/aakapatel/.config/tmuxinat
 # RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
 
 # Add Rust binaries to the PATH
-ENV PATH="/root/.cargo/bin:${PATH}"
+# ENV PATH="/root/.cargo/bin:${PATH}"
 
 
 #
@@ -110,7 +110,7 @@ RUN echo LS_COLORS=$LS_COLORS:\'di=1\;33:ln=36\' >> ~/.bashrc \
 # some automatic sourcing for convenience.
 RUN echo "source /home/aakapatel/catkin_workspaces/exploration_ws/devel/setup.bash --extend" >> /home/aakapatel/.bashrc
 RUN echo "export PS1='\u@\h:\W\$ '" >> /home/aakapatel/.bashrc 
-RUN echo "source $HOME/.cargo/env " >> /home/aakapatel/.bashrc
+# RUN echo "source $HOME/.cargo/env " >> /home/aakapatel/.bashrc
 RUN echo "alias err=\"sudo catkin build errt\" " >> /home/aakapatel/.bashrc
 RUN echo "alias tmkill=\"tmux kill-session\" " >> /home/aakapatel/.bashrc
 RUN echo "alias cde=\"cd catkin_workspaces/exploration_ws \" " >> /home/aakapatel/.bashrc

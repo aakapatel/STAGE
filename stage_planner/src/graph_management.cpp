@@ -878,7 +878,7 @@ bool GraphManager::extractShortestPaths (std::shared_ptr<GraphUtils> graph, Shor
   if (graph->leaf_vertices_ids_.empty()) {
     return false;
   }
-  ROS_INFO_STREAM ("Total vertices : " << graph->getNumVertices() << " \t Leaf vertices " << graph->leaf_vertices_ids_.size() << "\n");
+  ROS_DEBUG_STREAM ("Total vertices : " << graph->getNumVertices() << " \t Leaf vertices " << graph->leaf_vertices_ids_.size() << "\n");
   for (int id : graph->leaf_vertices_ids_)
   {
     Vertex * vertex = graph->vertices_map_[id];
@@ -928,6 +928,7 @@ bool GraphManager::extractShortestPaths (std::shared_ptr<GraphUtils> graph, Shor
     if (vertex->vol_gain.is_frontier and vertex->is_cluster_centroid)
     // if (vertex->vol_gain.is_frontier)
     {
+      graph->frontier_vertices_ids_.push_back(vertex->id);
       std::vector<Vertex *> dijkstra_path;
       dijkstra_path.clear();
 
@@ -949,6 +950,75 @@ bool GraphManager::extractShortestPaths (std::shared_ptr<GraphUtils> graph, Shor
   }
 
   return path_status;
+
+}
+
+bool GraphManager::extractShortestPathsSparseGraph (std::shared_ptr<GraphUtils> graph, ShortestPathsReport rep, Vertex* root, 
+                                                    std::vector<std::vector<Vertex *>> &dijkstra_paths) 
+{
+
+  high_resolution_clock::time_point start_total = high_resolution_clock::now();
+  bool path_status = false;
+  // Fetch shortest path report from root vertex to all vertices in the graph
+  if (!graph->findShortestPaths(root->id, rep))
+  {
+    ROS_WARN("Could not find dijkstra shortest paths on the graph \n");
+    return path_status;
+  } 
+  // else {
+  // GraphManager::orientVertices(graph, rep);
+  // }
+
+  dijkstra_paths.clear();
+  graph->findLeafVertices(rep);
+
+  std::pair<Graph::GraphType::vertex_iterator,
+  Graph::GraphType::vertex_iterator> vi;
+  graph->graph_->getVertexIterator(vi);
+
+  if (graph->leaf_vertices_ids_.empty()) {
+    return false;
+  }
+  
+  GraphManager::updateSparseGraph();
+
+  // cluster the nodes based on their volumetric gain 
+
+  GraphManager::clusterNodes(graph); 
+
+  for (int id : graph->leaf_vertices_ids_)
+  {
+    Vertex * vertex = graph->vertices_map_[id];
+
+    if (vertex->vol_gain.is_frontier and vertex->is_cluster_centroid)
+    // if (vertex->vol_gain.is_frontier)
+    {
+      std::vector<Vertex *> dijkstra_path;
+      dijkstra_path.clear();
+
+      graph->getShortestPath(vertex->id, rep, true, dijkstra_path);
+
+      if (!dijkstra_path.empty() and getPathLength(dijkstra_path) > 4)
+      {
+        dijkstra_paths.push_back(dijkstra_path);
+      }
+    }
+
+  }
+
+  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+  ROS_DEBUG_STREAM("SPG -> Extracting shortest paths time \t " << duration_total.count() << " ms \n");
+
+  if (!dijkstra_paths.empty()) {
+    path_status = true;
+  } else {
+    return false;
+  }
+
+  return path_status;
+
+
 
 }
 
@@ -1086,44 +1156,30 @@ bool GraphManager::planLocalPath(std::vector<std::vector<Vertex *>> dijkstra_pat
 void GraphManager::updateSparseGraph() 
 {
 
+  high_resolution_clock::time_point start_total = high_resolution_clock::now();
   if(sparse_graph_->getNumVertices() == 0) {
     return;
   }
 
-  Vertex * new_vertex = new Vertex (sparse_graph_->generateVertexID(), robotState_);
-  new_vertex->is_root = true;
-  sparse_graph_->addVertex(new_vertex);
+  for (std::list<int>::iterator i = sparse_graph_->frontier_vertices_ids_.begin(); i != sparse_graph_->frontier_vertices_ids_.end(); i++) {
 
-  std::vector<Vertex *> nearby_vertices;
-  sparse_graph_->getNearestVertices(&new_vertex->state, knn_range_, &nearby_vertices);
+    Vertex* vertex = sparse_graph_->vertices_map_[*i];
 
-  for (int i = 0; i < nearby_vertices.size(); ++i)
-  {
-    Vertex* neighbour = nearby_vertices[i];
-    int num_edges = new_vertex->edges;
-    double weight = (new_vertex->state - neighbour->state).norm();
-
-    // if (num_edges < num_edges_max_ and weight < max_edge_length_)
-    if (weight < max_edge_length_ and weight > 0.2)
-    {
-
-      if (!sparse_graph_->edgeExist(new_vertex->id, neighbour->id) and 
-        MapManager::VoxelStatus::kFree == map_manager_->getPathStatus(new_vertex->state_3d, neighbour->state_3d, robot_box_size_, true))
-      {
-
-        sparse_graph_->addEdge(new_vertex, neighbour, weight);
-        new_vertex->edges++;
-      }
-    }
+    GraphManager::computeVolumetricGainRayCasting(vertex->state, vertex->vol_gain);
   }
+  sparse_graph_->updateFrontierVertices();
 
   GraphManager::visualizeSparseGraph();
 
+  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+  ROS_DEBUG_STREAM("SPG -> update time \t " << duration_total.count() << " ms \n");
 }
 
 void GraphManager::insertBestPathsToSparseGraph (std::vector<std::vector<Vertex *>> dijkstra_paths) 
 {
 
+  high_resolution_clock::time_point start_total = high_resolution_clock::now();
   bool graph_status = true;
   if (dijkstra_paths.empty()) {
     ROS_WARN("Dijkstra paths are empty. Can not insert paths into sparse graph \n");
@@ -1148,8 +1204,9 @@ void GraphManager::insertBestPathsToSparseGraph (std::vector<std::vector<Vertex 
 
         std::vector<std::pair<int, double>> edge_pairs = sub_graph_->edge_map_[v->id];
         Vertex* new_vertex = new Vertex(sparse_graph_->generateVertexID(), v->state);
-        // new_vertex->vol_gain = v->vol_gain;
+        new_vertex->vol_gain = v->vol_gain;
         sparse_graph_->addVertex(new_vertex);
+        if (new_vertex->vol_gain.is_frontier) {sparse_graph_->frontier_vertices_ids_.push_back(new_vertex->id);}
         newly_added_vertices.push_back(new_vertex);
 
         for (std::pair<int, double> edge_pair : edge_pairs) {
@@ -1164,6 +1221,7 @@ void GraphManager::insertBestPathsToSparseGraph (std::vector<std::vector<Vertex 
               Vertex* new_neighbour_vertex = new Vertex (sparse_graph_->generateVertexID(), neighbour_vertex->state);
               new_neighbour_vertex->vol_gain = neighbour_vertex->vol_gain;
               sparse_graph_->addVertex(new_neighbour_vertex);
+              if (new_neighbour_vertex->vol_gain.is_frontier) {sparse_graph_->frontier_vertices_ids_.push_back(new_neighbour_vertex->id);}
               newly_added_vertices.push_back(new_vertex);
 
               double weight = (new_vertex->state - new_neighbour_vertex->state).norm();
@@ -1176,7 +1234,6 @@ void GraphManager::insertBestPathsToSparseGraph (std::vector<std::vector<Vertex 
     }
   }
 
-  high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
   for (Vertex* new_vertex : newly_added_vertices)
   {
@@ -1223,6 +1280,7 @@ void GraphManager::insertBestPathsToSparseGraph (std::vector<std::vector<Vertex 
 
 bool GraphManager::expandSparseGraph () {
 
+  high_resolution_clock::time_point start_total = high_resolution_clock::now();
   bool graph_status = true;
   if (sparse_graph_->getNumVertices() == 0) {
     ROS_WARN("Sparse graph empty \n");
@@ -1276,8 +1334,9 @@ bool GraphManager::expandSparseGraph () {
       if (weight < max_edge_length_)
       {
 
-        if (!sparse_graph_->edgeExist(new_vertex->id, neighbour->id) and 
-          MapManager::VoxelStatus::kFree == map_manager_->getPathStatus(new_vertex->state_3d, neighbour->state_3d, robot_box_size_, true))
+        // if (!sparse_graph_->edgeExist(new_vertex->id, neighbour->id) and 
+          // MapManager::VoxelStatus::kFree == map_manager_->getPathStatus(new_vertex->state_3d, neighbour->state_3d, robot_box_size_, true))
+        if (MapManager::VoxelStatus::kFree == map_manager_->getPathStatus(new_vertex->state_3d, neighbour->state_3d, robot_box_size_, true))
         {
 
           sparse_graph_->addEdge(new_vertex, neighbour, weight);
@@ -1291,6 +1350,9 @@ bool GraphManager::expandSparseGraph () {
 
   GraphManager::visualizeSparseGraph();
 
+  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+  ROS_DEBUG_STREAM("SPG -> expansion time \t " << duration_total.count() << " ms \n");
   return graph_status;
 }
 
@@ -2407,6 +2469,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
             if (GraphManager::setPath()) {
 
+              GraphManager::updateSparseGraph();
               ROS_DEBUG("local path set success! \n");
               res.path = exploration_path_;
               ++planning_iteration_;
@@ -2421,7 +2484,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
             std::vector<std::vector<Vertex *>> dijkstra_paths;
             dijkstra_paths.clear();
 
-            if (GraphManager::extractShortestPaths(sparse_graph_, sparse_graph_rep_, global_root_vertex, dijkstra_paths)) {
+            if (GraphManager::extractShortestPathsSparseGraph(sparse_graph_, sparse_graph_rep_, global_root_vertex, dijkstra_paths)) {
             
               GraphManager::insertBestPathsToSparseGraph(dijkstra_paths);
 
@@ -2451,7 +2514,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
             std::vector<std::vector<Vertex *>> dijkstra_paths;
             dijkstra_paths.clear();
 
-            if (GraphManager::extractShortestPaths(sparse_graph_, sparse_graph_rep_, global_root_vertex, dijkstra_paths)) {
+            if (GraphManager::extractShortestPathsSparseGraph(sparse_graph_, sparse_graph_rep_, global_root_vertex, dijkstra_paths)) {
 
               if (GraphManager::planGlobalPath(dijkstra_paths)) {
 
@@ -3134,7 +3197,8 @@ void GraphManager::visualizeSparseGraph()
   for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
   {
     int id = g->getVertexProperty(it);
-    if (v_map[id]->vol_gain.is_frontier and v_map[id]->is_cluster_centroid)
+    // if (v_map[id]->vol_gain.is_frontier and v_map[id]->is_cluster_centroid)
+    if (v_map[id]->vol_gain.is_frontier)
     // if (v_map[id]->is_leaf_vertex)
     {
       geometry_msgs::Point p1;

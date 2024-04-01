@@ -16,8 +16,8 @@
 
       <param name ="reference_topic" value="command/pose" />
 
-      <param name ="init_x" value="2" />
-      <param name ="init_y" value="0" />
+      <param name ="init_x" value="1" />
+      <param name ="init_y" value="1" />
       <param name ="init_z" value="1" />
 
       <param name ="distance_to_new_path" value="0.5" />
@@ -50,7 +50,7 @@
       <!-- <remap from="cmd_vel" to="/husky_velocity_controller/cmd_vel" /> -->
       <remap from="odometry" to="/ground_truth/odometry" />
       <param name="critical_angle" value="0.52"/>
-      <param name="max_ang_vel" value="0.5"/>
+      <param name="max_ang_vel" value="1.5"/>
       <param name="desired_vel" value="0.5"/>
       <param name="look_ahead_error_margin" value="0.2"/>
       <param name="look_ahead_distance" value="0.5"/>

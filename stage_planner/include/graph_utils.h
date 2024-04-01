@@ -271,7 +271,7 @@ public:
   Vertex* getVertexByState (StateVec s);
 
   int getIdCount ();
-
+  void updateFrontierVertices();
   bool findShortestPaths(ShortestPathsReport& rep);
   bool findShortestPaths(int source_id, ShortestPathsReport& rep);
 
@@ -318,7 +318,7 @@ public:
   std::vector<StateVec> state_history_;
 
   std::vector<int> state_ids_;
-  std::vector<int> frontier_ids_;
+  std::list<int> frontier_vertices_ids_;
   std::vector<int> leaf_vertices_ids_;
 private:
 
