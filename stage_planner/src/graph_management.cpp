@@ -1300,7 +1300,7 @@ bool GraphManager::expandSparseGraph () {
   std::vector<node *> nodes;
   nodes.clear();
 
-  GraphManager::sampleNodes(nodes, robotState_, iterations_local_/10, bounding_box_size_);
+  GraphManager::sampleNodes(nodes, robotState_, iterations_local_, bounding_box_size_);
   if (nodes.empty())
   {
     graph_status = false;
@@ -1482,7 +1482,7 @@ bool GraphManager::planGlobalPath(std::vector<std::vector<Vertex *>> dijkstra_pa
 
 } // planGlobalPaths
 
-bool GraphManager::setPath()
+bool GraphManager::setPathDynamic()
 {
 
     Eigen::Vector3d v_root;
@@ -1602,6 +1602,70 @@ bool GraphManager::setPath()
 }
 
 return path_set;
+
+}
+
+bool GraphManager::setPath()
+{
+  exploration_path_.poses.clear();
+  bool path_set = true;
+  if (mod_path_.poses.empty()) {
+    path_set = false;
+    return path_set;
+  } else {
+
+    GraphManager::visualizeRepositionPath();
+    nav_msgs::Path path_seg;
+    path_seg.poses.clear();
+    
+
+    nav_msgs::Path new_path;
+    new_path.poses.clear();
+    GraphManager::segmentPath(mod_path_, new_path);
+
+    for (int i = 0; i < new_path.poses.size() - 1; i++)
+    {
+
+      float angle = atan2(new_path.poses[i + 1].pose.position.y - new_path.poses[i].pose.position.y,
+                          new_path.poses[i + 1].pose.position.x - new_path.poses[i].pose.position.x);
+      Eigen::Vector3d v(0, 0, angle);
+      Eigen::Quaternion<float> q = Euler2Quaternion(v);
+      geometry_msgs::PoseStamped p;
+      p.pose.position.x = new_path.poses[i].pose.position.x;
+      p.pose.position.y = new_path.poses[i].pose.position.y;
+      p.pose.position.z = new_path.poses[i].pose.position.z;
+      p.pose.orientation.x = q.x();
+      p.pose.orientation.y = q.y();
+      p.pose.orientation.z = q.z();
+      p.pose.orientation.w = q.w();
+      exploration_path_.poses.push_back(p);
+    }
+
+      exploration_direction_ = Eigen::Vector3d(mod_path_.poses[mod_path_.poses.size() - 1].pose.position.x - mod_path_.poses[mod_path_.poses.size() - 2].pose.position.x,
+                                               mod_path_.poses[mod_path_.poses.size() - 1].pose.position.y - mod_path_.poses[mod_path_.poses.size() - 2].pose.position.y,
+                                               mod_path_.poses[mod_path_.poses.size() - 1].pose.position.z - mod_path_.poses[mod_path_.poses.size() - 2].pose.position.z);
+
+      float angle = atan2(mod_path_.poses[mod_path_.poses.size() - 1].pose.position.y - mod_path_.poses[mod_path_.poses.size() - 2].pose.position.y,
+                          mod_path_.poses[mod_path_.poses.size() - 1].pose.position.x - mod_path_.poses[mod_path_.poses.size() - 2].pose.position.x);
+      Eigen::Vector3d v(0, 0, angle);
+      Eigen::Quaternion<float> q = Euler2Quaternion(v);
+      exploration_dir_pose.pose.position.x = mod_path_.poses[mod_path_.poses.size() - 1].pose.position.x;
+      exploration_dir_pose.pose.position.y = mod_path_.poses[mod_path_.poses.size() - 1].pose.position.y;
+      exploration_dir_pose.pose.position.z = mod_path_.poses[mod_path_.poses.size() - 1].pose.position.z;
+      exploration_dir_pose.pose.orientation.x = q.x();
+      exploration_dir_pose.pose.orientation.y = q.y();
+      exploration_dir_pose.pose.orientation.z = q.z();
+      exploration_dir_pose.pose.orientation.w = q.w();
+      // exploration_dir_pose.header.frame_id = m_worldFrameId;
+      // exploration_dir_pose.header.stamp = ros::Time::now();
+      //
+      // exploration_Direction_Pub.publish(exploration_dir_pose);
+
+    }
+
+  mod_path_.poses.clear();
+  best_path_.clear();
+  return path_set;
 
 }
 
@@ -2407,6 +2471,22 @@ void GraphManager::updateGraph(const ros::TimerEvent &event)
 
   // GraphManager::updateSparseGraph();
 
+  // uncomment below for normal (non dynamic path setting)
+  
+  /*
+
+  if (exploration_path_.poses.empty()) {
+    return;
+  }
+  StateVec v = Eigen::Vector4d(exploration_path_.poses.back().pose.position.x, exploration_path_.poses.back().pose.position.y, exploration_path_.poses.back().pose.position.z, 0);
+  
+  if (calculateDistance(robotState_, v) < 0.5) {
+    reached_end_of_path_ = true;
+  }
+  
+  */
+
+
 }
 
 std::vector<Eigen::Vector3d> GraphManager::pointsToEigen(std::vector<geometry_msgs::Point> points)
@@ -2467,7 +2547,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
             
             ROS_DEBUG("Successfully inserted best paths \n");
 
-            if (GraphManager::setPath()) {
+            if (GraphManager::setPathDynamic()) {
 
               GraphManager::updateSparseGraph();
               ROS_DEBUG("local path set success! \n");
@@ -2492,7 +2572,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
                 ROS_DEBUG ("Successfully planner global paths \n");
 
-                if (GraphManager::setPath()) {
+                if (GraphManager::setPathDynamic()) {
                   ROS_INFO("Global path set success !\n");
                   res.path = exploration_path_;
                   ++planning_iteration_;
@@ -2520,7 +2600,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
                 ROS_DEBUG ("Successfully planner global paths \n");
 
-                if (GraphManager::setPath()) {
+                if (GraphManager::setPathDynamic()) {
                   ROS_INFO("Global path set success !\n");
                   res.path = exploration_path_;
                   ++planning_iteration_;
@@ -2537,9 +2617,9 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
 
     case 0:
-      planner_status = GraphManager::setPath();
+      planner_status = GraphManager::setPathDynamic();
       res.path = exploration_path_;
-    // ROS_INFO("Executing path segment \n");
+    // ROS_DEBUG("Executing path segment \n");
   }
 
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();

@@ -16,8 +16,8 @@
 
       <param name ="reference_topic" value="command/pose" />
 
-      <param name ="init_x" value="1" />
-      <param name ="init_y" value="1" />
+      <param name ="init_x" value="2" />
+      <param name ="init_y" value="0" />
       <param name ="init_z" value="1" />
 
       <param name ="distance_to_new_path" value="0.5" />

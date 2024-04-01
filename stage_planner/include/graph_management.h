@@ -148,6 +148,7 @@ public:
   void insertBestPathsToSparseGraph (std::vector<std::vector<Vertex *>> dijkstra_paths); 
 
   bool setPath();
+  bool setPathDynamic();
 
   void goalCallback(const geometry_msgs::PoseStamped::ConstPtr& goal_msg);
   void visualizeRepositionPath();
