@@ -2598,7 +2598,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
               if (GraphManager::planGlobalPath(dijkstra_paths)) {
 
-                ROS_DEBUG ("Successfully planner global paths \n");
+                ROS_DEBUG ("Successfully planned global paths \n");
 
                 if (GraphManager::setPathDynamic()) {
                   ROS_INFO("Global path set success !\n");
