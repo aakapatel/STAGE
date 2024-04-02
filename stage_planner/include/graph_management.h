@@ -283,6 +283,7 @@ private:
   bool reached_end_of_path_ = true;
   int path_iterator_ = 0;
   std::vector<Vertex *> best_path_;
+  std::vector<Vertex *> home_path_;
   nav_msgs::Path mod_path_;
 
   //
@@ -337,6 +338,7 @@ private:
 
   // Publisher
   ros::Publisher m_modified_Path_Pub;
+  ros::Publisher homing_Path_Pub;
   ros::Publisher m_frontierSelectionPub;
   ros::Publisher command_pub;
   ros::Publisher local_Paths_Vis_Pub_;

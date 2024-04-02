@@ -52,6 +52,8 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
 
   m_modified_Path_Pub = nh_.advertise<nav_msgs::Path>("modified_path", 10);
   
+  homing_Path_Pub = nh_.advertise<nav_msgs::Path>("homing_path", 10);
+  
   exploration_Direction_Pub = nh_.advertise<geometry_msgs::PoseStamped>("exploration_direction", 10);
 
   local_Graph_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("local_planning_graph", 10);
@@ -1030,15 +1032,31 @@ void GraphManager::updateGlobalGraph(std::vector<std::vector<Vertex *>> dijkstra
 
   if (!global_graph_->findShortestPaths(prev_pose_vertex_->id, global_graph_rep_))
   {
-    ROS_WARN("Could not find dijkstra shortest paths on global graph \n");
+    ROS_WARN("Could not find dijkstra shortest paths on the global graph \n");
   } 
-
-  std::vector<Vertex *> homing_path;
-  homing_path.clear();
-
-  global_graph_->getShortestPath(0, global_graph_rep_, true, homing_path);
   
-  ROS_DEBUG_STREAM("*** homing path size : " << homing_path.size() << " *** \n");
+  home_path_.clear();
+  global_graph_->getShortestPath(1, global_graph_rep_, true, home_path_);
+  
+  homing_path_.poses.clear();
+
+  geometry_msgs::PoseStamped homing_path_pose;
+  for (int i = 0; i < home_path_.size(); i++) {
+    homing_path_pose.pose.position.x = home_path_[i]->state[0];    
+    homing_path_pose.pose.position.y = home_path_[i]->state[1];    
+    homing_path_pose.pose.position.z = home_path_[i]->state[2];    
+    homing_path_pose.pose.orientation.x = 0;    
+    homing_path_pose.pose.orientation.y = 0;    
+    homing_path_pose.pose.orientation.z = 0;    
+    homing_path_pose.pose.orientation.w = 1;
+    homing_path_pose.header.frame_id = m_worldFrameId;
+    homing_path_pose.header.stamp = ros::Time::now();
+    homing_path_.poses.push_back(homing_path_pose);
+  }
+  
+  homing_path_.header.stamp = ros::Time::now();
+  homing_path_.header.frame_id = m_worldFrameId;
+  homing_Path_Pub.publish(homing_path_);
 
 }
 
