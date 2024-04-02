@@ -68,7 +68,9 @@ Visualization Manager:
       Marker Topic: /hummingbird/global_planning_graph
       Name: MarkerArray
       Namespaces:
-        {}
+        edges: true
+        frontier: true
+        vertices: true
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -104,13 +106,13 @@ Visualization Manager:
       Unreliable: false
       Value: true
     - Class: rviz/MarkerArray
-      Enabled: true
+      Enabled: false
       Marker Topic: /hummingbird/local_dijkstra_paths
       Name: MarkerArray
       Namespaces:
         {}
       Queue Size: 100
-      Value: true
+      Value: false
     - Class: rviz/MarkerArray
       Enabled: true
       Marker Topic: /hummingbird/global_dijkstra_paths
@@ -184,7 +186,8 @@ Visualization Manager:
       Marker Topic: /hummingbird/global_repos_path
       Name: MarkerArray
       Namespaces:
-        {}
+        edges: true
+        vertices: true
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -222,8 +225,8 @@ Visualization Manager:
     - Alpha: 0.20000000298023224
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 10.575163841247559
-        Min Value: -0.5965105295181274
+        Max Value: 12.871789932250977
+        Min Value: -0.39652228355407715
         Value: true
       Axis: Z
       Channel Name: intensity
@@ -323,7 +326,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 26.352554321289062
+      Distance: 100.3759765625
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -331,9 +334,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 0.7050715088844299
-        Y: -0.35436075925827026
-        Z: -0.3442697525024414
+        X: -2.4994471073150635
+        Y: 30.62871742248535
+        Z: -3.3664982318878174
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -341,7 +344,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: hummingbird/base_link
-      Yaw: 3.1485772132873535
+      Yaw: 3.0885825157165527
     Saved: ~
 Window Geometry:
   Displays:

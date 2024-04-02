@@ -934,12 +934,14 @@ void GraphManager::updateGlobalGraph(std::vector<std::vector<Vertex *>> dijkstra
           
           if (j == 0) {
             new_vertex->parent = prev_pose_vertex_;
+            prev_pose_vertex_->children.push_back(new_vertex);
             double edge_weight = (prev_pose_vertex_->state_3d - new_vertex->state_3d).norm();
             global_graph_->addEdge(new_vertex, prev_pose_vertex_, edge_weight);
             prev_vertex = new_vertex;
 
           } else {
             new_vertex->parent = prev_vertex;
+            prev_vertex->children.push_back(new_vertex);
             double edge_weight = (prev_vertex->state_3d - new_vertex->state_3d).norm();
             global_graph_->addEdge(new_vertex, prev_vertex, edge_weight);
             prev_vertex = new_vertex;
@@ -968,6 +970,7 @@ void GraphManager::updateGlobalGraph(std::vector<std::vector<Vertex *>> dijkstra
           path[j]->sub_id = new_vertex->id;
           
           new_vertex->parent = prev_vertex;
+          prev_vertex->children.push_back(new_vertex);
           double edge_weight = (prev_vertex->state_3d - new_vertex->state_3d).norm();
           global_graph_->addEdge(new_vertex, prev_vertex, edge_weight);
           prev_vertex = new_vertex;
@@ -3691,7 +3694,7 @@ void GraphManager::visualizeGlobalGraph()
   frontier_vertex_marker.scale.x = 0.4;
   frontier_vertex_marker.scale.y = 0.4;
   frontier_vertex_marker.scale.z = 0.4;
-  frontier_vertex_marker.color.r = 255.0 / 255.0;
+  frontier_vertex_marker.color.r = 200.0 / 255.0;
   frontier_vertex_marker.color.g = 0.0 / 255.0;
   frontier_vertex_marker.color.b = 0.0 / 255.0;
   frontier_vertex_marker.color.a = 1.0;
@@ -3704,7 +3707,8 @@ void GraphManager::visualizeGlobalGraph()
   for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
   {
     int id = g->getVertexProperty(it);
-    if (v_map[id]->is_frontier)
+    // if (v_map[id]->is_frontier)
+    if (v_map[id]->children.empty())
     {
 
       geometry_msgs::Point p1;
