@@ -498,7 +498,6 @@ void StageInterface::mainLoop(const ros::TimerEvent &event)
 
     if (reachedEndOfPath() and !stop_planning)
     {
-
       if (fetchExplorationPath())
       {
 
@@ -516,9 +515,6 @@ void StageInterface::mainLoop(const ros::TimerEvent &event)
             boost::bind(&StageInterface::actionFeedbackCallback, this, _1));
         }
         
-        // } else {
-        //   ROS_ERROR("not possible to set goal to Action Server.");
-        // }
 
       }
     }

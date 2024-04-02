@@ -134,6 +134,8 @@ public:
   void updateKdtree(std::shared_ptr<GraphUtils> graph);
 
   void updateGraph(const ros::TimerEvent &event);
+  void updateGraphs();
+  void updateGlobalGraph(std::vector<std::vector<Vertex *>> dijkstra_paths);
 
   bool setLocalPath();
   bool setGlobalPath();
@@ -182,6 +184,7 @@ public:
   Vertex * local_goal_vertex;
   Vertex* local_root_vertex;
   Vertex* latest_root_vertex;
+  Vertex* prev_pose_vertex_ = nullptr;
 
 
 
