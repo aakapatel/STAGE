@@ -105,6 +105,10 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
   geofence_manager_->loadParams(ns + "/GeofenceParams");
   // ROS_INFO_STREAM ("planning param traverse length max = " << planning_params_.traverse_length_max << "\n");
 
+  random_sampler_.reset();
+  random_sampler_.loadParams(ns + "/RandomSamplerParams/SamplerForExploration");
+
+  random_sampler_.setParams(global_space_params_, local_space_params_);
   map_manager_->setRobotRadius(robot_box_size_.norm() / 2.0);
 };
 
@@ -401,6 +405,128 @@ bool GraphManager::pointInsideFrustumVolume (StateVec state) {
     return false;
   }
 
+}
+
+bool GraphManager::sampleVertex(Vertex& vertex) {
+  StateVec state;
+  bool hanging = false;
+  bool found = false;
+
+  int while_thres = 1000;  // magic number
+  BoundedSpaceParams reduced_global_space = global_space_params_;
+  reduced_global_space.min_val += 0.5 * robot_box_size_;
+  reduced_global_space.max_val -= 0.5 * robot_box_size_;
+  while (!found && while_thres--) {
+    hanging = false;
+    random_sampler_.generate(robotState_, state);
+    // Very fast check if the sampled point is inside the planning space.
+    // This helps eliminate quickly points outside the sampling space.
+    Eigen::Vector3d sample = state.head(3);
+    if (!reduced_global_space.isInsideSpace(sample)) continue;
+
+    // Check if in geofence areas.
+    if ((planning_params_.geofence_checking_enable) &&
+        (GeofenceManager::CoordinateStatus::kViolated ==
+         geofence_manager_->getBoxStatus(
+             Eigen::Vector2d(state[0] + robot_params_.center_offset[0],
+                             state[1] + robot_params_.center_offset[1]),
+             Eigen::Vector2d(robot_box_size_[0], robot_box_size_[1]))))
+      continue;
+
+    if (robot_params_.type == RobotType::kGroundRobot) {
+      Eigen::Vector3d sample;
+      sample = Eigen::Vector3d(state[0], state[1], state[2]) +
+               robot_params_.center_offset;
+      MapManager::VoxelStatus vs;
+      double ground_dist = projectSample(sample, vs);
+      if (ground_dist < 0.0) continue;
+      if (vs == MapManager::VoxelStatus::kUnknown) {
+        hanging = true;
+      }
+
+      sample[2] -= (ground_dist - planning_params_.max_ground_height);
+      state[0] = sample[0];
+      state[1] = sample[1];
+      state[2] -= (ground_dist - planning_params_.max_ground_height);
+    }
+
+    // Check if surrounding area is free.
+    if (MapManager::VoxelStatus::kFree ==
+        map_manager_->getBoxStatus(
+            Eigen::Vector3d(state[0], state[1], state[2]) +
+                robot_params_.center_offset,
+            robot_box_size_, true)) {
+      random_sampler_.pushSample(state, true);  // for debug purpose.
+      found = true;
+    } else {
+      // stat_->num_vertices_fail++;
+      random_sampler_.pushSample(state, false);
+    }
+  }
+  vertex.state = state;
+  // vertex.is_hanging = hanging;
+  return found;
+}
+
+void GraphManager::sampleVertices() {
+  
+  int loop_count = 0;
+  
+  std::vector<Vertex *> sampled_vertices;
+  std::vector<geometry_msgs::PoseStamped> sampled_poses;
+  sampled_poses.clear();
+  while (loop_count < iterations_local_/2) {
+
+    Vertex new_vertex(-1, StateVec::Zero());
+    if(sampleVertex(new_vertex)) {
+      sampled_vertices.push_back(&new_vertex);
+    }
+    geometry_msgs::PoseStamped sample;
+    sample.pose.position.x = new_vertex.state[0];
+    sample.pose.position.y = new_vertex.state[1];
+    sample.pose.position.z = new_vertex.state[2];
+
+    double yaw_ang = std::atan2(new_vertex.state[1] - robotState_[1], new_vertex.state[0] - robotState_[0]);
+    tf::Quaternion quat;
+    quat.setEuler(0.0, 0.0, yaw_ang);
+    sample.pose.orientation.x = quat.x();
+    sample.pose.orientation.y = quat.y();
+    sample.pose.orientation.z = quat.z();
+    sample.pose.orientation.w = quat.w();
+
+    sample.header.frame_id = m_worldFrameId;
+    sample.header.stamp = ros::Time::now();
+    Eigen::Vector3d sample_point = new_vertex.state.head(3);
+    if (getRelativeAngle(sample_point) < 40) {
+
+      sampled_poses.push_back(sample);
+    }
+    loop_count++;
+  }
+  
+    visualization_msgs::MarkerArray marker_array;
+    visualization_msgs::Marker marker;
+    marker.header.frame_id = m_worldFrameId;            // Set the marker's frame ID
+    marker.ns = "pose_arrows";
+    marker.type = visualization_msgs::Marker::ARROW;
+    marker.action = visualization_msgs::Marker::ADD;
+    marker.scale.x = 1.0;                            // Set the scale of the arrow (example values)
+    marker.scale.y = 0.1;
+    marker.scale.z = 0.1;
+    marker.color.a = 0.6;                            // Set the alpha transparency (fully opaque)
+    marker.color.r = 0.0;                            // Set the color to red
+    marker.color.g = 0.8;
+    marker.color.b = 0.0;
+
+    // Publish the markers for each pose stamped message
+    for (const auto& pose_stamped : sampled_poses) {
+        marker.header.stamp = ros::Time::now();
+        marker.id++;  // Increment marker ID for each message
+        marker.pose = pose_stamped.pose;  // Use the pose from the PoseStamped message
+        marker_array.markers.push_back(marker);    
+    }
+
+    random_Nodes_Vis_Pub_.publish(marker_array);
 }
 
 void GraphManager::sampleNodes(std::vector<node *> &nodes, StateVec state, int iterations_max, double bounding_box_size)
@@ -778,7 +904,7 @@ bool GraphManager::buildLocalGraph()
   // Insert the sub graph vertedx to global graph to re-use the SG
   std::vector<node *> nodes;
   nodes.clear();
-
+  GraphManager::sampleVertices();
   GraphManager::sampleNodes(nodes, robotState_, iterations_local_, bounding_box_size_);
   if (nodes.empty())
   {
@@ -2470,6 +2596,9 @@ void GraphManager::updateGraph(const ros::TimerEvent &event)
   // Can off load some repetitive stuff here : executed  ehile robot is navigated so not added to time complexity
 
   // GraphManager::updateSparseGraph();
+
+
+
 
   // uncomment below for normal (non dynamic path setting)
   

@@ -71,6 +71,23 @@ NoGainZones:
     max_val:        [2.0, 10.0, 10.0]
 
 
+RandomSamplerParams:
+  SamplerForExploration:
+    X:
+      pdf_type:       kUniform
+      sample_mode:    kLocal
+    Y:
+      pdf_type:       kUniform
+      sample_mode:    kLocal
+    Z:
+      pdf_type:       kUniform
+      sample_mode:    kLocal
+    Heading:
+      pdf_type:       kUniform
+      sample_mode:    kManual
+      min_val:        rad(-pi)
+      max_val:        rad(pi)
+
 #-------------------------------------------------------------------------------
 # EXPLORATION CONFIGURATION
 # exp_sensor_list: sensors used to compute exploration gain.

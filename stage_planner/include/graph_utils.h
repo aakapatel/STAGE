@@ -99,6 +99,7 @@
 #include "params.h"
 #include "trajectory.h"
 #include "geofence_manager.h"
+#include "random_sampler.h"
 
 #include <eigen3/Eigen/Dense>
 #include <geometry_msgs/PointStamped.h>

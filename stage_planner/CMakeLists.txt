@@ -136,6 +136,7 @@ add_library(${PROJECT_NAME}
   src/voxblox/voxblox_alt_impl.cpp
   src/params.cpp
   src/trajectory.cpp
+  src/random_sampler.cpp
   src/geofence_manager.cpp
   src/pure_pursuit.cpp
 )

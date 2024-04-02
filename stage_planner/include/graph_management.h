@@ -49,6 +49,8 @@ public:
   Eigen::Vector3d quaternion_to_rpy(Eigen::Quaterniond q);
   double calculateDistance(StateVec s1, StateVec s2);
   void sampleNodes(std::vector<node *> &nodes, StateVec state, int iterations_max, double bounding_box_size);
+  bool sampleVertex(Vertex& vertex);
+  void sampleVertices();
   std::vector<Eigen::Vector3d> pointsToEigen(std::vector<geometry_msgs::Point> points);
   bool nextExplorationPath(stage_planner::explorationPath::Request &req,
                            stage_planner::explorationPath::Response &res);
@@ -195,6 +197,11 @@ private:
   BoundedSpaceParams global_space_params_;
   PlanningParams planning_params_;
 
+  RandomSampler random_sampler_;  // x,y,z,yaw: for exploration purpose
+  // RandomSampler random_sampler_to_search_;  // for searching feasible path
+                                            // connecting two points in space
+  // RandomSampler random_sampler_adaptive_;  // for adapting the sampling space to
+                                           // the surrounding environment
   std::vector<BoundedSpaceParams> no_gain_zones_;
   StateVec robotStateWithYaw_;
   StateVec robotState_;
