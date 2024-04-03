@@ -905,44 +905,76 @@ void GraphManager::updateGraphs() {
 
 }
 
-void GraphManager::updateGlobalGraph(std::vector<std::vector<Vertex *>> dijkstra_paths) {
+void GraphManager::updateGlobalGraph(std::vector<std::vector<Vertex *>> dijkstra_paths) 
+{
+  
+  GraphManager::updateGraphs();
 
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
   bool graph_status = true;
-  if (dijkstra_paths.empty()) {
-    ROS_WARN("Dijkstra paths are empty. Can not insert paths into global graph \n");
-    return;
-  }
+  if (!dijkstra_paths.empty()) {
   
-  Vertex* prev_vertex = nullptr;
-  std::vector<Vertex *> newly_added_vertices;
-  newly_added_vertices.clear();
-  for (int i = 0; i < dijkstra_paths.size(); ++i) {
+    Vertex* prev_vertex = nullptr;
+    std::vector<Vertex *> newly_added_vertices;
+    newly_added_vertices.clear();
+    for (int i = 0; i < dijkstra_paths.size(); ++i) {
 
-    if (i == 0) {
-      
-      std::vector<Vertex *> path = dijkstra_paths[i];
+      if (i == 0) {
 
-      for (int j = 0; j < path.size(); ++j) {
+        std::vector<Vertex *> path = dijkstra_paths[i];
 
-        if (!path[j]->is_evaluated) {
+        for (int j = 0; j < path.size(); ++j) {
 
-          Vertex * new_vertex = new Vertex(global_graph_->generateVertexID(), path[j]->state);
-          new_vertex->vol_gain = path[j]->vol_gain;
-          global_graph_->addVertex(new_vertex);
-          if (new_vertex->vol_gain.is_frontier) {global_graph_->frontier_vertices_ids_.push_back(new_vertex->id);}
-          newly_added_vertices.push_back(new_vertex);
-          path[j]->is_evaluated = true;
-          path[j]->sub_id = new_vertex->id;
-          
-          if (j == 0) {
-            new_vertex->parent = prev_pose_vertex_;
-            prev_pose_vertex_->children.push_back(new_vertex);
-            double edge_weight = (prev_pose_vertex_->state_3d - new_vertex->state_3d).norm();
-            global_graph_->addEdge(new_vertex, prev_pose_vertex_, edge_weight);
-            prev_vertex = new_vertex;
+          if (!path[j]->is_evaluated) {
 
-          } else {
+            Vertex * new_vertex = new Vertex(global_graph_->generateVertexID(), path[j]->state);
+            new_vertex->vol_gain = path[j]->vol_gain;
+            global_graph_->addVertex(new_vertex);
+            if (new_vertex->vol_gain.is_frontier) {global_graph_->frontier_vertices_ids_.push_back(new_vertex->id);}
+            newly_added_vertices.push_back(new_vertex);
+            path[j]->is_evaluated = true;
+            path[j]->sub_id = new_vertex->id;
+
+            if (j == 0) {
+              new_vertex->parent = prev_pose_vertex_;
+              prev_pose_vertex_->children.push_back(new_vertex);
+              double edge_weight = (prev_pose_vertex_->state_3d - new_vertex->state_3d).norm();
+              global_graph_->addEdge(new_vertex, prev_pose_vertex_, edge_weight);
+              prev_vertex = new_vertex;
+
+            } else {
+              new_vertex->parent = prev_vertex;
+              prev_vertex->children.push_back(new_vertex);
+              double edge_weight = (prev_vertex->state_3d - new_vertex->state_3d).norm();
+              global_graph_->addEdge(new_vertex, prev_vertex, edge_weight);
+              prev_vertex = new_vertex;
+
+            }
+          }
+        }
+      } 
+
+      else {
+
+        std::vector<Vertex *> path = dijkstra_paths[i];
+
+        for (int j = 0; j < path.size(); ++j) {
+
+          if (path[j]->is_evaluated) {
+            int evaluated_vert_id = path[j]->sub_id;
+            prev_vertex = global_graph_->vertices_map_[evaluated_vert_id];
+          }
+
+          if (!path[j]->is_evaluated) {
+
+            Vertex * new_vertex = new Vertex(global_graph_->generateVertexID(), path[j]->state);
+            new_vertex->vol_gain = path[j]->vol_gain;
+            global_graph_->addVertex(new_vertex);
+            if (new_vertex->vol_gain.is_frontier) {global_graph_->frontier_vertices_ids_.push_back(new_vertex->id);}
+            newly_added_vertices.push_back(new_vertex);
+            path[j]->is_evaluated = true;
+            path[j]->sub_id = new_vertex->id;
+
             new_vertex->parent = prev_vertex;
             prev_vertex->children.push_back(new_vertex);
             double edge_weight = (prev_vertex->state_3d - new_vertex->state_3d).norm();
@@ -952,72 +984,43 @@ void GraphManager::updateGlobalGraph(std::vector<std::vector<Vertex *>> dijkstra
           }
         }
       }
-    } 
+    }
 
-    else {
+    for (Vertex* new_vertex : newly_added_vertices)
+    {
 
-      std::vector<Vertex *> path = dijkstra_paths[i];
-      
-      for (int j = 0; j < path.size(); ++j) {
+      // Get nearby vertices from the current vertex and connect the them to form local edges
 
-        if (path[j]->is_evaluated) {
-          int evaluated_vert_id = path[j]->sub_id;
-          prev_vertex = global_graph_->vertices_map_[evaluated_vert_id];
-        }
+      // GraphManager::computeVolumetricGainRayCasting(new_vertex->state, new_vertex->vol_gain);
 
-        if (!path[j]->is_evaluated) {
+      std::vector<Vertex *> nearby_vertices;
+      global_graph_->getNearestVertices(&new_vertex->state, knn_range_, &nearby_vertices);
 
-          Vertex * new_vertex = new Vertex(global_graph_->generateVertexID(), path[j]->state);
-          new_vertex->vol_gain = path[j]->vol_gain;
-          global_graph_->addVertex(new_vertex);
-          if (new_vertex->vol_gain.is_frontier) {global_graph_->frontier_vertices_ids_.push_back(new_vertex->id);}
-          newly_added_vertices.push_back(new_vertex);
-          path[j]->is_evaluated = true;
-          path[j]->sub_id = new_vertex->id;
-          
-          new_vertex->parent = prev_vertex;
-          prev_vertex->children.push_back(new_vertex);
-          double edge_weight = (prev_vertex->state_3d - new_vertex->state_3d).norm();
-          global_graph_->addEdge(new_vertex, prev_vertex, edge_weight);
-          prev_vertex = new_vertex;
+      for (int i = 0; i < nearby_vertices.size(); ++i)
+      {
+        Vertex* neighbour = nearby_vertices[i];
+        int num_edges = new_vertex->edges;
+        double weight = (new_vertex->state - neighbour->state).norm();
 
+        if (num_edges < num_edges_max_ and weight < max_edge_length_)
+        {
+          // checking if edge exist in the graph only for debug --> very costly !!!!!!
+
+          // if (!sparse_graph_->edgeExist(new_vertex->id, neighbour->id) and 
+          //   MapManager::VoxelStatus::kFree == map_manager_->getPathStatus(new_vertex->state_3d, neighbour->state_3d, robot_box_size_, true))
+          if (MapManager::VoxelStatus::kFree == map_manager_->getPathStatus(new_vertex->state_3d, neighbour->state_3d, robot_box_size_, true))
+          {
+
+            global_graph_->addEdge(new_vertex, neighbour, weight);
+            new_vertex->edges++;
+          }
         }
       }
-    }
+    } 
+ 
+
   }
 
-  for (Vertex* new_vertex : newly_added_vertices)
-  {
-
-    // Get nearby vertices from the current vertex and connect the them to form local edges
-
-    // GraphManager::computeVolumetricGainRayCasting(new_vertex->state, new_vertex->vol_gain);
-
-    std::vector<Vertex *> nearby_vertices;
-    global_graph_->getNearestVertices(&new_vertex->state, knn_range_, &nearby_vertices);
-
-    for (int i = 0; i < nearby_vertices.size(); ++i)
-    {
-      Vertex* neighbour = nearby_vertices[i];
-      int num_edges = new_vertex->edges;
-      double weight = (new_vertex->state - neighbour->state).norm();
-
-      if (num_edges < num_edges_max_ and weight < max_edge_length_)
-      {
-        // checking if edge exist in the graph only for debug --> very costly !!!!!!
-
-        // if (!sparse_graph_->edgeExist(new_vertex->id, neighbour->id) and 
-        //   MapManager::VoxelStatus::kFree == map_manager_->getPathStatus(new_vertex->state_3d, neighbour->state_3d, robot_box_size_, true))
-        if (MapManager::VoxelStatus::kFree == map_manager_->getPathStatus(new_vertex->state_3d, neighbour->state_3d, robot_box_size_, true))
-        {
-
-          global_graph_->addEdge(new_vertex, neighbour, weight);
-          new_vertex->edges++;
-        }
-      }
-    }
-  } 
-  
   // update the peviously added frontier vertices in updated global graph 
 
   for (std::list<int>::iterator i = global_graph_->frontier_vertices_ids_.begin(); i != global_graph_->frontier_vertices_ids_.end(); i++) {
@@ -1035,14 +1038,64 @@ void GraphManager::updateGlobalGraph(std::vector<std::vector<Vertex *>> dijkstra
 
   global_graph_->updateFrontierVertices();
   
+  global_root_vertex = prev_pose_vertex_;
 
   // run dijkstra shortest paths on updated global graph 
 
-  if (!global_graph_->findShortestPaths(prev_pose_vertex_->id, global_graph_rep_))
+  if (!global_graph_->findShortestPaths(global_root_vertex->id, global_graph_rep_))
   {
     ROS_WARN("Could not find dijkstra shortest paths on the global graph \n");
   } 
-  
+
+  std::vector<std::vector<Vertex *>> global_dijkstra_paths;
+
+  global_dijkstra_paths.clear();
+
+  for (int id : global_graph_->frontier_vertices_ids_)
+  {
+    Vertex * vertex = global_graph_->vertices_map_[id];
+
+    // if (vertex->vol_gain.is_frontier and vertex->is_cluster_centroid)
+    if (vertex->vol_gain.is_frontier)
+    {
+      std::vector<Vertex *> global_dijkstra_path;
+      global_dijkstra_path.clear();
+
+      global_graph_->getShortestPath(vertex->id, global_graph_rep_, true, global_dijkstra_path);
+
+      if (!global_dijkstra_path.empty() and getPathLength(global_dijkstra_path) > 4)
+      {
+        global_dijkstra_paths.push_back(global_dijkstra_path);
+      }
+    }
+  }
+
+  global_paths_.clear();
+
+  if (!global_dijkstra_paths.empty()) {
+
+    for (std::vector<Vertex *> global_dijkstra_path : global_dijkstra_paths) {
+
+      if (!global_dijkstra_path.empty())
+      {
+        Eigen::Vector3d path_goal (global_dijkstra_path.back()->state[0], global_dijkstra_path.back()->state[1], global_dijkstra_path.back()->state[2]);
+
+        std::pair<std::vector<Vertex *>, double> p = std::make_pair(global_dijkstra_path, getPathLength(global_dijkstra_path));
+
+        global_paths_.push_back(p);
+      }
+    }
+
+  } else {
+    ROS_WARN_STREAM ("Global graph -> No dijkstra paths :( \n");
+  }
+
+  GraphManager::visualizeGlobalPaths(global_paths_);
+
+
+
+
+
   // update path to return to base upon every global graph update --> mainly to find shortest route to base station. 
 
   home_path_.clear();
@@ -1074,6 +1127,46 @@ void GraphManager::updateGlobalGraph(std::vector<std::vector<Vertex *>> dijkstra
   GraphManager::visualizeGlobalGraph();
 }
 
+bool GraphManager::extractGlobalPathWays (std::vector<std::vector<Vertex *>> &dijkstra_paths) 
+{
+
+  high_resolution_clock::time_point start_total = high_resolution_clock::now();
+  bool path_status = false;
+
+  dijkstra_paths.clear();
+
+  for (int id : global_graph_->frontier_vertices_ids_)
+  {
+    Vertex * vertex = global_graph_->vertices_map_[id];
+
+    // if (vertex->vol_gain.is_frontier and vertex->is_cluster_centroid)
+    if (vertex->vol_gain.is_frontier)
+    {
+      std::vector<Vertex *> dijkstra_path;
+      dijkstra_path.clear();
+
+      global_graph_->getShortestPath(vertex->id, global_graph_rep_, true, dijkstra_path);
+
+      if (!dijkstra_path.empty() and getPathLength(dijkstra_path) > 4)
+      {
+        dijkstra_paths.push_back(dijkstra_path);
+      }
+    }
+  }
+
+  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+  ROS_DEBUG_STREAM("GG -> Extracting shortest paths time \t " << duration_total.count() << " ms \n");
+
+  if (!dijkstra_paths.empty()) {
+    path_status = true;
+  } else {
+    return false;
+  }
+
+  return path_status;
+}
+
 bool GraphManager::buildLocalGraph()
 {
 
@@ -1082,6 +1175,7 @@ bool GraphManager::buildLocalGraph()
   // high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
   GraphManager::resetLocalGraph();
+  local_dijkstra_paths_.clear();
 
   local_root_vertex = new Vertex(sub_graph_->generateVertexID(), robotState_);
   local_root_vertex->is_root = true;
@@ -1156,12 +1250,12 @@ bool GraphManager::buildLocalGraph()
 
   if (sub_graph_->getNumVertices() != 0 && sub_graph_->getNumEdges() != 0) {
 
-    // GraphManager::visualizeLocalGraph();
     graph_status = true;
   }
+  
+  local_planner_status_ = GraphManager::extractShortestPaths(sub_graph_, sub_graph_rep_, local_root_vertex, local_dijkstra_paths_);
 
-
-  return graph_status;
+  return local_planner_status_;
 
 } // buildLocalGraph
 
@@ -1197,36 +1291,6 @@ bool GraphManager::extractShortestPaths (std::shared_ptr<GraphUtils> graph, Shor
     vertex->is_leaf_vertex = true;
     GraphManager::computeVolumetricGainRayCasting(vertex->state, vertex->vol_gain);
 
-    /*
-
-    if (!vertex->is_evaluated) {
-
-      // compute and assign volumetric gain to the vertex
-      // Assign same gain and frontier status to the neighbours for efficient expansion
-      GraphManager::computeVolumetricGainRayCasting(vertex->state, vertex->vol_gain);
-      std::vector<Vertex *> nearby_vertices;
-      graph->getNearestVertices(&graph->vertices_map_[id]->state, knn_range_, &nearby_vertices);
-
-      for (int i = 0; i < nearby_vertices.size(); i++)
-      {
-
-        Vertex* neighbour = nearby_vertices[i]; 
-        neighbour->vol_gain.gain = vertex->vol_gain.gain;
-        neighbour->vol_gain.is_frontier = vertex->vol_gain.is_frontier;
-        if (vertex->vol_gain.is_frontier) {
-
-          vertex->is_evaluated = false;
-          neighbour->is_evaluated = false;
-        } else {
-
-          vertex->is_evaluated = true;
-          neighbour->is_evaluated = true;
-        }
-      }
-    }
-
-   */
-
   }
 
   // cluster the nodes based on their volumetric gain 
@@ -1254,7 +1318,8 @@ bool GraphManager::extractShortestPaths (std::shared_ptr<GraphUtils> graph, Shor
 
   }
 
-
+  GraphManager::visualizeLocalGraph();
+  
   if (!dijkstra_paths.empty()) {
     path_status = true;
   } else {
@@ -1670,30 +1735,11 @@ bool GraphManager::expandSparseGraph () {
 
 
 
-bool GraphManager::planGlobalPath(std::vector<std::vector<Vertex *>> dijkstra_paths)
+bool GraphManager::planGlobalPath()
+
 {
 
   bool path_status = true;
-  global_paths_.clear();
-
-  if (!dijkstra_paths.empty()) {
-
-    for (std::vector<Vertex *> dijkstra_path : dijkstra_paths) {
-
-      if (!dijkstra_path.empty())
-      {
-        Eigen::Vector3d path_goal (dijkstra_path.back()->state[0], dijkstra_path.back()->state[1], dijkstra_path.back()->state[2]);
-
-        std::pair<std::vector<Vertex *>, double> p = std::make_pair(dijkstra_path, getPathLength(dijkstra_path));
-
-        global_paths_.push_back(p);
-      }
-    }
-
-  } else {
-    ROS_WARN_STREAM ("Global graph -> No dijkstra paths :( \n");
-    return false;
-  }
 
   std::vector<std::pair<std::vector<Vertex*>, double>> paths_unordered;
   paths_unordered.clear();
@@ -2850,89 +2896,67 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
       exploration_path_.poses.clear();
       if (GraphManager::buildLocalGraph()) {
 
-        std::vector<std::vector<Vertex *>> dijkstra_paths;
-        dijkstra_paths.clear();
+        if (GraphManager::planLocalPath(local_dijkstra_paths_)) {
 
-        if (GraphManager::extractShortestPaths(sub_graph_, sub_graph_rep_, local_root_vertex, dijkstra_paths)) {
+          ROS_DEBUG("Successfully planned local path \n");
 
-          visualizeLocalGraph();
-          // GraphManager::insertBestPathsToSparseGraph(dijkstra_paths);
-          // ROS_DEBUG("Successfully inserted best paths \n");
-          if (GraphManager::planLocalPath(dijkstra_paths)) {
+          GraphManager::updateGlobalGraph(local_dijkstra_paths_);          
 
-            ROS_DEBUG("Successfully planned local path \n");
-            
-            GraphManager::insertBestPathsToSparseGraph(dijkstra_paths);
-            GraphManager::updateGlobalGraph(dijkstra_paths);          
-            ROS_DEBUG("Successfully inserted best paths \n");
+          ROS_DEBUG("Successfully updated Global Graph \n");
+
+          if (GraphManager::setPathDynamic()) {
+
+            ROS_DEBUG("local path set success! \n");
+            res.path = exploration_path_;
+            ++planning_iteration_;
+            break;
+          } else {
+            ROS_WARN("Local path setting -> Failure ! \n");
+          }
+        } else {
+
+          ROS_WARN("Local planner failure ! Attempting global repositioning \n");
+
+          std::vector<std::vector<Vertex *>> dijkstra_paths;
+          dijkstra_paths.clear();
+
+          GraphManager::updateGlobalGraph(local_dijkstra_paths_);          
+
+          if (GraphManager::planGlobalPath()) {
+
+            ROS_DEBUG ("Successfully planned global paths \n");
 
             if (GraphManager::setPathDynamic()) {
-
-              GraphManager::updateSparseGraph();
-              ROS_DEBUG("local path set success! \n");
+              ROS_INFO("Global path set success !\n");
               res.path = exploration_path_;
               ++planning_iteration_;
               break;
             } else {
-              ROS_WARN("Local path setting -> Failure ! \n");
+              ROS_WARN("Global planner failure \n");
+              break;
             }
+          }
+        }
+
+      } else {
+        ROS_WARN("Could not extract shortest paths on sub graph \n");
+
+        GraphManager::updateGlobalGraph(local_dijkstra_paths_);
+
+        if (GraphManager::planGlobalPath()) {
+
+          ROS_DEBUG ("Successfully planned global paths \n");
+
+          if (GraphManager::setPathDynamic()) {
+            ROS_INFO("Global path set success !\n");
+            res.path = exploration_path_;
+            ++planning_iteration_;
+            break;
           } else {
-
-            ROS_WARN("Local planner failure ! Attempting global repositioning \n");
-
-            std::vector<std::vector<Vertex *>> dijkstra_paths;
-            dijkstra_paths.clear();
-
-            if (GraphManager::extractShortestPathsSparseGraph(sparse_graph_, sparse_graph_rep_, global_root_vertex, dijkstra_paths)) {
-            
-              GraphManager::insertBestPathsToSparseGraph(dijkstra_paths);
-              GraphManager::updateGlobalGraph(dijkstra_paths);          
-
-              if (GraphManager::planGlobalPath(dijkstra_paths)) {
-
-                ROS_DEBUG ("Successfully planned global paths \n");
-
-                if (GraphManager::setPathDynamic()) {
-                  ROS_INFO("Global path set success !\n");
-                  res.path = exploration_path_;
-                  ++planning_iteration_;
-                  break;
-                } else {
-                  ROS_WARN("Global planner failure \n");
-                  break;
-                }
-              }
-            }
+            ROS_WARN("Global planner failure \n");
+            break;
           }
-
-        } else {
-          ROS_WARN("Could not extract shortest paths on sub graph \n");
-
-          if (GraphManager::expandSparseGraph()) {
-
-            ROS_INFO("Expanded sparse graph for global planning \n");
-            std::vector<std::vector<Vertex *>> dijkstra_paths;
-            dijkstra_paths.clear();
-
-            if (GraphManager::extractShortestPathsSparseGraph(sparse_graph_, sparse_graph_rep_, global_root_vertex, dijkstra_paths)) {
-
-              if (GraphManager::planGlobalPath(dijkstra_paths)) {
-
-                ROS_DEBUG ("Successfully planned global paths \n");
-
-                if (GraphManager::setPathDynamic()) {
-                  ROS_INFO("Global path set success !\n");
-                  res.path = exploration_path_;
-                  ++planning_iteration_;
-                  break;
-                } else {
-                  ROS_WARN("Global planner failure \n");
-                  break;
-                }
-              }
-            }
-          }
-        } 
+        }
       } 
 
 

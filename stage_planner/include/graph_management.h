@@ -60,6 +60,8 @@ public:
                              std::vector<std::vector<Vertex *>> &dijkstra_paths);
   bool extractShortestPathsSparseGraph (std::shared_ptr<GraphUtils> graph, ShortestPathsReport rep, Vertex* root, 
                              std::vector<std::vector<Vertex *>> &dijkstra_paths);
+
+  bool extractGlobalPathWays (std::vector<std::vector<Vertex *>> &dijkstra_paths); 
   double calculateAngle(Eigen::Vector3d fpoint);
 
   double getRelativeAngle(Eigen::Vector3d point);
@@ -102,7 +104,7 @@ public:
   bool buildLocalGraph();
   bool planLocalPath(std::vector<std::vector<Vertex *>> dijkstra_paths);
 
-  bool planGlobalPath(std::vector<std::vector<Vertex *>> dijkstra_paths);
+  bool planGlobalPath();
 
   void visualizeLocalGraph();
 
@@ -245,7 +247,12 @@ private:
   int temp_id = -1;
   int fake_id_count = -1;
   int latest_sub_graph_id = 0;
+  
+  bool local_planner_status_ = true;
+  bool global_planner_status_ = false;
 
+  std::vector<std::vector<Vertex *>> local_dijkstra_paths_;
+  std::vector<std::vector<Vertex *>> global_dijkstra_paths_;
   std::vector<std::pair<std::vector<Vertex *>, double>> local_paths_;
   std::vector<std::pair<std::vector<Vertex *>, double>> global_paths_;
 

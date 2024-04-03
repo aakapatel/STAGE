@@ -8,6 +8,7 @@ Panels:
         - /Status1
         - /Axes1
         - /MarkerArray1
+        - /MarkerArray1/Namespaces1
         - /MarkerArray2
         - /MarkerArray2/Namespaces1
         - /Path1
@@ -44,7 +45,7 @@ Panels:
   - Class: rviz/Time
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: PointCloud2
   - Class: stage_planner_ui/STAGE INTERFACE
     Name: STAGE INTERFACE
 Preferences:
@@ -68,7 +69,9 @@ Visualization Manager:
       Marker Topic: /hummingbird/global_planning_graph
       Name: MarkerArray
       Namespaces:
-        {}
+        edges: false
+        frontier: true
+        vertices: true
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -116,7 +119,8 @@ Visualization Manager:
       Marker Topic: /hummingbird/global_dijkstra_paths
       Name: MarkerArray
       Namespaces:
-        {}
+        edges: true
+        vertices: true
       Queue Size: 100
       Value: true
     - Alpha: 0.029999999329447746
@@ -168,7 +172,8 @@ Visualization Manager:
       Marker Topic: /hummingbird/pose_graph
       Name: MarkerArray
       Namespaces:
-        {}
+        edges: true
+        vertices: true
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -184,7 +189,8 @@ Visualization Manager:
       Marker Topic: /hummingbird/global_repos_path
       Name: MarkerArray
       Namespaces:
-        {}
+        edges: true
+        vertices: true
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -222,8 +228,8 @@ Visualization Manager:
     - Alpha: 0.20000000298023224
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 11.275739669799805
-        Min Value: 0.058737754821777344
+        Max Value: 10.762174606323242
+        Min Value: -0.6121503710746765
         Value: true
       Axis: Z
       Channel Name: intensity
@@ -259,7 +265,7 @@ Visualization Manager:
       Buffer Length: 1
       Class: rviz/Path
       Color: 25; 255; 0
-      Enabled: true
+      Enabled: false
       Head Diameter: 0.30000001192092896
       Head Length: 0.20000000298023224
       Length: 0.30000001192092896
@@ -278,7 +284,7 @@ Visualization Manager:
       Shaft Length: 0.10000000149011612
       Topic: /hummingbird/modified_path
       Unreliable: false
-      Value: true
+      Value: false
     - Alpha: 1
       Axes Length: 1
       Axes Radius: 0.10000000149011612
@@ -323,7 +329,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 42.312767028808594
+      Distance: 42.34788131713867
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -331,17 +337,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 0.12953968346118927
-        Y: -0.5323939919471741
-        Z: -3.825985908508301
+        X: 6.896773815155029
+        Y: -2.0083091259002686
+        Z: -9.25196361541748
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5647963285446167
+      Pitch: 1.504795789718628
       Target Frame: hummingbird/base_link
-      Yaw: 3.1135923862457275
+      Yaw: 3.21858811378479
     Saved: ~
 Window Geometry:
   Displays:
