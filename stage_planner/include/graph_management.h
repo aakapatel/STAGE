@@ -49,7 +49,7 @@ public:
   Eigen::Vector3d quaternion_to_rpy(Eigen::Quaterniond q);
   double calculateDistance(StateVec s1, StateVec s2);
   void sampleNodes(std::vector<node *> &nodes, StateVec state, int iterations_max, double bounding_box_size);
-  bool sampleVertex(Vertex& vertex);
+  bool sampleVertex(StateVec& vertex);
   void sampleVertices();
   std::vector<Eigen::Vector3d> pointsToEigen(std::vector<geometry_msgs::Point> points);
   bool nextExplorationPath(stage_planner::explorationPath::Request &req,
@@ -261,6 +261,7 @@ private:
   std::vector<int> pose_graph_ids_;
   Vertex * global_root_vertex;
 
+  std::vector<StateVec> sampled_states_;
   std::list<Vertex *> all_vertices;
   std::list<Vertex *> path_way_vertices;
 

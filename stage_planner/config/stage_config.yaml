@@ -21,12 +21,12 @@ SensorParams:
   sensor_list:      ["OS064"]
   OS064:
     type:           kLidar
-    max_range:      4.0
+    max_range:      8.0
     center_offset:  [0.0, 0.0, 0.0]
     rotations:      [0.0, 0.0, 0.0]
     fov:            [rad(2*pi), rad(pi/6)]
     resolution:     [rad(7.0*pi/180), rad(7.0*pi/180)]
-    frontier_percentage_threshold: 0.08
+    frontier_percentage_threshold: 0.04
 
 #-------------------------------------------------------------------------------
 RobotParams:
@@ -51,10 +51,10 @@ BoundedSpaceParams:
     max_val:        [3000.0, 3000.0, 300.0]
   Local:
     type:           kCuboid
-    min_val:        [-15.0, -15.0, -3.0]
-    max_val:        [15.0, 15.0, 3.0]
-    min_extension:  [-20.0, -20.0, -20.0]
-    max_extension:  [20.0, 20.0, 20.0]
+    min_val:        [-10.0, -10.0, -10.0]
+    max_val:        [10.0, 10.0, 10.0]
+    min_extension:  [-10.0, -10.0, -10.0]
+    max_extension:  [10.0, 10.0, 10.0]
   LocalSearch:
     type:           kCuboid
     min_val:        [-50.0, -50.0, -1.0]

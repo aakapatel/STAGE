@@ -409,7 +409,7 @@ bool GraphManager::pointInsideFrustumVolume (StateVec state) {
 
 }
 
-bool GraphManager::sampleVertex(Vertex& vertex) {
+bool GraphManager::sampleVertex(StateVec& vertex_state) {
   StateVec state;
   bool hanging = false;
   bool found = false;
@@ -465,7 +465,7 @@ bool GraphManager::sampleVertex(Vertex& vertex) {
       random_sampler_.pushSample(state, false);
     }
   }
-  vertex.state = state;
+  vertex_state = state;
   // vertex.is_hanging = hanging;
   return found;
 }
@@ -474,21 +474,22 @@ void GraphManager::sampleVertices() {
   
   int loop_count = 0;
   
-  std::vector<Vertex *> sampled_vertices;
+  sampled_states_.clear();
+  // std::vector<Vertex *> sampled_vertices;
   std::vector<geometry_msgs::PoseStamped> sampled_poses;
   sampled_poses.clear();
-  while (loop_count < iterations_local_/2) {
-
-    Vertex new_vertex(-1, StateVec::Zero());
-    if(sampleVertex(new_vertex)) {
-      sampled_vertices.push_back(&new_vertex);
+  while (loop_count < iterations_local_/4) {
+    
+    StateVec vertex_state;
+    if(sampleVertex(vertex_state)) {
+      sampled_states_.push_back(vertex_state);
     }
     geometry_msgs::PoseStamped sample;
-    sample.pose.position.x = new_vertex.state[0];
-    sample.pose.position.y = new_vertex.state[1];
-    sample.pose.position.z = new_vertex.state[2];
+    sample.pose.position.x = vertex_state[0];
+    sample.pose.position.y = vertex_state[1];
+    sample.pose.position.z = vertex_state[2];
 
-    double yaw_ang = std::atan2(new_vertex.state[1] - robotState_[1], new_vertex.state[0] - robotState_[0]);
+    double yaw_ang = std::atan2(vertex_state[1] - robotState_[1], vertex_state[0] - robotState_[0]);
     tf::Quaternion quat;
     quat.setEuler(0.0, 0.0, yaw_ang);
     sample.pose.orientation.x = quat.x();
@@ -498,11 +499,12 @@ void GraphManager::sampleVertices() {
 
     sample.header.frame_id = m_worldFrameId;
     sample.header.stamp = ros::Time::now();
-    Eigen::Vector3d sample_point = new_vertex.state.head(3);
-    if (getRelativeAngle(sample_point) < 40) {
-
+    Eigen::Vector3d sample_point = vertex_state.head(3);
+    // if (getRelativeAngle(sample_point) < 40) {
+    //
+    //   sampled_poses.push_back(sample);
+    // }
       sampled_poses.push_back(sample);
-    }
     loop_count++;
   }
   
@@ -1182,22 +1184,13 @@ bool GraphManager::buildLocalGraph()
   sub_graph_->addVertex(local_root_vertex);
 
   // Insert the sub graph vertedx to global graph to re-use the SG
-  std::vector<node *> nodes;
-  nodes.clear();
   GraphManager::sampleVertices();
-  GraphManager::sampleNodes(nodes, robotState_, iterations_local_, bounding_box_size_);
-  if (nodes.empty())
-  {
-    graph_status = false;
-    ROS_WARN("Could not sample nodes in traversable space \n");
-    return graph_status;
-  }
 
   // Add randomly sampled nodes in local graph
 
-  for (int i = 0; i < nodes.size(); ++i)
+  for (int i = 0; i < sampled_states_.size(); ++i)
   {
-    Vertex *vertex = new Vertex(sub_graph_->generateVertexID(), eigenToState(*(nodes[i]->point)));
+    Vertex *vertex = new Vertex(sub_graph_->generateVertexID(), sampled_states_[i]);
     sub_graph_->addVertex(vertex);
   }
 
