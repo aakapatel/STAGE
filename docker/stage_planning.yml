@@ -27,7 +27,8 @@ windows:
           - roslaunch rotors_gazebo custom_drone.launch 
         - initialization:
           - cde 
-          - sleep 8 
+          - sleep 8
+          - "echo 'Press Enter to run initialize_stage'; read -r"
           - *initialize_stage 
         - controller:  
           - cde 

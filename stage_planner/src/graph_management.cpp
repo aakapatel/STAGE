@@ -914,9 +914,9 @@ void GraphManager::updateGlobalGraph(std::vector<std::vector<Vertex *>> dijkstra
     return;
   }
   
-  
   Vertex* prev_vertex = nullptr;
-  
+  std::vector<Vertex *> newly_added_vertices;
+  newly_added_vertices.clear();
   for (int i = 0; i < dijkstra_paths.size(); ++i) {
 
     if (i == 0) {
@@ -928,7 +928,10 @@ void GraphManager::updateGlobalGraph(std::vector<std::vector<Vertex *>> dijkstra
         if (!path[j]->is_evaluated) {
 
           Vertex * new_vertex = new Vertex(global_graph_->generateVertexID(), path[j]->state);
+          new_vertex->vol_gain = path[j]->vol_gain;
           global_graph_->addVertex(new_vertex);
+          if (new_vertex->vol_gain.is_frontier) {global_graph_->frontier_vertices_ids_.push_back(new_vertex->id);}
+          newly_added_vertices.push_back(new_vertex);
           path[j]->is_evaluated = true;
           path[j]->sub_id = new_vertex->id;
           
@@ -965,7 +968,10 @@ void GraphManager::updateGlobalGraph(std::vector<std::vector<Vertex *>> dijkstra
         if (!path[j]->is_evaluated) {
 
           Vertex * new_vertex = new Vertex(global_graph_->generateVertexID(), path[j]->state);
+          new_vertex->vol_gain = path[j]->vol_gain;
           global_graph_->addVertex(new_vertex);
+          if (new_vertex->vol_gain.is_frontier) {global_graph_->frontier_vertices_ids_.push_back(new_vertex->id);}
+          newly_added_vertices.push_back(new_vertex);
           path[j]->is_evaluated = true;
           path[j]->sub_id = new_vertex->id;
           
@@ -976,18 +982,9 @@ void GraphManager::updateGlobalGraph(std::vector<std::vector<Vertex *>> dijkstra
           prev_vertex = new_vertex;
 
         }
-
       }
-
     }
-
   }
-
-
-
-
-
-  /*
 
   for (Vertex* new_vertex : newly_added_vertices)
   {
@@ -1005,14 +1002,13 @@ void GraphManager::updateGlobalGraph(std::vector<std::vector<Vertex *>> dijkstra
       int num_edges = new_vertex->edges;
       double weight = (new_vertex->state - neighbour->state).norm();
 
-      // if (num_edges < num_edges_max_ and weight < max_edge_length_)
-      if (weight < max_edge_length_ and weight > 0.2)
+      if (num_edges < num_edges_max_ and weight < max_edge_length_)
       {
+        // checking if edge exist in the graph only for debug --> very costly !!!!!!
 
         // if (!sparse_graph_->edgeExist(new_vertex->id, neighbour->id) and 
         //   MapManager::VoxelStatus::kFree == map_manager_->getPathStatus(new_vertex->state_3d, neighbour->state_3d, robot_box_size_, true))
-        if ( 
-          MapManager::VoxelStatus::kFree == map_manager_->getPathStatus(new_vertex->state_3d, neighbour->state_3d, robot_box_size_, true))
+        if (MapManager::VoxelStatus::kFree == map_manager_->getPathStatus(new_vertex->state_3d, neighbour->state_3d, robot_box_size_, true))
         {
 
           global_graph_->addEdge(new_vertex, neighbour, weight);
@@ -1022,22 +1018,33 @@ void GraphManager::updateGlobalGraph(std::vector<std::vector<Vertex *>> dijkstra
     }
   } 
   
-  */
+  // update the peviously added frontier vertices in updated global graph 
 
-  // GraphManager::clusterNodes(sparse_graph_); 
-  // global_root_vertex = vertex;
+  for (std::list<int>::iterator i = global_graph_->frontier_vertices_ids_.begin(); i != global_graph_->frontier_vertices_ids_.end(); i++) {
 
-  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
-  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-  ROS_DEBUG_STREAM("GG -> Principle paths insertion time \t " << duration_total.count() << " ms \n");
-  GraphManager::visualizeGlobalGraph();
+    Vertex* vertex = global_graph_->vertices_map_[*i];
+    
+    if ((vertex->state - robotState_).norm() < (bounding_box_size_ + 4)) {
 
+      GraphManager::computeVolumetricGainRayCasting(vertex->state, vertex->vol_gain);
+
+    }
+  }
+  
+  // remove vertices ids from frontier list if they are no longer frontiers. 
+
+  global_graph_->updateFrontierVertices();
+  
+
+  // run dijkstra shortest paths on updated global graph 
 
   if (!global_graph_->findShortestPaths(prev_pose_vertex_->id, global_graph_rep_))
   {
     ROS_WARN("Could not find dijkstra shortest paths on the global graph \n");
   } 
   
+  // update path to return to base upon every global graph update --> mainly to find shortest route to base station. 
+
   home_path_.clear();
   global_graph_->getShortestPath(1, global_graph_rep_, true, home_path_);
   
@@ -1061,6 +1068,10 @@ void GraphManager::updateGlobalGraph(std::vector<std::vector<Vertex *>> dijkstra
   homing_path_.header.frame_id = m_worldFrameId;
   homing_Path_Pub.publish(homing_path_);
 
+  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+  ROS_DEBUG_STREAM("GG -> update & homing planning time \t " << duration_total.count() << " ms \n");
+  GraphManager::visualizeGlobalGraph();
 }
 
 bool GraphManager::buildLocalGraph()
@@ -3635,9 +3646,9 @@ void GraphManager::visualizeGlobalGraph()
   edge_marker.action = visualization_msgs::Marker::ADD;
   edge_marker.type = visualization_msgs::Marker::LINE_LIST;
   edge_marker.scale.x = 0.04;
-  edge_marker.color.r = 0 / 255.0;
-  edge_marker.color.g = 200.0 / 255.0;
-  edge_marker.color.b = 0.0;
+  edge_marker.color.r = 173.0 / 255.0;
+  edge_marker.color.g = 216.0 / 255.0;
+  edge_marker.color.b = 230.0 / 255.0;
   edge_marker.color.a = 1.0;
   // edge_marker.lifetime = ros::Duration(graph_lifetime);
   edge_marker.frame_locked = false;
@@ -3676,9 +3687,9 @@ void GraphManager::visualizeGlobalGraph()
   vertex_marker.scale.x = 0.3;
   vertex_marker.scale.y = 0.3;
   vertex_marker.scale.z = 0.3;
-  vertex_marker.color.r = 255.0 / 255.0;
-  vertex_marker.color.g = 255.0 / 255.0;
-  vertex_marker.color.b = 255.0 / 255.0;
+  vertex_marker.color.r = 240.0 / 255.0;
+  vertex_marker.color.g = 128.0 / 255.0;
+  vertex_marker.color.b = 128.0 / 255.0;
   vertex_marker.color.a = 1.0;
   // vertex_marker.lifetime = ros::Duration(graph_lifetime);
   vertex_marker.frame_locked = false;
@@ -3694,9 +3705,9 @@ void GraphManager::visualizeGlobalGraph()
   frontier_vertex_marker.scale.x = 0.4;
   frontier_vertex_marker.scale.y = 0.4;
   frontier_vertex_marker.scale.z = 0.4;
-  frontier_vertex_marker.color.r = 200.0 / 255.0;
-  frontier_vertex_marker.color.g = 0.0 / 255.0;
-  frontier_vertex_marker.color.b = 0.0 / 255.0;
+  frontier_vertex_marker.color.r = 255.0 / 255.0;
+  frontier_vertex_marker.color.g = 20.0 / 255.0;
+  frontier_vertex_marker.color.b = 145.0 / 255.0;
   frontier_vertex_marker.color.a = 1.0;
   frontier_vertex_marker.frame_locked = false;
 
@@ -3707,8 +3718,8 @@ void GraphManager::visualizeGlobalGraph()
   for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
   {
     int id = g->getVertexProperty(it);
-    // if (v_map[id]->is_frontier)
-    if (v_map[id]->children.empty())
+    if (v_map[id]->vol_gain.is_frontier)
+    // if (v_map[id]->children.empty())
     {
 
       geometry_msgs::Point p1;
