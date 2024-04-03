@@ -250,6 +250,7 @@ private:
   
   bool local_planner_status_ = true;
   bool global_planner_status_ = false;
+  bool run_global_planner_ = false;
 
   std::vector<std::vector<Vertex *>> local_dijkstra_paths_;
   std::vector<std::vector<Vertex *>> global_dijkstra_paths_;

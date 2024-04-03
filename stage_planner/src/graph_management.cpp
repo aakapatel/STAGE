@@ -1254,6 +1254,10 @@ bool GraphManager::buildLocalGraph()
   }
   
   local_planner_status_ = GraphManager::extractShortestPaths(sub_graph_, sub_graph_rep_, local_root_vertex, local_dijkstra_paths_);
+  
+  if (!local_planner_status_) {
+    run_global_planner_ = true;
+  }
 
   return local_planner_status_;
 
@@ -2801,7 +2805,8 @@ double GraphManager::getRelativeAngle(Eigen::Vector3d point)
 }
 
 void GraphManager::goalCallback(const geometry_msgs::PoseStamped::ConstPtr& goal_msg) {
-
+  
+  run_global_planner_ = true;
 
   float yaw_angle = atan2(goal_msg->pose.position.y - exploration_dir_pose.pose.position.y,
                           goal_msg->pose.position.x - exploration_dir_pose.pose.position.x);
@@ -2894,7 +2899,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
       GraphManager::updateGraphs();
       exploration_path_.poses.clear();
-      if (GraphManager::buildLocalGraph()) {
+      if (GraphManager::buildLocalGraph() and !run_global_planner_) {
 
         if (GraphManager::planLocalPath(local_dijkstra_paths_)) {
 
@@ -2938,7 +2943,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
           }
         }
 
-      } else {
+      } else if (run_global_planner_) {
         ROS_WARN("Could not extract shortest paths on sub graph \n");
 
         GraphManager::updateGlobalGraph(local_dijkstra_paths_);
@@ -2948,6 +2953,7 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
           ROS_DEBUG ("Successfully planned global paths \n");
 
           if (GraphManager::setPathDynamic()) {
+            run_global_planner_ = false;
             ROS_INFO("Global path set success !\n");
             res.path = exploration_path_;
             ++planning_iteration_;
