@@ -21,15 +21,8 @@
 #include <QLineEdit>
 #include <QPainter>
 #include <QPushButton>
-#include <QRadioButton>
 #include <QTimer>
 #include <QVBoxLayout>
-#include <QApplication>
-#include <QWidget>
-#include "QSlider"
-#include <QCheckBox>
-#include <QFont>
-
 #include <rviz/panel.h>
 #endif
 
@@ -48,31 +41,32 @@ class stage_planner_panel : public rviz::Panel {
   
   void on_init_motion_click();
   
+  void on_state_path_click();
+  
   void on_stop_planner_click();
   
-  void on_state_change_click(int state);
+  void on_homing_click();
+
+  void on_state_hold_click();
 
 protected Q_SLOTS:
 
  protected:
   
-  QFont* font;
-
-  QSlider* button_select_state;
-  ros::Publisher planner_client_set_state;
-
-  QLabel* stateLabel;
-
-  
-
   QPushButton* button_init_motion;
   ros::ServiceClient planner_client_init_motion;
   
+  QPushButton* button_set_state_path;
+  ros::Publisher planner_client_state;
   
   QPushButton* button_stop_planner;
   ros::ServiceClient planner_client_stop_planner;
 
- 
+  QPushButton* button_homing;
+  ros::ServiceClient planner_client_homing;
+
+  QPushButton* button_set_state_hold;
+
   ros::NodeHandle nh;
 };
 
