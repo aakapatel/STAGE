@@ -946,8 +946,9 @@ void GraphManager::clusterNodes (std::shared_ptr<GraphUtils> g)
       if (nearby_vertex->cluster_id == -1 and nearby_vertex->vol_gain.gain > my_gain) {
 
         my_gain = nearby_vertex->vol_gain.gain;
-        centroid_vertex->cluster_id = cluster_count;
+        nearby_vertex->cluster_id = cluster_count;
         centroid_vertex = nearby_vertex;
+
 
       } else {
         nearby_vertex->cluster_id = cluster_count;
@@ -959,6 +960,8 @@ void GraphManager::clusterNodes (std::shared_ptr<GraphUtils> g)
   }
 
 }
+
+
 
 void GraphManager::updateGraphs() {
 
@@ -1057,43 +1060,6 @@ void GraphManager::updateGlobalGraph(std::vector<std::vector<Vertex *>> dijkstra
       }
     }
 
-    for (Vertex* new_vertex : newly_added_vertices)
-    {
-
-      if (!new_vertex->children.empty()) {
-        continue;
-      }
-
-      // Get nearby vertices from the current vertex and connect the them to form local edges
-
-      // GraphManager::computeVolumetricGainRayCasting(new_vertex->state, new_vertex->vol_gain);
-
-      std::vector<Vertex *> nearby_vertices;
-      global_graph_->getNearestVertices(&new_vertex->state, knn_range_, &nearby_vertices);
-
-      for (int i = 0; i < nearby_vertices.size(); ++i)
-      {
-        Vertex* neighbour = nearby_vertices[i];
-        int num_edges = new_vertex->edges;
-        double weight = (new_vertex->state - neighbour->state).norm();
-
-        if (num_edges < num_edges_max_ and weight < max_edge_length_)
-        {
-          // checking if edge exist in the graph only for debug --> very costly !!!!!!
-
-          // if (!sparse_graph_->edgeExist(new_vertex->id, neighbour->id) and 
-          //   MapManager::VoxelStatus::kFree == map_manager_->getPathStatus(new_vertex->state_3d, neighbour->state_3d, robot_box_size_, true))
-          if (MapManager::VoxelStatus::kFree == map_manager_->getPathStatus(new_vertex->state_3d, neighbour->state_3d, robot_box_size_, true))
-          {
-
-            global_graph_->addEdge(new_vertex, neighbour, weight);
-            new_vertex->edges++;
-          }
-        }
-      }
-    }
-
-
     for (Vertex* new_vertex : newly_added_vertices) {
 
       if (new_vertex->children.empty()) {
@@ -1156,6 +1122,42 @@ void GraphManager::updateGlobalGraph(std::vector<std::vector<Vertex *>> dijkstra
         }
 
       }
+    
+
+
+      // if (!new_vertex->children.empty()) {
+      //   continue;
+      // }
+
+      // Get nearby vertices from the current vertex and connect the them to form local edges
+
+      // GraphManager::computeVolumetricGainRayCasting(new_vertex->state, new_vertex->vol_gain);
+
+      std::vector<Vertex *> nearby_vertices;
+      global_graph_->getNearestVertices(&new_vertex->state, knn_range_, &nearby_vertices);
+
+      for (int i = 0; i < nearby_vertices.size(); ++i)
+      {
+        Vertex* neighbour = nearby_vertices[i];
+        int num_edges = new_vertex->edges;
+        double weight = (new_vertex->state - neighbour->state).norm();
+
+        if (num_edges < num_edges_max_ and weight < max_edge_length_)
+        {
+          // checking if edge exist in the graph only for debug --> very costly !!!!!!
+
+          // if (!sparse_graph_->edgeExist(new_vertex->id, neighbour->id) and 
+          //   MapManager::VoxelStatus::kFree == map_manager_->getPathStatus(new_vertex->state_3d, neighbour->state_3d, robot_box_size_, true))
+          if (MapManager::VoxelStatus::kFree == map_manager_->getPathStatus(new_vertex->state_3d, neighbour->state_3d, robot_box_size_, true))
+          {
+
+            global_graph_->addEdge(new_vertex, neighbour, weight);
+            new_vertex->edges++;
+            neighbour->edges++;
+          }
+        }
+      }
+
     }
  
 
@@ -1398,7 +1400,6 @@ bool GraphManager::buildLocalGraph()
 
       if (num_edges < num_edges_max_ and weight < max_edge_length_)
       {
-
         // CHECK FOR COLLISION FREE EDGE
 
         MapManager::VoxelStatus vn = map_manager_->getPathStatus(vertex->state_3d, neighbour->state_3d, robot_box_size_, true);
@@ -1472,15 +1473,14 @@ bool GraphManager::extractShortestPaths (std::shared_ptr<GraphUtils> graph, Shor
 
   // cluster the nodes based on their volumetric gain 
   
-  // GraphManager::clusterNodes(graph); 
-  ROS_DEBUG_STREAM("Clustered vertices in sub graph \n");
+  GraphManager::clusterNodes(graph); 
 
   for (int id : graph->leaf_vertices_ids_)
   {
     Vertex * vertex = graph->vertices_map_[id];
 
-    // if (vertex->vol_gain.is_frontier and vertex->is_cluster_centroid)
-    if (vertex->vol_gain.is_frontier)
+    if (vertex->vol_gain.is_frontier and vertex->is_cluster_centroid)
+    // if (vertex->vol_gain.is_frontier)
     {
       graph->frontier_vertices_ids_.push_back(vertex->id);
       std::vector<Vertex *> dijkstra_path;
@@ -1502,7 +1502,6 @@ bool GraphManager::extractShortestPaths (std::shared_ptr<GraphUtils> graph, Shor
   ROS_DEBUG_STREAM("visualized sub graph \n");
   if (!dijkstra_paths.empty()) {
     
-    ROS_DEBUG_STREAM("local dijkstra paths exist \n");
     path_status = true;
   } else {
     ROS_DEBUG_STREAM("local dijkstra paths do not exist \n");

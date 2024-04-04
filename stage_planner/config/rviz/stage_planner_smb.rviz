@@ -71,9 +71,7 @@ Visualization Manager:
       Marker Topic: /smb/global_planning_graph
       Name: MarkerArray
       Namespaces:
-        edges: true
-        frontier: true
-        vertices: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -121,8 +119,7 @@ Visualization Manager:
       Marker Topic: /smb/global_dijkstra_paths
       Name: MarkerArray
       Namespaces:
-        edges: true
-        vertices: true
+        {}
       Queue Size: 100
       Value: true
     - Alpha: 0.10000000149011612
@@ -353,7 +350,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 18.60264015197754
+      Distance: 24.55783462524414
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -361,9 +358,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 1.3699398040771484
-        Y: 0.5193737745285034
-        Z: -0.5248422622680664
+        X: -0.4809124171733856
+        Y: 0.199287548661232
+        Z: -0.504432737827301
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -371,7 +368,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: velodyne
-      Yaw: 1.5754116773605347
+      Yaw: 1.555411696434021
     Saved: ~
 Window Geometry:
   Displays:
