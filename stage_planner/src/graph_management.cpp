@@ -2944,15 +2944,12 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
         run_homing_planner_ = false;
         return true;
 
-
-
       case 0:
         GraphManager::updateGraphs();
         planner_status = GraphManager::setPathDynamic();
         res.path = exploration_path_;
       // ROS_DEBUG("Executing path segment \n");
     }
-
 
 
   } else if (req.exploration) {
@@ -4065,14 +4062,14 @@ TODO:
 
   1. Homing planner to be running in the background -- done
 
-  2. Rosservice to fetch new exploration path
+  2. Rosservice to fetch new exploration path -- done 
 
-  3. Convert path to trajectory in stage_interface.
+  3. Convert path to trajectory in stage_interface. -- done 
 
-  4. Add initialization behaviour in stage_interface.
+  4. Add initialization behaviour in stage_interface. -- done 
 
-  3. Rosservice to fetch return to home path
+  3. Rosservice to fetch return to home path -- done 
 
-  4. Rosnode health monitoring
+  4. Rosnode health monitoring ????
 
 */
