@@ -58,8 +58,7 @@
       <param name="robot_frame" type="string" value="base_link" />
       </node>
     
-    <!-- <node type="rviz" name="rviz" pkg="rviz" args="-d $(find stage_planner)/config/rviz/stage_planner_$(arg robot_name).rviz" /> -->
-    <node type="rviz" name="rviz" pkg="rviz" args="-d $(find stage_planner)/config/rviz/stage_planner_nonamespace.rviz" />
+    <node type="rviz" name="rviz" pkg="rviz" args="-d $(find stage_planner)/config/rviz/stage_planner_$(arg robot_name).rviz" />
 
     </group>
 
