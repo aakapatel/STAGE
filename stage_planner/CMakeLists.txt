@@ -138,7 +138,7 @@ add_library(${PROJECT_NAME}
   src/trajectory.cpp
   src/random_sampler.cpp
   src/geofence_manager.cpp
-  src/pure_pursuit.cpp
+  src/path_tracker.cpp
 )
 
 
@@ -173,10 +173,10 @@ add_executable(control_interface src/control_interface.cpp)
   ${CMAKE_DL_LIBS}
 )
 
-add_executable(smb_path_tracker_ros_node src/path_tracker_node.cpp)
+add_executable(spot_path_tracker_ros_node src/path_tracker_node.cpp)
 ## Specify libraries to link a library or executable target against
  target_link_libraries(
-   smb_path_tracker_ros_node
+   spot_path_tracker_ros_node
    stage_planner
    ${catkin_LIBRARIES}
    ${OCTOMAP_LIBRARIES}

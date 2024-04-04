@@ -4,10 +4,9 @@ num_edges_max: 10
 max_edge_length: 4
 sampling_iterations: 2000
 knn_range: 2
-# robot_type: "kAerial"      
-robot_type: "kGround"       
-safety_margin: [0.2, 0.2, 0.2]
-robot_size: [0.2, 0.2, 0.2]
+robot_type: "kAerial"      
+safety_margin: [0.2, 0.2, 0.5]
+robot_size: [0.5, 0.5, 0.5]
 truncate_sample_Z: 0.5
 distance_to_new_path: 0.8
 WP_SIZE: 0.8
@@ -26,15 +25,14 @@ SensorParams:
     rotations:      [0.0, 0.0, 0.0]
     fov:            [rad(2*pi), rad(pi/6)]
     resolution:     [rad(7.0*pi/180), rad(7.0*pi/180)]
-    frontier_percentage_threshold: 0.04
+    frontier_percentage_threshold: 0.08
 
 #-------------------------------------------------------------------------------
 RobotParams:
-  # type:               kAerialRobot
-  type:               kGroundRobot 
-  size:               [0.2, 0.2, 0.2] # Actual size of the robot in meters [x, y, z]
-  size_extension_min: [0.1, 0.1, 0.1] # minimum extension outside of robot size allowed to operate
-  size_extension:     [0.2, 0.2, 0.2] # maximum extension outside of the robot size
+  type:               kAerialRobot
+  size:               [0.5, 0.5, 0.5] # Actual size of the robot in meters [x, y, z]
+  size_extension_min: [0.4, 0.4, 0.4] # minimum extension outside of robot size allowed to operate
+  size_extension:     [0.4, 0.4, 0.4] # maximum extension outside of the robot size
   center_offset:      [0.0, 0.0, 0.0]
   relax_ratio:        0.5 # Used to define an intermediate size between size_extension_min and size_extension for planning
   bound_mode:         kExtendedBound

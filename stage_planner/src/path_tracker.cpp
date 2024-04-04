@@ -1,13 +1,13 @@
-#include "pure_pursuit.h"
+#include "path_tracker.h"
 
 
-PurePursuitController::PurePursuitController(const ros::NodeHandle& nh, const ros::NodeHandle& nh_private)
+PathTracker::PathTracker(const ros::NodeHandle& nh, const ros::NodeHandle& nh_private)
 	:nh_(nh), nh_private_(nh_private), 
-	as_(nh_, "stage_interface_path", boost::bind(&PurePursuitController::actionGoalCallback, this, _1), false)
+	as_(nh_, "stage_interface_path", boost::bind(&PathTracker::actionGoalCallback, this, _1), false)
 {
 	cmd_vel_pub_ = nh_.advertise<geometry_msgs::Twist>("cmd_vel", 10);
 	carrot_point_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("carrot_point", 10);
-	odom_sub_ = nh_.subscribe("odometry", 100, &PurePursuitController::odomCallback, this);
+	odom_sub_ = nh_.subscribe("odometry", 100, &PathTracker::odomCallback, this);
 	loadParams();
 	path_to_exec_.clear();
 
@@ -15,10 +15,10 @@ PurePursuitController::PurePursuitController(const ros::NodeHandle& nh, const ro
 
 	as_.start();
 
-	// control_timer_ = nh_.createTimer(ros::Duration(dt_), &PurePursuitController::controlLoop, this);
+	// control_timer_ = nh_.createTimer(ros::Duration(dt_), &PathTracker::controlLoop, this);
 }
 
-double PurePursuitController::calculateDistance(const geometry_msgs::Pose &p1, const geometry_msgs::Pose &p2)
+double PathTracker::calculateDistance(const geometry_msgs::Pose &p1, const geometry_msgs::Pose &p2)
 {
 	Eigen::Vector3d v1(p1.position.x, p1.position.y, p1.position.z);
 	Eigen::Vector3d v2(p2.position.x, p2.position.y, p2.position.z);
@@ -26,7 +26,7 @@ double PurePursuitController::calculateDistance(const geometry_msgs::Pose &p1, c
 	return (v1 - v2).head(2).norm();
 }
 
-geometry_msgs::Pose PurePursuitController::convertEigenVecToPose(const Eigen::Vector3d &vec)
+geometry_msgs::Pose PathTracker::convertEigenVecToPose(const Eigen::Vector3d &vec)
 {
 	geometry_msgs::Pose p;
 	p.position.x = vec(0);
@@ -37,7 +37,7 @@ geometry_msgs::Pose PurePursuitController::convertEigenVecToPose(const Eigen::Ve
 	return p;
 }
 
-double PurePursuitController::calculatePathLength(const std::vector<geometry_msgs::PoseStamped> &path)
+double PathTracker::calculatePathLength(const std::vector<geometry_msgs::PoseStamped> &path)
 {
 	double dist = 0.0;
 	for(int i=1;i<path.size();++i)
@@ -47,13 +47,13 @@ double PurePursuitController::calculatePathLength(const std::vector<geometry_msg
 	return dist;
 }
 
-void PurePursuitController::odomCallback(const nav_msgs::Odometry &odom)
+void PathTracker::odomCallback(const nav_msgs::Odometry &odom)
 {
 	current_pose_ = odom.pose.pose;
 	current_vel_ = odom.twist.twist;
 }
 
-void PurePursuitController::actionGoalCallback(const stage_planner::pathFollowerActionGoalConstPtr &goal)
+void PathTracker::actionGoalCallback(const stage_planner::pathFollowerActionGoalConstPtr &goal)
 {
 	path_to_exec_.clear();
 	path_to_exec_ = goal->path;
@@ -66,7 +66,7 @@ void PurePursuitController::actionGoalCallback(const stage_planner::pathFollower
 		// Check if the action is preempted
 		if(as_.isPreemptRequested())
 		{
-			ROS_WARN("SMB Path Tracker: Path tracking preempted, stopping");
+			ROS_WARN("SPOT Path Tracker: Path tracking preempted, stopping");
 			// Publish 0 velocity
 			geometry_msgs::Twist vel;
 			vel.linear.x = 0.0;
@@ -85,7 +85,7 @@ void PurePursuitController::actionGoalCallback(const stage_planner::pathFollower
 		// std::cout << path_to_exec_.size() << std::endl;
 		if(path_to_exec_.size() <= 0)
 		{
-			ROS_WARN("SMB Path Tracker: Commanded path is empty, stopping");
+			ROS_WARN("SPOT Path Tracker: Commanded path is empty, stopping");
 			// Publish 0 velocity
 			geometry_msgs::Twist vel;
 			vel.linear.x = 0.0;
@@ -101,7 +101,7 @@ void PurePursuitController::actionGoalCallback(const stage_planner::pathFollower
 
 		if(calculateDistance(path_to_exec_.back().pose, current_pose_) < goal_reaching_threshold_)
 		{
-			ROS_INFO("SMB Path Tracker: Reached end of path");
+			ROS_INFO("SPOT Path Tracker: Reached end of path");
 			result_.success = true;
 			as_.setSucceeded(result_);
 
@@ -117,7 +117,7 @@ void PurePursuitController::actionGoalCallback(const stage_planner::pathFollower
 		}
 		else
 		{
-			ROS_WARN("SMB Path Tracker: Can't track given path");
+			ROS_WARN("SPOT Path Tracker: Can't track given path");
 		}
 		feedback_.dist_to_goal = calculateDistance(path_to_exec_.back().pose, current_pose_);
 		feedback_.remaining_waypoints = (int)path_to_exec_.size();
@@ -128,7 +128,7 @@ void PurePursuitController::actionGoalCallback(const stage_planner::pathFollower
 	}
 }
 
-bool PurePursuitController::computeCommandVelocity()
+bool PathTracker::computeCommandVelocity()
 {
 	// Find closest point on the path
 	std::vector<double> dists;
@@ -289,7 +289,7 @@ bool PurePursuitController::computeCommandVelocity()
 
 }
 
-void PurePursuitController::loadParams()
+void PathTracker::loadParams()
 {
 	std::string ns = ros::this_node::getName();
   std::string param_name;

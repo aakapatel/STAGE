@@ -16,7 +16,7 @@
 #include <actionlib/server/simple_action_server.h>
 #include "stage_planner/pathFollowerActionAction.h"
 
-class PurePursuitController
+class PathTracker
 {
 private:
   /* Parameters: */
@@ -57,7 +57,7 @@ private:
 	stage_planner::pathFollowerActionResult result_;
 
 public:
-  PurePursuitController(const ros::NodeHandle& nh, const ros::NodeHandle& nh_private);
+  PathTracker(const ros::NodeHandle& nh, const ros::NodeHandle& nh_private);
 	
 	void actionGoalCallback(const stage_planner::pathFollowerActionGoalConstPtr &goal);
 	void odomCallback(const nav_msgs::Odometry &odom);
