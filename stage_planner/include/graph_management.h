@@ -152,7 +152,8 @@ public:
   void updateSparseGraph();
 
   void insertBestPathsToSparseGraph (std::vector<std::vector<Vertex *>> dijkstra_paths); 
-
+  
+  void setHomingPath();
   bool setPath();
   bool setPathDynamic();
 
@@ -251,6 +252,8 @@ private:
   bool local_planner_status_ = true;
   bool global_planner_status_ = false;
   bool run_global_planner_ = false;
+  bool run_homing_planner_ = true;
+  bool reached_home_ = false;
 
   std::vector<std::vector<Vertex *>> local_dijkstra_paths_;
   std::vector<std::vector<Vertex *>> global_dijkstra_paths_;

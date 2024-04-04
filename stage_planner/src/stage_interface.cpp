@@ -493,7 +493,7 @@ bool StageInterface::reachedEndOfPath()
 void StageInterface::mainLoop(const ros::TimerEvent &event)
 {
 
-  if (explore)
+  if (explore or return_home)
   {
 
     if (reachedEndOfPath() and !stop_planning)

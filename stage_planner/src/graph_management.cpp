@@ -1129,6 +1129,48 @@ void GraphManager::updateGlobalGraph(std::vector<std::vector<Vertex *>> dijkstra
   GraphManager::visualizeGlobalGraph();
 }
 
+void GraphManager::setHomingPath () {
+  
+  path_iterator_ = 0;
+  GraphManager::updateGraphs();
+  GraphManager::updateGlobalGraph(local_dijkstra_paths_);
+  std::vector<geometry_msgs::Pose> original_path;
+  std::vector<geometry_msgs::Pose> modified_path;
+  original_path.clear();
+  modified_path.clear();
+  if (homing_path_.poses.empty()) {
+    return;
+  }
+  for (int i = 0; i < homing_path_.poses.size(); ++i) {
+    original_path.push_back(homing_path_.poses[i].pose);
+  }
+  
+  mod_path_.poses.clear();
+  bool improvement_success = GraphManager::improveFreePath (original_path, modified_path, true);
+
+  if (improvement_success) {
+    geometry_msgs::PoseStamped pose_mod;
+    pose_mod.header.frame_id = m_worldFrameId;
+    pose_mod.header.stamp = ros::Time::now();
+    mod_path_.header.frame_id = m_worldFrameId;
+    mod_path_.header.stamp = ros::Time::now();
+
+    for (int i = 0; i != modified_path.size(); ++i){
+      pose_mod.pose.position.x = modified_path[i].position.x;
+      pose_mod.pose.position.y = modified_path[i].position.y;
+      pose_mod.pose.position.z = modified_path[i].position.z;
+      mod_path_.poses.push_back(pose_mod);
+    }
+
+    m_modified_Path_Pub.publish(mod_path_);
+  }
+
+  if (GraphManager::setPathDynamic()) {
+    ROS_DEBUG("Successfully planned homing path \n");
+  }
+
+}
+
 bool GraphManager::extractGlobalPathWays (std::vector<std::vector<Vertex *>> &dijkstra_paths) 
 {
 
@@ -2887,44 +2929,96 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
-  switch (reached_end_of_path_) {
-    case 1:
+  if (req.homing) {
 
-      GraphManager::updateGraphs();
-      exploration_path_.poses.clear();
-      if (GraphManager::buildLocalGraph() and !run_global_planner_) {
+    if (reached_end_of_path_ and !run_homing_planner_) {
+      return false;
+    }
 
-        if (GraphManager::planLocalPath(local_dijkstra_paths_)) {
+    switch (run_homing_planner_) {
+      case 1:
 
-          ROS_DEBUG("Successfully planned local path \n");
+        GraphManager::setHomingPath();
+        res.path = exploration_path_;
+        ++planning_iteration_;
+        run_homing_planner_ = false;
+        return true;
 
-          GraphManager::updateGlobalGraph(local_dijkstra_paths_);          
 
-          ROS_DEBUG("Successfully updated Global Graph \n");
 
-          if (GraphManager::setPathDynamic()) {
+      case 0:
+        GraphManager::updateGraphs();
+        planner_status = GraphManager::setPathDynamic();
+        res.path = exploration_path_;
+      // ROS_DEBUG("Executing path segment \n");
+    }
 
-            ROS_DEBUG("local path set success! \n");
-            res.path = exploration_path_;
-            ++planning_iteration_;
-            break;
+
+
+  } else if (req.exploration) {
+    
+    run_homing_planner_ = true;
+
+    switch (reached_end_of_path_) {
+      case 1:
+
+        GraphManager::updateGraphs();
+        exploration_path_.poses.clear();
+        if (GraphManager::buildLocalGraph() and !run_global_planner_) {
+
+          if (GraphManager::planLocalPath(local_dijkstra_paths_)) {
+
+            ROS_DEBUG("Successfully planned local path \n");
+
+            GraphManager::updateGlobalGraph(local_dijkstra_paths_);          
+
+            ROS_DEBUG("Successfully updated Global Graph \n");
+
+            if (GraphManager::setPathDynamic()) {
+
+              ROS_DEBUG("local path set success! \n");
+              res.path = exploration_path_;
+              ++planning_iteration_;
+              break;
+            } else {
+              ROS_WARN("Local path setting -> Failure ! \n");
+            }
           } else {
-            ROS_WARN("Local path setting -> Failure ! \n");
+
+            ROS_WARN("Local planner failure ! Attempting global repositioning \n");
+
+            std::vector<std::vector<Vertex *>> dijkstra_paths;
+            dijkstra_paths.clear();
+
+            GraphManager::updateGlobalGraph(local_dijkstra_paths_);          
+
+            if (GraphManager::planGlobalPath()) {
+
+              ROS_DEBUG ("Successfully planned global paths \n");
+
+              if (GraphManager::setPathDynamic()) {
+                ROS_INFO("Global path set success !\n");
+                res.path = exploration_path_;
+                ++planning_iteration_;
+                break;
+              } else {
+                ROS_WARN("Global planner failure \n");
+                break;
+              }
+            }
           }
-        } else {
 
-          ROS_WARN("Local planner failure ! Attempting global repositioning \n");
+        } else if (run_global_planner_) {
+          ROS_WARN("Could not extract shortest paths on sub graph \n");
 
-          std::vector<std::vector<Vertex *>> dijkstra_paths;
-          dijkstra_paths.clear();
-
-          GraphManager::updateGlobalGraph(local_dijkstra_paths_);          
+          GraphManager::updateGlobalGraph(local_dijkstra_paths_);
 
           if (GraphManager::planGlobalPath()) {
 
             ROS_DEBUG ("Successfully planned global paths \n");
 
             if (GraphManager::setPathDynamic()) {
+              run_global_planner_ = false;
               ROS_INFO("Global path set success !\n");
               res.path = exploration_path_;
               ++planning_iteration_;
@@ -2934,36 +3028,15 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
               break;
             }
           }
-        }
-
-      } else if (run_global_planner_) {
-        ROS_WARN("Could not extract shortest paths on sub graph \n");
-
-        GraphManager::updateGlobalGraph(local_dijkstra_paths_);
-
-        if (GraphManager::planGlobalPath()) {
-
-          ROS_DEBUG ("Successfully planned global paths \n");
-
-          if (GraphManager::setPathDynamic()) {
-            run_global_planner_ = false;
-            ROS_INFO("Global path set success !\n");
-            res.path = exploration_path_;
-            ++planning_iteration_;
-            break;
-          } else {
-            ROS_WARN("Global planner failure \n");
-            break;
-          }
-        }
-      } 
+        } 
 
 
-    case 0:
-      GraphManager::updateGraphs();
-      planner_status = GraphManager::setPathDynamic();
-      res.path = exploration_path_;
-    // ROS_DEBUG("Executing path segment \n");
+      case 0:
+        GraphManager::updateGraphs();
+        planner_status = GraphManager::setPathDynamic();
+        res.path = exploration_path_;
+      // ROS_DEBUG("Executing path segment \n");
+    }
   }
 
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
