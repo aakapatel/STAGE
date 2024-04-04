@@ -6,7 +6,7 @@ sampling_iterations: 2000
 knn_range: 2
 robot_type: "kGround"       
 safety_margin: [0.2, 0.2, 0.2]
-robot_size: [0.2, 0.2, 0.2]
+robot_size: [0.6, 0.4, 0.2]
 truncate_sample_Z: 0.5
 distance_to_new_path: 0.8
 WP_SIZE: 0.8
@@ -24,14 +24,14 @@ SensorParams:
     center_offset:  [0.0, 0.0, 0.0]
     rotations:      [0.0, 0.0, 0.0]
     fov:            [rad(2*pi), rad(pi/6)]
-    resolution:     [rad(7.0*pi/180), rad(7.0*pi/180)]
-    frontier_percentage_threshold: 0.04
+    resolution:     [rad(5.0*pi/180), rad(5.0*pi/180)]
+    frontier_percentage_threshold: 0.1
 
 #-------------------------------------------------------------------------------
 RobotParams:
   type:               kGroundRobot 
-  size:               [0.2, 0.2, 0.2] # Actual size of the robot in meters [x, y, z]
-  size_extension_min: [0.1, 0.1, 0.1] # minimum extension outside of robot size allowed to operate
+  size:               [0.6, 0.4, 0.2] # Actual size of the robot in meters [x, y, z]
+  size_extension_min: [0.2, 0.2, 0.2] # minimum extension outside of robot size allowed to operate
   size_extension:     [0.2, 0.2, 0.2] # maximum extension outside of the robot size
   center_offset:      [0.0, 0.0, 0.0]
   relax_ratio:        0.5 # Used to define an intermediate size between size_extension_min and size_extension for planning
@@ -42,6 +42,33 @@ RobotParams:
 #   Global: Strictly defined bounds for the whole environment.
 #   Local: Define a local space wrt current robot state for planning.
 #-------------------------------------------------------------------------------
+
+GraphExpansionParams:
+  Global:
+    type:           kCuboid
+    min_val:        [-3000.0, -3000.0, -300.0]
+    max_val:        [3000.0, 3000.0, 300.0]
+  Local:
+    type:           kCuboid
+    min_val:        [-2.0, -2.0, -0.1]
+    max_val:        [2.0, 2.0, 0.1]
+    min_extension:  [-2.0, -2.0, -10.0]
+    max_extension:  [2.0, 2.0, 10.0]
+  LocalSearch:
+    type:           kCuboid
+    min_val:        [-50.0, -50.0, -1.0]
+    max_val:        [50.0, 50.0, 1.0]
+  # Adaptive OBB:
+  LocalAdaptiveExp:
+    type:           kCuboid
+    min_val:        [-10.0, -10.0, -0.75]
+    max_val:        [10.0, 10.0, 0.75]
+NoGainZones:
+  g1:  # Back
+    type:           kCuboid
+    min_val:        [-50.0, -10.0, -10.0]
+    max_val:        [2.0, 10.0, 10.0]
+
 BoundedSpaceParams:
   Global:
     type:           kCuboid
@@ -49,10 +76,10 @@ BoundedSpaceParams:
     max_val:        [3000.0, 3000.0, 300.0]
   Local:
     type:           kCuboid
-    min_val:        [-10.0, -10.0, -1.0]
-    max_val:        [10.0, 10.0, 1.0]
-    min_extension:  [-10.0, -10.0, -1.0]
-    max_extension:  [10.0, 10.0, 1.0]
+    min_val:        [-10.0, -10.0, -0.1]
+    max_val:        [10.0, 10.0, 0.1]
+    min_extension:  [-10.0, -10.0, -10.0]
+    max_extension:  [10.0, 10.0, 10.0]
   LocalSearch:
     type:           kCuboid
     min_val:        [-50.0, -50.0, -1.0]

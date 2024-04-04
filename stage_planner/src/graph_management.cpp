@@ -101,6 +101,8 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
   robot_params_.loadParams(ns + "/RobotParams");
   global_space_params_.loadParams(ns + "/BoundedSpaceParams/Global");
   local_space_params_.loadParams(ns + "/BoundedSpaceParams/Local");
+  graph_expansion_global_params_.loadParams(ns + "/GraphExpansionParams/Global");
+  graph_expansion_local_params_.loadParams(ns + "/GraphExpansionParams/Local");
   planning_params_.loadParams(ns + "/PlanningParams");
 
   geofence_manager_.reset(new GeofenceManager());
@@ -109,8 +111,11 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
 
   random_sampler_.reset();
   random_sampler_.loadParams(ns + "/RandomSamplerParams/SamplerForExploration");
+  random_sampler_graph_expansion_.reset();
+  random_sampler_graph_expansion_.loadParams(ns + "/RandomSamplerParams/SamplerForExploration");
 
   random_sampler_.setParams(global_space_params_, local_space_params_);
+  random_sampler_graph_expansion_.setParams(graph_expansion_global_params_, graph_expansion_local_params_);
   map_manager_->setRobotRadius(robot_box_size_.norm() / 2.0);
 };
 
@@ -409,18 +414,18 @@ bool GraphManager::pointInsideFrustumVolume (StateVec state) {
 
 }
 
-bool GraphManager::sampleVertex(StateVec& vertex_state) {
+bool GraphManager::sampleState(StateVec root_state, StateVec& vertex_state) {
   StateVec state;
   bool hanging = false;
   bool found = false;
 
   int while_thres = 1000;  // magic number
   BoundedSpaceParams reduced_global_space = global_space_params_;
-  reduced_global_space.min_val += 0.5 * robot_box_size_;
-  reduced_global_space.max_val -= 0.5 * robot_box_size_;
+  // reduced_global_space.min_val += 0.5 * robot_box_size_;
+  // reduced_global_space.max_val -= 0.5 * robot_box_size_;
   while (!found && while_thres--) {
     hanging = false;
-    random_sampler_.generate(robotState_, state);
+    random_sampler_.generate(root_state, state);
     // Very fast check if the sampled point is inside the planning space.
     // This helps eliminate quickly points outside the sampling space.
     Eigen::Vector3d sample = state.head(3);
@@ -446,10 +451,74 @@ bool GraphManager::sampleVertex(StateVec& vertex_state) {
         hanging = true;
       }
 
-      sample[2] -= (ground_dist - planning_params_.max_ground_height);
+      // sample[2] -= (ground_dist - planning_params_.max_ground_height);
       state[0] = sample[0];
       state[1] = sample[1];
-      state[2] -= (ground_dist - planning_params_.max_ground_height);
+      // state[2] -= (ground_dist - planning_params_.max_ground_height);
+      state[2] = sample[2];
+    }
+
+    // Check if surrounding area is free.
+    if (MapManager::VoxelStatus::kFree ==
+        map_manager_->getBoxStatus(
+            Eigen::Vector3d(state[0], state[1], state[2]) +
+                robot_params_.center_offset,
+            robot_box_size_, true)) {
+      random_sampler_.pushSample(state, true);  // for debug purpose.
+      found = true;
+    } else {
+      // stat_->num_vertices_fail++;
+      random_sampler_.pushSample(state, false);
+    }
+  }
+  vertex_state = state;
+  // vertex.is_hanging = hanging;
+  return found;
+}
+
+
+bool GraphManager::sampleStateToExpandGraph(StateVec root_state, StateVec& vertex_state) {
+  StateVec state;
+  bool hanging = false;
+  bool found = false;
+
+  int while_thres = 1000;  // magic number
+  BoundedSpaceParams reduced_global_space = global_space_params_;
+  reduced_global_space.min_val += 0.5 * robot_box_size_;
+  reduced_global_space.max_val -= 0.5 * robot_box_size_;
+  while (!found && while_thres--) {
+    hanging = false;
+    random_sampler_graph_expansion_.generate(root_state, state);
+    // Very fast check if the sampled point is inside the planning space.
+    // This helps eliminate quickly points outside the sampling space.
+    Eigen::Vector3d sample = state.head(3);
+    if (!reduced_global_space.isInsideSpace(sample)) continue;
+
+    // Check if in geofence areas.
+    if ((planning_params_.geofence_checking_enable) &&
+        (GeofenceManager::CoordinateStatus::kViolated ==
+         geofence_manager_->getBoxStatus(
+             Eigen::Vector2d(state[0] + robot_params_.center_offset[0],
+                             state[1] + robot_params_.center_offset[1]),
+             Eigen::Vector2d(robot_box_size_[0], robot_box_size_[1]))))
+      continue;
+
+    if (robot_params_.type == RobotType::kGroundRobot) {
+      Eigen::Vector3d sample;
+      sample = Eigen::Vector3d(state[0], state[1], state[2]) +
+               robot_params_.center_offset;
+      MapManager::VoxelStatus vs;
+      double ground_dist = projectSample(sample, vs);
+      if (ground_dist < 0.0) continue;
+      if (vs == MapManager::VoxelStatus::kUnknown) {
+        hanging = true;
+      }
+
+      // sample[2] -= (ground_dist - planning_params_.max_ground_height);
+      state[0] = sample[0];
+      state[1] = sample[1];
+      // state[2] -= (ground_dist - planning_params_.max_ground_height);
+      state[2] = sample[2];
     }
 
     // Check if surrounding area is free.
@@ -481,7 +550,7 @@ void GraphManager::sampleVertices() {
   while (loop_count < iterations_local_/4) {
     
     StateVec vertex_state;
-    if(sampleVertex(vertex_state)) {
+    if(sampleState(robotState_,vertex_state)) {
       sampled_states_.push_back(vertex_state);
     }
     geometry_msgs::PoseStamped sample;
@@ -991,6 +1060,10 @@ void GraphManager::updateGlobalGraph(std::vector<std::vector<Vertex *>> dijkstra
     for (Vertex* new_vertex : newly_added_vertices)
     {
 
+      if (!new_vertex->children.empty()) {
+        continue;
+      }
+
       // Get nearby vertices from the current vertex and connect the them to form local edges
 
       // GraphManager::computeVolumetricGainRayCasting(new_vertex->state, new_vertex->vol_gain);
@@ -1018,7 +1091,72 @@ void GraphManager::updateGlobalGraph(std::vector<std::vector<Vertex *>> dijkstra
           }
         }
       }
-    } 
+    }
+
+
+    for (Vertex* new_vertex : newly_added_vertices) {
+
+      if (new_vertex->children.empty()) {
+        
+        bool sampled = false;
+        int temp_it = 0;
+        StateVec vertex_state;
+        StateVec my_state;
+        double my_angle = std::numeric_limits<double>::max();
+        while(temp_it < 100) {
+
+          if(GraphManager::sampleStateToExpandGraph(new_vertex->state, vertex_state)) {
+            sampled_states_.push_back(vertex_state);
+          }
+          geometry_msgs::PoseStamped sample;
+          sample.pose.position.x = vertex_state[0];
+          sample.pose.position.y = vertex_state[1];
+          sample.pose.position.z = vertex_state[2];
+
+          double vertex_yaw_ang = std::atan2(vertex_state[1] - new_vertex->state[1], vertex_state[0] - new_vertex->state[0]);
+          tf::Quaternion vertex_quat;
+          vertex_quat.setEuler(0.0, 0.0, vertex_yaw_ang);
+          double parent_vertex_yaw_ang = std::atan2(new_vertex->state[1] - new_vertex->parent->state[1], new_vertex->state[0] - new_vertex->parent->state[0]);
+          tf::Quaternion parent_vertex_quat;
+          parent_vertex_quat.setEuler(0.0, 0.0, parent_vertex_yaw_ang);
+
+          Eigen::Quaterniond q1(parent_vertex_quat.w(), parent_vertex_quat.x(), parent_vertex_quat.y(), parent_vertex_quat.z());
+          Eigen::Quaterniond q2(vertex_quat.w(), vertex_quat.x(), vertex_quat.y(), vertex_quat.z());
+
+          double angle = std::acos(q1.dot(q2)) * 2.0 * 180/M_PI;
+          if (angle < my_angle) {
+            my_angle = angle;
+            my_state = vertex_state;
+            sampled = true;
+          }
+          ++temp_it;
+        }
+        
+        if (sampled) {
+
+          Vertex* new_sampled_vertex = new Vertex(global_graph_->generateVertexID(), my_state);
+          new_sampled_vertex->is_root = true;
+          new_sampled_vertex->parent = new_vertex;
+          new_vertex->children.push_back(new_sampled_vertex);
+          global_graph_->addVertex(new_sampled_vertex);
+          GraphManager::computeVolumetricGainRayCasting(new_sampled_vertex->state, new_sampled_vertex->vol_gain);
+          if (new_sampled_vertex->vol_gain.is_frontier) {
+            global_graph_->frontier_vertices_ids_.push_back(new_sampled_vertex->id);
+            new_sampled_vertex->parent->vol_gain.is_frontier = false;
+          }
+          double weight = (new_sampled_vertex->state - new_vertex->state).norm();
+
+          if (MapManager::VoxelStatus::kOccupied != map_manager_->getPathStatus(new_sampled_vertex->state_3d, 
+                                                                                new_vertex->state_3d, robot_box_size_, true))
+          {
+
+            global_graph_->addEdge(new_vertex, new_sampled_vertex, weight);
+            // new_vertex->edges++;
+          }
+        }
+
+      }
+    }
  
 
   }
@@ -1323,7 +1461,7 @@ bool GraphManager::extractShortestPaths (std::shared_ptr<GraphUtils> graph, Shor
   if (graph->leaf_vertices_ids_.empty()) {
     return false;
   }
-  ROS_DEBUG_STREAM ("Total vertices : " << graph->getNumVertices() << " \t Leaf vertices " << graph->leaf_vertices_ids_.size() << "\n");
+  // ROS_DEBUG_STREAM ("Total vertices : " << graph->getNumVertices() << " \t Leaf vertices " << graph->leaf_vertices_ids_.size() << "\n");
   for (int id : graph->leaf_vertices_ids_)
   {
     Vertex * vertex = graph->vertices_map_[id];
@@ -1333,15 +1471,16 @@ bool GraphManager::extractShortestPaths (std::shared_ptr<GraphUtils> graph, Shor
   }
 
   // cluster the nodes based on their volumetric gain 
-
-  GraphManager::clusterNodes(graph); 
+  
+  // GraphManager::clusterNodes(graph); 
+  ROS_DEBUG_STREAM("Clustered vertices in sub graph \n");
 
   for (int id : graph->leaf_vertices_ids_)
   {
     Vertex * vertex = graph->vertices_map_[id];
 
-    if (vertex->vol_gain.is_frontier and vertex->is_cluster_centroid)
-    // if (vertex->vol_gain.is_frontier)
+    // if (vertex->vol_gain.is_frontier and vertex->is_cluster_centroid)
+    if (vertex->vol_gain.is_frontier)
     {
       graph->frontier_vertices_ids_.push_back(vertex->id);
       std::vector<Vertex *> dijkstra_path;
@@ -1357,11 +1496,16 @@ bool GraphManager::extractShortestPaths (std::shared_ptr<GraphUtils> graph, Shor
 
   }
 
+  ROS_DEBUG_STREAM("vis sub graph \n");
   GraphManager::visualizeLocalGraph();
   
+  ROS_DEBUG_STREAM("visualized sub graph \n");
   if (!dijkstra_paths.empty()) {
+    
+    ROS_DEBUG_STREAM("local dijkstra paths exist \n");
     path_status = true;
   } else {
+    ROS_DEBUG_STREAM("local dijkstra paths do not exist \n");
     return false;
   }
 
@@ -3177,7 +3321,8 @@ void GraphManager::visualizePathWaysGraph()
   for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
   {
     int id = g->getVertexProperty(it);
-    if (v_map[id]->is_frontier and v_map[id]->is_cluster_centroid)
+    // if (v_map[id]->is_frontier and v_map[id]->is_cluster_centroid)
+    if (v_map[id]->is_frontier)
     {
 
       geometry_msgs::Point p1;
@@ -3323,9 +3468,9 @@ void GraphManager::visualizeLocalGraph()
     double h = (1.0 - std::min(std::max((gain - minZ) / (maxZ - minZ), 0.0), 1.0)) * 0.8;
     vertex_marker.colors.push_back(GraphManager::heightMapColor(h));
     vertex_marker.points.push_back(p1);
-    // if (v_map[id]->is_frontier)
+    if (v_map[id]->vol_gain.is_frontier)
     // if (v_map[id]->is_leaf_vertex)
-    if (v_map[id]->vol_gain.is_frontier and v_map[id]->is_cluster_centroid)
+    // if (v_map[id]->vol_gain.is_frontier and v_map[id]->is_cluster_centroid)
     {
 
       geometry_msgs::Point p1;
@@ -3812,6 +3957,7 @@ void GraphManager::visualizeGlobalGraph()
   {
     int id = g->getVertexProperty(it);
     if (v_map[id]->vol_gain.is_frontier)
+    // if (v_map[id]->is_root)
     // if (v_map[id]->children.empty())
     {
 
