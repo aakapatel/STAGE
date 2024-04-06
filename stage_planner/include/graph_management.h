@@ -96,6 +96,11 @@ public:
                                    std::vector<Eigen::Vector3d> &unknown); 
   void clusterNodes (std::shared_ptr<GraphUtils> g); 
   // GRAPH AND PLANNING
+  std::vector<int> performShortestPathsClustering(
+    const std::shared_ptr<GraphUtils> graph_manager,
+    const ShortestPathsReport& graph_rep, std::vector<Vertex*>& vertices,
+    double dist_threshold = 1.0, double principle_path_min_length = 1.0,
+    bool refinement_enable = true);
 
   void resetLocalGraph();
   void resetGlobalGraph();
@@ -103,6 +108,7 @@ public:
   void resetSparseGraph();
 
   bool buildLocalGraph();
+  bool buildSparseGraph();
   bool planLocalPath(std::vector<std::vector<Vertex *>> dijkstra_paths);
 
   bool planGlobalPath();
@@ -122,7 +128,7 @@ public:
   void visualizeLocalPaths(std::vector<std::pair<std::vector<Vertex *>, double>> local_paths);
 
   void visualizeGlobalPaths(std::vector<std::pair<std::vector<Vertex *>, double>> global_paths);
-  void visualizeImprovedGlobalPaths(std::vector<std::pair<std::vector<Vertex *>, double>> global_paths);
+  void visualizeImprovedGlobalPaths(std::vector<std::vector<Vertex *>> global_path);
 
   void visualizePathWaysGraph();
 

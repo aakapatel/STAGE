@@ -1,8 +1,8 @@
 local_AABB_size: 20 
 local_FOV: 40
 num_edges_max: 10
-max_edge_length: 4
-sampling_iterations: 2000
+max_edge_length: 2
+sampling_iterations: 1999
 knn_range: 2
 robot_type: "kGround"       
 safety_margin: [0.2, 0.2, 0.2]
@@ -20,12 +20,12 @@ SensorParams:
   sensor_list:      ["OS064"]
   OS064:
     type:           kLidar
-    max_range:      4.0
+    max_range:      8.0
     center_offset:  [0.0, 0.0, 0.0]
     rotations:      [0.0, 0.0, 0.0]
     fov:            [rad(2*pi), rad(pi/6)]
     resolution:     [rad(5.0*pi/180), rad(5.0*pi/180)]
-    frontier_percentage_threshold: 0.04
+    frontier_percentage_threshold: 0.08
 
 #-------------------------------------------------------------------------------
 RobotParams:
@@ -50,10 +50,10 @@ GraphExpansionParams:
     max_val:        [3000.0, 3000.0, 300.0]
   Local:
     type:           kCuboid
-    min_val:        [-2.0, -2.0, -0.1]
-    max_val:        [2.0, 2.0, 0.1]
-    min_extension:  [-2.0, -2.0, -10.0]
-    max_extension:  [2.0, 2.0, 10.0]
+    min_val:        [-4.0, -4.0, -0.1]
+    max_val:        [4.0, 4.0, 0.1]
+    min_extension:  [-4.0, -4.0, -0.1]
+    max_extension:  [4.0, 4.0, 0.1]
   LocalSearch:
     type:           kCuboid
     min_val:        [-50.0, -50.0, -1.0]
@@ -78,8 +78,8 @@ BoundedSpaceParams:
     type:           kCuboid
     min_val:        [-10.0, -10.0, -0.1]
     max_val:        [10.0, 10.0, 0.1]
-    min_extension:  [-10.0, -10.0, -10.0]
-    max_extension:  [10.0, 10.0, 10.0]
+    min_extension:  [-10.0, -10.0, -0.1]
+    max_extension:  [10.0, 10.0, 0.1]
   LocalSearch:
     type:           kCuboid
     min_val:        [-50.0, -50.0, -1.0]
