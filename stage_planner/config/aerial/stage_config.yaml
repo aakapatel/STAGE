@@ -20,7 +20,7 @@ SensorParams:
   sensor_list:      ["OS064"]
   OS064:
     type:           kLidar
-    max_range:      8.0
+    max_range:      4.0
     center_offset:  [0.0, 0.0, 0.0]
     rotations:      [0.0, 0.0, 0.0]
     fov:            [rad(2*pi), rad(pi/2)]
@@ -50,10 +50,10 @@ GraphExpansionParams:
     max_val:        [3000.0, 3000.0, 300.0]
   Local:
     type:           kCuboid
-    min_val:        [-4.0, -4.0, -0.1]
-    max_val:        [4.0, 4.0, 0.1]
-    min_extension:  [-4.0, -4.0, -0.1]
-    max_extension:  [4.0, 4.0, 0.1]
+    min_val:        [-2.0, -2.0, -2]
+    max_val:        [2.0, 2.0, 2]
+    min_extension:  [-2.0, -2.0, -2]
+    max_extension:  [2.0, 2.0, 2]
   LocalSearch:
     type:           kCuboid
     min_val:        [-50.0, -50.0, -1.0]

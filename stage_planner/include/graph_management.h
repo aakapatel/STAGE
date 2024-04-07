@@ -78,7 +78,7 @@ public:
 
   bool improveFreePath(const std::vector<geometry_msgs::Pose>& path_orig,
                        std::vector<geometry_msgs::Pose>& path_mod,
-                       bool relaxed);
+                       bool relaxed, bool edge_refinement);
 
   void segmentPath(nav_msgs::Path path,
                    nav_msgs::Path &path_seg);
