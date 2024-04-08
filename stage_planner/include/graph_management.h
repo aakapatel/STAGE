@@ -42,15 +42,33 @@ class GraphManager
 {
 
 public:
+
+
+  enum GraphStatus {
+    OK = 0,                // Everything is OK as expected.
+    ERR_KDTREE,            // Could not search nearest neigbors from kdtree.
+    ERR_NO_FEASIBLE_PATH,  // Could not find any path.
+    NO_GAIN,               // No non-zero gain found.
+    NOT_OK,                // Any other errors.
+  };
+
   GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_private, 
                MapManagerVoxblox<MapManagerVoxbloxServer, MapManagerVoxbloxVoxel> *map_manager);
-
+  
+  void reset();
   virtual void odomCallback(const nav_msgs::Odometry::ConstPtr &pos);
   Eigen::Vector3d quaternion_to_rpy(Eigen::Quaterniond q);
   double calculateDistance(StateVec s1, StateVec s2);
   void sampleNodes(std::vector<node *> &nodes, StateVec state, int iterations_max, double bounding_box_size);
   bool sampleState(StateVec root_state, StateVec& vertex);
   bool sampleStateToExpandGraph(StateVec root_state, StateVec& vertex);
+  
+  bool sampleVertex(Vertex& vertex);
+  void expandGraph(std::shared_ptr<GraphUtils> graph_manager,
+                   Vertex& new_vertex, ExpandGraphReport& rep,
+                   bool allow_short_edge = false);
+  GraphStatus buildGraph(std::shared_ptr<GraphUtils> graph);
+
   void sampleVertices();
   std::vector<Eigen::Vector3d> pointsToEigen(std::vector<geometry_msgs::Point> points);
   bool nextExplorationPath(stage_planner::explorationPath::Request &req,
@@ -103,6 +121,7 @@ public:
     bool refinement_enable = true);
 
   void resetLocalGraph();
+  void resetProjectedGraph();
   void resetGlobalGraph();
   void resetPathWaysGraph();
   void resetSparseGraph();
@@ -219,6 +238,7 @@ private:
   StateVec robotStateWithYaw_;
   StateVec robotState_;
   std::shared_ptr<GraphUtils> sub_graph_;
+  std::shared_ptr<GraphUtils> projected_graph_;
   std::shared_ptr<GraphUtils> global_graph_;
   std::shared_ptr<GraphUtils> path_ways_graph_;
   std::shared_ptr<GraphUtils> improvement_graph_;
@@ -229,6 +249,7 @@ private:
   std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> obs_pcl_;
   std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> feasible_corridor_pcl_;
 
+  std::shared_ptr<SampleStatistic> stat_, stat_chrono_;
   std::vector<std::shared_ptr<GraphUtils>> graph_vec_;
 
   std::vector<Vertex *> state_history;
@@ -249,6 +270,7 @@ private:
   int subgraph_ind_ = -1;
   int local_target_vertex_id;
   int re_plan_attempt = 0;
+  std::vector<std::vector<double>> edge_inclinations_;
 
   int planning_iteration_ = -1;
 
@@ -261,6 +283,7 @@ private:
   bool run_global_planner_ = false;
   bool run_homing_planner_ = true;
   bool reached_home_ = false;
+  bool local_exploration_ongoing_ = false;
 
   std::vector<std::vector<Vertex *>> local_dijkstra_paths_;
   std::vector<std::vector<Vertex *>> global_dijkstra_paths_;

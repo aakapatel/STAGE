@@ -173,6 +173,60 @@ struct VolumetricGain {
   }
 };
 
+// main back bone of the graph object
+
+
+struct SampleStatistic {
+  SampleStatistic()
+      : num_vertices_fail(0),
+        num_edges_fail(0),
+        build_graph_time(0),
+        compute_exp_gain_time(0),
+        shortest_path_time(0),
+        evaluate_graph_time(0),
+        total_time(0) {}
+  StateVec current_state;
+  int num_vertices_fail;
+  int num_edges_fail;
+  // Sampled state in free space, but got rejected due to collision edges.
+  std::vector<std::vector<double>> edges_fail;
+  double build_graph_time;
+  double compute_exp_gain_time;
+  double shortest_path_time;
+  double evaluate_graph_time;
+  double total_time;
+  void init(StateVec& state) { current_state = state; }
+
+  void printTime() {
+    total_time = build_graph_time + compute_exp_gain_time + shortest_path_time +
+                 evaluate_graph_time;
+    ROS_INFO_COND(
+        global_verbosity >= Verbosity::INFO,
+        "Time statistics:\n \
+        Build graph    : %3.3f (s)\n \
+        Compute gain   : %3.3f (s)\n \
+        Dijkstra       : %3.3f (s)\n \
+        Evaluate graph : %3.3f (s)\n \
+        Total          : %3.3f (s)",
+        build_graph_time, compute_exp_gain_time, shortest_path_time,
+        evaluate_graph_time, total_time);
+  }
+  void printTime(std::string title) {
+    total_time = build_graph_time + compute_exp_gain_time + shortest_path_time +
+                 evaluate_graph_time;
+    ROS_INFO_COND(
+        global_verbosity >= Verbosity::INFO,
+        "Time statistics (%s):\n \
+        Build graph    : %3.3f (ms)\n \
+        Compute gain   : %3.3f (ms)\n \
+        Dijkstra       : %3.3f (ms)\n \
+        Evaluate graph : %3.3f (ms)\n \
+        Total          : %3.3f (ms)",
+        title.c_str(), build_graph_time, compute_exp_gain_time,
+        shortest_path_time, evaluate_graph_time, total_time);
+  }
+};
+
 struct Vertex {
   Vertex(int v_id, StateVec v_state) {
     id = v_id;
@@ -191,6 +245,7 @@ struct Vertex {
     is_global = false;
     is_frontier = false;
     is_cluster_centroid = false;
+    is_hanging = false;
     is_inside_frustum = false;
     cluster_id = -1;
     sub_id = 0;
@@ -228,6 +283,8 @@ struct Vertex {
   bool is_frontier;
   // if a vertex is a cluster centroid
   bool is_cluster_centroid;
+  // if vertex is handing
+  bool is_hanging;
   // if point inside frustum
   bool is_inside_frustum;
   // cluster id 
@@ -240,6 +297,29 @@ struct Vertex {
   // std::vector<Vertex *> neighbours;
 
 };
+
+enum class ExpandGraphStatus {
+  kSuccess = 0,
+  kErrorKdTree,
+  kErrorCollisionEdge,
+  kErrorShortEdge,
+  kErrorGeofenceViolated,
+  kNull
+};
+
+struct ExpandGraphReport {
+  ExpandGraphReport()
+      : status(ExpandGraphStatus::kNull),
+        num_vertices_added(0),
+        num_edges_added(0),
+        vertex_added(NULL) {}
+  ExpandGraphStatus status;
+  int num_vertices_added;
+  int num_edges_added;
+  Vertex* vertex_added;
+};
+
+
 
 
 

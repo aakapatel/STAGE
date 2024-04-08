@@ -17,6 +17,7 @@ Panels:
         - /PointCloud21
         - /MarkerArray5
         - /MarkerArray6
+        - /MarkerArray6/Namespaces1
         - /MarkerArray7
         - /MarkerArray8
         - /MarkerArray9
@@ -45,7 +46,7 @@ Panels:
   - Class: rviz/Time
     Name: Time
     SyncMode: 0
-    SyncSource: PointCloud2
+    SyncSource: ""
   - Class: stage_planner_ui/STAGE INTERFACE
     Name: STAGE INTERFACE
   - Class: spot_ui/SPOT INTERFACE
@@ -116,7 +117,7 @@ Visualization Manager:
       Value: false
     - Class: rviz/MarkerArray
       Enabled: true
-      Marker Topic: /smb/global_dijkstra_paths
+      Marker Topic: /smb/improved_global_dijkstra_paths
       Name: MarkerArray
       Namespaces:
         {}
@@ -151,13 +152,13 @@ Visualization Manager:
       Use rainbow: true
       Value: true
     - Class: rviz/MarkerArray
-      Enabled: false
+      Enabled: true
       Marker Topic: /smb/graph_management_node/occupied_nodes
       Name: MarkerArray
       Namespaces:
         {}
       Queue Size: 100
-      Value: false
+      Value: true
     - Class: rviz/MarkerArray
       Enabled: true
       Marker Topic: /smb/sparse_graph
@@ -171,8 +172,7 @@ Visualization Manager:
       Marker Topic: /smb/pose_graph
       Name: MarkerArray
       Namespaces:
-        edges: true
-        vertices: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -184,13 +184,13 @@ Visualization Manager:
       Queue Size: 100
       Value: false
     - Class: rviz/MarkerArray
-      Enabled: false
+      Enabled: true
       Marker Topic: /smb/global_repos_path
       Name: MarkerArray
       Namespaces:
         {}
       Queue Size: 100
-      Value: false
+      Value: true
     - Class: rviz/MarkerArray
       Enabled: true
       Marker Topic: /smb/improved_global_dijkstra_paths
@@ -350,7 +350,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 24.55783462524414
+      Distance: 28.375072479248047
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -358,9 +358,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -0.4809124171733856
-        Y: 0.199287548661232
-        Z: -0.504432737827301
+        X: 0.551336944103241
+        Y: 0.07619484513998032
+        Z: -8.154851913452148
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -368,7 +368,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: velodyne
-      Yaw: 1.555411696434021
+      Yaw: 3.1454315185546875
     Saved: ~
 Window Geometry:
   Displays:

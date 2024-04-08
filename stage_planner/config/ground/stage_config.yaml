@@ -1,12 +1,12 @@
 local_AABB_size: 20 
 local_FOV: 40
 num_edges_max: 10
-max_edge_length: 2
-sampling_iterations: 1999
+max_edge_length: 2.5 
+sampling_iterations: 1499
 knn_range: 2
-robot_type: "kGround"       
+robot_type: "kGround"      
 safety_margin: [0.2, 0.2, 0.2]
-robot_size: [0.2, 0.2, 0.2]
+robot_size: [0.8, 0.8, 0.2]
 truncate_sample_Z: 0.5
 distance_to_new_path: 0.8
 WP_SIZE: 0.8
@@ -20,18 +20,18 @@ SensorParams:
   sensor_list:      ["OS064"]
   OS064:
     type:           kLidar
-    max_range:      8.0
+    max_range:      12.0
     center_offset:  [0.0, 0.0, 0.0]
     rotations:      [0.0, 0.0, 0.0]
     fov:            [rad(2*pi), rad(pi/6)]
     resolution:     [rad(5.0*pi/180), rad(5.0*pi/180)]
-    frontier_percentage_threshold: 0.08
+    frontier_percentage_threshold: 0.06
 
 #-------------------------------------------------------------------------------
 RobotParams:
-  type:               kGroundRobot 
-  size:               [0.2, 0.2, 0.2] # Actual size of the robot in meters [x, y, z]
-  size_extension_min: [0.2, 0.2, 0.2] # minimum extension outside of robot size allowed to operate
+  type:               kGroundRobot
+  size:               [0.8, 0.8, 0.2] # Actual size of the robot in meters [x, y, z]
+  size_extension_min: [0.0, 0.0, 0.0] # minimum extension outside of robot size allowed to operate
   size_extension:     [0.2, 0.2, 0.2] # maximum extension outside of the robot size
   center_offset:      [0.0, 0.0, 0.0]
   relax_ratio:        0.5 # Used to define an intermediate size between size_extension_min and size_extension for planning
@@ -46,18 +46,18 @@ RobotParams:
 GraphExpansionParams:
   Global:
     type:           kCuboid
-    min_val:        [-3000.0, -3000.0, -300.0]
-    max_val:        [3000.0, 3000.0, 300.0]
+    min_val:        [-1000.0, -1000.0, -30.0]
+    max_val:        [1000.0, 1000.0, 30.0]
   Local:
     type:           kCuboid
-    min_val:        [-4.0, -4.0, -0.1]
-    max_val:        [4.0, 4.0, 0.1]
-    min_extension:  [-4.0, -4.0, -0.1]
-    max_extension:  [4.0, 4.0, 0.1]
+    min_val:        [-2.0, -2.0, -0.1]
+    max_val:        [2.0, 2.0, 0.1]
+    min_extension:  [-2.0, -2.0, -10]
+    max_extension:  [2.0, 2.0, 10]
   LocalSearch:
     type:           kCuboid
-    min_val:        [-50.0, -50.0, -1.0]
-    max_val:        [50.0, 50.0, 1.0]
+    min_val:        [-50.0, -50.0, -10.0]
+    max_val:        [50.0, 50.0, 10.0]
   # Adaptive OBB:
   LocalAdaptiveExp:
     type:           kCuboid
@@ -66,24 +66,24 @@ GraphExpansionParams:
 NoGainZones:
   g1:  # Back
     type:           kCuboid
-    min_val:        [-50.0, -10.0, -10.0]
-    max_val:        [2.0, 10.0, 10.0]
+    min_val:        [-50.0, -10.0, -20.0]
+    max_val:        [2.0, 50.0, 20.0]
 
 BoundedSpaceParams:
   Global:
     type:           kCuboid
-    min_val:        [-3000.0, -3000.0, -300.0]
-    max_val:        [3000.0, 3000.0, 300.0]
+    min_val:        [-1000.0, -1000.0, -30.0]
+    max_val:        [1000.0, 1000.0, 30.0]
   Local:
     type:           kCuboid
-    min_val:        [-10.0, -10.0, -0.1]
-    max_val:        [10.0, 10.0, 0.1]
-    min_extension:  [-10.0, -10.0, -0.1]
-    max_extension:  [10.0, 10.0, 0.1]
+    min_val:        [-10.0, -10.0, -3]
+    max_val:        [10.0, 10.0, 3]
+    min_extension:  [-20.0, -20.0, -20]
+    max_extension:  [20.0, 20.0, 20]
   LocalSearch:
     type:           kCuboid
-    min_val:        [-50.0, -50.0, -1.0]
-    max_val:        [50.0, 50.0, 1.0]
+    min_val:        [-50.0, -50.0, -10.0]
+    max_val:        [50.0, 50.0, 10.0]
   # Adaptive OBB:
   LocalAdaptiveExp:
     type:           kCuboid
@@ -92,12 +92,42 @@ BoundedSpaceParams:
 NoGainZones:
   g1:  # Back
     type:           kCuboid
-    min_val:        [-50.0, -10.0, -10.0]
-    max_val:        [2.0, 10.0, 10.0]
+    min_val:        [-50.0, -10.0, -20.0]
+    max_val:        [2.0, 50.0, 20.0]
 
 
 RandomSamplerParams:
   SamplerForExploration:
+    X:
+      pdf_type:       kUniform
+      sample_mode:    kLocal
+    Y:
+      pdf_type:       kUniform
+      sample_mode:    kLocal
+    Z:
+      pdf_type:       kUniform
+      sample_mode:    kLocal
+    Heading:
+      pdf_type:       kUniform
+      sample_mode:    kManual
+      min_val:        rad(-pi)
+      max_val:        rad(pi)
+  SamplerForSearching:
+    X:
+      pdf_type:       kUniform
+      sample_mode:    kLocal
+    Y:
+      pdf_type:       kUniform
+      sample_mode:    kLocal
+    Z:
+      pdf_type:       kUniform
+      sample_mode:    kLocal
+    Heading:
+      pdf_type:       kUniform
+      sample_mode:    kManual
+      min_val:        rad(-pi)
+      max_val:        rad(pi)
+  SamplerForAdaptiveExp:
     X:
       pdf_type:       kUniform
       sample_mode:    kLocal
@@ -121,52 +151,72 @@ PlanningParams:
   type:             kBasicExploration #kAdaptiveExploration, kBasicExploration
   rr_mode:          kGraph
   exp_sensor_list:  ["OS064"]
-  # no_gain_zones_list: ["g1"]
-  v_max:            1.0 # max velocity m/s
-  v_homing_max:     0.9 # max velocity m/s
-  yaw_rate_max:     0.15 # max angular velocity rad/s
-  yaw_tangent_correction: true # If true - all headings will be along the path segment
-  edge_length_min:  0.2
-  edge_length_max:  2.0
-  edge_overshoot:   0.0 # m - Account for possible tracking error by collision checking on an extended edge
-  num_vertices_max: 700 # graph building stops if these many vertices are added 
-  num_edges_max:    9000 # graph building stops if these many edges are added
-  num_loops_cutoff: 2000 # Maximum iterations in which no vertices or edges are added to the graph
-  num_loops_max:    4000 # Maximum iterations possible for graph building
-  nearest_range:    2.0 # The max range within which a new vertex can be connected to an existing vertex
-  nearest_range_min: 0.5 # >= edge_length_min
-  nearest_range_max: 2.0 # <= edge_length_max
-  use_current_state: true # If true, it will use the current state to plan from instead of the state provided by the PCI in the service call
-  use_ray_model_for_volumetric_gain: true # if false, will check voxel by voxel in the sensor frustum 
-  exp_gain_voxel_size: 0.8 # used if use_ray_model_for_volumetric_gain is false
-  # Gains:
-  path_length_penalty: 0.04
-  path_direction_penalty: 0.1
-  occupied_voxel_gain: 0.0
-  free_voxel_gain:  0.0 # prefer directions towards more free voxels in case of the dead-end
-  unknown_voxel_gain: 60.0
-
-  traverse_length_max: 8.0 # Maximum length of the best path will be truncated to for actual traversal
-  traverse_time_max: 500.0
-  path_safety_enhance_enable: true
-  augment_free_voxels_time: 3
+  edge_length_min:  0.1
+  edge_length_max:  3.0
+  edge_overshoot:   0.0 #m
+  num_vertices_max: 500
+  num_edges_max:    5000
+  num_loops_cutoff: 2000
+  num_loops_max:    20000
+  nearest_range:    2.5
+  nearest_range_min: 0.1 # >= edge_length_min
+  nearest_range_max: 3.0 # <= edge_length_max
+  use_current_state: true
+  augment_free_voxels_time: 1
   free_frustum_before_planning: false
-  freespace_cloud_enable: false
-  leafs_only_for_volumetric_gain: true # Whether to calculate gain of the entire path or only the leaf nodes
-  cluster_vertices_for_gain: true
-  clustering_radius: 0.5
-  path_interpolation_distance: 1.5
-  
-  time_budget_limit: 480 # seconds
-  auto_homing_enable: true
-  go_home_if_fully_explored: true
 
+  use_ray_model_for_volumetric_gain: true
+  path_length_penalty: 0.07
+  path_direction_penalty: 0.3
+  hanging_vertex_penalty: 5.0
+  exp_gain_voxel_size: 0.8
+  occupied_voxel_gain: 0.0
+  free_voxel_gain:  0.0 #prefer directions towards more free voxels in case of the dead-end
+  unknown_voxel_gain: 60.0
   nonuniform_ray_cast: true
   ray_cast_step_size_multiplier: 1.0
-
+  freespace_cloud_enable: false
+  leafs_only_for_volumetric_gain: false
+  cluster_vertices_for_gain: true
+  clustering_radius: 0.5
+  
+  max_ground_height: 0.7 # All points will be projected to this height from ground
+  robot_height: 0.6  # Height of robot's base frame from ground
+  max_inclination: rad(25.0*pi/180)
+  interpolate_projection_distance: false
+  
+  yaw_tangent_correction: true
+  traverse_length_max: 6.0
+  traverse_time_max: 40.0
+  path_safety_enhance_enable: true
+  path_interpolation_distance: 0.5
+  
+  auto_global_planner_enable: true
+  relaxed_corridor_multiplier: 1.5
+  homing_backward: false
+  auto_homing_enable: true
+  time_budget_limit: 3600 # seconds
+  global_frame_id: world
+  global_path_inclination_check: true
+  go_home_if_fully_explored: true
   geofence_checking_enable: true
 
+AdaptiveObbParams:
+  type: kPca
+  local_pointcloud_range: 50.0
+  bounding_box_size_max: 35
 
+GeofenceParams:
+  AreaList: ["GLeft", "GBack", "GRight"]
+  GBack:
+    center: [-3.0, 0.0, 0.0]
+    size:   [2.0, 6.0, 0.0]
+  GLeft:
+    center: [0.0, 4.0, 0.0]
+    size:   [6.0, 2.0, 0.0]
+  GRight:
+    center: [0.0, -4.0, 0.0]
+    size:   [6.0, 2.0, 0.0]
 
 ########## DO NOT TOUCH ############
 
