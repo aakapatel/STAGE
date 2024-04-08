@@ -25,7 +25,7 @@ SensorParams:
     rotations:      [0.0, 0.0, 0.0]
     fov:            [rad(2*pi), rad(pi/6)]
     resolution:     [rad(7.0*pi/180), rad(7.0*pi/180)]
-    frontier_percentage_threshold: 0.1
+    frontier_percentage_threshold: 0.06
 
 #-------------------------------------------------------------------------------
 RobotParams:

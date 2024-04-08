@@ -99,7 +99,7 @@ public:
   std::vector<int> performShortestPathsClustering(
     const std::shared_ptr<GraphUtils> graph_manager,
     const ShortestPathsReport& graph_rep, std::vector<Vertex*>& vertices,
-    double dist_threshold = 1.0, double principle_path_min_length = 1.0,
+    double dist_threshold = 0.5, double principle_path_min_length = 0.5,
     bool refinement_enable = true);
 
   void resetLocalGraph();

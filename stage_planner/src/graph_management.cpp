@@ -1300,16 +1300,12 @@ void GraphManager::updateGlobalGraph(std::vector<std::vector<Vertex *>> raw_path
 
         if (num_edges < num_edges_max_ and weight < max_edge_length_)
         {
-          // checking if edge exist in the graph only for debug --> very costly !!!!!!
-
-          // if (!sparse_graph_->edgeExist(new_vertex->id, neighbour->id) and 
-          //   MapManager::VoxelStatus::kFree == map_manager_->getPathStatus(new_vertex->state_3d, neighbour->state_3d, robot_box_size_, true))
           if (MapManager::VoxelStatus::kFree == map_manager_->getPathStatus(new_vertex->state_3d, neighbour->state_3d, robot_box_size_, true))
           {
 
             global_graph_->addEdge(new_vertex, neighbour, weight);
             new_vertex->edges++;
-            neighbour->edges++;
+            // neighbour->edges++;
           }
         }
       }
