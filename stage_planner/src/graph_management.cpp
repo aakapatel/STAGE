@@ -57,6 +57,8 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
   exploration_Direction_Pub = nh_.advertise<geometry_msgs::PoseStamped>("exploration_direction", 10);
 
   local_Graph_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("local_planning_graph", 10);
+  
+  voxel_Gain_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("voxel_gain", 10);
 
   global_Graph_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>("global_planning_graph", 10);
 
@@ -288,10 +290,13 @@ void GraphManager::computeVolumetricGainRayCasting(StateVec& state, VolumetricGa
     // valid voxel.
     if (vs == MapManager::VoxelStatus::kUnknown) {
       ++num_unknown_voxels;
+      vgain.unknown_voxels.push_back(voxel);
     } else if (vs == MapManager::VoxelStatus::kFree) {
       ++num_free_voxels;
+      vgain.free_voxels.push_back(voxel);
     } else if (vs == MapManager::VoxelStatus::kOccupied) {
       ++num_occupied_voxels;
+      vgain.occupied_voxels.push_back(voxel);
     } else {
       ROS_ERROR("Unsupported voxel type.");
     }
@@ -301,11 +306,9 @@ void GraphManager::computeVolumetricGainRayCasting(StateVec& state, VolumetricGa
                                      num_unknown_surf_voxels));
 
   // Check if it is a potential frontier.
-  // double unknown_voxels_scaled = num_unknown_voxels - 0.1*num_occupied_voxels;
-  if (sensor_params_.sensor[sensor_name].isFrontier(
-    num_unknown_voxels * map_manager_->getResolution(), vgain.unknown_percentage)) {
+  double unknown_voxels_scaled = (num_unknown_voxels - 2*num_occupied_voxels) * map_manager_->getResolution();
+  if (sensor_params_.sensor[sensor_name].isFrontier(unknown_voxels_scaled, vgain.unknown_percentage)) {
     vgain.is_frontier = true;  // Event E2
-    // vgain.is_evaluated = false;
   }
 
   // Return gain values.
@@ -1009,10 +1012,6 @@ void GraphManager::updateGraphs() {
   global_graph_->getNearestVertices(&robotState_, 5*knn_range_, &nearby_vertices);
   Eigen::Vector3d robot_box (0.2, 0.2, 0.2);
   
-  std::vector<geometry_msgs::Pose> original_path;
-  std::vector<geometry_msgs::Pose> modified_path;
-  original_path.clear();
-  modified_path.clear();
   for (int i = 0; i < nearby_vertices.size(); i++)
   {
 
@@ -1030,28 +1029,6 @@ void GraphManager::updateGraphs() {
         global_graph_->removeEdge(global_graph_->vertices_map_[edge_pair.first], neighbour);
         global_graph_->vertices_map_[edge_pair.first]->edges--;
         neighbour->edges--;
-        geometry_msgs::Pose p1,p2;
-        Vertex* v1 = global_graph_->vertices_map_[edge_pair.first];
-        Vertex * v2 = neighbour;
-        p1.position.x = v1->state[0];
-        p1.position.y = v1->state[1];
-        p1.position.z = v1->state[2];
-        p2.position.x = v2->state[0];
-        p2.position.y = v2->state[1];
-        p2.position.z = v2->state[2];
-        original_path.push_back(p1);
-        original_path.push_back(p2);
-
-        if (GraphManager::improveFreePath (original_path, modified_path, true, true)) {
-          StateVec mod_state1, mod_state2;
-          mod_state1 = Eigen::Vector4d(modified_path[0].position.x, modified_path[0].position.y,
-                                       modified_path[0].position.z, 0);
-
-          mod_state2 = Eigen::Vector4d(modified_path[1].position.x, modified_path[1].position.y,
-                                       modified_path[1].position.z, 0);
-          global_graph_->vertices_map_[edge_pair.first]->state = mod_state1;
-          neighbour->state = mod_state2;
-        }
       }
 
     }
@@ -1147,13 +1124,54 @@ std::vector<int> GraphManager::performShortestPathsClustering(
 }
 
 
-void GraphManager::updateGlobalGraph(std::vector<std::vector<Vertex *>> dijkstra_paths) 
+void GraphManager::updateGlobalGraph(std::vector<std::vector<Vertex *>> raw_paths) 
 {
   
   GraphManager::updateGraphs();
 
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
   bool graph_status = true;
+  std::vector<std::vector<Vertex *>> dijkstra_paths;
+  dijkstra_paths.clear();
+  
+
+  /*
+
+  for (std::vector<Vertex *> dijkstra_path : raw_paths) {
+    
+    std::vector<geometry_msgs::Pose> original_path;
+    std::vector<geometry_msgs::Pose> modified_path;
+    original_path.clear();
+    modified_path.clear();
+    std::vector<Vertex *> modified_dijkstra_path;
+    modified_dijkstra_path.clear();
+    geometry_msgs::Pose p;
+    for (int i = 0; i < dijkstra_path.size(); i++) {
+      p.position.x = dijkstra_path[i]->state[0];
+      p.position.y = dijkstra_path[i]->state[1];
+      p.position.z = dijkstra_path[i]->state[2];
+      original_path.push_back(p);
+    }
+
+    if (!GraphManager::improveFreePath (original_path, modified_path, true, true)) { 
+      modified_path.clear();
+      modified_path = original_path;
+    }
+
+      for (int j = 0; j < modified_path.size(); j++) {
+        StateVec s = Eigen::Vector4d (modified_path[j].position.x, modified_path[j].position.y, modified_path[j].position.z, 0); 
+        Vertex * new_mod_vertex = new Vertex (++fake_id_count, s);
+        new_mod_vertex->vol_gain = dijkstra_path[j]->vol_gain;
+        modified_dijkstra_path.push_back(new_mod_vertex);
+      }
+      dijkstra_paths.push_back(modified_dijkstra_path);
+
+  }
+
+  */
+
+  dijkstra_paths = raw_paths;
+
   if (!dijkstra_paths.empty()) {
   
     Vertex* prev_vertex = nullptr;
@@ -1319,6 +1337,7 @@ void GraphManager::updateGlobalGraph(std::vector<std::vector<Vertex *>> dijkstra
 
   global_graph_->updateFrontierVertices();
   
+  GraphManager::visualizeVoxelGain(global_graph_); 
   global_root_vertex = prev_pose_vertex_;
 
   // run dijkstra shortest paths on updated global graph 
@@ -2651,22 +2670,39 @@ bool GraphManager::improveFreePath(const std::vector<geometry_msgs::Pose>& path_
   if (path_orig.empty()) return false;
 
   // Feature a) Remove short intermidiate vertices.
-  // std::vector<geometry_msgs::Pose> path_mod1 = path_orig_interp;
-  std::vector<geometry_msgs::Pose> path_mod1, path_orig_interp;
-  path_mod1.clear();
-  path_orig_interp.clear();
-  if (!edge_refinement) {
-    // Interpolate path
-    path_orig_interp = path_orig;
-    double kInterpolationDistance =
+  // std::vector<geometry_msgs::Pose> path_mod1, path_orig_interp;
+  // path_mod1.clear();
+  // path_orig_interp.clear();
+  // if (!edge_refinement) {
+  //   // Interpolate path
+  //   path_orig_interp = path_orig;
+  //   double kInterpolationDistance =
+  //     planning_params_.path_interpolation_distance * 2.0;
+  //   std::vector<geometry_msgs::Pose> interp_path_orig;
+  //   if (Trajectory::interpolatePath(path_orig, kInterpolationDistance,
+  //                                   interp_path_orig)) {
+  //     path_orig_interp = interp_path_orig;
+  //   }
+  //   path_mod1 = path_orig_interp;
+  // } else {
+  //   path_mod1 = path_orig;
+  // }
+
+  // Interpolate path
+  std::vector<geometry_msgs::Pose> path_orig_interp = path_orig;
+  double kInterpolationDistance =
       planning_params_.path_interpolation_distance * 2.0;
-    std::vector<geometry_msgs::Pose> interp_path_orig;
-    if (Trajectory::interpolatePath(path_orig, kInterpolationDistance,
-                                    interp_path_orig)) {
-      path_orig_interp = interp_path_orig;
-    }
-    path_mod1 = path_orig_interp;
-  } else {
+  std::vector<geometry_msgs::Pose> interp_path_orig;
+  if (Trajectory::interpolatePath(path_orig, kInterpolationDistance,
+                                  interp_path_orig)) {
+    path_orig_interp = interp_path_orig;
+  }
+
+  // Feature a) Remove short intermidiate vertices.
+  std::vector<geometry_msgs::Pose> path_mod1 = path_orig_interp;
+  
+  if (edge_refinement) {
+    path_mod1.clear();
     path_mod1 = path_orig;
   }
 
@@ -3662,6 +3698,109 @@ void GraphManager::visualizePathWaysGraph()
   marker_array.markers.push_back(vertex_marker);
 
   path_Ways_Graph_Vis_Pub_.publish(marker_array);
+}
+
+void GraphManager::visualizeVoxelGain(std::shared_ptr<GraphUtils> graph)
+{ 
+  
+  if (graph->frontier_vertices_ids_.empty()) {
+    return;
+  }
+
+  visualization_msgs::MarkerArray marker_array;
+
+  // Plot all edges
+  visualization_msgs::Marker unknown_marker;
+  visualization_msgs::Marker free_marker;
+  visualization_msgs::Marker occupied_marker;
+  for (int id : graph->frontier_vertices_ids_) {
+    Vertex* vertex = graph->vertices_map_[id];
+
+    std::vector<Eigen::Vector3d> unknown = vertex->vol_gain.unknown_voxels;
+    std::vector<Eigen::Vector3d> free = vertex->vol_gain.free_voxels;
+    std::vector<Eigen::Vector3d> occupied = vertex->vol_gain.occupied_voxels;
+
+    unknown_marker.header.stamp = ros::Time::now();
+    unknown_marker.header.seq = 0;
+    unknown_marker.header.frame_id = m_worldFrameId;
+    unknown_marker.id = 0;
+    unknown_marker.ns = "unknown";
+    unknown_marker.action = visualization_msgs::Marker::ADD;
+    unknown_marker.type = visualization_msgs::Marker::CUBE_LIST;
+    unknown_marker.scale.x = 0.1;
+    unknown_marker.scale.y = 0.1;
+    unknown_marker.scale.z = 0.1;
+    unknown_marker.color.r = 0.0 / 255.0;
+    unknown_marker.color.g = 255.0 / 255.0;
+    unknown_marker.color.b = 0.0/ 255;
+    unknown_marker.color.a = 0.8;
+    unknown_marker.frame_locked = false;
+
+
+    free_marker.header.stamp = ros::Time::now();
+    free_marker.header.seq = 0;
+    free_marker.header.frame_id = m_worldFrameId;
+    free_marker.id = 0;
+    free_marker.ns = "free";
+    free_marker.action = visualization_msgs::Marker::ADD;
+    free_marker.type = visualization_msgs::Marker::CUBE_LIST;
+    free_marker.scale.x = 0.1;
+    free_marker.scale.y = 0.1;
+    free_marker.scale.z = 0.1;
+    free_marker.color.r = 0.0 / 255.0;
+    free_marker.color.g = 0.0 / 255.0;
+    free_marker.color.b = 255.0;
+    free_marker.color.a = 0.8;
+    free_marker.frame_locked = false;
+
+
+    occupied_marker.header.stamp = ros::Time::now();
+    occupied_marker.header.seq = 0;
+    occupied_marker.header.frame_id = m_worldFrameId;
+    occupied_marker.id = 0;
+    occupied_marker.ns = "occupied";
+    occupied_marker.action = visualization_msgs::Marker::ADD;
+    occupied_marker.type = visualization_msgs::Marker::CUBE_LIST;
+    occupied_marker.scale.x = 0.1;
+    occupied_marker.scale.y = 0.1;
+    occupied_marker.scale.z = 0.1;
+    occupied_marker.color.r = 255.0 / 255.0;
+    occupied_marker.color.g = 0.0 / 255.0;
+    occupied_marker.color.b = 0.0;
+    occupied_marker.color.a = 0.8;
+    occupied_marker.frame_locked = false;
+
+    for (int i = 0; i < unknown.size(); i++)
+    {
+      geometry_msgs::Point p1;
+      p1.x = unknown[i][0];
+      p1.y = unknown[i][1];
+      p1.z = unknown[i][2];
+      unknown_marker.points.push_back(p1);
+    }
+    for (int i = 0; i < free.size(); i++)
+    {
+      geometry_msgs::Point p1;
+      p1.x = free[i][0];
+      p1.y = free[i][1];
+      p1.z = free[i][2];
+      free_marker.points.push_back(p1);
+    }
+    for (int i = 0; i < occupied.size(); i++)
+    {
+      geometry_msgs::Point p1;
+      p1.x = occupied[i][0];
+      p1.y = occupied[i][1];
+      p1.z = occupied[i][2];
+      occupied_marker.points.push_back(p1);
+    }
+
+    marker_array.markers.push_back(unknown_marker);
+    marker_array.markers.push_back(free_marker);
+    marker_array.markers.push_back(occupied_marker);
+  }
+
+    voxel_Gain_Vis_Pub_.publish(marker_array);
 }
 
 void GraphManager::visualizeLocalGraph()

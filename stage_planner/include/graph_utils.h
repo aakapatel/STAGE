@@ -145,6 +145,9 @@ struct VolumetricGain {
     num_unknown_surf_voxels = 0;
     is_frontier = false;
     // is_evaluated = false;
+    occupied_voxels.clear();
+    free_voxels.clear();
+    unknown_voxels.clear();
     unseen_voxel_hash_keys.clear();
   }
 
@@ -155,6 +158,9 @@ struct VolumetricGain {
   int num_free_voxels;
   int num_occupied_voxels;
   int num_unknown_surf_voxels;
+  std::vector<Eigen::Vector3d> occupied_voxels;
+  std::vector<Eigen::Vector3d> free_voxels;
+  std::vector<Eigen::Vector3d> unknown_voxels;
   std::vector<std::size_t> unseen_voxel_hash_keys;
 
   bool is_frontier;

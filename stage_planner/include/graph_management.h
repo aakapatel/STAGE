@@ -115,6 +115,7 @@ public:
 
   void visualizeLocalGraph();
 
+  void visualizeVoxelGain(std::shared_ptr<GraphUtils> graph);
   void visualizeTree (std::vector<node *> RRT_TREE);
 
   void visualizeGlobalGraph();
@@ -360,6 +361,7 @@ private:
   ros::Publisher m_frontierSelectionPub;
   ros::Publisher command_pub;
   ros::Publisher local_Paths_Vis_Pub_;
+  ros::Publisher voxel_Gain_Vis_Pub_;
   ros::Publisher global_Paths_Vis_Pub_;
   ros::Publisher improved_global_Paths_Vis_Pub_;
   ros::Publisher reposition_Path_Vis_Pub_;

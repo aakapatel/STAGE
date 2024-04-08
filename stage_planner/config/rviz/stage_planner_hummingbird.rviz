@@ -71,9 +71,7 @@ Visualization Manager:
       Marker Topic: /hummingbird/global_planning_graph
       Name: MarkerArray
       Namespaces:
-        edges: true
-        frontier: true
-        vertices: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -127,8 +125,8 @@ Visualization Manager:
     - Alpha: 0.10000000149011612
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 6.300000190734863
-        Min Value: -7.100000381469727
+        Max Value: 4.300000190734863
+        Min Value: -7.300000190734863
         Value: true
       Axis: Z
       Channel Name: intensity
