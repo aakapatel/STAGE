@@ -12,12 +12,20 @@ public:
 
   enum PlannerStatus {
     OK = 0,                // Everything is OK as expected.
+    READY,                 // Everything is OK as expected.
     ERR_KDTREE,            // Could not search nearest neigbors from kdtree.
     ERR_NO_FEASIBLE_PATH,  // Could not find any path.
     NO_GAIN,               // No non-zero gain found.
     NOT_OK,                // Any other errors.
+    EXECUTING_PATH,        // Executing previously planned path segment 
+    READY_FOR_NEW_PATH,     // Ready to plan 
+    NOT_SET
   };
 
+  enum PlannerMode {
+    EXPLORE = 0,           // Running local exploration planner.
+    RETURN_HOME           // Returning to home location.
+  };
 
   GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_private, 
                MapManagerVoxblox<MapManagerVoxbloxServer, MapManagerVoxbloxVoxel> *map_manager);
@@ -86,9 +94,9 @@ public:
   void resetPathWaysGraph();
   void resetSparseGraph();
 
-  bool buildLocalGraph();
+  GraphManager::PlannerStatus runLocalPlanner();
   bool buildSparseGraph();
-  bool planLocalPath(std::vector<std::vector<Vertex *>> dijkstra_paths);
+  GraphManager::PlannerStatus planLocalPath(std::vector<std::vector<Vertex *>> dijkstra_paths);
 
   bool planGlobalPath();
 
@@ -138,7 +146,7 @@ public:
   
   void setHomingPath();
   bool setPath();
-  bool setPathDynamic();
+  GraphManager::PlannerStatus setPathDynamic();
 
   void goalCallback(const geometry_msgs::PoseStamped::ConstPtr& goal_msg);
   void visualizeRepositionPath();
@@ -173,6 +181,10 @@ public:
   Vertex* prev_pose_vertex_ = nullptr;
   Vertex* home_vertex_ = nullptr;
 
+  PlannerMode planner_mode_ = GraphManager::PlannerMode::EXPLORE;
+  PlannerStatus planner_status_ = GraphManager::PlannerStatus::OK;
+  PlannerStatus path_status_ = GraphManager::PlannerStatus::READY_FOR_NEW_PATH;
+  
 
 
 private:
@@ -240,8 +252,10 @@ private:
   bool run_global_planner_ = false;
   bool run_homing_planner_ = true;
   bool reached_home_ = false;
+  bool exploration_ongoing_ = false;
   bool local_exploration_ongoing_ = false;
-
+  bool global_exploration_ongoing_ = false;
+  
   std::vector<std::vector<Vertex *>> local_dijkstra_paths_;
   std::vector<std::vector<Vertex *>> global_dijkstra_paths_;
   std::vector<std::pair<std::vector<Vertex *>, double>> local_paths_;
