@@ -82,7 +82,9 @@ Visualization Manager:
       Marker Topic: /smb/local_planning_graph
       Name: MarkerArray
       Namespaces:
-        {}
+        edges: true
+        frontier: true
+        vertices: true
       Queue Size: 100
       Value: true
     - Alpha: 1
@@ -126,7 +128,7 @@ Visualization Manager:
         vertices: true
       Queue Size: 100
       Value: true
-    - Alpha: 0.10000000149011612
+    - Alpha: 0.20000000298023224
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
         Max Value: 2.9000000953674316
@@ -155,13 +157,13 @@ Visualization Manager:
       Use rainbow: true
       Value: true
     - Class: rviz/MarkerArray
-      Enabled: true
+      Enabled: false
       Marker Topic: /smb/graph_management_node/occupied_nodes
       Name: MarkerArray
       Namespaces:
-        occupied_voxels: true
+        {}
       Queue Size: 100
-      Value: true
+      Value: false
     - Class: rviz/MarkerArray
       Enabled: true
       Marker Topic: /smb/sparse_graph
@@ -355,7 +357,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 28.426252365112305
+      Distance: 180.41323852539062
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -363,17 +365,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 1.6665912866592407
-        Y: 0.341716468334198
-        Z: -5.370245456695557
+        X: 126.73662567138672
+        Y: 30.893890380859375
+        Z: -1.372443437576294
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
-      Target Frame: velodyne
-      Yaw: 1.5704350471496582
+      Target Frame: <Fixed Frame>
+      Yaw: 1.5654339790344238
     Saved: ~
 Window Geometry:
   Displays:

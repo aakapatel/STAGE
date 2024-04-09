@@ -1085,7 +1085,7 @@ void GraphManager::updateGraphs() {
   
   // update the local sub graph seen from robot's current position to handle dynamic change at global graph level.
   
-  /*
+  // /*
 
   nearby_vertices.clear();
   global_graph_->getNearestVertices(&robotState_, 5*knn_range_, &nearby_vertices);
@@ -1101,7 +1101,7 @@ void GraphManager::updateGraphs() {
 
 
       MapManager::VoxelStatus vn = map_manager_->getPathStatus(neighbour->state_3d, 
-                                                               global_graph_->vertices_map_[edge_pair.first]->state_3d, robot_box, false);
+                                                               global_graph_->vertices_map_[edge_pair.first]->state_3d, robot_box_size_, false);
 
       if (MapManager::VoxelStatus::kOccupied == vn) {
 
@@ -1114,7 +1114,7 @@ void GraphManager::updateGraphs() {
 
   }
 
-  */
+  // */
 
   GraphManager::visualizeGlobalGraph();
 
@@ -4301,8 +4301,8 @@ void GraphManager::visualizeLocalGraph()
   edge_marker.type = visualization_msgs::Marker::LINE_LIST;
   edge_marker.scale.x = 0.04;
   edge_marker.color.r = 0.0 / 255.0;
-  edge_marker.color.g = 200.0 / 255.0;
-  edge_marker.color.b = 0.0;
+  edge_marker.color.g = 153.0 / 255.0;
+  edge_marker.color.b = 51.0 / 255.0;
   edge_marker.color.a = 0.8;
   edge_marker.frame_locked = false;
 
@@ -4500,9 +4500,9 @@ void GraphManager::visualizeGlobalPaths(std::vector<std::pair<std::vector<Vertex
   edge_marker.action = visualization_msgs::Marker::ADD;
   edge_marker.type = visualization_msgs::Marker::LINE_LIST;
   edge_marker.scale.x = 0.1;
-  edge_marker.color.r = 0.0 / 255.0;
-  edge_marker.color.g = 200.0 / 255.0;
-  edge_marker.color.b = 0.0 / 255.0;
+  edge_marker.color.r = 200.0 / 255.0;
+  edge_marker.color.g = 0.0 / 255.0;
+  edge_marker.color.b = 20.0 / 255.0;
   edge_marker.color.a = 0.8;
   // edge_marker.lifetime = ros::Duration(graph_lifetime);
   edge_marker.frame_locked = false;
@@ -4517,14 +4517,14 @@ void GraphManager::visualizeGlobalPaths(std::vector<std::pair<std::vector<Vertex
   vertex_marker.scale.x = 0.2;
   vertex_marker.scale.y = 0.2;
   vertex_marker.scale.z = 0.2;
-  vertex_marker.color.r = 0.0 / 255.0;
-  vertex_marker.color.g = 200 / 255.0;
-  vertex_marker.color.b = 0.0 / 255.0;
+  vertex_marker.color.r = 200.0 / 255.0;
+  vertex_marker.color.g = 0 / 255.0;
+  vertex_marker.color.b = 20.0 / 255.0;
   vertex_marker.color.a = 0.8;
   // vertex_marker.lifetime = ros::Duration(graph_lifetime);
   vertex_marker.frame_locked = false;
 
-  for (int i = 0; i < global_paths.size() - 1; ++i)
+  for (int i = 0; i < global_paths.size(); ++i)
   {
 
     for (int it = 0; it < global_paths[i].first.size() - 1; ++it)
