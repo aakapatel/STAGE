@@ -371,7 +371,8 @@ void GraphManager::computeVolumetricGainRayCasting(StateVec& state, VolumetricGa
                                      num_unknown_surf_voxels));
 
   // Check if it is a potential frontier.
-  double unknown_voxels_scaled = (num_unknown_voxels - 2*num_occupied_voxels) * map_manager_->getResolution();
+  // double unknown_voxels_scaled = (num_unknown_voxels - 2*num_occupied_voxels) * map_manager_->getResolution();
+  double unknown_voxels_scaled = num_unknown_voxels * map_manager_->getResolution();
   if (sensor_params_.sensor[sensor_name].isFrontier(unknown_voxels_scaled, vgain.unknown_percentage)) {
     vgain.is_frontier = true;  // Event E2
   }
@@ -1456,7 +1457,7 @@ void GraphManager::updateGlobalGraph(std::vector<std::vector<Vertex *>> raw_path
     }
 
   } else {
-    ROS_WARN_STREAM ("Global graph -> No dijkstra paths :( \n");
+    ROS_WARN_STREAM ("GG --> No dijkstra paths :( \n");
   }
 
   GraphManager::visualizeGlobalPaths(global_paths_);
@@ -1615,7 +1616,7 @@ bool GraphManager::buildLocalGraph()
   GraphManager::GraphStatus status = GraphManager::buildGraph(sub_graph_);
   switch (status) {
     case GraphManager::GraphStatus::OK:
-      ROS_INFO("Sub graph build status --> OK ");
+      ROS_DEBUG("Sub graph build status --> OK ");
       break;
     case GraphManager::GraphStatus::ERR_KDTREE:
       ROS_WARN("[PLANNER_ERROR] An issue occurred with kdtree data.");
@@ -1909,7 +1910,7 @@ bool GraphManager::planLocalPath(std::vector<std::vector<Vertex *>> dijkstra_pat
     }
 
   } else {
-    ROS_WARN_STREAM ("Sub graph -> No dijkstra paths :( \n");
+    ROS_WARN_STREAM ("SG -> No dijkstra paths :( \n");
     return false;
   }
   
@@ -1991,39 +1992,33 @@ bool GraphManager::planLocalPath(std::vector<std::vector<Vertex *>> dijkstra_pat
 
       m_modified_Path_Pub.publish(mod_path_);
       break;
-    } else {
+    } 
 
+      else if (j == (paths_unordered.size() - 1))
+      {
+        ROS_WARN("SG --> Improved local path is empty \n");
+        geometry_msgs::PoseStamped pose_mod;
+        pose_mod.header.frame_id = m_worldFrameId;
+        pose_mod.header.stamp = ros::Time::now();
+        mod_path_.header.frame_id = m_worldFrameId;
+        mod_path_.header.stamp = ros::Time::now();
 
-      geometry_msgs::PoseStamped pose_mod;
-      pose_mod.header.frame_id = m_worldFrameId;
-      pose_mod.header.stamp = ros::Time::now();
-      mod_path_.header.frame_id = m_worldFrameId;
-      mod_path_.header.stamp = ros::Time::now();
+        for (int i = 0; i != original_path.size(); ++i){
+          pose_mod.pose.position.x = original_path[i].position.x;
+          pose_mod.pose.position.y = original_path[i].position.y;
+          pose_mod.pose.position.z = original_path[i].position.z;
+          mod_path_.poses.push_back(pose_mod);
+        }
 
-      for (int i = 0; i != original_path.size(); ++i){
-        pose_mod.pose.position.x = original_path[i].position.x;
-        pose_mod.pose.position.y = original_path[i].position.y;
-        pose_mod.pose.position.z = original_path[i].position.z;
-        mod_path_.poses.push_back(pose_mod);
-      }
-
-      m_modified_Path_Pub.publish(mod_path_);
-      break;
-
+        m_modified_Path_Pub.publish(mod_path_);
+        
       } 
-    // else if (j == (paths_unordered.size() - 1))
-    // {
-    //   ROS_WARN("Sub graph -> Improved local path is empty \n");
-    //   path_status = false;
-    //   return path_status;
-    // }
-
     }
 
   } 
   else 
   {
-    ROS_WARN("Sub graph -> No shortest paths to local frontier vertices \n");
+    ROS_WARN("SG --> No shortest paths to local frontier vertices \n");
     path_status = false;
     return path_status;
   }
@@ -2323,32 +2318,26 @@ bool GraphManager::planGlobalPath()
 
         m_modified_Path_Pub.publish(mod_path_);
         break;
-      } else {
-
-      geometry_msgs::PoseStamped pose_mod;
-      pose_mod.header.frame_id = m_worldFrameId;
-      pose_mod.header.stamp = ros::Time::now();
-      mod_path_.header.frame_id = m_worldFrameId;
-      mod_path_.header.stamp = ros::Time::now();
-
-      for (int i = 0; i != original_path.size(); ++i){
-        pose_mod.pose.position.x = original_path[i].position.x;
-        pose_mod.pose.position.y = original_path[i].position.y;
-        pose_mod.pose.position.z = original_path[i].position.z;
-        mod_path_.poses.push_back(pose_mod);
-      }
-
-      m_modified_Path_Pub.publish(mod_path_);
-      break;
-
       } 
+      else if (j == (paths_unordered.size() - 1))
+      {
+        ROS_WARN("GG -> Improved local path is empty \n");
+        geometry_msgs::PoseStamped pose_mod;
+        pose_mod.header.frame_id = m_worldFrameId;
+        pose_mod.header.stamp = ros::Time::now();
+        mod_path_.header.frame_id = m_worldFrameId;
+        mod_path_.header.stamp = ros::Time::now();
 
-      // else if (j == (paths_unordered.size() - 1))
-      // {
-      //   ROS_WARN("GLobal graph -> Improved global path is empty \n");
-      //   path_status = false;
-      //   return path_status;
-      // }
+        for (int i = 0; i != original_path.size(); ++i){
+          pose_mod.pose.position.x = original_path[i].position.x;
+          pose_mod.pose.position.y = original_path[i].position.y;
+          pose_mod.pose.position.z = original_path[i].position.z;
+          mod_path_.poses.push_back(pose_mod);
+        }
+
+        m_modified_Path_Pub.publish(mod_path_);
+        
+      } 
 
     }
 
@@ -4311,8 +4300,8 @@ void GraphManager::visualizeLocalGraph()
   edge_marker.action = visualization_msgs::Marker::ADD;
   edge_marker.type = visualization_msgs::Marker::LINE_LIST;
   edge_marker.scale.x = 0.04;
-  edge_marker.color.r = 150.0 / 255.0;
-  edge_marker.color.g = 100.0 / 255.0;
+  edge_marker.color.r = 0.0 / 255.0;
+  edge_marker.color.g = 200.0 / 255.0;
   edge_marker.color.b = 0.0;
   edge_marker.color.a = 0.8;
   edge_marker.frame_locked = false;

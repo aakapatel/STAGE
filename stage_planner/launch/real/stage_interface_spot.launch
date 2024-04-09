@@ -16,7 +16,7 @@
 
       <param name ="reference_topic" value="reference" />
 
-      <param name ="init_x" value="2" />
+      <param name ="init_x" value="6" />
       <param name ="init_y" value="0" />
       <param name ="init_z" value="0" />
 
