@@ -90,34 +90,8 @@ GraphManager::GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_
   robot_box_size_ << robot_box_size[0], robot_box_size[1], robot_box_size[2];
 
   safety_margin_ << safety_margin[0], safety_margin[1], safety_margin[2];
-
-
-  std::string ns = ros::this_node::getName();
-  sensor_params_.loadParams(ns + "/SensorParams");
-  sensor_name = sensor_params_.sensor_list[0];
-  robot_params_.loadParams(ns + "/RobotParams");
-  global_space_params_.loadParams(ns + "/BoundedSpaceParams/Global");
-  local_space_params_.loadParams(ns + "/BoundedSpaceParams/Local");
-  graph_expansion_global_params_.loadParams(ns + "/GraphExpansionParams/Global");
-  graph_expansion_local_params_.loadParams(ns + "/GraphExpansionParams/Local");
-  planning_params_.loadParams(ns + "/PlanningParams");
-
-
-  geofence_manager_.reset(new GeofenceManager());
-  geofence_manager_->loadParams(ns + "/GeofenceParams");
-  // robot_state_hist_.reset(new RobotStateHistory());
-  stat_.reset(new SampleStatistic());
-  stat_chrono_.reset(new SampleStatistic());
-
-  random_sampler_.reset();
-  random_sampler_.loadParams(ns + "/RandomSamplerParams/SamplerForExploration");
-  random_sampler_graph_expansion_.reset();
-  random_sampler_graph_expansion_.loadParams(ns + "/RandomSamplerParams/SamplerForExploration");
-
-  random_sampler_.setParams(global_space_params_, local_space_params_);
-  random_sampler_graph_expansion_.setParams(graph_expansion_global_params_, graph_expansion_local_params_);
-  map_manager_->setRobotRadius(robot_box_size_.norm() / 2.0);
-
+  
+  GraphManager::initializeAttributes();
 
 };
 
@@ -125,9 +99,12 @@ void GraphManager::reset() {
 
 
   // Re-initialize data structs.
-  stat_.reset(new SampleStatistic());
 
-  stat_->init(robotState_);
+  stat_.reset(new SampleStatistic());
+  stat_chrono_.reset(new SampleStatistic());
+  geofence_manager_.reset(new GeofenceManager());
+  random_sampler_.reset();
+  random_sampler_graph_expansion_.reset();
 
   // First check if this position is free to go.
   MapManager::VoxelStatus voxel_state = map_manager_->getBoxStatus(
@@ -170,6 +147,47 @@ void GraphManager::reset() {
   for (int i = 0; i < planning_params_.num_vertices_max; ++i) {
     edge_inclinations_.push_back(empty_vec);
   }
+
+  GraphManager::resetKdtree();
+  GraphManager::resetLocalGraph();
+  GraphManager::resetSparseGraph ();
+  GraphManager::resetGlobalGraph();
+  GraphManager::resetPathWaysGraph();
+
+}
+
+void GraphManager::initializeAttributes () {
+
+
+  stat_.reset(new SampleStatistic());
+  stat_chrono_.reset(new SampleStatistic());
+  geofence_manager_.reset(new GeofenceManager());
+  random_sampler_.reset();
+  random_sampler_graph_expansion_.reset();
+  
+  std::string ns = ros::this_node::getName();
+  sensor_params_.loadParams(ns + "/SensorParams");
+  sensor_name = sensor_params_.sensor_list[0];
+  robot_params_.loadParams(ns + "/RobotParams");
+  global_space_params_.loadParams(ns + "/BoundedSpaceParams/Global");
+  local_space_params_.loadParams(ns + "/BoundedSpaceParams/Local");
+  graph_expansion_global_params_.loadParams(ns + "/GraphExpansionParams/Global");
+  graph_expansion_local_params_.loadParams(ns + "/GraphExpansionParams/Local");
+  planning_params_.loadParams(ns + "/PlanningParams");
+
+
+  geofence_manager_->loadParams(ns + "/GeofenceParams");
+  // robot_state_hist_.reset(new RobotStateHistory());
+
+  random_sampler_.loadParams(ns + "/RandomSamplerParams/SamplerForExploration");
+  random_sampler_graph_expansion_.loadParams(ns + "/RandomSamplerParams/SamplerForExploration");
+
+  random_sampler_.setParams(global_space_params_, local_space_params_);
+  random_sampler_graph_expansion_.setParams(graph_expansion_global_params_, graph_expansion_local_params_);
+  map_manager_->setRobotRadius(robot_box_size_.norm() / 2.0);
+
+  stat_->init(robotState_);
+
 }
 
 
@@ -217,11 +235,6 @@ void GraphManager::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
     pose_graph_.reset(new GraphUtils());
     pose_graph_rep_.reset();
 
-    GraphManager::resetKdtree();
-    GraphManager::resetLocalGraph();
-    GraphManager::resetSparseGraph ();
-    GraphManager::resetGlobalGraph();
-    GraphManager::resetPathWaysGraph();
 
     m_prevPose = *pose;
     firstTime = false;
@@ -3538,19 +3551,20 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
 
 {
 
-  if (init_path) {
+  if (initialize_planner_) {
 
-      GraphManager::reset();
+    GraphManager::reset();
+    // GraphManager::initializeAttributes();
 
-      exploration_dir_pose.pose.position.x = robotState_[0];
-      exploration_dir_pose.pose.position.y = robotState_[1];
-      exploration_dir_pose.pose.position.z = robotState_[2];
-      exploration_dir_pose.pose.orientation.x = 0;
-      exploration_dir_pose.pose.orientation.y = 0;
-      exploration_dir_pose.pose.orientation.z = 0;
-      exploration_dir_pose.pose.orientation.w = 1;
+    exploration_dir_pose.pose.position.x = robotState_[0];
+    exploration_dir_pose.pose.position.y = robotState_[1];
+    exploration_dir_pose.pose.position.z = robotState_[2];
+    exploration_dir_pose.pose.orientation.x = 0;
+    exploration_dir_pose.pose.orientation.y = 0;
+    exploration_dir_pose.pose.orientation.z = 0;
+    exploration_dir_pose.pose.orientation.w = 1;
 
-    init_path = false;
+    initialize_planner_ = false;
   }
 
   bool planner_status = true;
@@ -3611,9 +3625,6 @@ bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &
           } else {
 
             ROS_WARN("Local planner failure ! Attempting global repositioning \n");
-
-            std::vector<std::vector<Vertex *>> dijkstra_paths;
-            dijkstra_paths.clear();
 
             GraphManager::updateGlobalGraph(local_dijkstra_paths_);          
 

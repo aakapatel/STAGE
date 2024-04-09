@@ -71,7 +71,9 @@ Visualization Manager:
       Marker Topic: /hummingbird/global_planning_graph
       Name: MarkerArray
       Namespaces:
-        {}
+        edges: true
+        frontier: true
+        vertices: true
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -115,18 +117,18 @@ Visualization Manager:
       Queue Size: 100
       Value: false
     - Class: rviz/MarkerArray
-      Enabled: false
+      Enabled: true
       Marker Topic: /hummingbird/global_dijkstra_paths
       Name: MarkerArray
       Namespaces:
         {}
       Queue Size: 100
-      Value: false
+      Value: true
     - Alpha: 0.10000000149011612
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 4.300000190734863
-        Min Value: -7.300000190734863
+        Max Value: 6.100000381469727
+        Min Value: -8.300000190734863
         Value: true
       Axis: Z
       Channel Name: intensity
@@ -327,7 +329,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 27.753747940063477
+      Distance: 44.37894058227539
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -335,9 +337,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -0.4181138873100281
-        Y: -1.4528651237487793
-        Z: 0.957537829875946
+        X: -0.6878811120986938
+        Y: -13.142967224121094
+        Z: -0.44096288084983826
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -345,7 +347,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: hummingbird/base_link
-      Yaw: 3.146745443344116
+      Yaw: 3.131749153137207
     Saved: ~
 Window Geometry:
   Displays:

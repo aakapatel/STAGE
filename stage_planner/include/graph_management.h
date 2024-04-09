@@ -23,6 +23,7 @@ public:
                MapManagerVoxblox<MapManagerVoxbloxServer, MapManagerVoxbloxVoxel> *map_manager);
   
   void reset();
+  void initializeAttributes ();
   virtual void odomCallback(const nav_msgs::Odometry::ConstPtr &pos);
   Eigen::Vector3d quaternion_to_rpy(Eigen::Quaterniond q);
   bool sampleState(StateVec root_state, StateVec& vertex);
@@ -271,6 +272,7 @@ private:
 
   bool reached_end_of_local_path_ = true;
   bool reached_end_of_global_path_ = true;
+  bool initialize_planner_ = true;
   int local_path_iterator_ = 0;
   int global_path_iterator_ = 0;
   std::vector<Vertex *> best_local_path_;
@@ -331,7 +333,6 @@ private:
   // Subscriber
   ros::Subscriber m_poseSubscriber;
   ros::Subscriber m_goalSubscriber;
-  bool init_path = true;
   // message_filters::Subscriber<nav_msgs::Odometry> *m_poseSubscriber;
 
   // Publisher
