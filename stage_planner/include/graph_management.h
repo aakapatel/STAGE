@@ -4,47 +4,13 @@
 #include "graph_utils.h"
 
 
-struct node
-{
-
-  Eigen::Vector3d *point;
-  node *myParent = nullptr;
-  double distanceToParent = -1;
-  std::vector<node *> myChilds{};
-  std::vector<node *> myPath{};
-  double distanceToGoal;
-  node(float x, float y, float z)
-  {
-    point = new Eigen::Vector3d(x, y, z);
-  }
-  node(Eigen::Vector3d *givenPoint)
-  {
-    point = new Eigen::Vector3d(givenPoint->x(), givenPoint->y(), givenPoint->z());
-  }
-  Eigen::Vector3d *getNodePointer();
-  void addChild(node *newChild)
-  {
-    myChilds.push_back(newChild);
-  }
-  void addParent(node *newParent)
-  {
-    myParent = newParent;
-  }
-  void readyForDeletion()
-  {
-    delete point;
-  }
-};
-
-
-
 class GraphManager
 {
 
 public:
 
 
-  enum GraphStatus {
+  enum PlannerStatus {
     OK = 0,                // Everything is OK as expected.
     ERR_KDTREE,            // Could not search nearest neigbors from kdtree.
     ERR_NO_FEASIBLE_PATH,  // Could not find any path.
@@ -52,14 +18,13 @@ public:
     NOT_OK,                // Any other errors.
   };
 
+
   GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_private, 
                MapManagerVoxblox<MapManagerVoxbloxServer, MapManagerVoxbloxVoxel> *map_manager);
   
   void reset();
   virtual void odomCallback(const nav_msgs::Odometry::ConstPtr &pos);
   Eigen::Vector3d quaternion_to_rpy(Eigen::Quaterniond q);
-  double calculateDistance(StateVec s1, StateVec s2);
-  void sampleNodes(std::vector<node *> &nodes, StateVec state, int iterations_max, double bounding_box_size);
   bool sampleState(StateVec root_state, StateVec& vertex);
   bool sampleStateToExpandGraph(StateVec root_state, StateVec& vertex);
   
@@ -67,7 +32,7 @@ public:
   void expandGraph(std::shared_ptr<GraphUtils> graph_manager,
                    Vertex& new_vertex, ExpandGraphReport& rep,
                    bool allow_short_edge = false);
-  GraphStatus buildGraph(std::shared_ptr<GraphUtils> graph);
+  PlannerStatus buildGraph(std::shared_ptr<GraphUtils> graph);
 
   void sampleVertices();
   std::vector<Eigen::Vector3d> pointsToEigen(std::vector<geometry_msgs::Point> points);
@@ -106,12 +71,6 @@ public:
 
   void printVoxelStatus(MapManager::VoxelStatus vs);
 
-  bool pointInsideFrustumVolume (StateVec state);
-
-  void extractVoxelsInsideFrustum (StateVec state, 
-                                   std::vector<Eigen::Vector3d> &free,
-                                   std::vector<Eigen::Vector3d> &occupied,
-                                   std::vector<Eigen::Vector3d> &unknown); 
   void clusterNodes (std::shared_ptr<GraphUtils> g); 
   // GRAPH AND PLANNING
   std::vector<int> performShortestPathsClustering(
@@ -135,7 +94,6 @@ public:
   void visualizeLocalGraph();
 
   void visualizeVoxelGain(std::shared_ptr<GraphUtils> graph);
-  void visualizeTree (std::vector<node *> RRT_TREE);
 
   void visualizeGlobalGraph();
 
@@ -169,13 +127,10 @@ public:
   bool setLocalPath();
   bool setGlobalPath();
 
-  double computeExplorationGain (StateVec v);
-
   void computeVolumetricGainRayCasting(StateVec& state, VolumetricGain& vgain);
 
   void expandGraph (int iterations_max, Vertex* root, Vertex* goal, double radius);
 
-  bool expandSparseGraph();
   void updateSparseGraph();
 
   void insertBestPathsToSparseGraph (std::vector<std::vector<Vertex *>> dijkstra_paths); 
@@ -215,6 +170,7 @@ public:
   Vertex* local_root_vertex;
   Vertex* latest_root_vertex;
   Vertex* prev_pose_vertex_ = nullptr;
+  Vertex* home_vertex_ = nullptr;
 
 
 
