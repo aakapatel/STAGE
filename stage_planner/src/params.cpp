@@ -885,6 +885,20 @@ bool PlanningParams::loadParams(std::string ns) {
     ROSPARAM_WARN(param_name, edge_length_max);
   }
 
+
+  param_name = ns + "/distance_to_new_path";
+  if (!ros::param::get(param_name, distance_to_new_path)) {
+    distance_to_new_path = 0.5;
+    ROSPARAM_WARN(param_name, distance_to_new_path);
+  }
+
+
+  param_name = ns + "/distance_to_new_wp";
+  if (!ros::param::get(param_name, distance_to_new_wp)) {
+    distance_to_new_wp = 0.5;
+    ROSPARAM_WARN(param_name, distance_to_new_wp);
+  }
+
   param_name = ns + "/num_vertices_max";
   if (!ros::param::get(param_name, num_vertices_max)) {
     num_vertices_max = 500;
@@ -895,6 +909,12 @@ bool PlanningParams::loadParams(std::string ns) {
   if (!ros::param::get(param_name, num_edges_max)) {
     num_edges_max = 5000;
     ROSPARAM_WARN(param_name, num_edges_max);
+  }
+  
+  param_name = ns + "/num_connections_max";
+  if (!ros::param::get(param_name, num_connections_max)) {
+    num_connections_max = 10;
+    ROSPARAM_WARN(param_name, num_connections_max);
   }
 
   param_name = ns + "/edge_overshoot";

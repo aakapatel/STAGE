@@ -2,7 +2,7 @@
 #define GRAPH_MANAGEMENT_H
 
 #include "graph_utils.h"
-
+#include "visualization_server.h"
 
 class GraphManager
 {
@@ -32,7 +32,6 @@ public:
   
   void reset();
   void initializeAttributes ();
-  virtual void odomCallback(const nav_msgs::Odometry::ConstPtr &pos);
   Eigen::Vector3d quaternion_to_rpy(Eigen::Quaterniond q);
   bool sampleState(StateVec root_state, StateVec& vertex);
   bool sampleStateToExpandGraph(StateVec root_state, StateVec& vertex);
@@ -43,7 +42,6 @@ public:
                    bool allow_short_edge = false);
   PlannerStatus buildGraph(std::shared_ptr<GraphUtils> graph);
 
-  void sampleVertices();
   std::vector<Eigen::Vector3d> pointsToEigen(std::vector<geometry_msgs::Point> points);
   bool nextExplorationPath(stage_planner::explorationPath::Request &req,
                            stage_planner::explorationPath::Response &res);
@@ -55,11 +53,8 @@ public:
                              std::vector<std::vector<Vertex *>> &dijkstra_paths);
 
   bool extractGlobalPathWays (std::vector<std::vector<Vertex *>> &dijkstra_paths); 
-  double calculateAngle(Eigen::Vector3d fpoint);
 
   double getRelativeAngle(Eigen::Vector3d point);
-
-  void orientVertices (std::shared_ptr<GraphUtils> graph, const ShortestPathsReport& rep); 
 
   StateVec eigenToState(Eigen::Vector3d v);
 
@@ -78,7 +73,6 @@ public:
 
   std_msgs::ColorRGBA heightMapColor(double h);
 
-  void printVoxelStatus(MapManager::VoxelStatus vs);
 
   void clusterNodes (std::shared_ptr<GraphUtils> g); 
   // GRAPH AND PLANNING
@@ -121,15 +115,6 @@ public:
 
   void visualizePoseGraph ();
 
-  bool getNeighbours(const StateVec *state, double range, std::vector<Vertex *> *v_res);
-  void insertVertexKdtree(Vertex *v);
-  void resetKdtree();
-
-  int assignVertexID();
-
-  void updateKdtree(std::shared_ptr<GraphUtils> graph);
-
-  void updateGraph(const ros::TimerEvent &event);
   void updateGraphs();
   void updateGlobalGraph(std::vector<std::vector<Vertex *>> dijkstra_paths);
 
@@ -148,7 +133,6 @@ public:
   bool setPath();
   GraphManager::PlannerStatus setPathDynamic();
 
-  void goalCallback(const geometry_msgs::PoseStamped::ConstPtr& goal_msg);
   void visualizeRepositionPath();
 
   bool compareAngles (const std::pair<std::vector<Vertex *>, double>& a, const std::pair<std::vector<Vertex *>, double>& b);
@@ -190,7 +174,8 @@ public:
 private:
   ros::NodeHandle nh_;
   ros::NodeHandle nh_private_;
-
+  
+  VisualizationServer* visualization_server_;
   std::string sensor_name;
   SensorParams sensor_params_;
   SensorParams free_frustum_params_;
@@ -206,7 +191,7 @@ private:
   std::vector<BoundedSpaceParams> no_gain_zones_;
   StateVec robotStateWithYaw_;
   StateVec robotState_;
-  std::shared_ptr<GraphUtils> sub_graph_;
+  std::shared_ptr<GraphUtils> local_graph_;
   std::shared_ptr<GraphUtils> projected_graph_;
   std::shared_ptr<GraphUtils> global_graph_;
   std::shared_ptr<GraphUtils> path_ways_graph_;
@@ -227,7 +212,7 @@ private:
   MapManagerVoxbloxVoxel> *map_manager_;
   kdtree *kd_tree_;
 
-  ShortestPathsReport sub_graph_rep_;
+  ShortestPathsReport local_graph_rep_;
   ShortestPathsReport global_graph_rep_;
   ShortestPathsReport homing_graph_rep_;
   ShortestPathsReport improvement_graph_rep_;
@@ -245,7 +230,7 @@ private:
 
   int temp_id = -1;
   int fake_id_count = -1;
-  int latest_sub_graph_id = 0;
+  int latest_local_graph_id = 0;
   
   bool local_planner_status_ = true;
   bool global_planner_status_ = false;

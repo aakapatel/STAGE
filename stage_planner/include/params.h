@@ -269,9 +269,12 @@ struct PlanningParams {
   RRModeType rr_mode;
   double edge_length_min;
   double edge_length_max;
+  double distance_to_new_path;
+  double distance_to_new_wp;
   double edge_overshoot;
   double num_vertices_max;
   double num_edges_max;
+  double num_connections_max;
   double num_loops_cutoff;
   double num_loops_max;
   double nearest_range;

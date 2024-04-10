@@ -6,9 +6,11 @@ VisualizationServer::VisualizationServer(const ros::NodeHandle& nh,
   nh_private = nh_private_;
 
 
-  modified_Path_Vis_Pub = nh_.advertise<nav_msgs::Path>("modified_path", 10);
+  exploration_Path_Vis_Pub = 
+    nh_.advertise<nav_msgs::Path>("exploration_path", 10);
 
-  homing_Path_Vis_Pub = nh_.advertise<nav_msgs::Path>("homing_path", 10);
+  homing_Path_Vis_Pub = 
+    nh_.advertise<nav_msgs::Path>("homing_path", 10);
 
   exploration_Direction_Vis_Pub = 
     nh_.advertise<geometry_msgs::PoseStamped>("exploration_direction", 10);
@@ -118,7 +120,8 @@ std_msgs::ColorRGBA VisualizationServer::getGainColor(double h)
 }
 
 void VisualizationServer::visualizePathWaysGraph(std::shared_ptr<GraphUtils> 
-                                                 path_ways_graph) {
+                                                 path_ways_graph) 
+{
 
 
   if (path_ways_graph->getNumVertices() == 0) {
@@ -470,7 +473,6 @@ void VisualizationServer::visualizeGlobalGraph(std::shared_ptr<GraphUtils>
   edge_marker.color.g = 216.0 / 255.0;
   edge_marker.color.b = 230.0 / 255.0;
   edge_marker.color.a = 1.0;
-  // edge_marker.lifetime = ros::Duration(graph_lifetime);
   edge_marker.frame_locked = false;
 
   std::pair<Graph::GraphType::edge_iterator, Graph::GraphType::edge_iterator>
@@ -511,7 +513,6 @@ void VisualizationServer::visualizeGlobalGraph(std::shared_ptr<GraphUtils>
   vertex_marker.color.g = 128.0 / 255.0;
   vertex_marker.color.b = 128.0 / 255.0;
   vertex_marker.color.a = 1.0;
-  // vertex_marker.lifetime = ros::Duration(graph_lifetime);
   vertex_marker.frame_locked = false;
 
   visualization_msgs::Marker frontier_vertex_marker;
@@ -539,8 +540,6 @@ void VisualizationServer::visualizeGlobalGraph(std::shared_ptr<GraphUtils>
   {
     int id = g->getVertexProperty(it);
     if (v_map[id]->vol_gain.is_frontier)
-    // if (v_map[id]->is_root)
-    // if (v_map[id]->children.empty())
     {
 
       geometry_msgs::Point p1;
@@ -800,4 +799,135 @@ void VisualizationServer::visualizeSparseGraph(std::shared_ptr<GraphUtils>
   marker_array.markers.push_back(vertex_marker);
   marker_array.markers.push_back(frontier_vertex_marker);
   sparse_Graph_Vis_Pub_.publish(marker_array);
+}
+
+void VisualizationServer::visualizePoseGraph(std::shared_ptr<GraphUtils>
+                                             pose_graph)
+{
+  if (pose_graph_->getNumVertices() == 0)
+    return;
+  std::shared_ptr<Graph> g = pose_graph->graph_;
+  std::unordered_map<int, Vertex *> &v_map = pose_graph->vertices_map_;
+  
+  visualization_msgs::MarkerArray marker_array;
+  visualization_msgs::Marker edge_marker;
+  edge_marker.header.stamp = ros::Time::now();
+  edge_marker.header.seq = 0;
+  edge_marker.header.frame_id = m_worldFrameId;
+  edge_marker.id = 0;
+  edge_marker.ns = "edges";
+  edge_marker.action = visualization_msgs::Marker::ADD;
+  edge_marker.type = visualization_msgs::Marker::LINE_LIST;
+  edge_marker.scale.x = 0.04;
+  edge_marker.color.r = 240.0 / 255.0;
+  edge_marker.color.g = 230.0 / 255.0;
+  edge_marker.color.b = 130.0 / 255.0;
+  edge_marker.color.a = 1.0;
+  // edge_marker.lifetime = ros::Duration(graph_lifetime);
+  edge_marker.frame_locked = false;
+
+  std::pair<Graph::GraphType::edge_iterator, Graph::GraphType::edge_iterator>
+  ei;
+  g->getEdgeIterator(ei);
+  for (Graph::GraphType::edge_iterator it = ei.first; it != ei.second; ++it)
+  {
+    int src_id, tgt_id;
+    double weight;
+    std::tie(src_id, tgt_id, weight) = g->getEdgeProperty(it);
+
+    geometry_msgs::Point p1;
+    p1.x = v_map[src_id]->state[0];
+    p1.y = v_map[src_id]->state[1];
+    p1.z = v_map[src_id]->state[2];
+    geometry_msgs::Point p2;
+    p2.x = v_map[tgt_id]->state[0];
+    p2.y = v_map[tgt_id]->state[1];
+    p2.z = v_map[tgt_id]->state[2];
+    edge_marker.points.push_back(p1);
+    edge_marker.points.push_back(p2);
+  }
+  marker_array.markers.push_back(edge_marker);
+
+  // Plot all vertices
+  visualization_msgs::Marker vertex_marker;
+  vertex_marker.header.stamp = ros::Time::now();
+  vertex_marker.header.seq = 0;
+  vertex_marker.header.frame_id = m_worldFrameId;
+  vertex_marker.id = 0;
+  vertex_marker.ns = "vertices";
+  vertex_marker.action = visualization_msgs::Marker::ADD;
+  vertex_marker.type = visualization_msgs::Marker::SPHERE_LIST;
+  vertex_marker.scale.x = 0.3;
+  vertex_marker.scale.y = 0.3;
+  vertex_marker.scale.z = 0.3;
+  vertex_marker.color.r = 240.0 / 255.0;
+  vertex_marker.color.g = 230.0 / 255.0;
+  vertex_marker.color.b = 130.0 / 255.0;
+  vertex_marker.color.a = 1.0;
+  // vertex_marker.lifetime = ros::Duration(graph_lifetime);
+  vertex_marker.frame_locked = false;
+
+  std::pair<Graph::GraphType::vertex_iterator,
+  Graph::GraphType::vertex_iterator>
+  vi;
+  g->getVertexIterator(vi);
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
+  {
+    int id = g->getVertexProperty(it);
+    geometry_msgs::Point p1;
+    p1.x = v_map[id]->state[0];
+    p1.y = v_map[id]->state[1];
+    p1.z = v_map[id]->state[2];
+
+    vertex_marker.points.push_back(p1);
+  }
+  marker_array.markers.push_back(vertex_marker);
+
+  pose_Graph_Vis_Pub_.publish(marker_array);
+}
+
+void VisualizationServer::visualizeExplorationDirection (geometry_msgs::PoseStamped 
+                                                         exploration_dir) 
+{
+  exploration_dir.header.frame_id = world_frame_id;
+  exploration_dir.header.stamp = ros::Time::now();
+  exploration_Direction_Vis_Pub.publish(exploration_dir);
+
+}
+
+void VisualizationServer::visualizeHomingPath (nav_msgs::Path homing_path) 
+{
+  
+  homing_path.header.frame_id = world_frame_id;
+  homing_path.header.stamp = ros::Time::now();
+  homing_Path_Vis_Pub.publish(homing_path);
+
+}
+
+
+void VisualizationServer::visualizeExplorationPath (nav_msgs::Path exploration_path) 
+{
+  
+  exploration_path.header.frame_id = world_frame_id;
+  exploration_path.header.stamp = ros::Time::now();
+  exploration_Path_Vis_Pub.publish(exploration_path);
+
+}
+
+void VisualizationServer::visualizePclMap(const pcl::PointCloud<pcl::PointXYZ>* 
+                                          pcl) 
+{
+  if (pcl_Pub_.getNumSubscribers() < 1) return;
+
+  ROS_DEBUG("[PCL Map vis]: PCL size: %d", (int)(pcl->points.size()));
+  if (pcl->points.size() <= 0) {
+    ROS_WARN("[PCL Map Vis]: Empty PCL");
+    return;
+  }
+
+  sensor_msgs::PointCloud2 output;
+  pcl::toROSMsg(*pcl, output);
+  output.header.frame_id = world_frame_id;
+  output.header.stamp = ros::Time::now();
+  pcl_Pub_.publish(output);
 }

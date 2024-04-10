@@ -1,15 +1,3 @@
-local_AABB_size: 20 
-local_FOV: 40
-num_edges_max: 10
-max_edge_length: 2.5 
-sampling_iterations: 1499
-knn_range: 2
-robot_type: "kAerial"      
-safety_margin: [0.4, 0.4, 0.4]
-robot_size: [0.5, 0.5, 0.5]
-truncate_sample_Z: 0.5
-distance_to_new_path: 0.8
-WP_SIZE: 0.8
 #-------------------------------------------------------------------------------
 # SENSOR CONFIGURATION
 #  sensor_list: Define a set of sensors relevant to the exploration task.
@@ -126,8 +114,12 @@ PlanningParams:
   v_homing_max:     0.9 # max velocity m/s
   yaw_rate_max:     0.15 # max angular velocity rad/s
   yaw_tangent_correction: true # If true - all headings will be along the path segment
+  distance_to_new_path: 0.8
+  distance_to_new_wp: 0.8
   edge_length_min:  0.2
   edge_length_max:  2.0
+  
+  num_connections_max: 10 # maximum edges a vertex can have
   edge_overshoot:   0.0 # m - Account for possible tracking error by collision checking on an extended edge
   num_vertices_max: 700 # graph building stops if these many vertices are added 
   num_edges_max:    9000 # graph building stops if these many edges are added
