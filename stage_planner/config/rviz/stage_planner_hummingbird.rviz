@@ -334,9 +334,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -0.08377406001091003
-        Y: -0.404379665851593
-        Z: -0.4404841661453247
+        X: 0.031678736209869385
+        Y: -1.0964276790618896
+        Z: -0.4403688311576843
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -344,7 +344,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: hummingbird/base_link
-      Yaw: 3.131749153137207
+      Yaw: 3.141749382019043
     Saved: ~
 Window Geometry:
   Displays:
