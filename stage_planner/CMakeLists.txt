@@ -139,19 +139,10 @@ add_library(${PROJECT_NAME}
   src/random_sampler.cpp
   src/geofence_manager.cpp
   src/path_tracker.cpp
+  src/visualization_server.cpp
+  src/graph_management.cpp
 )
 
-
-add_executable(graph_management_node src/graph_management_node.cpp)
-## Specify libraries to link a library or executable target against
- target_link_libraries(
-   graph_management_node
-   stage_planner
-   ${catkin_LIBRARIES}
-   ${OCTOMAP_LIBRARIES}
-   ${PCL_LIBRARIES}
-    ${CMAKE_DL_LIBS}
-   )
 
 add_executable(stage_interface_node src/stage_interface_node.cpp)
 ## Specify libraries to link a library or executable target against

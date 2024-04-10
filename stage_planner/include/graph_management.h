@@ -10,21 +10,13 @@ class GraphManager
 public:
 
 
-  enum PlannerStatus {
+  enum GraphStatus {
     OK = 0,                // Everything is OK as expected.
     READY,                 // Everything is OK as expected.
     ERR_KDTREE,            // Could not search nearest neigbors from kdtree.
     ERR_NO_FEASIBLE_PATH,  // Could not find any path.
     NO_GAIN,               // No non-zero gain found.
     NOT_OK,                // Any other errors.
-    EXECUTING_PATH,        // Executing previously planned path segment 
-    READY_FOR_NEW_PATH,     // Ready to plan 
-    NOT_SET
-  };
-
-  enum PlannerMode {
-    EXPLORE = 0,           // Running local exploration planner.
-    RETURN_HOME           // Returning to home location.
   };
 
   GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_private, 
@@ -32,6 +24,8 @@ public:
   
   void reset();
   void initializeAttributes ();
+  void loadParams();
+  void setState(Statevec& state);
   Eigen::Vector3d quaternion_to_rpy(Eigen::Quaterniond q);
   bool sampleState(StateVec root_state, StateVec& vertex);
   bool sampleStateToExpandGraph(StateVec root_state, StateVec& vertex);
@@ -42,9 +36,6 @@ public:
                    bool allow_short_edge = false);
   PlannerStatus buildGraph(std::shared_ptr<GraphUtils> graph);
 
-  std::vector<Eigen::Vector3d> pointsToEigen(std::vector<geometry_msgs::Point> points);
-  bool nextExplorationPath(stage_planner::explorationPath::Request &req,
-                           stage_planner::explorationPath::Response &res);
   Eigen::Quaternion<float> Euler2Quaternion(Eigen::Vector3d v);
 
   bool extractShortestPaths (std::shared_ptr<GraphUtils> graph, ShortestPathsReport rep, Vertex* root, 
@@ -164,6 +155,8 @@ public:
 private:
   ros::NodeHandle nh_;
   ros::NodeHandle nh_private_;
+  MapManagerVoxblox<MapManagerVoxbloxServer,
+  MapManagerVoxbloxVoxel> *map_manager_;
   
   VisualizationServer* visualization_server_;
   std::string sensor_name;
@@ -179,6 +172,8 @@ private:
   RandomSampler random_sampler_;  // x,y,z,yaw: for exploration purpose
   RandomSampler random_sampler_graph_expansion_;  // x,y,z,yaw: for exploration purpose
   std::vector<BoundedSpaceParams> no_gain_zones_;
+  
+
   StateVec robotStateWithYaw_;
   StateVec robotState_;
   std::shared_ptr<GraphUtils> local_graph_;
@@ -198,8 +193,6 @@ private:
 
   std::vector<Vertex *> state_history;
 
-  MapManagerVoxblox<MapManagerVoxbloxServer,
-  MapManagerVoxbloxVoxel> *map_manager_;
   kdtree *kd_tree_;
 
   ShortestPathsReport local_graph_rep_;
@@ -209,6 +202,18 @@ private:
   ShortestPathsReport path_ways_graph_rep_;
   ShortestPathsReport pose_graph_rep_;
   ShortestPathsReport sparse_graph_rep_;
+
+  //boolean  
+  bool odometry_ready = false;
+  bool local_planner_status_ = true;
+  bool global_planner_status_ = false;
+  bool run_global_planner_ = false;
+  bool run_homing_planner_ = true;
+  bool reached_home_ = false;
+  bool exploration_ongoing_ = false;
+  bool local_exploration_ongoing_ = false;
+  bool global_exploration_ongoing_ = false;
+  
 
   int vertex_id_ = -1;
   int subgraph_ind_ = -1;
@@ -222,14 +227,6 @@ private:
   int fake_id_count = -1;
   int latest_local_graph_id = 0;
   
-  bool local_planner_status_ = true;
-  bool global_planner_status_ = false;
-  bool run_global_planner_ = false;
-  bool run_homing_planner_ = true;
-  bool reached_home_ = false;
-  bool exploration_ongoing_ = false;
-  bool local_exploration_ongoing_ = false;
-  bool global_exploration_ongoing_ = false;
   
   std::vector<std::vector<Vertex *>> local_dijkstra_paths_;
   std::vector<std::vector<Vertex *>> global_dijkstra_paths_;

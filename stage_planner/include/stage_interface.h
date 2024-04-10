@@ -9,8 +9,13 @@
 class StageInterface
 {
 public:
-  StageInterface(const ros::NodeHandle& nh, const ros::NodeHandle& nh_private);
-
+  GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_private, 
+               MapManagerVoxblox<MapManagerVoxbloxServer, MapManagerVoxbloxVoxel> *map_manager);
+  
+  void initializeAttributes();
+  void loadParams();
+  double projectSample(Eigen::Vector3d& sample,
+                       MapManager::VoxelStatus& voxel_status);
   bool initializePlanner (stage_planner::initializePlanning::Request &req,
                           stage_planner::initializePlanning::Response &res);
 
@@ -22,73 +27,62 @@ public:
 
   Eigen::Vector3d quaternion_to_rpy(Eigen::Quaterniond q);
   Eigen::Quaternion<float> Euler2Quaternion(Eigen::Vector3d v);
-  void odomCallback(const nav_msgs::Odometry::ConstPtr &pos);
+  void odometryCallback(const nav_msgs::Odometry& odom);
   Eigen::Vector3d fetchCurrentPosition ();
   double calculateDistance (Eigen::Vector3d p1, Eigen::Vector3d p2);
   bool fetchExplorationPath ();
   void segmentPath(const nav_msgs::Path& path,
                    nav_msgs::Path& path_seg);
   void generateTrajectory ();
-  
 
-  bool actionDoneCallback(
-      const actionlib::SimpleClientGoalState& state,
-      const stage_planner::pathFollowerActionResultConstPtr& result);
+
+  bool actionDoneCallback(const actionlib::SimpleClientGoalState& state,
+                          const stage_planner::pathFollowerActionResultConstPtr& result);
   void actionActiveCallback();
-  void actionFeedbackCallback(
-      const stage_planner::pathFollowerActionFeedbackConstPtr& feedback);
+  void actionFeedbackCallback(const stage_planner::pathFollowerActionFeedbackConstPtr& 
+                              feedback);
 
   bool reachedEndOfPath ();
-
-  void mainLoop(const ros::TimerEvent& event);
-
-  bool robot_aerial_ = false;
 
 private:
 
   ros::NodeHandle nh_;
   ros::NodeHandle nh_private_;
-
-  ros::Timer run_loop_timer_;
-
-  std::string robot_type_ = "kAerial";
-  std::string m_worldFrameId;
+  MapManagerVoxblox<MapManagerVoxbloxServer,
+  MapManagerVoxbloxVoxel> *map_manager_;
+  actionlib::SimpleActionClient<stage_planner::pathFollowerActionAction> ac_;
+  const double serverWatingTimeout = 1.0;
+  stage_planner::pathFollowerActionGoal goal;
+  
+  GraphManager* graph_manager_;
+  VisualizationServer* visualization_server_;
+  std::string sensor_name;
+  SensorParams sensor_params_;
+  SensorParams free_frustum_params_;
+  RobotParams robot_params_;
+  PlanningParams planning_params_;
 
   State robotState_;
-
   Eigen::Quaterniond quat_;
 
   // Subscribers 
-  ros::Subscriber new_poseSubscriber;
-  ros::Subscriber m_poseSubscriber;
+  ros::Subscriber odometry_Subscriber;
 
   // Services
-  ros::ServiceClient m_exploration_path_client;
-  ros::ServiceServer m_planner_initialization_srv;
-  ros::ServiceServer m_planner_stop_srv;
-  ros::ServiceServer m_planner_homing_srv;
+  ros::ServiceServer planner_initialization_service;
+  ros::ServiceServer planner_stop_service;
+  ros::ServiceServer planner_homing_service;
 
 
-  actionlib::SimpleActionClient<stage_planner::pathFollowerActionAction> ac_;
-  const double serverWatingTimeout = 1.0;
 
 
-  stage_planner::pathFollowerActionGoal goal;
   std::vector<geometry_msgs::PoseStamped> goal_path;
 
-  std::string m_odometry;
-  std::string m_reference_topic;
-  ros::Timer m_runTimer;
 
-  ros::Publisher m_trajectory_Publisher;
-  ros::Publisher m_command_Path_Publisher;
-  ros::Publisher m_reference_Publisher;
-  nav_msgs::Odometry m_currentPose;
-  nav_msgs::Odometry m_prevPose;
+  ros::Publisher trajectory_Publisher;
+  ros::Publisher command_Path_Publisher;
+  ros::Publisher reference_Publisher;
   nav_msgs::Path command_path;
-  Eigen::Vector3d m_currentPosition;
-  double m_currentHeading;
-  Eigen::Vector3d home_position;
   nav_msgs::Path exploration_path_;
   bool planning_status_local = false;
   bool planning_status_global = false;
@@ -106,7 +100,6 @@ private:
 
   double init_x_, init_y_, init_z_; 
 
-  double distance_to_new_path_;
   //reference tracking utilities
 
 };

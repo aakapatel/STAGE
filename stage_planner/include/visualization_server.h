@@ -12,6 +12,7 @@
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <tf/transform_datatypes.h>
+#include <std_msgs/ColorRGBA.h>
 
 #include "geofence_manager.h"
 #include "graph.h"

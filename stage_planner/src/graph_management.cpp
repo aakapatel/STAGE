@@ -1,5 +1,4 @@
 #include "graph_management.h"
-#include <std_msgs/ColorRGBA.h>
 
 GraphManager::GraphManager(const ros::NodeHandle &nh, 
                            const ros::NodeHandle &nh_private,
@@ -91,7 +90,12 @@ void GraphManager::initializeAttributes () {
   geofence_manager_.reset(new GeofenceManager());
   random_sampler_.reset();
   random_sampler_graph_expansion_.reset();
-  
+  stat_->init(robotState_);
+
+}
+
+void GraphManager::loadParams () {
+
   std::string ns = ros::this_node::getName();
   sensor_params_.loadParams(ns + "/SensorParams");
   sensor_name = sensor_params_.sensor_list[0];
@@ -102,7 +106,6 @@ void GraphManager::initializeAttributes () {
   graph_expansion_local_params_.loadParams(ns + "/GraphExpansionParams/Local");
   planning_params_.loadParams(ns + "/PlanningParams");
 
-
   geofence_manager_->loadParams(ns + "/GeofenceParams");
   // robot_state_hist_.reset(new RobotStateHistory());
 
@@ -112,8 +115,6 @@ void GraphManager::initializeAttributes () {
   random_sampler_.setParams(global_space_params_, local_space_params_);
   random_sampler_graph_expansion_.setParams(graph_expansion_global_params_, graph_expansion_local_params_);
   map_manager_->setRobotRadius(robot_box_size_.norm() / 2.0);
-
-  stat_->init(robotState_);
 
 }
 
@@ -172,6 +173,17 @@ void GraphManager::resetGlobalGraph()
   home_vertex_->is_root = true;
   global_graph_->addVertex(home_vertex_);
   prev_pose_vertex_ = home_vertex_;
+}
+
+void GraphManager::setState(StateVec& state) {
+  if (!odometry_ready) {
+    // First time receive the pose/odometry for planning purpose.
+    // Reset the octomap
+    ROS_WARN("Received the first odometry, reset the map");
+    map_manager_->resetMap();
+  }
+  robotState_ = state;
+  odometry_ready = true;
 }
 
 void GraphManager::resetPathWaysGraph()
@@ -619,6 +631,67 @@ std::vector<int> GraphManager::performShortestPathsClustering(
     return cluster_ids;
   }
 }
+
+void GraphManager::segmentPath(nav_msgs::Path path,
+                               nav_msgs::Path &path_seg)
+{
+  float dt_ = 0.5;
+  path_seg.poses.clear();
+  double v_max_ = 0.5;
+  double yaw_rate_max_ = 0.5;
+  if (path.poses.size() == 0)
+    return;
+
+  for (int i = 0; i < (path.poses.size() - 1); ++i)
+  {
+    Eigen::Vector3d start(path.poses[i].pose.position.x, path.poses[i].pose.position.y,
+                          path.poses[i].pose.position.z);
+    Eigen::Vector3d end(path.poses[i + 1].pose.position.x, path.poses[i + 1].pose.position.y,
+                        path.poses[i + 1].pose.position.z);
+    Eigen::Vector3d distance = end - start;
+    double yaw_start = 0;
+    double yaw_end = 0;
+    double yaw_direction = 0;
+    if (yaw_direction > M_PI)
+    {
+      yaw_direction -= 2.0 * M_PI;
+    }
+    if (yaw_direction < -M_PI)
+    {
+      yaw_direction += 2.0 * M_PI;
+    }
+
+    double dist_norm = distance.norm();
+    double disc = std::min(dt_ * v_max_ / dist_norm,
+                           dt_ * yaw_rate_max_ / abs(yaw_direction));
+
+    bool int_flag = true;
+
+    if (int_flag)
+    {
+      for (double it = 0.0; it <= 1.0; it += disc)
+      {
+        tf::Vector3 origin((1.0 - it) * start[0] + it * end[0],
+                           (1.0 - it) * start[1] + it * end[1],
+                           (1.0 - it) * start[2] + it * end[2]);
+        double yaw = yaw_start + yaw_direction * it;
+        if (yaw > M_PI)
+          yaw -= 2.0 * M_PI;
+        if (yaw < -M_PI)
+          yaw += 2.0 * M_PI;
+        tf::Quaternion quat;
+        quat.setEuler(0.0, 0.0, yaw);
+        tf::Pose poseTF(quat, origin);
+        geometry_msgs::Pose pose;
+        tf::poseTFToMsg(poseTF, pose);
+        geometry_msgs::PoseStamped pose_stamped;
+        pose_stamped.pose.position = pose.position;
+        pose_stamped.pose.orientation = pose.orientation;
+        path_seg.poses.push_back(pose_stamped);
+      }
+    }
+  }
+} // segmentPath
 
 bool GraphManager::modifyPath(pcl::PointCloud<pcl::PointXYZ>* obstacle_pcl,
                               Eigen::Vector3d& p0, Eigen::Vector3d& p1,
@@ -1619,11 +1692,11 @@ void GraphManager::expandGraph(std::shared_ptr<GraphUtils> graph_manager,
   rep.status = ExpandGraphStatus::kSuccess;
 }
 
-GraphManager::PlannerStatus GraphManager::buildGraph(std::shared_ptr<GraphUtils> graph) {
+GraphManager::GraphStatus GraphManager::buildGraph(std::shared_ptr<GraphUtils> graph) {
   int loop_count = 0;
   int num_vertices = 1;
   int num_edges = 0;
-  GraphManager::PlannerStatus build_graph_status = GraphManager::PlannerStatus::NOT_OK;
+  GraphManager::GraphStatus build_graph_status = GraphManager::GraphStatus::NOT_OK;
 
   resetProjectedGraph();
 
@@ -1653,7 +1726,7 @@ GraphManager::PlannerStatus GraphManager::buildGraph(std::shared_ptr<GraphUtils>
   }
 
   if (graph->getNumVertices() > 2 and graph->getNumEdges() > 1) {
-    build_graph_status = GraphManager::PlannerStatus::OK;
+    build_graph_status = GraphManager::GraphStatus::OK;
   }
   
   // stat_->build_graph_time = GET_ELAPSED_TIME(ttime);
@@ -1663,9 +1736,9 @@ GraphManager::PlannerStatus GraphManager::buildGraph(std::shared_ptr<GraphUtils>
 
 }
 
-GraphManager::PlannerStatus GraphManager::runLocalPlanner()
+GraphManager::GraphStatus GraphManager::runLocalPlanner()
 {
-  GraphManager::PlannerStatus local_planner_status = GraphManager::PlannerStatus::NOT_OK;
+  GraphManager::GraphStatus local_planner_status = GraphManager::GraphStatus::NOT_OK;
   int frontier_vertices_count = 0;
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
@@ -1677,20 +1750,20 @@ GraphManager::PlannerStatus GraphManager::runLocalPlanner()
   local_root_vertex->is_root = true;
   local_graph_->addVertex(local_root_vertex);
 
-  GraphManager::PlannerStatus build_graph_status = GraphManager::buildGraph(local_graph_);
+  GraphManager::GraphStatus build_graph_status = GraphManager::buildGraph(local_graph_);
   switch (build_graph_status) {
-    case GraphManager::PlannerStatus::OK:
+    case GraphManager::GraphStatus::OK:
       ROS_DEBUG("[LOCAL PLANNER STATUS] SG build : OK ");
       if(GraphManager::extractShortestPaths(local_graph_, local_graph_rep_, local_root_vertex, local_dijkstra_paths_)) {
         local_planner_status = GraphManager::planLocalPath(local_dijkstra_paths_);
       } else {
-        local_planner_status = GraphManager::PlannerStatus::NO_GAIN;
+        local_planner_status = GraphManager::GraphStatus::NO_GAIN;
       }
       break;
-    case GraphManager::PlannerStatus::ERR_KDTREE:
+    case GraphManager::GraphStatus::ERR_KDTREE:
       ROS_WARN("[PLANNER_ERROR] An issue occurred with kdtree data.");
       break;
-    case GraphManager::PlannerStatus::NOT_OK:
+    case GraphManager::GraphStatus::NOT_OK:
       ROS_WARN("[LOCAL PLANNER STATUS] : NOT_OK");
       break;
     default:
@@ -1779,14 +1852,14 @@ bool GraphManager::extractShortestPaths (std::shared_ptr<GraphUtils> graph, Shor
 
 }
 
-GraphManager::PlannerStatus GraphManager::planLocalPath(std::vector<std::vector<Vertex *>> dijkstra_paths)
+GraphManager::GraphStatus GraphManager::planLocalPath(std::vector<std::vector<Vertex *>> dijkstra_paths)
 {
 
   exploration_dir_pose.header.frame_id = m_worldFrameId;
   exploration_dir_pose.header.stamp = ros::Time::now();
   exploration_Direction_Pub.publish(exploration_dir_pose);
 
-  GraphManager::PlannerStatus path_status = GraphManager::PlannerStatus::ERR_NO_FEASIBLE_PATH;
+  GraphManager::GraphStatus path_status = GraphManager::GraphStatus::ERR_NO_FEASIBLE_PATH;
   local_paths_.clear();
 
   if (!dijkstra_paths.empty()) {
@@ -1910,7 +1983,7 @@ GraphManager::PlannerStatus GraphManager::planLocalPath(std::vector<std::vector<
     }
     
     if (!mod_path_.poses.empty()) {
-      path_status = GraphManager::PlannerStatus::READY;
+      path_status = GraphManager::GraphStatus::OK;
       ROS_DEBUG("Local path -> OK \n");
     }
 
@@ -2460,15 +2533,15 @@ bool GraphManager::planGlobalPath() {
 
 } // planGlobalPaths
 
-GraphManager::PlannerStatus GraphManager::setPathDynamic()
+GraphManager::GraphStatus GraphManager::setPathDynamic()
 {
 
   exploration_path_.poses.clear();
   Eigen::Vector3d v_root;
   Eigen::Vector3d v_vert;
-  GraphManager::PlannerStatus path_set = GraphManager::PlannerStatus::NOT_OK;
+  GraphManager::GraphStatus path_set = GraphManager::GraphStatus::NOT_OK;
   if (mod_path_.poses.empty()) {
-    path_set = GraphManager::PlannerStatus::NOT_OK;
+    path_set = GraphManager::GraphStatus::NOT_OK;
     ROS_DEBUG("mod_path empty \n");
     return path_set;
   } 
@@ -2538,14 +2611,14 @@ GraphManager::PlannerStatus GraphManager::setPathDynamic()
       }
       
       if (!exploration_path_.poses.empty()) {
-        path_set = GraphManager::PlannerStatus::EXECUTING_PATH;
+        path_set = GraphManager::GraphStatus::OK;
       }
 
     } else {
       ROS_WARN_STREAM("Path segment in UNTRAVERSABLE zone \n");
       ROS_INFO_STREAM("Terminating path here .. \n");
       exploration_path_.poses.clear();
-      path_set = GraphManager::PlannerStatus::READY_FOR_NEW_PATH;   
+      path_set = GraphManager::GraphStatus::OK;   
       path_iterator_ = 0;
       mod_path_.poses.clear();
       best_path_.clear();
@@ -2574,7 +2647,7 @@ GraphManager::PlannerStatus GraphManager::setPathDynamic()
     path_iterator_ = 0;
     mod_path_.poses.clear();
     best_path_.clear();
-    path_set = GraphManager::PlannerStatus::READY_FOR_NEW_PATH;   
+    path_set = GraphManager::GraphStatus::OK;   
   }
 
   return path_set;
@@ -2605,279 +2678,6 @@ double GraphManager::getRelativeAngle(Eigen::Vector3d point)
   return angle;
 
 }
-
-std::vector<Eigen::Vector3d> GraphManager::pointsToEigen(std::vector<geometry_msgs::Point> points)
-{
-
-  std::vector<Eigen::Vector3d> vec;
-
-  for (geometry_msgs::Point p : points)
-  {
-    Eigen::Vector3d v(p.x, p.y, p.z);
-    vec.push_back(v);
-  }
-
-  return vec;
-}
-
-bool GraphManager::nextExplorationPath(stage_planner::explorationPath::Request &req,
-                                       stage_planner::explorationPath::Response &res)
-
-{
-
-  if (initialize_planner_) {
-
-    GraphManager::reset();
-    initialize_planner_ = false;
-  }
-
-  bool planner_status = true;
-
-  high_resolution_clock::time_point start_total = high_resolution_clock::now();
-  
-  if (req.exploration) {
-    planner_mode_ = GraphManager::PlannerMode::EXPLORE;
-  } else if (req.homing) {
-    planner_mode_ = GraphManager::PlannerMode::RETURN_HOME;
-  } 
-
-  switch (planner_mode_) {
-    case GraphManager::PlannerMode::EXPLORE:
-      ROS_DEBUG("[Planner mode ] : LOCAL_EXPLORATION \n");
-      switch (planner_status_) {
-        case GraphManager::PlannerStatus::OK:
-          planner_status_ = GraphManager::runLocalPlanner();
-
-        case GraphManager::PlannerStatus::READY:
-          path_status_ = GraphManager::setPathDynamic();
-          if (path_status_ == GraphManager::PlannerStatus::EXECUTING_PATH) {
-            res.path = exploration_path_;
-            planner_status_ = GraphManager::PlannerStatus::READY;
-            break;
-          } else if (path_status_ == GraphManager::PlannerStatus::READY_FOR_NEW_PATH) {
-
-          }
-
-          
-          
-
-
-
-      }
-
-
-
-
-
-
-
-      break;
-    case GraphManager::PlannerMode::RETURN_HOME:
-      ROS_DEBUG("[Planner mode ] : RETURN_HOME_EXPLORATION \n");
-      break;
-    default: 
-      ROS_WARN("[Planner mode ] : NOT SET! \n");
-      break;
-
-  }
-  
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  if (req.homing) {
-
-    if (reached_end_of_path_ and !run_homing_planner_) {
-      return false;
-    }
-
-    switch (run_homing_planner_) {
-      case 1:
-
-        GraphManager::setHomingPath();
-        res.path = exploration_path_;
-        ++planning_iteration_;
-        run_homing_planner_ = false;
-        return true;
-
-      case 0:
-        GraphManager::updateGraphs();
-        planner_status = GraphManager::setPathDynamic();
-        res.path = exploration_path_;
-      // ROS_DEBUG("Executing path segment \n");
-    }
-
-
-  } else if (req.exploration) {
-    
-    run_homing_planner_ = true;
-
-    switch (reached_end_of_path_) {
-      case 1:
-
-        GraphManager::updateGraphs();
-        if (GraphManager::buildLocalGraph() and !run_global_planner_) {
-
-          if (GraphManager::planLocalPath(local_dijkstra_paths_)) {
-
-            ROS_DEBUG("Successfully planned local path \n");
-
-            GraphManager::updateGlobalGraph(local_dijkstra_paths_);          
-
-            ROS_DEBUG("Successfully updated Global Graph \n");
-
-            if (GraphManager::setPathDynamic()) {
-
-              ROS_DEBUG("local path set success! \n");
-              res.path = exploration_path_;
-              ++planning_iteration_;
-              break;
-            } else {
-              ROS_WARN("Local path setting -> Failure ! \n");
-            }
-          } else {
-
-            ROS_WARN("Local planner failure ! Attempting global repositioning \n");
-
-            GraphManager::updateGlobalGraph(local_dijkstra_paths_);          
-
-            if (GraphManager::planGlobalPath()) {
-
-              ROS_DEBUG ("Successfully planned global paths \n");
-
-              if (GraphManager::setPathDynamic()) {
-                ROS_INFO("Global path set success !\n");
-                res.path = exploration_path_;
-                ++planning_iteration_;
-                break;
-              } else {
-                ROS_WARN("Global planner failure \n");
-                break;
-              }
-            }
-          }
-
-        } else if (run_global_planner_) {
-          ROS_WARN("Could not extract shortest paths on sub graph \n");
-
-          GraphManager::updateGlobalGraph(local_dijkstra_paths_);
-
-          if (GraphManager::planGlobalPath()) {
-
-            ROS_DEBUG ("Successfully planned global paths \n");
-
-            if (GraphManager::setPathDynamic()) {
-              run_global_planner_ = false;
-              ROS_INFO("Global path set success !\n");
-              res.path = exploration_path_;
-              ++planning_iteration_;
-              break;
-            } else {
-              ROS_WARN("Global planner failure \n");
-              break;
-            }
-          }
-        } 
-
-
-      case 0:
-        GraphManager::updateGraphs();
-        planner_status = GraphManager::setPathDynamic();
-        res.path = exploration_path_;
-      // ROS_DEBUG("Executing path segment \n");
-    }
-  }
-
-
-
-
-
-  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
-
-  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-  if (duration_total.count() > 50) {
-
-    ROS_INFO_STREAM("\033[;34m[Planning iter -> " << planning_iteration_ << "] \t Exec time :" << duration_total.count() << " ms \033[0m\n");
-  }
-
-  return planner_status;
-
-}
-
-void GraphManager::segmentPath(nav_msgs::Path path,
-                               nav_msgs::Path &path_seg)
-{
-  float dt_ = 0.5;
-  path_seg.poses.clear();
-  double v_max_ = 0.5;
-  double yaw_rate_max_ = 0.5;
-  if (path.poses.size() == 0)
-    return;
-
-  for (int i = 0; i < (path.poses.size() - 1); ++i)
-  {
-    Eigen::Vector3d start(path.poses[i].pose.position.x, path.poses[i].pose.position.y,
-                          path.poses[i].pose.position.z);
-    Eigen::Vector3d end(path.poses[i + 1].pose.position.x, path.poses[i + 1].pose.position.y,
-                        path.poses[i + 1].pose.position.z);
-    Eigen::Vector3d distance = end - start;
-    double yaw_start = 0;
-    double yaw_end = 0;
-    double yaw_direction = 0;
-    if (yaw_direction > M_PI)
-    {
-      yaw_direction -= 2.0 * M_PI;
-    }
-    if (yaw_direction < -M_PI)
-    {
-      yaw_direction += 2.0 * M_PI;
-    }
-
-    double dist_norm = distance.norm();
-    double disc = std::min(dt_ * v_max_ / dist_norm,
-                           dt_ * yaw_rate_max_ / abs(yaw_direction));
-
-    bool int_flag = true;
-
-    if (int_flag)
-    {
-      for (double it = 0.0; it <= 1.0; it += disc)
-      {
-        tf::Vector3 origin((1.0 - it) * start[0] + it * end[0],
-                           (1.0 - it) * start[1] + it * end[1],
-                           (1.0 - it) * start[2] + it * end[2]);
-        double yaw = yaw_start + yaw_direction * it;
-        if (yaw > M_PI)
-          yaw -= 2.0 * M_PI;
-        if (yaw < -M_PI)
-          yaw += 2.0 * M_PI;
-        tf::Quaternion quat;
-        quat.setEuler(0.0, 0.0, yaw);
-        tf::Pose poseTF(quat, origin);
-        geometry_msgs::Pose pose;
-        tf::poseTFToMsg(poseTF, pose);
-        geometry_msgs::PoseStamped pose_stamped;
-        pose_stamped.pose.position = pose.position;
-        pose_stamped.pose.orientation = pose.orientation;
-        path_seg.poses.push_back(pose_stamped);
-      }
-    }
-  }
-} // segmentPath
 
 
 /*

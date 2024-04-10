@@ -1,68 +1,167 @@
 #include "stage_interface.h"
 
-using namespace std;
 
-StageInterface::StageInterface(const ros::NodeHandle &nh, const ros::NodeHandle &nh_private)
+
+StageInterface::StageInterface(const ros::NodeHandle &nh, 
+                               const ros::NodeHandle &nh_private,
+                               MapManagerVoxblox<MapManagerVoxbloxServer, 
+                               MapManagerVoxbloxVoxel> *map_manager)
   : nh_(nh),
   nh_private_(nh_private),
-  ac_("stage_interface_path", true),
-  m_worldFrameId("world"),
-  m_odometry("/hummingbird/ground_truth/odometry"),
-  m_reference_topic("/hummingbird/command/pose"),
-  init_x_(1),
-  init_y_(0),
-  init_z_(1),
-  distance_to_new_path_(1),
-  robot_type_("kAerial")
+  map_manager_(map_manager),
+  ac_("stage_interface_path", true)
+
 {
+  graph_manager_ = new GraphManager(nh, nh_private, map_manager);
 
-  // Set variables
-  nh_private_.param("odometry_topic", m_odometry, m_odometry);
-  nh_private_.param("reference_topic", m_reference_topic, m_reference_topic);
+  graph_manager_->loadParams();
+  StageInterface::initializeAttributes();
+};
 
-  nh_private_.param("frame_id", m_worldFrameId, m_worldFrameId);
-  nh_private_.param("robot_type", robot_type_, robot_type_);
-  nh_private_.param("init_x", init_x_, init_x_);
-  nh_private_.param("init_y", init_y_, init_y_);
-  nh_private_.param("init_z", init_z_, init_z_);
+void StageInterface::initializeAttributes() {
+  
+  odometry_Subscriber_ =
+      nh_.subscribe("odometry", 100, &Gbplanner::odometryCallback, this);
+  
+  trajectory_Publisher = 
+    nh_.advertise<trajectory_msgs::MultiDOFJointTrajectory>("command/trajectory", 1, true);
+  
+  command_Path_Publisher = 
+    nh_.advertise<nav_msgs::Path>("command_path", 1, true);
 
-  nh_private_.param("distance_to_new_path", distance_to_new_path_, distance_to_new_path_);
-
-  // Register to the subscriber topic and register it to the callback function
-
-  m_poseSubscriber = nh_.subscribe(m_odometry, 10, &StageInterface::odomCallback, this);
-  // Timers
-
-  run_loop_timer_ = nh_.createTimer(ros::Duration(1), &StageInterface::mainLoop, this);
-
-  // Register publishers
-
-  m_trajectory_Publisher = nh_.advertise<trajectory_msgs::MultiDOFJointTrajectory>("command/trajectory", 1, true);
-
-  m_command_Path_Publisher = nh_.advertise<nav_msgs::Path>("command_path", 1, true);
-
-  m_reference_Publisher = nh_.advertise<geometry_msgs::PoseStamped>(m_reference_topic, 1, true);
+  reference_Publisher = 
+    nh_.advertise<geometry_msgs::PoseStamped>(m_reference_topic, 1, true);
 
   // Ros services
 
-  m_exploration_path_client = nh_.serviceClient<stage_planner::explorationPath>(
-    "next_exploration_path");
+  planner_initialization_service = 
+    nh_.advertiseService("initialize_planner", &StageInterface::initializePlanner, this);
 
-  m_planner_initialization_srv = nh_.advertiseService("initialize_planner", &StageInterface::initializePlanner, this);
+  planner_stop_service = 
+    nh_.advertiseService("stop_planner", &StageInterface::stopPlanner, this);
 
-  m_planner_stop_srv = nh_.advertiseService("stop_planner", &StageInterface::stopPlanner, this);
+  planner_homing_service = 
+    nh_.advertiseService("start_homing_planner", &StageInterface::homingPlanner, this);
+  
+  visualization_server_ = new VisualizationServer(nh_, nh_private_);
 
-  m_planner_homing_srv = nh_.advertiseService("start_homing_planner", &StageInterface::homingPlanner, this);
+  stat_.reset(new SampleStatistic());
+  stat_chrono_.reset(new SampleStatistic());
+  stat_->init(robotState_);
 
-  // if (robot_type_ == "kGround")
-  // {
-  //   init_z_ = 0;
-  // }
-};
+}
+
+void GraphManager::loadParams () {
+
+  std::string ns = ros::this_node::getName();
+  sensor_params_.loadParams(ns + "/SensorParams");
+  sensor_name = sensor_params_.sensor_list[0];
+  robot_params_.loadParams(ns + "/RobotParams");
+  global_space_params_.loadParams(ns + "/BoundedSpaceParams/Global");
+  local_space_params_.loadParams(ns + "/BoundedSpaceParams/Local");
+  planning_params_.loadParams(ns + "/PlanningParams");
+
+  map_manager_->setRobotRadius(robot_box_size_.norm() / 2.0);
+
+}
+double StageInterface::projectSample(Eigen::Vector3d& sample,
+                                     MapManager::VoxelStatus& voxel_status) {
+  double max_proj_len = 5.0;
+
+  float voxel_size = map_manager_->getResolution();
+
+  int unknown_count = 0;
+  double central_ray_len = 0.0;
+  std::vector<Eigen::Vector3d> extra_samples(5, Eigen::Vector3d::Zero());
+  extra_samples[0] = Eigen::Vector3d(0.0, 0.0, 0.0);
+  extra_samples[1] = Eigen::Vector3d(0.5, 0.0, 0.5);
+  extra_samples[2] = Eigen::Vector3d(-0.5, 0.0, 0.5);
+  extra_samples[3] = Eigen::Vector3d(0.0, 0.5, 0.5);
+  extra_samples[4] = Eigen::Vector3d(0.0, -0.5, 0.5);
+  for (int i = 0; i < extra_samples.size(); ++i) {
+    Eigen::Vector3d delta = extra_samples[i];
+    Eigen::Vector3d start = sample + delta;
+    Eigen::Vector3d end = start - Eigen::Vector3d(0.0, 0.0, max_proj_len);
+
+    if (planning_params_.interpolate_projection_distance) {
+      double ground_dist = 0.0;
+      Eigen::Vector3d point = start;
+      while (ground_dist < max_proj_len) {
+        double tsdf_dist = map_manager_->getPointDistance(point);
+        if (tsdf_dist < 0.0) {
+          // Hit Unknown
+          if (i == 0) {
+            central_ray_len = (point - start).norm();
+          }
+          ++unknown_count;
+          break;
+        } else {
+          if (tsdf_dist <= voxel_size) {
+            // Hit occupied
+            voxel_status = MapManager::VoxelStatus::kOccupied;
+            sample(0) = start(0);
+            sample(1) = start(1);
+            return ground_dist + tsdf_dist;
+          } else {
+            // Still in free
+            ground_dist += tsdf_dist;
+            point -= Eigen::Vector3d(0.0, 0.0, tsdf_dist - 0.02);
+          }
+        }
+      }
+    } else {
+      Eigen::Vector3d end_voxel;
+      double tsdf_dist;
+      MapManager::VoxelStatus vs =
+          map_manager_->getRayStatus(start, end, true, end_voxel, tsdf_dist);
+
+      if (vs == MapManager::VoxelStatus::kOccupied) {
+        double ray_len = std::abs(start(2) - end_voxel(2));
+        if (i == 0) {
+          central_ray_len = ray_len;
+        }
+        voxel_status = MapManager::VoxelStatus::kOccupied;
+        sample(0) = start(0);
+        sample(1) = start(1);
+        return ray_len;
+      } else if (vs == MapManager::VoxelStatus::kUnknown) {
+        double ray_len = std::abs(start(2) - end_voxel(2));
+        if (i == 0) {
+          central_ray_len = ray_len;
+        }
+        ++unknown_count;
+      }
+    }
+  }
+
+  if (unknown_count >= extra_samples.size()) {
+    voxel_status = MapManager::VoxelStatus::kUnknown;
+    return central_ray_len;
+  }
+
+  voxel_status = MapManager::VoxelStatus::kFree;
+  return -1.0;
+}
+
+void StageInterface::odometryCallback (const nav_msgs::Odometry& odom) {
+  
+  robotstate_[0] = odom.pose.pose.position.x;
+  robotstate_[1] = odom.pose.pose.position.y;
+  robotstate_[2] = odom.pose.pose.position.z; 
+  robotstate_[3] = tf::getYaw(odom.pose.pose.orientation);
+
+  if (robot_params_.type == RobotType::kGroundRobot) {
+    MapManager::VoxelStatus vs;
+    Eigen::Vector3d root_pos = robotstate_.head(3);
+    double ground_height = projectSample(root_pos, vs);
+    robotstate_[2] += (planning_params_.max_ground_height - ground_height);
+  }
+  graph_manager_->setState(robotstate_);
+
+}
 
 bool StageInterface::initializePlanner(stage_planner::initializePlanning::Request &req,
                                        stage_planner::initializePlanning::Response &res)
-
 {
 
   if (req.initialize)
