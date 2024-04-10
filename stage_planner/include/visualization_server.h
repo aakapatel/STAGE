@@ -42,6 +42,8 @@ public:
   void visualizeExplorationPath (nav_msgs::Path exploration_path);
   void visualizePclMap (const pcl::PointCloud<pcl::PointXYZ>* pcl);
 
+  // Set the fixed frame of the mission for visualization
+  void setGlobalFrame(std::string frame_id) { world_frame_id = frame_id; }
 
 
 private:

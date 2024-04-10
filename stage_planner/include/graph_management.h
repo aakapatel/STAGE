@@ -49,10 +49,6 @@ public:
 
   bool extractShortestPaths (std::shared_ptr<GraphUtils> graph, ShortestPathsReport rep, Vertex* root, 
                              std::vector<std::vector<Vertex *>> &dijkstra_paths);
-  bool extractShortestPathsSparseGraph (std::shared_ptr<GraphUtils> graph, ShortestPathsReport rep, Vertex* root, 
-                             std::vector<std::vector<Vertex *>> &dijkstra_paths);
-
-  bool extractGlobalPathWays (std::vector<std::vector<Vertex *>> &dijkstra_paths); 
 
   double getRelativeAngle(Eigen::Vector3d point);
 
@@ -125,17 +121,11 @@ public:
 
   void expandGraph (int iterations_max, Vertex* root, Vertex* goal, double radius);
 
-  void updateSparseGraph();
-
-  void insertBestPathsToSparseGraph (std::vector<std::vector<Vertex *>> dijkstra_paths); 
-  
   void setHomingPath();
-  bool setPath();
   GraphManager::PlannerStatus setPathDynamic();
 
   void visualizeRepositionPath();
 
-  bool compareAngles (const std::pair<std::vector<Vertex *>, double>& a, const std::pair<std::vector<Vertex *>, double>& b);
   double projectSample(Eigen::Vector3d& sample,
                        MapManager::VoxelStatus& voxel_status);
   ProjectedEdgeStatus getProjectedEdgeStatus(

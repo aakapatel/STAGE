@@ -181,7 +181,7 @@ void VisualizationServer::visualizePathWaysGraph(std::shared_ptr<GraphUtils>
   visualization_msgs::Marker vertex_marker;
   vertex_marker.header.stamp = ros::Time::now();
   vertex_marker.header.seq = 0;
-  vertex_marker.header.frame_id = m_worldFrameId;
+  vertex_marker.header.frame_id = world_frame_id;
   vertex_marker.id = 0;
   vertex_marker.ns = "vertices";
   vertex_marker.action = visualization_msgs::Marker::ADD;
@@ -335,7 +335,7 @@ void VisualizationServer::visualizeLocalGraph(std::shared_ptr<GraphUtils>
   visualization_msgs::Marker edge_marker;
   edge_marker.header.stamp = ros::Time::now();
   edge_marker.header.seq = 0;
-  edge_marker.header.frame_id = m_worldFrameId;
+  edge_marker.header.frame_id = world_frame_id;
   edge_marker.id = 0;
   edge_marker.ns = "edges";
   edge_marker.action = visualization_msgs::Marker::ADD;
@@ -372,7 +372,7 @@ void VisualizationServer::visualizeLocalGraph(std::shared_ptr<GraphUtils>
   visualization_msgs::Marker vertex_marker;
   vertex_marker.header.stamp = ros::Time::now();
   vertex_marker.header.seq = 0;
-  vertex_marker.header.frame_id = m_worldFrameId;
+  vertex_marker.header.frame_id = world_frame_id;
   vertex_marker.id = 0;
   vertex_marker.ns = "vertices";
   vertex_marker.action = visualization_msgs::Marker::ADD;
@@ -385,7 +385,7 @@ void VisualizationServer::visualizeLocalGraph(std::shared_ptr<GraphUtils>
   visualization_msgs::Marker frontier_vertex_marker;
   frontier_vertex_marker.header.stamp = ros::Time::now();
   frontier_vertex_marker.header.seq = 0;
-  frontier_vertex_marker.header.frame_id = m_worldFrameId;
+  frontier_vertex_marker.header.frame_id = world_frame_id;
   frontier_vertex_marker.id = 0;
   frontier_vertex_marker.ns = "frontier";
   frontier_vertex_marker.action = visualization_msgs::Marker::ADD;
@@ -463,7 +463,7 @@ void VisualizationServer::visualizeGlobalGraph(std::shared_ptr<GraphUtils>
   visualization_msgs::Marker edge_marker;
   edge_marker.header.stamp = ros::Time::now();
   edge_marker.header.seq = 0;
-  edge_marker.header.frame_id = m_worldFrameId;
+  edge_marker.header.frame_id = world_frame_id;
   edge_marker.id = 0;
   edge_marker.ns = "edges";
   edge_marker.action = visualization_msgs::Marker::ADD;
@@ -501,7 +501,7 @@ void VisualizationServer::visualizeGlobalGraph(std::shared_ptr<GraphUtils>
   visualization_msgs::Marker vertex_marker;
   vertex_marker.header.stamp = ros::Time::now();
   vertex_marker.header.seq = 0;
-  vertex_marker.header.frame_id = m_worldFrameId;
+  vertex_marker.header.frame_id = world_frame_id;
   vertex_marker.id = 0;
   vertex_marker.ns = "vertices";
   vertex_marker.action = visualization_msgs::Marker::ADD;
@@ -518,7 +518,7 @@ void VisualizationServer::visualizeGlobalGraph(std::shared_ptr<GraphUtils>
   visualization_msgs::Marker frontier_vertex_marker;
   frontier_vertex_marker.header.stamp = ros::Time::now();
   frontier_vertex_marker.header.seq = 0;
-  frontier_vertex_marker.header.frame_id = m_worldFrameId;
+  frontier_vertex_marker.header.frame_id = world_frame_id;
   frontier_vertex_marker.id = 0;
   frontier_vertex_marker.ns = "frontier";
   frontier_vertex_marker.action = visualization_msgs::Marker::ADD;
@@ -571,7 +571,7 @@ void VisualizationServer::visualizeLocalPaths(
   visualization_msgs::Marker vertex_marker;
   edge_marker.header.stamp = ros::Time::now();
   edge_marker.header.seq = 0;
-  edge_marker.header.frame_id = m_worldFrameId;
+  edge_marker.header.frame_id = world_frame_id;
   edge_marker.id = 0;
   edge_marker.ns = "edges";
   edge_marker.action = visualization_msgs::Marker::ADD;
@@ -585,7 +585,7 @@ void VisualizationServer::visualizeLocalPaths(
 
   vertex_marker.header.stamp = ros::Time::now();
   vertex_marker.header.seq = 0;
-  vertex_marker.header.frame_id = m_worldFrameId;
+  vertex_marker.header.frame_id = world_frame_id;
   vertex_marker.id = 0;
   vertex_marker.ns = "vertices";
   vertex_marker.action = visualization_msgs::Marker::ADD;
@@ -636,7 +636,7 @@ void VisualizationServer::visualizeGlobalPaths(
   visualization_msgs::Marker vertex_marker;
   edge_marker.header.stamp = ros::Time::now();
   edge_marker.header.seq = 0;
-  edge_marker.header.frame_id = m_worldFrameId;
+  edge_marker.header.frame_id = world_frame_id;
   edge_marker.id = 0;
   edge_marker.ns = "edges";
   edge_marker.action = visualization_msgs::Marker::ADD;
@@ -650,7 +650,7 @@ void VisualizationServer::visualizeGlobalPaths(
 
   vertex_marker.header.stamp = ros::Time::now();
   vertex_marker.header.seq = 0;
-  vertex_marker.header.frame_id = m_worldFrameId;
+  vertex_marker.header.frame_id = world_frame_id;
   vertex_marker.id = 0;
   vertex_marker.ns = "vertices";
   vertex_marker.action = visualization_msgs::Marker::ADD;
@@ -704,7 +704,7 @@ void VisualizationServer::visualizeSparseGraph(std::shared_ptr<GraphUtils>
   visualization_msgs::Marker edge_marker;
   edge_marker.header.stamp = ros::Time::now();
   edge_marker.header.seq = 0;
-  edge_marker.header.frame_id = m_worldFrameId;
+  edge_marker.header.frame_id = world_frame_id;
   edge_marker.id = 0;
   edge_marker.ns = "edges";
   edge_marker.action = visualization_msgs::Marker::ADD;
@@ -740,7 +740,7 @@ void VisualizationServer::visualizeSparseGraph(std::shared_ptr<GraphUtils>
   visualization_msgs::Marker vertex_marker;
   vertex_marker.header.stamp = ros::Time::now();
   vertex_marker.header.seq = 0;
-  vertex_marker.header.frame_id = m_worldFrameId;
+  vertex_marker.header.frame_id = world_frame_id;
   vertex_marker.id = 0;
   vertex_marker.ns = "vertices";
   vertex_marker.action = visualization_msgs::Marker::ADD;
@@ -757,7 +757,7 @@ void VisualizationServer::visualizeSparseGraph(std::shared_ptr<GraphUtils>
   visualization_msgs::Marker frontier_vertex_marker;
   frontier_vertex_marker.header.stamp = ros::Time::now();
   frontier_vertex_marker.header.seq = 0;
-  frontier_vertex_marker.header.frame_id = m_worldFrameId;
+  frontier_vertex_marker.header.frame_id = world_frame_id;
   frontier_vertex_marker.id = 0;
   frontier_vertex_marker.ns = "frontier";
   frontier_vertex_marker.action = visualization_msgs::Marker::ADD;
@@ -813,7 +813,7 @@ void VisualizationServer::visualizePoseGraph(std::shared_ptr<GraphUtils>
   visualization_msgs::Marker edge_marker;
   edge_marker.header.stamp = ros::Time::now();
   edge_marker.header.seq = 0;
-  edge_marker.header.frame_id = m_worldFrameId;
+  edge_marker.header.frame_id = world_frame_id;
   edge_marker.id = 0;
   edge_marker.ns = "edges";
   edge_marker.action = visualization_msgs::Marker::ADD;
@@ -852,7 +852,7 @@ void VisualizationServer::visualizePoseGraph(std::shared_ptr<GraphUtils>
   visualization_msgs::Marker vertex_marker;
   vertex_marker.header.stamp = ros::Time::now();
   vertex_marker.header.seq = 0;
-  vertex_marker.header.frame_id = m_worldFrameId;
+  vertex_marker.header.frame_id = world_frame_id;
   vertex_marker.id = 0;
   vertex_marker.ns = "vertices";
   vertex_marker.action = visualization_msgs::Marker::ADD;
