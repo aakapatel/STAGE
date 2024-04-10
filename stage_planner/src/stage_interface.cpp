@@ -21,7 +21,7 @@ StageInterface::StageInterface(const ros::NodeHandle &nh,
 void StageInterface::initializeAttributes() {
   
   odometry_Subscriber_ =
-      nh_.subscribe("odometry", 100, &Gbplanner::odometryCallback, this);
+      nh_.subscribe("odometry", 100, &StageInterface::odometryCallback, this);
   
   trajectory_Publisher = 
     nh_.advertise<trajectory_msgs::MultiDOFJointTrajectory>("command/trajectory", 1, true);
@@ -30,17 +30,17 @@ void StageInterface::initializeAttributes() {
     nh_.advertise<nav_msgs::Path>("command_path", 1, true);
 
   reference_Publisher = 
-    nh_.advertise<geometry_msgs::PoseStamped>(m_reference_topic, 1, true);
+    nh_.advertise<geometry_msgs::PoseStamped>("command/pose", 1, true);
 
   // Ros services
 
-  planner_initialization_service = 
+  planner_initialization_service_ = 
     nh_.advertiseService("initialize_planner", &StageInterface::initializePlanner, this);
 
-  planner_stop_service = 
+  planner_stop_service_ = 
     nh_.advertiseService("stop_planner", &StageInterface::stopPlanner, this);
 
-  planner_homing_service = 
+  planner_homing_service_ = 
     nh_.advertiseService("start_homing_planner", &StageInterface::homingPlanner, this);
   
   visualization_server_ = new VisualizationServer(nh_, nh_private_);
@@ -145,18 +145,18 @@ double StageInterface::projectSample(Eigen::Vector3d& sample,
 
 void StageInterface::odometryCallback (const nav_msgs::Odometry& odom) {
   
-  robotstate_[0] = odom.pose.pose.position.x;
-  robotstate_[1] = odom.pose.pose.position.y;
-  robotstate_[2] = odom.pose.pose.position.z; 
-  robotstate_[3] = tf::getYaw(odom.pose.pose.orientation);
+  robotState_[0] = odom.pose.pose.position.x;
+  robotState_[1] = odom.pose.pose.position.y;
+  robotState_[2] = odom.pose.pose.position.z; 
+  robotState_[3] = tf::getYaw(odom.pose.pose.orientation);
 
   if (robot_params_.type == RobotType::kGroundRobot) {
     MapManager::VoxelStatus vs;
-    Eigen::Vector3d root_pos = robotstate_.head(3);
+    Eigen::Vector3d root_pos = robotState_.head(3);
     double ground_height = projectSample(root_pos, vs);
-    robotstate_[2] += (planning_params_.max_ground_height - ground_height);
+    robotState_[2] += (planning_params_.max_ground_height - ground_height);
   }
-  graph_manager_->setState(robotstate_);
+  graph_manager_->setState(robotState_);
 
 }
 
@@ -164,18 +164,20 @@ bool StageInterface::initializePlanner(stage_planner::initializePlanning::Reques
                                        stage_planner::initializePlanning::Response &res)
 {
 
+  graph_manager_->setGlobalFrame(planning_params_.global_frame_id);
+  world_frame_id = planning_params_.global_frame_id;
+
   if (req.initialize)
   {
     initialization = true;
     explore = true;
     StageInterface::generateTrajectory();
 
-    m_command_Path_Publisher.publish(command_path);
 
 
     // ac_.waitForServer();
     // if (ac_.waitForServer(ros::Duration(serverWatingTimeout))) {
-    if (robot_type_ == "kGround") {
+    if (robot_params_.type == RobotType::kGroundRobot) {
 
     ac_.sendGoal(
       goal, boost::bind(&StageInterface::actionDoneCallback, this, _1, _2),
@@ -248,80 +250,20 @@ Eigen::Quaternion<float> StageInterface::Euler2Quaternion(Eigen::Vector3d v)
   return q;
 }
 
-void StageInterface::odomCallback(const nav_msgs::Odometry::ConstPtr &pose)
-{
-
-  if (firstTime)
-  {
-
-    m_prevPose = *pose;
-    firstTime = false;
-  }
-  else
-{
-    m_currentPose = *pose;
-
-    Eigen::Vector3d newPoint(pose->pose.pose.position.x,
-                             pose->pose.pose.position.y,
-                             pose->pose.pose.position.z);
-    Eigen::Vector3d oldPoint(m_prevPose.pose.pose.position.x,
-                             m_prevPose.pose.pose.position.y,
-                             m_prevPose.pose.pose.position.z);
-
-    if (calculateDistance(newPoint, oldPoint) > 2)
-    {
-      m_prevPose = *pose;
-    }
-  }
-  m_currentPosition.x() = m_currentPose.pose.pose.position.x;
-  m_currentPosition.y() = m_currentPose.pose.pose.position.y;
-  m_currentPosition.z() = m_currentPose.pose.pose.position.z;
-
-  Eigen::Quaterniond attitude{pose->pose.pose.orientation.w, pose->pose.pose.orientation.x,
-    pose->pose.pose.orientation.y, pose->pose.pose.orientation.z};
-
-  Eigen::Vector3d euler = quaternion_to_rpy(attitude);
-
-  Eigen::Quaterniond Q(Eigen::AngleAxisd(euler.z(), Eigen::Vector3d::UnitZ()));
-
-  quat_ = Q;
-
-  tf::Quaternion q(
-    pose->pose.pose.orientation.x,
-    pose->pose.pose.orientation.y,
-    pose->pose.pose.orientation.z,
-    pose->pose.pose.orientation.w);
-  tf::Matrix3x3 m(q);
-  double roll, pitch, yaw;
-  m.getRPY(roll, pitch, yaw);
-
-  robotState_[0] = pose->pose.pose.position.x;
-  robotState_[1] = pose->pose.pose.position.y;
-  robotState_[2] = pose->pose.pose.position.z;
-  robotState_[3] = yaw * (180 / M_PI);
-}
-
-Eigen::Vector3d StageInterface::fetchCurrentPosition()
-{
-  return m_currentPosition;
-}
-
 double StageInterface::calculateDistance(Eigen::Vector3d point1,
                                          Eigen::Vector3d point2)
 {
 
   double d;
 
-  if (robot_type_ == "kAerial")
+  if (robot_params_.type == RobotType::kGroundRobot)
   {
+
+    d = sqrt(pow(point1.x() - point2.x(), 2) + pow(point1.y() - point2.y(), 2));
+  } else {
 
     d = sqrt(pow(point1.x() - point2.x(), 2) + pow(point1.y() - point2.y(), 2) +
              pow(point1.z() - point2.z(), 2));
-  }
-  else
-{
-
-    d = sqrt(pow(point1.x() - point2.x(), 2) + pow(point1.y() - point2.y(), 2));
   }
 
   return d;
@@ -352,50 +294,6 @@ bool StageInterface::actionDoneCallback(
     // can have action server error output here  
   }
   return true;
-}
-
-bool StageInterface::fetchExplorationPath()
-{
-
-  bool got_new_path = false;
-
-  stage_planner::explorationPath exploration_path_srv;
-
-  if (explore)
-  {
-
-    exploration_path_srv.request.exploration = true;
-    exploration_path_srv.request.homing = false;
-  }
-
-  if (return_home and !explore)
-  {
-
-    exploration_path_srv.request.exploration = false;
-    exploration_path_srv.request.homing = true;
-  }
-
-  if (m_exploration_path_client.call(exploration_path_srv))
-  {
-
-    if (!exploration_path_srv.response.path.poses.empty())
-    {
-      got_new_path = true;
-      exploration_path_ = exploration_path_srv.response.path;
-    }
-    else
-  {
-      got_new_path = false;
-    }
-
-    planning_status_local = exploration_path_srv.response.planning_status_local;
-    planning_status_global = exploration_path_srv.response.planning_status_global;
-    planning_status_homing = exploration_path_srv.response.planning_status_homing;
-
-    // TODO Add a ros_info_cond to log planning status
-  }
-
-  return got_new_path;
 }
 
 void StageInterface::segmentPath(const nav_msgs::Path &path,
@@ -524,14 +422,14 @@ void StageInterface::generateTrajectory()
 
   trajectory_array_.header.seq = n_seq_;
   trajectory_array_.header.stamp = ros::Time::now();
-  trajectory_array_.header.frame_id = m_worldFrameId;
+  trajectory_array_.header.frame_id = world_frame_id;
   trajectory_array_.points.clear();
   double time_sum = 0;
 
   geometry_msgs::PoseStamped pose_ref;
   command_path.poses.clear();
-  pose_ref.header.frame_id = m_worldFrameId;
-  command_path.header.frame_id = m_worldFrameId;
+  pose_ref.header.frame_id = world_frame_id;
+  command_path.header.frame_id = world_frame_id;
 
   for (int i = 0; i < new_path.poses.size(); i++)
   {
@@ -560,8 +458,7 @@ void StageInterface::generateTrajectory()
   }
 
   goal.path = goal_path;
-  m_trajectory_Publisher.publish(trajectory_array_);
-  // m_command_Path_Publisher.publish(command_path);
+  trajectory_Publisher.publish(trajectory_array_);
 
 } // generateTrajectory
 
@@ -575,9 +472,9 @@ bool StageInterface::reachedEndOfPath()
   end_of_path.y() = command_path.poses.back().pose.position.y;
   end_of_path.z() = command_path.poses.back().pose.position.z;
 
-  double d = calculateDistance(fetchCurrentPosition(), end_of_path);
+  double d = (robotState_.head(3) - end_of_path).norm();
 
-  if (d < distance_to_new_path_)
+  if (d < planning_params_.distance_to_new_path)
   {
     fetch_new_path_ = true;
     return true;
@@ -589,33 +486,19 @@ bool StageInterface::reachedEndOfPath()
   }
 }
 
-void StageInterface::mainLoop(const ros::TimerEvent &event)
-{
+void StageInterface::setPath () {
 
-  if (explore or return_home)
-  {
+  generateTrajectory();
 
-    if (reachedEndOfPath() and !stop_planning)
-    {
-      if (fetchExplorationPath())
-      {
 
-        generateTrajectory();
+  if (robot_params_.type == RobotType::kGroundRobot) {
 
-        m_command_Path_Publisher.publish(command_path);
-
-        if (robot_type_ == "kGround") {
-
-          ROS_INFO ("Ready to set goal to Action Server \n");
-          ac_.waitForServer();
-          ac_.sendGoal(
-            goal, boost::bind(&StageInterface::actionDoneCallback, this, _1, _2),
-            boost::bind(&StageInterface::actionActiveCallback, this),
-            boost::bind(&StageInterface::actionFeedbackCallback, this, _1));
-        }
-        
-
-      }
-    }
+    ROS_INFO ("Ready to set goal to Action Server \n");
+    ac_.waitForServer();
+    ac_.sendGoal(
+      goal, boost::bind(&StageInterface::actionDoneCallback, this, _1, _2),
+      boost::bind(&StageInterface::actionActiveCallback, this),
+      boost::bind(&StageInterface::actionFeedbackCallback, this, _1));
   }
 }
+

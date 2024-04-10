@@ -9,8 +9,8 @@
 class StageInterface
 {
 public:
-  GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_private, 
-               MapManagerVoxblox<MapManagerVoxbloxServer, MapManagerVoxbloxVoxel> *map_manager);
+  StageInterface(const ros::NodeHandle &nh, const ros::NodeHandle &nh_private, 
+                 MapManagerVoxblox<MapManagerVoxbloxServer, MapManagerVoxbloxVoxel> *map_manager);
   
   void initializeAttributes();
   void loadParams();
@@ -28,21 +28,19 @@ public:
   Eigen::Vector3d quaternion_to_rpy(Eigen::Quaterniond q);
   Eigen::Quaternion<float> Euler2Quaternion(Eigen::Vector3d v);
   void odometryCallback(const nav_msgs::Odometry& odom);
-  Eigen::Vector3d fetchCurrentPosition ();
   double calculateDistance (Eigen::Vector3d p1, Eigen::Vector3d p2);
-  bool fetchExplorationPath ();
   void segmentPath(const nav_msgs::Path& path,
                    nav_msgs::Path& path_seg);
   void generateTrajectory ();
-
+  
 
   bool actionDoneCallback(const actionlib::SimpleClientGoalState& state,
                           const stage_planner::pathFollowerActionResultConstPtr& result);
   void actionActiveCallback();
   void actionFeedbackCallback(const stage_planner::pathFollowerActionFeedbackConstPtr& 
                               feedback);
-
   bool reachedEndOfPath ();
+  void setPath();
 
 private:
 
@@ -57,21 +55,23 @@ private:
   GraphManager* graph_manager_;
   VisualizationServer* visualization_server_;
   std::string sensor_name;
+  std::string world_frame_id;
   SensorParams sensor_params_;
   SensorParams free_frustum_params_;
   RobotParams robot_params_;
   PlanningParams planning_params_;
+  std::shared_ptr<SampleStatistic> stat_, stat_chrono_;
 
-  State robotState_;
+  StateVec robotState_;
   Eigen::Quaterniond quat_;
 
   // Subscribers 
-  ros::Subscriber odometry_Subscriber;
+  ros::Subscriber odometry_Subscriber_;
 
   // Services
-  ros::ServiceServer planner_initialization_service;
-  ros::ServiceServer planner_stop_service;
-  ros::ServiceServer planner_homing_service;
+  ros::ServiceServer planner_initialization_service_;
+  ros::ServiceServer planner_stop_service_;
+  ros::ServiceServer planner_homing_service_;
 
 
 

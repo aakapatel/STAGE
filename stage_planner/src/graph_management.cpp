@@ -1,5 +1,7 @@
 #include "graph_management.h"
 
+using namespace std::chrono;
+
 GraphManager::GraphManager(const ros::NodeHandle &nh, 
                            const ros::NodeHandle &nh_private,
                            MapManagerVoxblox<MapManagerVoxbloxServer, 
@@ -72,7 +74,6 @@ void GraphManager::reset()
     edge_inclinations_.push_back(empty_vec);
   }
 
-  GraphManager::resetKdtree();
   GraphManager::resetPoseGraph();
   GraphManager::resetLocalGraph();
   GraphManager::resetSparseGraph ();
@@ -530,7 +531,7 @@ void GraphManager::clusterNodes (std::shared_ptr<GraphUtils> g)
     Vertex * v = g->vertices_map_[id];
     std::vector<Vertex *> nearby_vertices;
     double my_gain = -std::numeric_limits<double>::max();
-    g->getNearestVertices(&g->vertices_map_[id]->state, 2*planning_params.nearest_range, &nearby_vertices);
+    g->getNearestVertices(&g->vertices_map_[id]->state, 2*planning_params_.nearest_range, &nearby_vertices);
 
     Vertex * centroid_vertex;
     for (int i = 0; i < nearby_vertices.size() and nearby_vertices[i]->is_leaf_vertex; i++)
@@ -1776,7 +1777,6 @@ GraphManager::GraphStatus GraphManager::runLocalPlanner()
   ROS_DEBUG_STREAM("SG --> build time " << duration_total.count() << " ms \n");
 
   // ROS_DEBUG_STREAM("Sub graph has " << local_graph_->getNumVertices() << " nodes & " << local_graph_->getNumEdges() << " edges\n");
-  planner_status_ = local_planner_status;
 
   return local_planner_status;
 
@@ -2015,7 +2015,7 @@ void GraphManager::updateGraphs() {
 
   std::vector<Vertex *> nearby_vertices;
 
-  global_graph_->getNearestVertices(&vertex->state, planning_params.nearest_range, &nearby_vertices);
+  global_graph_->getNearestVertices(&vertex->state, planning_params_.nearest_range, &nearby_vertices);
   for (int i = 0; i < nearby_vertices.size(); ++i)
   {
     Vertex* neighbour = nearby_vertices[i];
@@ -2076,7 +2076,7 @@ void GraphManager::updateGraphs() {
     Vertex * vertex = global_graph_->vertices_map_[id];
     std::vector<Vertex *> nearby_vertices;
 
-    global_graph_->getNearestVertices(&vertex->state, planning_params.nearest_range, &nearby_vertices);
+    global_graph_->getNearestVertices(&vertex->state, planning_params_.nearest_range, &nearby_vertices);
     for (int i = 0; i < nearby_vertices.size(); ++i)
     {
       Vertex* neighbour = nearby_vertices[i];
@@ -2224,7 +2224,7 @@ void GraphManager::updateGlobalGraph(std::vector<std::vector<Vertex *>> dijkstra
       // GraphManager::computeVolumetricGainRayCasting(new_vertex->state, new_vertex->vol_gain);
 
       std::vector<Vertex *> nearby_vertices;
-      global_graph_->getNearestVertices(&new_vertex->state, 2*planning_params.nearest_range, &nearby_vertices);
+      global_graph_->getNearestVertices(&new_vertex->state, 2*planning_params_.nearest_range, &nearby_vertices);
 
       for (int i = 0; i < nearby_vertices.size(); ++i)
       {
@@ -2406,10 +2406,6 @@ void GraphManager::setHomingPath () {
 
     m_modified_Path_Pub.publish(mod_path_);
     // return; 
-  }
-
-  if (GraphManager::setPathDynamic()) {
-    ROS_DEBUG("Successfully planned homing path \n");
   }
 
 }

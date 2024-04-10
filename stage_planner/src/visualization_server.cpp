@@ -3,7 +3,7 @@
 VisualizationServer::VisualizationServer(const ros::NodeHandle& nh,
                                          const ros::NodeHandle& nh_private) {
   nh_ = nh;
-  nh_private = nh_private_;
+  nh_private_ = nh_private;
 
 
   exploration_Path_Vis_Pub = 
@@ -35,9 +35,6 @@ VisualizationServer::VisualizationServer(const ros::NodeHandle& nh,
 
   global_Paths_Vis_Pub_ = 
     nh_.advertise<visualization_msgs::MarkerArray>("global_dijkstra_paths", 10);
-
-  improved_global_Paths_Vis_Pub_ = 
-    nh_.advertise<visualization_msgs::MarkerArray>("improved_global_dijkstra_paths", 10);
 
   pcl_Pub_ = nh_.advertise<sensor_msgs::PointCloud2>("map", 10);
   
@@ -804,7 +801,7 @@ void VisualizationServer::visualizeSparseGraph(std::shared_ptr<GraphUtils>
 void VisualizationServer::visualizePoseGraph(std::shared_ptr<GraphUtils>
                                              pose_graph)
 {
-  if (pose_graph_->getNumVertices() == 0)
+  if (pose_graph->getNumVertices() == 0)
     return;
   std::shared_ptr<Graph> g = pose_graph->graph_;
   std::unordered_map<int, Vertex *> &v_map = pose_graph->vertices_map_;

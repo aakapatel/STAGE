@@ -9,14 +9,18 @@ class GraphManager
 
 public:
 
-
   enum GraphStatus {
     OK = 0,                // Everything is OK as expected.
     READY,                 // Everything is OK as expected.
     ERR_KDTREE,            // Could not search nearest neigbors from kdtree.
     ERR_NO_FEASIBLE_PATH,  // Could not find any path.
     NO_GAIN,               // No non-zero gain found.
-    NOT_OK,                // Any other errors.
+    NOT_OK                // Any other errors.
+  };
+  
+  enum PlannerMode {
+    EXPLORE = 0,
+    RETURN_HOME
   };
 
   GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_private, 
@@ -25,7 +29,8 @@ public:
   void reset();
   void initializeAttributes ();
   void loadParams();
-  void setState(Statevec& state);
+  void setState(StateVec& state);
+  void setGlobalFrame(std::string frame_id);
   Eigen::Vector3d quaternion_to_rpy(Eigen::Quaterniond q);
   bool sampleState(StateVec root_state, StateVec& vertex);
   bool sampleStateToExpandGraph(StateVec root_state, StateVec& vertex);
@@ -34,7 +39,7 @@ public:
   void expandGraph(std::shared_ptr<GraphUtils> graph_manager,
                    Vertex& new_vertex, ExpandGraphReport& rep,
                    bool allow_short_edge = false);
-  PlannerStatus buildGraph(std::shared_ptr<GraphUtils> graph);
+  GraphStatus buildGraph(std::shared_ptr<GraphUtils> graph);
 
   Eigen::Quaternion<float> Euler2Quaternion(Eigen::Vector3d v);
 
@@ -70,14 +75,15 @@ public:
     bool refinement_enable = true);
 
   void resetLocalGraph();
+  void resetPoseGraph();
   void resetProjectedGraph();
   void resetGlobalGraph();
   void resetPathWaysGraph();
   void resetSparseGraph();
 
-  GraphManager::PlannerStatus runLocalPlanner();
+  GraphManager::GraphStatus runLocalPlanner();
   bool buildSparseGraph();
-  GraphManager::PlannerStatus planLocalPath(std::vector<std::vector<Vertex *>> dijkstra_paths);
+  GraphManager::GraphStatus planLocalPath(std::vector<std::vector<Vertex *>> dijkstra_paths);
 
   bool planGlobalPath();
 
@@ -113,7 +119,7 @@ public:
   void expandGraph (int iterations_max, Vertex* root, Vertex* goal, double radius);
 
   void setHomingPath();
-  GraphManager::PlannerStatus setPathDynamic();
+  GraphManager::GraphStatus setPathDynamic();
 
   void visualizeRepositionPath();
 
@@ -147,8 +153,7 @@ public:
   Vertex* home_vertex_ = nullptr;
 
   PlannerMode planner_mode_ = GraphManager::PlannerMode::EXPLORE;
-  PlannerStatus planner_status_ = GraphManager::PlannerStatus::OK;
-  PlannerStatus path_status_ = GraphManager::PlannerStatus::READY_FOR_NEW_PATH;
+  GraphStatus graph_status_ = GraphManager::GraphStatus::OK;
   
 
 

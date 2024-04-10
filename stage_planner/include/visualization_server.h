@@ -17,7 +17,6 @@
 #include "geofence_manager.h"
 #include "graph.h"
 #include "graph_utils.h"
-#include "graph_management.h"
 #include "map_manager.h"
 #include "params.h"
 
@@ -39,7 +38,6 @@ public:
   void visualizeExplorationDirection (geometry_msgs::PoseStamped 
                                       exploration_dir);
   void visualizeHomingPath (nav_msgs::Path homing_path);
-  void visualizeHomingPath (nav_msgs::Path homing_path);
   void visualizeExplorationPath (nav_msgs::Path exploration_path);
   void visualizePclMap (const pcl::PointCloud<pcl::PointXYZ>* pcl);
 
@@ -52,7 +50,7 @@ private:
   ros::NodeHandle nh_private_;
 
 
-  ros::Publisher modified_Path_Vis_Pub;
+  ros::Publisher exploration_Path_Vis_Pub;
   ros::Publisher homing_Path_Vis_Pub;
   ros::Publisher local_Paths_Vis_Pub_;
   ros::Publisher voxel_Gain_Vis_Pub_;
