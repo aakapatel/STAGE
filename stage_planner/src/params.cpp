@@ -819,6 +819,12 @@ bool PlanningParams::loadParams(std::string ns) {
     ROSPARAM_INFO(str_tmp);
   }
 
+  param_name = ns + "/init_forward_x";
+  if (!ros::param::get(param_name, init_forward_x)) {
+    init_forward_x = 2;
+    ROSPARAM_WARN(param_name, "2 m");
+  }
+
   param_name = ns + "/v_max";
   if (!ros::param::get(param_name, v_max)) {
     v_max = 0.2;
@@ -835,6 +841,13 @@ bool PlanningParams::loadParams(std::string ns) {
   if (!ros::param::get(param_name, yaw_rate_max)) {
     yaw_rate_max = 0.4;
     ROSPARAM_WARN(param_name, "0.4 rad/s");
+  }
+
+
+  param_name = ns + "/dt";
+  if (!ros::param::get(param_name, dt)) {
+    dt = 0.1;
+    ROSPARAM_WARN(param_name, "0.1");
   }
 
   param_name = ns + "/yaw_tangent_correction";
@@ -951,6 +964,12 @@ bool PlanningParams::loadParams(std::string ns) {
   if (!ros::param::get(param_name, nearest_range_max)) {
     nearest_range_max = 2.0;
     ROSPARAM_WARN(param_name, nearest_range_max);
+  }
+
+  param_name = ns + "/local_space";
+  if (!ros::param::get(param_name, local_space)) {
+    local_space = 10;
+    ROSPARAM_WARN(param_name, local_space);
   }
 
   param_name = ns + "/use_current_state";

@@ -14,6 +14,9 @@ public:
   
   void initializeAttributes();
   void loadParams();
+  void setSharedParams(const RobotParams& robot_params,
+                       const BoundedSpaceParams& global_space_params,
+                       const BoundedSpaceParams& local_space_params);
   double projectSample(Eigen::Vector3d& sample,
                        MapManager::VoxelStatus& voxel_status);
   bool initializePlanner (stage_planner::initializePlanning::Request &req,
@@ -31,7 +34,7 @@ public:
   double calculateDistance (Eigen::Vector3d p1, Eigen::Vector3d p2);
   void segmentPath(const nav_msgs::Path& path,
                    nav_msgs::Path& path_seg);
-  void generateTrajectory ();
+  void generateTrajectory (nav_msgs::Path);
   
 
   bool actionDoneCallback(const actionlib::SimpleClientGoalState& state,
@@ -41,6 +44,8 @@ public:
                               feedback);
   bool reachedEndOfPath ();
   void setPath();
+
+  void periodicTimerCallback (const ros::TimerEvent& event);
 
 private:
 
@@ -59,6 +64,8 @@ private:
   SensorParams sensor_params_;
   SensorParams free_frustum_params_;
   RobotParams robot_params_;
+  BoundedSpaceParams local_space_params_;
+  BoundedSpaceParams global_space_params_;
   PlanningParams planning_params_;
   std::shared_ptr<SampleStatistic> stat_, stat_chrono_;
 
@@ -72,7 +79,10 @@ private:
   ros::ServiceServer planner_initialization_service_;
   ros::ServiceServer planner_stop_service_;
   ros::ServiceServer planner_homing_service_;
+  
+  // Timer 
 
+  ros::Timer planner_periodic_timer_;
 
 
 
@@ -87,10 +97,18 @@ private:
   bool planning_status_local = false;
   bool planning_status_global = false;
   bool planning_status_homing = false;
+
+
+
   int n_seq_;
+  double v_max_;
+  double yaw_rate_max_;
   double dt_ = 0.1;
+  double init_x = 2;
+
+  
   bool firstTime;
-  bool initialization = false;
+  bool planner_initialized = false;
   bool explore = false; // For debug only! normally should be false.
   bool stop_planning = false;
   bool return_home = false;

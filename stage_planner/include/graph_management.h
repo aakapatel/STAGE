@@ -29,8 +29,12 @@ public:
   void reset();
   void initializeAttributes ();
   void loadParams();
+  void setSharedParams(const RobotParams& robot_params,
+                       const BoundedSpaceParams& global_space_params,
+                       const BoundedSpaceParams& local_space_params);
   void setState(StateVec& state);
   void setGlobalFrame(std::string frame_id);
+  void setExplorationDirection (geometry_msgs::PoseStamped pose);
   Eigen::Vector3d quaternion_to_rpy(Eigen::Quaterniond q);
   bool sampleState(StateVec root_state, StateVec& vertex);
   bool sampleStateToExpandGraph(StateVec root_state, StateVec& vertex);
@@ -82,10 +86,12 @@ public:
   void resetSparseGraph();
 
   GraphManager::GraphStatus runLocalPlanner();
-  bool buildSparseGraph();
+  GraphManager::GraphStatus runGlobalPlanner();
   GraphManager::GraphStatus planLocalPath(std::vector<std::vector<Vertex *>> dijkstra_paths);
-
   bool planGlobalPath();
+  nav_msgs::Path getLocalExplorationPath();
+  nav_msgs::Path getGlobalExplorationPath();
+
 
   void visualizeLocalGraph();
 
@@ -108,18 +114,14 @@ public:
 
   void visualizePoseGraph ();
 
-  void updateGraphs();
-  void updateGlobalGraph(std::vector<std::vector<Vertex *>> dijkstra_paths);
-
-  bool setLocalPath();
-  bool setGlobalPath();
+  void updateGlobalGraph();
+  void expandGlobalGraph(std::vector<std::vector<Vertex *>> dijkstra_paths);
 
   void computeVolumetricGainRayCasting(StateVec& state, VolumetricGain& vgain);
 
   void expandGraph (int iterations_max, Vertex* root, Vertex* goal, double radius);
 
   void setHomingPath();
-  GraphManager::GraphStatus setPathDynamic();
 
   void visualizeRepositionPath();
 
@@ -249,8 +251,6 @@ private:
   std::list<Vertex *> sparse_vertices;
   // variables
 
-  std::vector<double> safety_margin;
-  std::vector<double> robot_box_size;
   Eigen::Vector3d robot_box_size_;
   Eigen::Vector3d safety_margin_;
   Eigen::Vector3d exploration_direction_;
@@ -274,8 +274,11 @@ private:
   bool reached_end_of_path_ = true;
   int path_iterator_ = 0;
   std::vector<Vertex *> best_path_;
-  std::vector<Vertex *> home_path_;
-  nav_msgs::Path mod_path_;
+  std::vector<Vertex *> homing_dijkstra_path_;
+  nav_msgs::Path local_exploration_path_;
+  nav_msgs::Path global_exploration_path_;
+  nav_msgs::Path homing_path_;
+  nav_msgs::Path improved_homing_path_;
 
   //
 
@@ -292,9 +295,6 @@ private:
   int mapDepth_;
   double m_volumetric_gain_threashold;
   bool check = false;
-  float SCALER_X, SCALER_Y, SCALER_Z, highest_x, highest_y,
-  highest_z, lowest_x, lowest_y, lowest_z;
-  double m_min_dist_bw_nodes;
   std::vector<Eigen::Vector3d> local_exploration_targets_;
   std::vector<Eigen::Vector3d> global_repos_targets_;
   std::vector<Eigen::Vector3d> exploration_targets_;
@@ -307,7 +307,6 @@ private:
   bool run_global_planner = false;
   double yaw_;
   Eigen::Vector3d exploration_target;
-  nav_msgs::Path homing_path_;
   Eigen::Vector3d home_position;
 
   geometry_msgs::PoseStamped exploration_dir_pose;

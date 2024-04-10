@@ -4,24 +4,17 @@
   <env name="ROSCONSOLE_FORMAT" value="[${severity}] : ${message}"/>
   
   <arg name="robot_name" default="hummingbird"/>
+  <arg name="mapping_config" default="$(find stage_planner)/config/aerial/voxblox_sim_config.yaml"/>
   <arg name="stage_config" default="$(find stage_planner)/config/aerial/stage_config.yaml"/>
   
   <group ns = "$(arg robot_name)"> 
     
     <node pkg="stage_planner" type="stage_interface_node" name="stage_interface_node" output="screen">
 
-      <param name="frame_id" type="string" value="world" />
-
-      <param name="odometry_topic" value="ground_truth/odometry" />
-
-      <param name ="reference_topic" value="command/pose" />
-
-      <param name ="init_x" value="2" />
-      <param name ="init_y" value="0" />
-      <param name ="init_z" value="1" />
-
-      <param name ="distance_to_new_path" value="0.5" />
-
+      <remap from="odometry" to="ground_truth/odometry" />
+      <remap from="pointcloud" to="ouster/points" />
+      <remap from="reference_topic" to="command/pose" />
+      <rosparam command="load" file="$(arg mapping_config)" /> 
       <rosparam command="load" file="$(arg stage_config)" /> 
 
       </node>

@@ -43,6 +43,12 @@ void StageInterface::initializeAttributes() {
   planner_homing_service_ = 
     nh_.advertiseService("start_homing_planner", &StageInterface::homingPlanner, this);
   
+  // Planner periodic timer
+
+
+  planner_periodic_timer_ =
+    nh_.createTimer(ros::Duration(0.1), &StageInterface::periodicTimerCallback, this);
+
   visualization_server_ = new VisualizationServer(nh_, nh_private_);
 
   stat_.reset(new SampleStatistic());
@@ -64,6 +70,18 @@ void GraphManager::loadParams () {
   map_manager_->setRobotRadius(robot_box_size_.norm() / 2.0);
 
 }
+
+
+void StageInterface::setSharedParams(const RobotParams& robot_params,
+                                     const BoundedSpaceParams& global_space_params,
+                                     const BoundedSpaceParams& local_space_params) {
+  graph_manager_->setSharedParams(robot_params, global_space_params, local_space_params);
+  init_x = planning_params_.init_forward_x;
+  dt_ = planning_params_.dt;
+  v_max_ = planning_params_.v_max;
+  yaw_rate_max_ = planning_params_.yaw_rate_max;
+}
+
 double StageInterface::projectSample(Eigen::Vector3d& sample,
                                      MapManager::VoxelStatus& voxel_status) {
   double max_proj_len = 5.0;
@@ -164,31 +182,60 @@ bool StageInterface::initializePlanner(stage_planner::initializePlanning::Reques
                                        stage_planner::initializePlanning::Response &res)
 {
 
+  graph_manager_->reset();
+
+  graph_manager_->setSharedParams(robot_params_, 
+                                  global_space_params_, 
+                                  local_space_params_);
   graph_manager_->setGlobalFrame(planning_params_.global_frame_id);
   world_frame_id = planning_params_.global_frame_id;
 
   if (req.initialize)
   {
-    initialization = true;
-    explore = true;
-    StageInterface::generateTrajectory();
+    ROS_DEBUG("Planner initialization requested \n");
+    nav_msgs::Path initialization_path;
+    initialization_path.poses.clear();
+    std::vector<geometry_msgs::PoseStamped> initialization_poses;
+    geometry_msgs::PoseStamped init_pose;
 
+    init_pose.pose.position.x = robotState_[0];
+    init_pose.pose.position.y = robotState_[1];
+    init_pose.pose.position.z = robotState_[2];
+    init_pose.pose.orientation.x = 0;
+    init_pose.pose.orientation.y = 0;
+    init_pose.pose.orientation.z = 0;
+    init_pose.pose.orientation.w = 1;
+    initialization_path.poses.push_back(init_pose);
+    init_pose.pose.position.x = robotState_[0];
+    init_pose.pose.position.y = robotState_[1];
+    init_pose.pose.position.z = robotState_[2];
+    init_pose.pose.orientation.x = 0;
+    init_pose.pose.orientation.y = 0;
+    init_pose.pose.orientation.z = 0;
+    init_pose.pose.orientation.w = 1;
+    initialization_path.poses.push_back(init_pose);
+    init_pose.pose.position.x = robotState_[0] + init_x;
+    init_pose.pose.position.y = robotState_[1];
+    init_pose.pose.position.z = robotState_[2];
+    init_pose.pose.orientation.x = 0;
+    init_pose.pose.orientation.y = 0;
+    init_pose.pose.orientation.z = 0;
+    init_pose.pose.orientation.w = 1;
+    initialization_path.poses.push_back(init_pose);
 
-
-    // ac_.waitForServer();
-    // if (ac_.waitForServer(ros::Duration(serverWatingTimeout))) {
+    StageInterface::generateTrajectory(initialization_path);
+    command_Path_Publisher.publish(command_path);
+    planner_initialized = true;
     if (robot_params_.type == RobotType::kGroundRobot) {
 
-    ac_.sendGoal(
-      goal, boost::bind(&StageInterface::actionDoneCallback, this, _1, _2),
-      boost::bind(&StageInterface::actionActiveCallback, this),
-      boost::bind(&StageInterface::actionFeedbackCallback, this, _1));
+      ac_.sendGoal(
+        goal, boost::bind(&StageInterface::actionDoneCallback, this, _1, _2),
+        boost::bind(&StageInterface::actionActiveCallback, this),
+        boost::bind(&StageInterface::actionFeedbackCallback, this, _1));
     }
 
-    // if (reachedEndOfPath()) {
     res.success = true;
     ROS_INFO("Initialization Successful : Ready ");
-    // }
   }
 
   return true;
@@ -300,8 +347,6 @@ void StageInterface::segmentPath(const nav_msgs::Path &path,
                                  nav_msgs::Path &path_seg)
 {
   path_seg.poses.clear();
-  double v_max_ = 1;
-  double yaw_rate_max_ = 0.1;
   if (path.poses.size() == 0)
     return;
   if (path.poses.size() == 1)
@@ -359,56 +404,12 @@ void StageInterface::segmentPath(const nav_msgs::Path &path,
   }
 } // segmentPath
 
-void StageInterface::generateTrajectory()
+void StageInterface::generateTrajectory(nav_msgs::Path raw_path)
 {
-
-  nav_msgs::Path raw_path;
-
-  if (initialization)
-  {
-
-    nav_msgs::Path initialization_path;
-    std::vector<geometry_msgs::PoseStamped> initialization_poses;
-    geometry_msgs::PoseStamped init_pose;
-
-    init_pose.pose.position.x = robotState_[0];
-    init_pose.pose.position.y = robotState_[1];
-    init_pose.pose.position.z = robotState_[2];
-    init_pose.pose.orientation.x = 0;
-    init_pose.pose.orientation.y = 0;
-    init_pose.pose.orientation.z = 0;
-    init_pose.pose.orientation.w = 1;
-    initialization_path.poses.push_back(init_pose);
-    init_pose.pose.position.x = robotState_[0];
-    init_pose.pose.position.y = robotState_[1];
-    init_pose.pose.position.z = init_z_;
-    init_pose.pose.orientation.x = 0;
-    init_pose.pose.orientation.y = 0;
-    init_pose.pose.orientation.z = 0;
-    init_pose.pose.orientation.w = 1;
-    initialization_path.poses.push_back(init_pose);
-    init_pose.pose.position.x = robotState_[0] + init_x_;
-    init_pose.pose.position.y = robotState_[1] + init_y_;
-    init_pose.pose.position.z = init_z_;
-    init_pose.pose.orientation.x = 0;
-    init_pose.pose.orientation.y = 0;
-    init_pose.pose.orientation.z = 0;
-    init_pose.pose.orientation.w = 1;
-    initialization_path.poses.push_back(init_pose);
-    raw_path = initialization_path;
-    initialization = false;
-  }
-  else
-{
-
-    raw_path = exploration_path_;
-  }
-
-  // TODO Insert current position at the begining of exploration path to get smooth start of next path following action.
 
   nav_msgs::Path new_path;
   new_path.poses.clear();
-  segmentPath(raw_path, new_path);
+  StageInterface::segmentPath(raw_path, new_path);
 
   n_seq_++;
   trajectory_msgs::MultiDOFJointTrajectory trajectory_array_;
@@ -467,6 +468,11 @@ void StageInterface::generateTrajectory()
 bool StageInterface::reachedEndOfPath()
 {
 
+  if (command_path.poses.empty()) {
+    ROS_WARN("command path empty \n");
+    return false;
+  }
+
   Eigen::Vector3d end_of_path;
   end_of_path.x() = command_path.poses.back().pose.position.x;
   end_of_path.y() = command_path.poses.back().pose.position.y;
@@ -488,8 +494,6 @@ bool StageInterface::reachedEndOfPath()
 
 void StageInterface::setPath () {
 
-  generateTrajectory();
-
 
   if (robot_params_.type == RobotType::kGroundRobot) {
 
@@ -500,5 +504,67 @@ void StageInterface::setPath () {
       boost::bind(&StageInterface::actionActiveCallback, this),
       boost::bind(&StageInterface::actionFeedbackCallback, this, _1));
   }
+}
+
+void StageInterface::periodicTimerCallback (const ros::TimerEvent& event) {
+
+  nav_msgs::Path exploration_path_;
+  exploration_path_.poses.clear();
+
+  if (planner_initialized and reachedEndOfPath()) {
+
+    GraphManager::GraphStatus status = graph_manager_->runLocalPlanner();
+    switch (status) {
+      case  GraphManager::GraphStatus::OK:
+        ROS_DEBUG("[LOCAL_PLANNER] OK \n");
+        exploration_path_ = graph_manager_->getLocalExplorationPath(); 
+        break;
+      case  GraphManager::GraphStatus::ERR_KDTREE:
+        ROS_WARN("[LOCAL_PLANNER_ERROR] An issue occurred with kdtree data. \n");
+        break;
+      case  GraphManager::GraphStatus::ERR_NO_FEASIBLE_PATH:
+        ROS_WARN("[LOCAL_PLANNER_ERROR] No feasible path was found. \n");
+        break;
+      case  GraphManager::GraphStatus::NO_GAIN:
+        ROS_WARN("[LOCAL_PLANNER_ERROR] Not enough gain \n");
+        break;
+      case  GraphManager::GraphStatus::NOT_OK:
+        ROS_WARN("[LOCAL_PLANNER_ERROR] NOT OK \n");
+        break;
+      default:
+        ROS_WARN("[LOCAL_PLANNER_ERROR] Error occurred in building local graph. \n");
+        break;
+    }
+
+    bool global_planner_trig = false;
+    if (status ==  GraphManager::GraphStatus::NO_GAIN) {
+      status = graph_manager_->runGlobalPlanner();
+      switch (status) {
+        case  GraphManager::GraphStatus::OK:
+          ROS_DEBUG("[GLOBAL_PLANNER] OK \n");
+          exploration_path_ = graph_manager_->getGlobalExplorationPath();
+          break;
+        case  GraphManager::GraphStatus::NO_GAIN:
+          ROS_WARN("[GLOBAL_PLANNER] Not enough gain \n");
+          break;
+        case  GraphManager::GraphStatus::NOT_OK:
+          ROS_WARN("[GLOBAL_PLANNER_ERROR] NOT OK \n");
+          break;
+        default:
+          ROS_WARN("[GLOBAL_PLANNER_ERROR] Error occurred in global graph.");
+          break;
+      }
+    }
+  
+    StageInterface::generateTrajectory(exploration_path_);
+    if (!command_path.poses.empty()) {
+      command_Path_Publisher.publish(command_path);
+      ROS_DEBUG("Published command path \n");
+    }
+
+  }
+
+
+
 }
 

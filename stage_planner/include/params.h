@@ -261,6 +261,8 @@ struct PlanningParams {
   bool freespace_cloud_enable;
   // Robot dynamics
   double v_max;
+  double dt;
+  double init_forward_x;
   double v_homing_max;
   double yaw_rate_max;
   bool yaw_tangent_correction;
@@ -280,6 +282,7 @@ struct PlanningParams {
   double nearest_range;
   double nearest_range_min;
   double nearest_range_max;
+  double local_space;
   bool use_current_state;
   bool geofence_checking_enable;
   // Ground robot specific
