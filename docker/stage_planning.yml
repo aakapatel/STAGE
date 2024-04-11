@@ -27,8 +27,8 @@ windows:
           - roslaunch rotors_gazebo custom_drone.launch 
         - initialization:
           - cde 
-          - sleep 8 
-          - *initialize_stage 
+          # - sleep 8 
+          # - *initialize_stage 
         - controller:  
           - cde 
           - sleep 4

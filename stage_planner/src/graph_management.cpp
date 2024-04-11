@@ -2056,10 +2056,14 @@ void GraphManager::updateGlobalGraph() {
 
   Vertex* vertex = new Vertex(global_graph_->generateVertexID(), robotState_);
   global_graph_->addVertex(vertex);
-  if (prev_pose_vertex_ != nullptr) {
-    vertex->parent = prev_pose_vertex_;
-    prev_pose_vertex_->children.push_back(vertex);
-    double edge_weight = (prev_pose_vertex_->state_3d - vertex->state_3d).norm();
+  vertex->parent = prev_pose_vertex_;
+  prev_pose_vertex_->children.push_back(vertex);
+  double edge_weight = (prev_pose_vertex_->state_3d - vertex->state_3d).norm();
+  MapManager::VoxelStatus vs = map_manager_->getPathStatus(vertex->state.head(3), 
+                                                           prev_pose_vertex_->state.head(3),
+                                                           robot_box_size_, true);
+  if (edge_weight < 2*planning_params_.nearest_range and MapManager::VoxelStatus::kFree == vs) {
+
     global_graph_->addEdge(vertex, prev_pose_vertex_, edge_weight);
   }
 
