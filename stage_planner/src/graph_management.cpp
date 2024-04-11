@@ -222,6 +222,7 @@ void GraphManager::resetSparseGraph()
 void GraphManager::setGlobalFrame (std::string frame_id) {
   if (!frame_id.empty()) {
     visualization_server_->setGlobalFrame(frame_id);
+    world_frame_id = frame_id;
   }
 }
 
@@ -1881,7 +1882,7 @@ bool GraphManager::extractShortestPaths (std::shared_ptr<GraphUtils> graph, Shor
 GraphManager::GraphStatus GraphManager::planLocalPath(std::vector<std::vector<Vertex *>> dijkstra_paths)
 {
 
-  exploration_dir_pose.header.frame_id = m_worldFrameId;
+  exploration_dir_pose.header.frame_id = world_frame_id;
   exploration_dir_pose.header.stamp = ros::Time::now();
   exploration_Direction_Pub.publish(exploration_dir_pose);
   local_exploration_path_.poses.clear();
@@ -1971,19 +1972,30 @@ GraphManager::GraphStatus GraphManager::planLocalPath(std::vector<std::vector<Ve
 
       if (improvement_success) {
         geometry_msgs::PoseStamped pose_mod;
-        pose_mod.header.frame_id = m_worldFrameId;
+        pose_mod.header.frame_id = world_frame_id;
         pose_mod.header.stamp = ros::Time::now();
-        local_exploration_path_.header.frame_id = m_worldFrameId;
+        local_exploration_path_.header.frame_id = world_frame_id;
         local_exploration_path_.header.stamp = ros::Time::now();
 
-        for (int i = 0; i != modified_path.size(); ++i){
+        for (int i = 0; i < modified_path.size(); ++i){
+
+          float angle;
+          if (i == 0) {
+            angle = robotState_[3];
+
+          } else {
+            angle = atan2(modified_path[i].position.y - modified_path[i - 1].position.y,
+                          modified_path[i].position.x - modified_path[i - 1].position.x);
+          }
+          Eigen::Vector3d v(0, 0, angle);
+          Eigen::Quaternion<float> q = Euler2Quaternion(v);
           pose_mod.pose.position.x = modified_path[i].position.x;
           pose_mod.pose.position.y = modified_path[i].position.y;
           pose_mod.pose.position.z = modified_path[i].position.z;
-          pose_mod.pose.orientation.x = 0;
-          pose_mod.pose.orientation.y = 0;
-          pose_mod.pose.orientation.z = 0;
-          pose_mod.pose.orientation.w = 1;
+          pose_mod.pose.orientation.x = q.x();
+          pose_mod.pose.orientation.y = q.y();
+          pose_mod.pose.orientation.z = q.z();
+          pose_mod.pose.orientation.w = q.w();
           local_exploration_path_.poses.push_back(pose_mod);
         }
 
@@ -1995,19 +2007,28 @@ GraphManager::GraphStatus GraphManager::planLocalPath(std::vector<std::vector<Ve
       {
         ROS_WARN("SG --> Improved local path is empty \n");
         geometry_msgs::PoseStamped pose_mod;
-        pose_mod.header.frame_id = m_worldFrameId;
+        pose_mod.header.frame_id = world_frame_id;
         pose_mod.header.stamp = ros::Time::now();
-        local_exploration_path_.header.frame_id = m_worldFrameId;
+        local_exploration_path_.header.frame_id = world_frame_id;
         local_exploration_path_.header.stamp = ros::Time::now();
 
-        for (int i = 0; i != original_path.size(); ++i){
+        for (int i = 0; i < original_path.size(); ++i){
+          float angle;
+          if (i == 0) {
+            angle = robotState_[3];
+          } else {
+            angle = atan2(original_path[i].position.y - original_path[i - 1].position.y,
+                          original_path[i].position.x - original_path[i - 1].position.x);
+          }
+          Eigen::Vector3d v(0, 0, angle);
+          Eigen::Quaternion<float> q = Euler2Quaternion(v);
           pose_mod.pose.position.x = original_path[i].position.x;
           pose_mod.pose.position.y = original_path[i].position.y;
           pose_mod.pose.position.z = original_path[i].position.z;
-          pose_mod.pose.orientation.x = 0;
-          pose_mod.pose.orientation.y = 0;
-          pose_mod.pose.orientation.z = 0;
-          pose_mod.pose.orientation.w = 1;
+          pose_mod.pose.orientation.x = q.x();
+          pose_mod.pose.orientation.y = q.y();
+          pose_mod.pose.orientation.z = q.z();
+          pose_mod.pose.orientation.w = q.w();
           local_exploration_path_.poses.push_back(pose_mod);
         }
 
@@ -2368,7 +2389,7 @@ void GraphManager::expandGlobalGraph(std::vector<std::vector<Vertex *>> dijkstra
       homing_path_pose.pose.orientation.y = 0;    
       homing_path_pose.pose.orientation.z = 0;    
       homing_path_pose.pose.orientation.w = 1;
-      homing_path_pose.header.frame_id = m_worldFrameId;
+      homing_path_pose.header.frame_id = world_frame_id;
       homing_path_pose.header.stamp = ros::Time::now();
       homing_path_.poses.push_back(homing_path_pose);
     }
@@ -2401,19 +2422,29 @@ void GraphManager::setHomingPath () {
 
   if (improvement_success) {
     geometry_msgs::PoseStamped pose_mod;
-    pose_mod.header.frame_id = m_worldFrameId;
+    pose_mod.header.frame_id = world_frame_id;
     pose_mod.header.stamp = ros::Time::now();
-    improved_homing_path_.header.frame_id = m_worldFrameId;
+    improved_homing_path_.header.frame_id = world_frame_id;
     improved_homing_path_.header.stamp = ros::Time::now();
 
-    for (int i = 0; i != modified_path.size(); ++i){
+    for (int i = 0; i < modified_path.size(); ++i){
+          float angle;
+          if (i == 0) {
+            angle = robotState_[3];
+
+          } else {
+            angle = atan2(modified_path[i].position.y - modified_path[i - 1].position.y,
+                          modified_path[i].position.x - modified_path[i - 1].position.x);
+          }
+      Eigen::Vector3d v(0, 0, angle);
+      Eigen::Quaternion<float> q = Euler2Quaternion(v);
       pose_mod.pose.position.x = modified_path[i].position.x;
       pose_mod.pose.position.y = modified_path[i].position.y;
       pose_mod.pose.position.z = modified_path[i].position.z;
-      pose_mod.pose.orientation.x = 0;
-      pose_mod.pose.orientation.y = 0;
-      pose_mod.pose.orientation.z = 0;
-      pose_mod.pose.orientation.w = 1;
+      pose_mod.pose.orientation.x = q.x();
+      pose_mod.pose.orientation.y = q.y();
+      pose_mod.pose.orientation.z = q.z();
+      pose_mod.pose.orientation.w = q.w();
       improved_homing_path_.poses.push_back(pose_mod);
     }
 
@@ -2422,19 +2453,29 @@ void GraphManager::setHomingPath () {
     ROS_WARN("Failed to improve homing path : Publishing raw path \n");
     
     geometry_msgs::PoseStamped pose_mod;
-    pose_mod.header.frame_id = m_worldFrameId;
+    pose_mod.header.frame_id = world_frame_id;
     pose_mod.header.stamp = ros::Time::now();
-    improved_homing_path_.header.frame_id = m_worldFrameId;
+    improved_homing_path_.header.frame_id = world_frame_id;
     improved_homing_path_.header.stamp = ros::Time::now();
 
-    for (int i = 0; i != original_path.size(); ++i){
+    for (int i = 0; i < original_path.size(); ++i){
+          float angle;
+          if (i == 0) {
+            angle = robotState_[3];
+
+          } else {
+            angle = atan2(original_path[i].position.y - original_path[i - 1].position.y,
+                          original_path[i].position.x - original_path[i - 1].position.x);
+          }
+      Eigen::Vector3d v(0, 0, angle);
+      Eigen::Quaternion<float> q = Euler2Quaternion(v);
       pose_mod.pose.position.x = original_path[i].position.x;
       pose_mod.pose.position.y = original_path[i].position.y;
       pose_mod.pose.position.z = original_path[i].position.z;
-      pose_mod.pose.orientation.x = 0;
-      pose_mod.pose.orientation.y = 0;
-      pose_mod.pose.orientation.z = 0;
-      pose_mod.pose.orientation.w = 1;
+      pose_mod.pose.orientation.x = q.x();
+      pose_mod.pose.orientation.y = q.y();
+      pose_mod.pose.orientation.z = q.z();
+      pose_mod.pose.orientation.w = q.w();
       improved_homing_path_.poses.push_back(pose_mod);
     }
 
@@ -2471,7 +2512,6 @@ bool GraphManager::planGlobalPath() {
       // reward = gain - 10*exp(ang*M_PI/180); 
       reward = gain/(path_length + 2); 
       // ROS_DEBUG_STREAM ("new reward = " << reward << "\n");
-
 
       std::pair<std::vector<Vertex *>, double> path_reward_pair = std::make_pair(global_paths_[i].first, reward);
       paths_unordered.push_back(path_reward_pair);
@@ -2514,19 +2554,29 @@ bool GraphManager::planGlobalPath() {
 
       if (improvement_success) {
         geometry_msgs::PoseStamped pose_mod;
-        pose_mod.header.frame_id = m_worldFrameId;
+        pose_mod.header.frame_id = world_frame_id;
         pose_mod.header.stamp = ros::Time::now();
-        global_exploration_path_.header.frame_id = m_worldFrameId;
+        global_exploration_path_.header.frame_id = world_frame_id;
         global_exploration_path_.header.stamp = ros::Time::now();
 
-        for (int i = 0; i != modified_path.size(); ++i){
+        for (int i = 0; i < modified_path.size(); ++i){
+          float angle;
+          if (i == 0) {
+            angle = robotState_[3];
+
+          } else {
+            angle = atan2(modified_path[i].position.y - modified_path[i - 1].position.y,
+                          modified_path[i].position.x - modified_path[i - 1].position.x);
+          }
+          Eigen::Vector3d v(0, 0, angle);
+          Eigen::Quaternion<float> q = Euler2Quaternion(v);
           pose_mod.pose.position.x = modified_path[i].position.x;
           pose_mod.pose.position.y = modified_path[i].position.y;
           pose_mod.pose.position.z = modified_path[i].position.z;
-          pose_mod.pose.orientation.x = 0;
-          pose_mod.pose.orientation.y = 0;
-          pose_mod.pose.orientation.z = 0;
-          pose_mod.pose.orientation.w = 1;
+          pose_mod.pose.orientation.x = q.x();
+          pose_mod.pose.orientation.y = q.y();
+          pose_mod.pose.orientation.z = q.z();
+          pose_mod.pose.orientation.w = q.w();
           global_exploration_path_.poses.push_back(pose_mod);
         }
         visualization_server_->visualizeExplorationPath(global_exploration_path_);
@@ -2534,21 +2584,31 @@ bool GraphManager::planGlobalPath() {
       } 
       else if (j == (paths_unordered.size() - 1))
       {
-        ROS_WARN("GG -> Improved local path is empty \n");
+        ROS_WARN("GG -> Improved global path is empty \n");
         geometry_msgs::PoseStamped pose_mod;
-        pose_mod.header.frame_id = m_worldFrameId;
+        pose_mod.header.frame_id = world_frame_id;
         pose_mod.header.stamp = ros::Time::now();
-        global_exploration_path_.header.frame_id = m_worldFrameId;
+        global_exploration_path_.header.frame_id = world_frame_id;
         global_exploration_path_.header.stamp = ros::Time::now();
 
-        for (int i = 0; i != original_path.size(); ++i){
+        for (int i = 0; i < original_path.size(); ++i){
+          float angle;
+          if (i == 0) {
+            angle = robotState_[3];
+
+          } else {
+            angle = atan2(original_path[i].position.y - original_path[i - 1].position.y,
+                          original_path[i].position.x - original_path[i - 1].position.x);
+          }
+          Eigen::Vector3d v(0, 0, angle);
+          Eigen::Quaternion<float> q = Euler2Quaternion(v);
           pose_mod.pose.position.x = original_path[i].position.x;
           pose_mod.pose.position.y = original_path[i].position.y;
           pose_mod.pose.position.z = original_path[i].position.z;
-          pose_mod.pose.orientation.x = 0;
-          pose_mod.pose.orientation.y = 0;
-          pose_mod.pose.orientation.z = 0;
-          pose_mod.pose.orientation.w = 1;
+          pose_mod.pose.orientation.x = q.x();
+          pose_mod.pose.orientation.y = q.y();
+          pose_mod.pose.orientation.z = q.z();
+          pose_mod.pose.orientation.w = q.w();
           global_exploration_path_.poses.push_back(pose_mod);
         }
 

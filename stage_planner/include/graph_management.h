@@ -313,7 +313,7 @@ private:
   nav_msgs::Path exploration_path_;
 
   // ros::NodeHandle m_nh;
-  std::string m_worldFrameId; // the map frame
+  std::string world_frame_id; // the map frame
   std::string m_odometry;
   std::string m_baseFrameId; // base of the robot for ground plane filtering
   nav_msgs::Odometry m_currentPose;

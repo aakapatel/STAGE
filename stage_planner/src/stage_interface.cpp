@@ -566,16 +566,6 @@ void StageInterface::periodicTimerCallback (const ros::TimerEvent& event) {
     if (exploration_path_.poses.empty()) {
       return;
     }
-    ROS_DEBUG_STREAM("exploration path front \n" << 
-                     exploration_path_.poses.front().pose.position.x << " , " << 
-                     exploration_path_.poses.front().pose.position.y << " , " <<
-                     exploration_path_.poses.front().pose.position.z << " \n ---- \n ");
-
-
-    ROS_DEBUG_STREAM("exploration path back \n" << 
-                     exploration_path_.poses.back().pose.position.x << " , " << 
-                     exploration_path_.poses.back().pose.position.y << " , " <<
-                     exploration_path_.poses.back().pose.position.z << " \n ---- \n ");
 
     StageInterface::generateTrajectory(exploration_path_);
     if (!command_path.poses.empty()) {
