@@ -81,8 +81,6 @@ void StageInterface::setSharedParams(const RobotParams& robot_params,
   dt_ = planning_params_.dt;
   v_max_ = planning_params_.v_max;
   yaw_rate_max_ = planning_params_.yaw_rate_max;
-  ROS_DEBUG_STREAM("init x : " << init_x << "\n");
-  ROS_DEBUG_STREAM("v_max : " << v_max_ << "\n");
 
 }
 
@@ -195,15 +193,6 @@ bool StageInterface::initializePlanner(stage_planner::initializePlanning::Reques
                                   local_space_params_);
   graph_manager_->setGlobalFrame(planning_params_.global_frame_id);
   world_frame_id = planning_params_.global_frame_id;
-  world_frame_id = "world";
-  bool frame_id_set = false;
-  if (world_frame_id == "world") {
-
-    ROS_DEBUG_STREAM("world frame should be set to --> " << world_frame_id << "\n");
-  } else {
-
-    ROS_DEBUG_STREAM("world frame id set to --> " << world_frame_id << "\n");
-  }
 
   if (req.initialize)
   {
@@ -239,9 +228,7 @@ bool StageInterface::initializePlanner(stage_planner::initializePlanning::Reques
     init_pose.pose.orientation.w = 1;
     initialization_path.poses.push_back(init_pose);
 
-    ROS_DEBUG("Before Trajectory generation \n");
     StageInterface::generateTrajectory(initialization_path);
-    ROS_DEBUG("After Trajectory generation \n");
     command_Path_Publisher.publish(command_path);
     planner_initialized = true;
     if (robot_params_.type == RobotType::kGroundRobot) {
@@ -370,7 +357,6 @@ void StageInterface::segmentPath(const nav_msgs::Path &path,
   if (path.poses.size() == 1)
     path_seg.poses.push_back(path.poses[0]);
 
-  ROS_DEBUG_STREAM("path.poses.size" << path.poses.size() << "\n");
   for (int i = 0; i < (path.poses.size() - 1); ++i)
   {
     // Interpolate each segment.
@@ -392,10 +378,8 @@ void StageInterface::segmentPath(const nav_msgs::Path &path,
     }
 
     double dist_norm = distance.norm();
-    ROS_DEBUG_STREAM("dist norm " << dist_norm << "\n");
     double disc = std::min(dt_ * v_max_ / dist_norm,
                            dt_ * yaw_rate_max_ / abs(yaw_direction));
-    ROS_DEBUG_STREAM("disc " << disc << "\n");
 
     bool int_flag = true;
 
@@ -430,9 +414,7 @@ void StageInterface::generateTrajectory(nav_msgs::Path raw_path)
 
   nav_msgs::Path new_path;
   new_path.poses.clear();
-  ROS_DEBUG("Before path segmentation \n"); 
   StageInterface::segmentPath(raw_path, new_path);
-  ROS_DEBUG("After path segmentation \n"); 
 
   n_seq_++;
   trajectory_msgs::MultiDOFJointTrajectory trajectory_array_;
@@ -457,7 +439,6 @@ void StageInterface::generateTrajectory(nav_msgs::Path raw_path)
   command_path.header.frame_id = world_frame_id;
   command_path.header.stamp = ros::Time::now();
 
-  ROS_DEBUG("Before loop \n"); 
   for (int i = 0; i < new_path.poses.size(); i++)
   {
 
@@ -483,7 +464,6 @@ void StageInterface::generateTrajectory(nav_msgs::Path raw_path)
     goal_path.push_back(pose_ref);
 
   }
-  ROS_DEBUG("After loop \n"); 
 
   goal.path = goal_path;
   trajectory_Publisher.publish(trajectory_array_);
@@ -582,7 +562,18 @@ void StageInterface::periodicTimerCallback (const ros::TimerEvent& event) {
           break;
       }
     }
-  
+    
+    ROS_DEBUG_STREAM("exploration path front \n" << 
+                     exploration_path_.poses.front().pose.position.x << " , " << 
+                     exploration_path_.poses.front().pose.position.y << " , " <<
+                     exploration_path_.poses.front().pose.position.z << " \n ---- \n ");
+
+
+    ROS_DEBUG_STREAM("exploration path back \n" << 
+                     exploration_path_.poses.back().pose.position.x << " , " << 
+                     exploration_path_.poses.back().pose.position.y << " , " <<
+                     exploration_path_.poses.back().pose.position.z << " \n ---- \n ");
+
     StageInterface::generateTrajectory(exploration_path_);
     if (!command_path.poses.empty()) {
       command_Path_Publisher.publish(command_path);

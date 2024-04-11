@@ -1884,7 +1884,7 @@ GraphManager::GraphStatus GraphManager::planLocalPath(std::vector<std::vector<Ve
   exploration_dir_pose.header.frame_id = m_worldFrameId;
   exploration_dir_pose.header.stamp = ros::Time::now();
   exploration_Direction_Pub.publish(exploration_dir_pose);
-
+  local_exploration_path_.poses.clear();
   GraphManager::GraphStatus path_status = GraphManager::GraphStatus::ERR_NO_FEASIBLE_PATH;
   local_paths_.clear();
 
@@ -1980,6 +1980,10 @@ GraphManager::GraphStatus GraphManager::planLocalPath(std::vector<std::vector<Ve
           pose_mod.pose.position.x = modified_path[i].position.x;
           pose_mod.pose.position.y = modified_path[i].position.y;
           pose_mod.pose.position.z = modified_path[i].position.z;
+          pose_mod.pose.orientation.x = 0;
+          pose_mod.pose.orientation.y = 0;
+          pose_mod.pose.orientation.z = 0;
+          pose_mod.pose.orientation.w = 1;
           local_exploration_path_.poses.push_back(pose_mod);
         }
 
@@ -2000,6 +2004,10 @@ GraphManager::GraphStatus GraphManager::planLocalPath(std::vector<std::vector<Ve
           pose_mod.pose.position.x = original_path[i].position.x;
           pose_mod.pose.position.y = original_path[i].position.y;
           pose_mod.pose.position.z = original_path[i].position.z;
+          pose_mod.pose.orientation.x = 0;
+          pose_mod.pose.orientation.y = 0;
+          pose_mod.pose.orientation.z = 0;
+          pose_mod.pose.orientation.w = 1;
           local_exploration_path_.poses.push_back(pose_mod);
         }
 
@@ -2402,6 +2410,10 @@ void GraphManager::setHomingPath () {
       pose_mod.pose.position.x = modified_path[i].position.x;
       pose_mod.pose.position.y = modified_path[i].position.y;
       pose_mod.pose.position.z = modified_path[i].position.z;
+      pose_mod.pose.orientation.x = 0;
+      pose_mod.pose.orientation.y = 0;
+      pose_mod.pose.orientation.z = 0;
+      pose_mod.pose.orientation.w = 1;
       improved_homing_path_.poses.push_back(pose_mod);
     }
 
@@ -2419,6 +2431,10 @@ void GraphManager::setHomingPath () {
       pose_mod.pose.position.x = original_path[i].position.x;
       pose_mod.pose.position.y = original_path[i].position.y;
       pose_mod.pose.position.z = original_path[i].position.z;
+      pose_mod.pose.orientation.x = 0;
+      pose_mod.pose.orientation.y = 0;
+      pose_mod.pose.orientation.z = 0;
+      pose_mod.pose.orientation.w = 1;
       improved_homing_path_.poses.push_back(pose_mod);
     }
 
@@ -2507,6 +2523,10 @@ bool GraphManager::planGlobalPath() {
           pose_mod.pose.position.x = modified_path[i].position.x;
           pose_mod.pose.position.y = modified_path[i].position.y;
           pose_mod.pose.position.z = modified_path[i].position.z;
+          pose_mod.pose.orientation.x = 0;
+          pose_mod.pose.orientation.y = 0;
+          pose_mod.pose.orientation.z = 0;
+          pose_mod.pose.orientation.w = 1;
           global_exploration_path_.poses.push_back(pose_mod);
         }
         visualization_server_->visualizeExplorationPath(global_exploration_path_);
@@ -2525,6 +2545,10 @@ bool GraphManager::planGlobalPath() {
           pose_mod.pose.position.x = original_path[i].position.x;
           pose_mod.pose.position.y = original_path[i].position.y;
           pose_mod.pose.position.z = original_path[i].position.z;
+          pose_mod.pose.orientation.x = 0;
+          pose_mod.pose.orientation.y = 0;
+          pose_mod.pose.orientation.z = 0;
+          pose_mod.pose.orientation.w = 1;
           global_exploration_path_.poses.push_back(pose_mod);
         }
 
