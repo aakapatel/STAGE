@@ -64,10 +64,10 @@ BoundedSpaceParams:
     max_val:        [3000.0, 3000.0, 300.0]
   Local:
     type:           kCuboid
-    min_val:        [-10.0, -10.0, -10.0]
-    max_val:        [10.0, 10.0, 10.0]
-    min_extension:  [-10.0, -10.0, -10.0]
-    max_extension:  [10.0, 10.0, 10.0]
+    min_val:        [-15.0, -15.0, -15.0]
+    max_val:        [15.0, 15.0, 15.0]
+    min_extension:  [-15.0, -15.0, -15.0]
+    max_extension:  [15.0, 15.0, 15.0]
   LocalSearch:
     type:           kCuboid
     min_val:        [-50.0, -50.0, -1.0]
@@ -151,7 +151,7 @@ PlanningParams:
   clustering_radius: 0.5
   path_interpolation_distance: 1.5
   
-  time_budget_limit: 480 # seconds
+  time_budget_limit: 30 # seconds
   auto_homing_enable: true
   go_home_if_fully_explored: true
 

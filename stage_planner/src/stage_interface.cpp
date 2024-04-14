@@ -186,6 +186,10 @@ bool StageInterface::initializePlanner(
 
   if (req.initialize) {
     ROS_DEBUG("Planner initialization requested \n");
+
+    exploration_path_.poses.clear();
+    path_iterator_ = 0;
+    rostime_start_ = ros::Time::now();
     nav_msgs::Path initialization_path;
     initialization_path.poses.clear();
     std::vector<geometry_msgs::PoseStamped> initialization_poses;
@@ -230,6 +234,7 @@ bool StageInterface::initializePlanner(
     StageInterface::generateTrajectory(initialization_path);
     command_Path_Publisher.publish(command_path);
     planner_initialized = true;
+    planner_status_ = StageInterface::PlannerStatus::READY;
     if (robot_params_.type == RobotType::kGroundRobot) {
       ac_.sendGoal(
           goal, boost::bind(&StageInterface::actionDoneCallback, this, _1, _2),
@@ -262,6 +267,8 @@ bool StageInterface::homingPlanner(stage_planner::homePlanning::Request& req,
 
 {
   if (req.homing) {
+    manual_homing_triggered_ = true;
+    homing_planner_triggered_ = true;
     return_home = true;
     explore = false;
     res.success = true;
@@ -447,7 +454,7 @@ void StageInterface::generateTrajectory(nav_msgs::Path raw_path) {
 
 bool StageInterface::reachedEndOfPath() {
   if (command_path.poses.empty()) {
-    ROS_WARN("command path empty \n");
+    // ROS_DEBUG("command path empty \n");
     return false;
   }
 
@@ -469,7 +476,7 @@ bool StageInterface::reachedEndOfPath() {
 
 void StageInterface::setPath() {
   if (robot_params_.type == RobotType::kGroundRobot) {
-    ROS_INFO("Ready to set goal to Action Server \n");
+    ROS_DEBUG("Ready to set goal to Action Server \n");
     ac_.waitForServer();
     ac_.sendGoal(
         goal, boost::bind(&StageInterface::actionDoneCallback, this, _1, _2),
@@ -479,10 +486,39 @@ void StageInterface::setPath() {
 }
 
 void StageInterface::periodicTimerCallback(const ros::TimerEvent& event) {
-  nav_msgs::Path exploration_path_;
-  exploration_path_.poses.clear();
+  if (!reachedEndOfPath()) {
+    return;
+  }
 
-  if (planner_initialized and reachedEndOfPath()) {
+  switch (planner_status_) {
+    case StageInterface::PlannerStatus::EXECUTING_PATH:
+      ROS_DEBUG("[PLANNER STATUS : ] Executing path \n");
+      break;
+    case StageInterface::PlannerStatus::READY:
+      ROS_DEBUG("[PLANNER STATUS : ] Ready for new path \n");
+      exploration_path_.poses.clear();
+      path_iterator_ = 0;
+      break;
+    case StageInterface::PlannerStatus::NOT_READY:
+      ROS_WARN("[PLANNER STATUS : ] NOT READY \n");
+      break;
+      return;
+    default:
+      return;
+      break;
+  }
+
+  double time_elapsed = 0.0;
+  if ((ros::Time::now()).toSec() != 0.0) {
+    if (rostime_start_.toSec() == 0.0) rostime_start_ = ros::Time::now();
+    time_elapsed = (double)((ros::Time::now() - rostime_start_).toSec());
+  }
+
+  double time_budget_remaining =
+      planning_params_.time_budget_before_landing - time_elapsed;
+  ROS_WARN_STREAM("Time remaining : " << time_budget_remaining << "s \n");
+  if (time_budget_remaining > 0 && !manual_homing_triggered_ &&
+      planner_status_ == StageInterface::PlannerStatus::READY) {
     GraphManager::GraphStatus status = graph_manager_->runLocalPlanner();
     switch (status) {
       case GraphManager::GraphStatus::OK:
@@ -504,7 +540,7 @@ void StageInterface::periodicTimerCallback(const ros::TimerEvent& event) {
         break;
       default:
         ROS_WARN(
-            "[LOCAL_PLANNER_ERROR] Error occurred in building local graph. \n");
+            "[LOCAL_PLANNER_ERROR] Error occurred in building local graph \n");
         break;
     }
 
@@ -527,23 +563,62 @@ void StageInterface::periodicTimerCallback(const ros::TimerEvent& event) {
           break;
       }
     }
-
+  } else if (time_budget_remaining <= 0 or manual_homing_triggered_) {
+    ROS_WARN("Time limit reached. Auto homing triggered \n");
+    exploration_path_.poses.clear();
+    exploration_path_ = graph_manager_->getHomingPath();
     if (exploration_path_.poses.empty()) {
       return;
+    } else {
+      manual_homing_triggered_ = false;
+      planner_initialized = false;
+      path_iterator_ = 0;
+      // if (homing_planner_triggered_) {
+      //   planner_status_ = StageInterface::PlannerStatus::EXECUTING_PATH;
+      // } else {
+      //   planner_status_ = StageInterface::PlannerStatus::READY;
+      // }
     }
+  }
 
-    StageInterface::generateTrajectory(exploration_path_);
-    if (!command_path.poses.empty()) {
-      command_Path_Publisher.publish(command_path);
+  if (exploration_path_.poses.empty()) {
+    return;
+  }
 
-      if (robot_params_.type == RobotType::kGroundRobot) {
-        ac_.sendGoal(
-            goal,
-            boost::bind(&StageInterface::actionDoneCallback, this, _1, _2),
-            boost::bind(&StageInterface::actionActiveCallback, this),
-            boost::bind(&StageInterface::actionFeedbackCallback, this, _1));
-      }
-      ROS_DEBUG("Published command path \n");
+  nav_msgs::Path temp_path;
+  if (path_iterator_ < (exploration_path_.poses.size())) {
+    temp_path.poses.clear();
+    geometry_msgs::PoseStamped p;
+    p.pose.position.x = robotState_[0];
+    p.pose.position.y = robotState_[1];
+    p.pose.position.z = robotState_[2];
+    p.pose.orientation =
+        exploration_path_.poses[path_iterator_].pose.orientation;
+    p.header.stamp = ros::Time::now();
+    p.header.frame_id = world_frame_id;
+    temp_path.poses.push_back(p);
+    temp_path.poses.push_back(exploration_path_.poses[path_iterator_]);
+    path_iterator_ = path_iterator_ + 1;
+    planner_status_ = StageInterface::PlannerStatus::EXECUTING_PATH;
+  } else {
+    path_iterator_ = 0;
+    exploration_path_.poses.clear();
+    if (homing_planner_triggered_) {
+      planner_status_ = StageInterface::PlannerStatus::NOT_READY;
+    } else {
+      planner_status_ = StageInterface::PlannerStatus::READY;
+    }
+    return;
+  }
+  StageInterface::generateTrajectory(temp_path);
+  if (!command_path.poses.empty()) {
+    command_Path_Publisher.publish(command_path);
+
+    if (robot_params_.type == RobotType::kGroundRobot) {
+      ac_.sendGoal(
+          goal, boost::bind(&StageInterface::actionDoneCallback, this, _1, _2),
+          boost::bind(&StageInterface::actionActiveCallback, this),
+          boost::bind(&StageInterface::actionFeedbackCallback, this, _1));
     }
   }
 }

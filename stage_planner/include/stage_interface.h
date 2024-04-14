@@ -8,6 +8,8 @@
 
 class StageInterface {
  public:
+  enum PlannerStatus { OK = 0, READY, EXECUTING_PATH, NOT_READY };
+
   StageInterface(const ros::NodeHandle& nh, const ros::NodeHandle& nh_private,
                  MapManagerVoxblox<MapManagerVoxbloxServer,
                                    MapManagerVoxbloxVoxel>* map_manager);
@@ -70,6 +72,10 @@ class StageInterface {
   StateVec robotState_;
   Eigen::Quaterniond quat_;
 
+  // status
+  StageInterface::PlannerStatus planner_status_ =
+      StageInterface::PlannerStatus::NOT_READY;
+
   // Subscribers
   ros::Subscriber odometry_Subscriber_;
 
@@ -80,6 +86,7 @@ class StageInterface {
 
   // Timer
 
+  ros::Time rostime_start_;
   ros::Timer planner_periodic_timer_;
 
   std::vector<geometry_msgs::PoseStamped> goal_path;
@@ -98,9 +105,12 @@ class StageInterface {
   double yaw_rate_max_;
   double dt_ = 0.1;
   double init_x = 2;
+  int path_iterator_ = 0;
 
   bool firstTime;
   bool planner_initialized = false;
+  bool manual_homing_triggered_ = false;
+  bool homing_planner_triggered_ = false;
   bool explore = false;  // For debug only! normally should be false.
   bool stop_planning = false;
   bool return_home = false;

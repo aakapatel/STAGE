@@ -1742,7 +1742,7 @@ GraphManager::GraphStatus GraphManager::runLocalPlanner() {
   int frontier_vertices_count = 0;
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
-  GraphManager::updateGlobalGraph();
+  // GraphManager::updateGlobalGraph();
   GraphManager::resetLocalGraph();
   local_dijkstra_paths_.clear();
 
@@ -2049,14 +2049,17 @@ void GraphManager::updateGlobalGraph() {
   vertex->parent = prev_pose_vertex_;
   prev_pose_vertex_->children.push_back(vertex);
   double edge_weight = (prev_pose_vertex_->state_3d - vertex->state_3d).norm();
+  // global_graph_->addEdge(vertex, prev_pose_vertex_, edge_weight);
+  // /*
   MapManager::VoxelStatus vs = map_manager_->getPathStatus(
       vertex->state.head(3), prev_pose_vertex_->state.head(3), robot_box_size_,
       true);
   if (edge_weight < 2 * planning_params_.nearest_range and
-      MapManager::VoxelStatus::kFree == vs) {
+      MapManager::VoxelStatus::kOccupied != vs) {
     global_graph_->addEdge(vertex, prev_pose_vertex_, edge_weight);
-    prev_pose_vertex_ = vertex;
   }
+  // */
+  prev_pose_vertex_ = vertex;
 
   // Add extra edges from pose vertex to densify the graph.
 
@@ -2409,6 +2412,8 @@ void GraphManager::expandGlobalGraph(
 void GraphManager::setHomingPath() {
   path_iterator_ = 0;
   GraphManager::updateGlobalGraph();
+  local_dijkstra_paths_.clear();
+  GraphManager::expandGlobalGraph(local_dijkstra_paths_);
   std::vector<geometry_msgs::Pose> original_path;
   std::vector<geometry_msgs::Pose> modified_path;
   original_path.clear();
@@ -2489,6 +2494,11 @@ void GraphManager::setHomingPath() {
   }
 }
 
+nav_msgs::Path GraphManager::getHomingPath() {
+  GraphManager::setHomingPath();
+  return improved_homing_path_;
+}
+
 bool GraphManager::planGlobalPath() {
   bool path_status = true;
   global_exploration_path_.poses.clear();
@@ -2537,10 +2547,11 @@ bool GraphManager::planGlobalPath() {
     for (int j = 0; j < paths_unordered.size(); j++) {
       std::vector<Vertex*> path = paths_unordered[j].first;
       best_path_.clear();
-      GraphManager::improvePath(path, best_path_);
-      if (best_path_.empty()) {
-        best_path_ = path;
-      }
+      best_path_ = path;
+      // GraphManager::improvePath(path, best_path_);
+      // if (best_path_.empty()) {
+      //   best_path_ = path;
+      // }
       std::vector<geometry_msgs::Pose> original_path;
       std::vector<geometry_msgs::Pose> modified_path;
       original_path.clear();

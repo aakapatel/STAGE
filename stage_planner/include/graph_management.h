@@ -86,6 +86,7 @@ class GraphManager {
   bool planGlobalPath();
   nav_msgs::Path getLocalExplorationPath();
   nav_msgs::Path getGlobalExplorationPath();
+  nav_msgs::Path getHomingPath();
 
   void updateGlobalGraph();
   void expandGlobalGraph(std::vector<std::vector<Vertex*>> dijkstra_paths);
@@ -96,7 +97,6 @@ class GraphManager {
                    double radius);
 
   void setHomingPath();
-
   double projectSample(Eigen::Vector3d& sample,
                        MapManager::VoxelStatus& voxel_status);
   ProjectedEdgeStatus getProjectedEdgeStatus(

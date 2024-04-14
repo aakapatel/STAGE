@@ -609,9 +609,9 @@ void VisualizationServer::visualizeGlobalPaths(
   vertex_marker.ns = "vertices";
   vertex_marker.action = visualization_msgs::Marker::ADD;
   vertex_marker.type = visualization_msgs::Marker::SPHERE_LIST;
-  vertex_marker.scale.x = 0.2;
-  vertex_marker.scale.y = 0.2;
-  vertex_marker.scale.z = 0.2;
+  vertex_marker.scale.x = 0.4;
+  vertex_marker.scale.y = 0.4;
+  vertex_marker.scale.z = 0.4;
   vertex_marker.color.r = 200.0 / 255.0;
   vertex_marker.color.g = 0 / 255.0;
   vertex_marker.color.b = 20.0 / 255.0;
