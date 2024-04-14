@@ -12,10 +12,6 @@ windows:
           - cde
           - sleep 2  
           - mon launch stage_planner stage_interface_smb.launch 
-        - graph_management:
-          - cde 
-          - sleep 4 
-          - mon launch stage_planner graph_management_smb.launch
 
   - publishers:
       # layout: main-vertical 

@@ -4,41 +4,36 @@
 #include "graph_utils.h"
 #include "visualization_server.h"
 
-class GraphManager
-{
-
-public:
-
+class GraphManager {
+ public:
   enum GraphStatus {
     OK = 0,                // Everything is OK as expected.
     READY,                 // Everything is OK as expected.
     ERR_KDTREE,            // Could not search nearest neigbors from kdtree.
     ERR_NO_FEASIBLE_PATH,  // Could not find any path.
     NO_GAIN,               // No non-zero gain found.
-    NOT_OK                // Any other errors.
-  };
-  
-  enum PlannerMode {
-    EXPLORE = 0,
-    RETURN_HOME
+    NOT_OK                 // Any other errors.
   };
 
-  GraphManager(const ros::NodeHandle &nh, const ros::NodeHandle &nh_private, 
-               MapManagerVoxblox<MapManagerVoxbloxServer, MapManagerVoxbloxVoxel> *map_manager);
-  
+  enum PlannerMode { EXPLORE = 0, RETURN_HOME };
+
+  GraphManager(const ros::NodeHandle& nh, const ros::NodeHandle& nh_private,
+               MapManagerVoxblox<MapManagerVoxbloxServer,
+                                 MapManagerVoxbloxVoxel>* map_manager);
+
   void reset();
-  void initializeAttributes ();
+  void initializeAttributes();
   void loadParams();
   void setSharedParams(const RobotParams& robot_params,
                        const BoundedSpaceParams& global_space_params,
                        const BoundedSpaceParams& local_space_params);
   void setState(StateVec& state);
   void setGlobalFrame(std::string frame_id);
-  void setExplorationDirection (geometry_msgs::PoseStamped pose);
+  void setExplorationDirection(geometry_msgs::PoseStamped pose);
   Eigen::Vector3d quaternion_to_rpy(Eigen::Quaterniond q);
   bool sampleState(StateVec root_state, StateVec& vertex);
   bool sampleStateToExpandGraph(StateVec root_state, StateVec& vertex);
-  
+
   bool sampleVertex(Vertex& vertex);
   void expandGraph(std::shared_ptr<GraphUtils> graph_manager,
                    Vertex& new_vertex, ExpandGraphReport& rep,
@@ -47,36 +42,35 @@ public:
 
   Eigen::Quaternion<float> Euler2Quaternion(Eigen::Vector3d v);
 
-  bool extractShortestPaths (std::shared_ptr<GraphUtils> graph, ShortestPathsReport rep, Vertex* root, 
-                             std::vector<std::vector<Vertex *>> &dijkstra_paths);
+  bool extractShortestPaths(std::shared_ptr<GraphUtils> graph,
+                            ShortestPathsReport rep, Vertex* root,
+                            std::vector<std::vector<Vertex*>>& dijkstra_paths);
 
   double getRelativeAngle(Eigen::Vector3d point);
+  double getPathLength(std::vector<Vertex*> path);
 
   StateVec eigenToState(Eigen::Vector3d v);
 
-
   bool modifyPath(pcl::PointCloud<pcl::PointXYZ>* obstacle_pcl,
                   Eigen::Vector3d& p0, Eigen::Vector3d& p1,
-                  Eigen::Vector3d& p1_mod); 
+                  Eigen::Vector3d& p1_mod);
 
   bool improveFreePath(const std::vector<geometry_msgs::Pose>& path_orig,
-                       std::vector<geometry_msgs::Pose>& path_mod,
-                       bool relaxed, bool edge_refinement);
+                       std::vector<geometry_msgs::Pose>& path_mod, bool relaxed,
+                       bool edge_refinement);
 
-  void segmentPath(nav_msgs::Path path,
-                   nav_msgs::Path &path_seg);
-  void improvePath(std::vector<Vertex *> raw_path, std::vector<Vertex *> &path);
+  void segmentPath(nav_msgs::Path path, nav_msgs::Path& path_seg);
+  void improvePath(std::vector<Vertex*> raw_path, std::vector<Vertex*>& path);
 
   std_msgs::ColorRGBA heightMapColor(double h);
 
-
-  void clusterNodes (std::shared_ptr<GraphUtils> g); 
+  void clusterNodes(std::shared_ptr<GraphUtils> g);
   // GRAPH AND PLANNING
   std::vector<int> performShortestPathsClustering(
-    const std::shared_ptr<GraphUtils> graph_manager,
-    const ShortestPathsReport& graph_rep, std::vector<Vertex*>& vertices,
-    double dist_threshold = 0.5, double principle_path_min_length = 0.5,
-    bool refinement_enable = true);
+      const std::shared_ptr<GraphUtils> graph_manager,
+      const ShortestPathsReport& graph_rep, std::vector<Vertex*>& vertices,
+      double dist_threshold = 0.5, double principle_path_min_length = 0.5,
+      bool refinement_enable = true);
 
   void resetLocalGraph();
   void resetPoseGraph();
@@ -87,43 +81,21 @@ public:
 
   GraphManager::GraphStatus runLocalPlanner();
   GraphManager::GraphStatus runGlobalPlanner();
-  GraphManager::GraphStatus planLocalPath(std::vector<std::vector<Vertex *>> dijkstra_paths);
+  GraphManager::GraphStatus planLocalPath(
+      std::vector<std::vector<Vertex*>> dijkstra_paths);
   bool planGlobalPath();
   nav_msgs::Path getLocalExplorationPath();
   nav_msgs::Path getGlobalExplorationPath();
 
-
-  void visualizeLocalGraph();
-
-  void visualizeVoxelGain(std::shared_ptr<GraphUtils> graph);
-
-  void visualizeGlobalGraph();
-
-  void visualizeSparseGraph();
-
-  void visualize();
-
-  double getPathLength(std::vector<Vertex *> path);
-
-  void visualizeLocalPaths(std::vector<std::pair<std::vector<Vertex *>, double>> local_paths);
-
-  void visualizeGlobalPaths(std::vector<std::pair<std::vector<Vertex *>, double>> global_paths);
-  void visualizeImprovedGlobalPaths(std::vector<std::vector<Vertex *>> global_path);
-
-  void visualizePathWaysGraph();
-
-  void visualizePoseGraph ();
-
   void updateGlobalGraph();
-  void expandGlobalGraph(std::vector<std::vector<Vertex *>> dijkstra_paths);
+  void expandGlobalGraph(std::vector<std::vector<Vertex*>> dijkstra_paths);
 
   void computeVolumetricGainRayCasting(StateVec& state, VolumetricGain& vgain);
 
-  void expandGraph (int iterations_max, Vertex* root, Vertex* goal, double radius);
+  void expandGraph(int iterations_max, Vertex* root, Vertex* goal,
+                   double radius);
 
   void setHomingPath();
-
-  void visualizeRepositionPath();
 
   double projectSample(Eigen::Vector3d& sample,
                        MapManager::VoxelStatus& voxel_status);
@@ -140,7 +112,6 @@ public:
 
   double truncate_sample_Z_ = 1;
 
-
   Eigen::Vector3d latest_root;
   Eigen::Vector3d previous_root;
   Eigen::Vector3d overlap_point;
@@ -148,7 +119,7 @@ public:
   bool init = true;
   bool run_local_planner = true;
 
-  Vertex * local_goal_vertex;
+  Vertex* local_goal_vertex;
   Vertex* local_root_vertex;
   Vertex* latest_root_vertex;
   Vertex* prev_pose_vertex_ = nullptr;
@@ -156,15 +127,13 @@ public:
 
   PlannerMode planner_mode_ = GraphManager::PlannerMode::EXPLORE;
   GraphStatus graph_status_ = GraphManager::GraphStatus::OK;
-  
 
-
-private:
+ private:
   ros::NodeHandle nh_;
   ros::NodeHandle nh_private_;
-  MapManagerVoxblox<MapManagerVoxbloxServer,
-  MapManagerVoxbloxVoxel> *map_manager_;
-  
+  MapManagerVoxblox<MapManagerVoxbloxServer, MapManagerVoxbloxVoxel>*
+      map_manager_;
+
   VisualizationServer* visualization_server_;
   std::string sensor_name;
   SensorParams sensor_params_;
@@ -177,12 +146,12 @@ private:
   PlanningParams planning_params_;
 
   RandomSampler random_sampler_;  // x,y,z,yaw: for exploration purpose
-  RandomSampler random_sampler_graph_expansion_;  // x,y,z,yaw: for exploration purpose
+  RandomSampler
+      random_sampler_graph_expansion_;  // x,y,z,yaw: for exploration purpose
   std::vector<BoundedSpaceParams> no_gain_zones_;
-  
 
-  StateVec robotStateWithYaw_;
   StateVec robotState_;
+  StateVec prev_state = Eigen::Vector4d(0, 0, 0, 0);
   std::shared_ptr<GraphUtils> local_graph_;
   std::shared_ptr<GraphUtils> projected_graph_;
   std::shared_ptr<GraphUtils> global_graph_;
@@ -198,9 +167,9 @@ private:
   std::shared_ptr<SampleStatistic> stat_, stat_chrono_;
   std::vector<std::shared_ptr<GraphUtils>> graph_vec_;
 
-  std::vector<Vertex *> state_history;
+  std::vector<Vertex*> state_history;
 
-  kdtree *kd_tree_;
+  kdtree* kd_tree_;
 
   ShortestPathsReport local_graph_rep_;
   ShortestPathsReport global_graph_rep_;
@@ -210,7 +179,7 @@ private:
   ShortestPathsReport pose_graph_rep_;
   ShortestPathsReport sparse_graph_rep_;
 
-  //boolean  
+  // boolean
   bool odometry_ready = false;
   bool local_planner_status_ = true;
   bool global_planner_status_ = false;
@@ -220,7 +189,6 @@ private:
   bool exploration_ongoing_ = false;
   bool local_exploration_ongoing_ = false;
   bool global_exploration_ongoing_ = false;
-  
 
   int vertex_id_ = -1;
   int subgraph_ind_ = -1;
@@ -233,22 +201,21 @@ private:
   int temp_id = -1;
   int fake_id_count = -1;
   int latest_local_graph_id = 0;
-  
-  
-  std::vector<std::vector<Vertex *>> local_dijkstra_paths_;
-  std::vector<std::vector<Vertex *>> global_dijkstra_paths_;
-  std::vector<std::pair<std::vector<Vertex *>, double>> local_paths_;
-  std::vector<std::pair<std::vector<Vertex *>, double>> global_paths_;
+
+  std::vector<std::vector<Vertex*>> local_dijkstra_paths_;
+  std::vector<std::vector<Vertex*>> global_dijkstra_paths_;
+  std::vector<std::pair<std::vector<Vertex*>, double>> local_paths_;
+  std::vector<std::pair<std::vector<Vertex*>, double>> global_paths_;
 
   std::vector<int> global_vertices_ids_;
   std::vector<int> pose_graph_ids_;
-  Vertex * global_root_vertex;
+  Vertex* global_root_vertex;
 
   std::vector<StateVec> sampled_states_;
-  std::list<Vertex *> all_vertices;
-  std::list<Vertex *> path_way_vertices;
+  std::list<Vertex*> all_vertices;
+  std::list<Vertex*> path_way_vertices;
 
-  std::list<Vertex *> sparse_vertices;
+  std::list<Vertex*> sparse_vertices;
   // variables
 
   Eigen::Vector3d robot_box_size_;
@@ -259,29 +226,27 @@ private:
 
   bool build_global_graph_ = false;
 
-  // Global re-positioning in presence of unknown change in environment variables
+  // Global re-positioning in presence of unknown change in environment
+  // variables
 
   bool reached_end_of_local_path_ = true;
   bool reached_end_of_global_path_ = true;
   bool initialize_planner_ = true;
   int local_path_iterator_ = 0;
   int global_path_iterator_ = 0;
-  std::vector<Vertex *> best_local_path_;
-  std::vector<Vertex *> best_global_path_;
-
-
+  std::vector<Vertex*> best_local_path_;
+  std::vector<Vertex*> best_global_path_;
 
   bool reached_end_of_path_ = true;
   int path_iterator_ = 0;
-  std::vector<Vertex *> best_path_;
-  std::vector<Vertex *> homing_dijkstra_path_;
+  std::vector<Vertex*> best_path_;
+  std::vector<Vertex*> homing_dijkstra_path_;
   nav_msgs::Path local_exploration_path_;
   nav_msgs::Path global_exploration_path_;
   nav_msgs::Path homing_path_;
   nav_msgs::Path improved_homing_path_;
 
   //
-
 
   std::string robot_type_ = "kAerial";
   Eigen::Quaterniond quat_;
@@ -313,11 +278,12 @@ private:
   nav_msgs::Path exploration_path_;
 
   // ros::NodeHandle m_nh;
-  std::string world_frame_id; // the map frame
+  std::string world_frame_id;  // the map frame
   std::string m_odometry;
-  std::string m_baseFrameId; // base of the robot for ground plane filtering
+  std::string m_baseFrameId;  // base of the robot for ground plane filtering
   nav_msgs::Odometry m_currentPose;
-  nav_msgs::Odometry m_prevPose; // Holds the point where the direction changed.
+  nav_msgs::Odometry
+      m_prevPose;  // Holds the point where the direction changed.
   std::vector<Eigen::Vector3d> visited_exploration_targets;
 
   // Subscriber

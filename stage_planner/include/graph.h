@@ -7,17 +7,17 @@
 #include <boost/graph/dijkstra_shortest_paths.hpp>
 #include <boost/graph/graph_traits.hpp>
 #include <eigen3/Eigen/Dense>
-//#include <boost/graph/undirected_graph.hpp>
+// #include <boost/graph/undirected_graph.hpp>
+#include <iostream>
+#include <string>
+
+#include <boost/config.hpp>
+#include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/floyd_warshall_shortest.hpp>
+#include <boost/graph/graph_utility.hpp>
 #include <boost/graph/graphviz.hpp>
 #include <boost/property_map/property_map.hpp>
 #include <boost/property_map/transform_value_property_map.hpp>
-
-#include <boost/config.hpp>
-#include <iostream>
-#include <string>
-#include <boost/graph/adjacency_list.hpp>
-#include <boost/graph/graph_utility.hpp>
 // Result of the Djisktra shortest path calculation, one to all vertices.
 struct ShortestPathsReport {
   ShortestPathsReport() : status(false), source_id(0) {}
@@ -43,7 +43,8 @@ class Graph {
   //       GraphType;
   // https://www.boost.org/doc/libs/1_37_0/libs/graph/doc/adjacency_list.html
   // Edge is set to setS type to avoid duplication in adding new edges.
-  // typedef boost::adjacency_list<boost::listS, boost::vecS, boost::undirectedS,
+  // typedef boost::adjacency_list<boost::listS, boost::vecS,
+  // boost::undirectedS,
   typedef boost::adjacency_list<boost::setS, boost::listS, boost::undirectedS,
                                 boost::property<boost::vertex_index_t, int>,
                                 boost::property<boost::edge_weight_t, double>,
@@ -62,8 +63,8 @@ class Graph {
   VertexDescriptor addVertex(int id);
   EdgeDescriptorPair addEdge(int u_id, int v_id, double weight);
   void removeEdge(int u_id, int v_id);
-  void removeVertex (int u_id);
-  void clearVertex (int u_id);
+  void removeVertex(int u_id);
+  void clearVertex(int u_id);
 
   bool findDijkstraShortestPaths(int src_id, ShortestPathsReport& rep);
 

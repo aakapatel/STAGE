@@ -4,7 +4,6 @@
 
 #include <iostream>
 
-
 Polygon2d::Polygon2d(std::vector<Eigen::Vector2d> points) {
   for (auto p = points.begin(); p != points.end(); ++p) {
     bg::append(polygon_.outer(), Point2dType(p->x(), p->y()));
@@ -77,7 +76,8 @@ void Polygon2d::convertEigenToPoint(Eigen::Vector2d& e, Point2dType& p) {
 
 void GeofenceManager::addGeofenceArea(const geometry_msgs::Polygon poly_msg,
                                       bool merge) {
-  ROS_WARN_COND(global_verbosity >= Verbosity::WARN, "Added new geofence area.");
+  ROS_WARN_COND(global_verbosity >= Verbosity::WARN,
+                "Added new geofence area.");
   Polygon2d poly2d(poly_msg);
   addGeofenceArea(poly2d, merge);
 }
@@ -87,7 +87,8 @@ void GeofenceManager::addGeofenceArea(Polygon2d& poly, bool merge) {
   if (merge) {
     mergeGeofenceAreas();
   }
-  ROS_WARN_COND(global_verbosity >= Verbosity::WARN, "Number of geofence areas: %d", (int)geofence_list_.size());
+  ROS_WARN_COND(global_verbosity >= Verbosity::WARN,
+                "Number of geofence areas: %d", (int)geofence_list_.size());
 }
 
 void GeofenceManager::removeGeofenceAreaWithID(int id) {
@@ -128,7 +129,8 @@ void GeofenceManager::mergeGeofenceAreas() {
             break;
           } else {
             // Create more than one polygon.
-            ROS_WARN_COND(global_verbosity >= Verbosity::WARN, "Polygon with inner ring or they don't intersect.");
+            ROS_WARN_COND(global_verbosity >= Verbosity::WARN,
+                          "Polygon with inner ring or they don't intersect.");
           }
         }
       }

@@ -1,139 +1,119 @@
 #ifndef GRAPH_UTILS_H
 #define GRAPH_UTILS_H
 
-#include "graph.h"
-
-#include <cmath>
-#include <fstream>
-#include <iostream>
-#include <list>
-#include <numeric>
-#include <unordered_map>
-
-#include <geometry_msgs/Point.h>
-#include "std_msgs/Int64.h"
-#include <ros/message_traits.h>
-#include <ros/serialization.h>
-#include <stdio.h>
-#include <iostream>
-#include <unordered_map>
-#include <vector>
-#include <eigen3/Eigen/Dense>
-#include <geometry_msgs/PoseWithCovarianceStamped.h>
-#include <nav_msgs/Odometry.h>
-#include <ros/ros.h>
-#include <bits/stdc++.h>
-#include <sensor_msgs/PointCloud2.h>
-#include <message_filters/subscriber.h>
-#include <std_msgs/ColorRGBA.h>
-#include <tf/transform_listener.h>
-#include <tf/message_filter.h>
-#include <nav_msgs/Odometry.h>
-#include <pcl/point_types.h>
-#include <pcl/conversions.h>
-#include <pcl_ros/transforms.h>
-#include <pcl/sample_consensus/method_types.h>
-#include <pcl/sample_consensus/model_types.h>
-#include <pcl/segmentation/sac_segmentation.h>
-#include <pcl/io/pcd_io.h>
-#include <pcl/filters/extract_indices.h>
-#include <pcl/filters/passthrough.h>
-#include <pcl_conversions/pcl_conversions.h>
-#include <octomap_msgs/Octomap.h>
-#include <octomap_msgs/GetOctomap.h>
-#include <octomap_msgs/BoundingBoxQuery.h>
-#include <octomap_msgs/conversions.h>
-#include <octomap_ros/conversions.h>
-#include <octomap/octomap.h>
-#include <octomap/OcTreeKey.h>
-#include <visualization_msgs/MarkerArray.h>
-#include <nav_msgs/OccupancyGrid.h>
-#include <std_msgs/String.h>
-#include <ros/ros.h>
-#include <list>
-#include <chrono>
-#include <visualization_msgs/Marker.h>
-#include <geometry_msgs/PoseStamped.h>
-#include <nav_msgs/Path.h>
-#include <nav_msgs/Odometry.h>
-#include <math.h>
 #include <dlfcn.h>
+#include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
-#include <tf/tf.h>
-#include <ros/package.h>
-#include <ros/console.h>
-#include <geometry_msgs/Pose.h>
-#include <geometry_msgs/PoseStamped.h>
-#include <geometry_msgs/Point.h>
-#include <geometry_msgs/Vector3Stamped.h>
-#include <limits>
-#include <set>
-#include <utility>
+
 #include <algorithm>
-#include <iterator>
-#include <iostream>
-#include <vector>
-#include <queue>
-#include <cmath>
-#include <string>
+#include <chrono>
 #include <climits>
-#include <memory>
+#include <cmath>
 #include <fstream>
+#include <iostream>
+#include <iterator>
+#include <limits>
+#include <list>
+#include <memory>
+#include <numeric>
+#include <queue>
+#include <set>
+#include <string>
+#include <unordered_map>
+#include <utility>
 #include <variant>
-#include <mav_msgs/Status.h>
-#include <mav_msgs/conversions.h>
-#include <mav_msgs/default_topics.h>
-#include <trajectory_msgs/MultiDOFJointTrajectory.h>
-#include <geometry_msgs/PoseArray.h>
-#include <omp.h>
+#include <vector>
 
-#include "stage_planner/frontierRequest.h"
-#include "stage_planner/isFrontier.h"
-#include "stage_planner/explorationPath.h"
-#include "stage_planner/initializePlanning.h"
-#include "stage_planner/stopPlanning.h"
-#include "stage_planner/homePlanning.h"
-
-#include "map_manager.h"
-#include "map_manager_voxblox_impl.h"
-#include "params.h"
-#include "trajectory.h"
-#include "geofence_manager.h"
-#include "random_sampler.h"
-
+#include <bits/stdc++.h>
 #include <eigen3/Eigen/Dense>
+#include <geometry_msgs/Point.h>
 #include <geometry_msgs/PointStamped.h>
 #include <geometry_msgs/Polygon.h>
 #include <geometry_msgs/PolygonStamped.h>
+#include <geometry_msgs/Pose.h>
+#include <geometry_msgs/PoseArray.h>
+#include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/PoseWithCovarianceStamped.h>
+#include <geometry_msgs/Vector3Stamped.h>
 #include <kdtree/kdtree.h>
+#include <mav_msgs/Status.h>
+#include <mav_msgs/conversions.h>
+#include <mav_msgs/default_topics.h>
+#include <message_filters/subscriber.h>
+#include <nav_msgs/OccupancyGrid.h>
+#include <nav_msgs/Odometry.h>
+#include <nav_msgs/Path.h>
+#include <octomap/OcTreeKey.h>
+#include <octomap/octomap.h>
+#include <octomap_msgs/BoundingBoxQuery.h>
+#include <octomap_msgs/GetOctomap.h>
+#include <octomap_msgs/Octomap.h>
+#include <octomap_msgs/conversions.h>
+#include <octomap_ros/conversions.h>
+#include <omp.h>
 #include <pcl/common/distances.h>
+#include <pcl/conversions.h>
 #include <pcl/filters/crop_box.h>
 #include <pcl/filters/crop_hull.h>
+#include <pcl/filters/extract_indices.h>
+#include <pcl/filters/passthrough.h>
+#include <pcl/io/pcd_io.h>
 #include <pcl/pcl_macros.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
+#include <pcl/sample_consensus/method_types.h>
+#include <pcl/sample_consensus/model_types.h>
+#include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/surface/convex_hull.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl_ros/point_cloud.h>
 #include <pcl_ros/transforms.h>
+#include <ros/console.h>
+#include <ros/message_traits.h>
+#include <ros/package.h>
+#include <ros/ros.h>
+#include <ros/serialization.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <std_msgs/Bool.h>
+#include <std_msgs/ColorRGBA.h>
 #include <std_msgs/Float32MultiArray.h>
+#include <std_msgs/String.h>
 #include <std_srvs/Trigger.h>
+#include <tf/message_filter.h>
+#include <tf/tf.h>
 #include <tf/transform_datatypes.h>
 #include <tf/transform_listener.h>
+#include <trajectory_msgs/MultiDOFJointTrajectory.h>
+#include <visualization_msgs/Marker.h>
+#include <visualization_msgs/MarkerArray.h>
 
-typedef Eigen::Vector3d State; // x, y, z
+#include "geofence_manager.h"
+#include "graph.h"
+#include "map_manager.h"
+#include "map_manager_voxblox_impl.h"
+#include "params.h"
+#include "random_sampler.h"
+#include "stage_planner/explorationPath.h"
+#include "stage_planner/frontierRequest.h"
+#include "stage_planner/homePlanning.h"
+#include "stage_planner/initializePlanning.h"
+#include "stage_planner/isFrontier.h"
+#include "stage_planner/stopPlanning.h"
+#include "std_msgs/Int64.h"
+#include "trajectory.h"
+
+typedef Eigen::Vector3d State;  // x, y, z
 
 struct VolumetricGain {
   VolumetricGain()
-    : gain(0),
-    accumulative_gain(0),
-    unknown_percentage(0),
-    num_unknown_voxels(0),
-    num_free_voxels(0),
-    num_occupied_voxels(0),
-    num_unknown_surf_voxels(0) {}
+      : gain(0),
+        accumulative_gain(0),
+        unknown_percentage(0),
+        num_unknown_voxels(0),
+        num_free_voxels(0),
+        num_occupied_voxels(0),
+        num_unknown_surf_voxels(0) {}
 
   void reset() {
     gain = 0;
@@ -168,13 +148,12 @@ struct VolumetricGain {
 
   void printGain() {
     std::cout << "Gains: " << gain << ", " << num_unknown_voxels << ", "
-      << num_occupied_voxels << ", " << num_free_voxels << std::endl;
-    std::cout << "Unknown percentage : " << unknown_percentage << "\n"; 
+              << num_occupied_voxels << ", " << num_free_voxels << std::endl;
+    std::cout << "Unknown percentage : " << unknown_percentage << "\n";
   }
 };
 
 // main back bone of the graph object
-
 
 struct SampleStatistic {
   SampleStatistic()
@@ -200,30 +179,28 @@ struct SampleStatistic {
   void printTime() {
     total_time = build_graph_time + compute_exp_gain_time + shortest_path_time +
                  evaluate_graph_time;
-    ROS_INFO_COND(
-        global_verbosity >= Verbosity::INFO,
-        "Time statistics:\n \
+    ROS_INFO_COND(global_verbosity >= Verbosity::INFO,
+                  "Time statistics:\n \
         Build graph    : %3.3f (s)\n \
         Compute gain   : %3.3f (s)\n \
         Dijkstra       : %3.3f (s)\n \
         Evaluate graph : %3.3f (s)\n \
         Total          : %3.3f (s)",
-        build_graph_time, compute_exp_gain_time, shortest_path_time,
-        evaluate_graph_time, total_time);
+                  build_graph_time, compute_exp_gain_time, shortest_path_time,
+                  evaluate_graph_time, total_time);
   }
   void printTime(std::string title) {
     total_time = build_graph_time + compute_exp_gain_time + shortest_path_time +
                  evaluate_graph_time;
-    ROS_INFO_COND(
-        global_verbosity >= Verbosity::INFO,
-        "Time statistics (%s):\n \
+    ROS_INFO_COND(global_verbosity >= Verbosity::INFO,
+                  "Time statistics (%s):\n \
         Build graph    : %3.3f (ms)\n \
         Compute gain   : %3.3f (ms)\n \
         Dijkstra       : %3.3f (ms)\n \
         Evaluate graph : %3.3f (ms)\n \
         Total          : %3.3f (ms)",
-        title.c_str(), build_graph_time, compute_exp_gain_time,
-        shortest_path_time, evaluate_graph_time, total_time);
+                  title.c_str(), build_graph_time, compute_exp_gain_time,
+                  shortest_path_time, evaluate_graph_time, total_time);
   }
 };
 
@@ -263,15 +240,15 @@ struct Vertex {
   std::vector<Vertex*> children;
   // Distance to root.
   double distance;
-  // exploration gain 
+  // exploration gain
   double gain;
-  // volumetric gain 
+  // volumetric gain
   double volumetric_gain;
-  // number of edges 
+  // number of edges
   int edges;
-  // If it is root vertex 
+  // If it is root vertex
   bool is_root;
-  // If node is randomly sampled 
+  // If node is randomly sampled
   bool is_leaf_vertex;
   // If a vertex is already evaluated to be a frontier
   bool is_evaluated;
@@ -287,15 +264,14 @@ struct Vertex {
   bool is_hanging;
   // if point inside frustum
   bool is_inside_frustum;
-  // cluster id 
+  // cluster id
   int cluster_id;
-  // Sub graph id to keep track while adding to global graph 
+  // Sub graph id to keep track while adding to global graph
   int sub_id;
-  // Sub graph index 
+  // Sub graph index
   int sub_graph_id;
-  // Neighbours 
+  // Neighbours
   // std::vector<Vertex *> neighbours;
-
 };
 
 enum class ExpandGraphStatus {
@@ -319,29 +295,24 @@ struct ExpandGraphReport {
   Vertex* vertex_added;
 };
 
-
-
-
-
 class GraphUtils {
-public:
-
+ public:
   GraphUtils();
 
   // Initialize a new graph.
   void reset();
 
-  double distanceBetweenVertices (Vertex* v, Vertex* u);
+  double distanceBetweenVertices(Vertex* v, Vertex* u);
 
   // Could change an index to break down the graph into sug-graphs.
   int generateSubgraphIndex();
   // Generate ID for new vertex.
   int generateVertexID();
 
-  void insertVertexKdtree (Vertex* v);
+  void insertVertexKdtree(Vertex* v);
 
-  bool vertexExist (StateVec s); 
-  bool edgeExist (int source_id, int target_id);
+  bool vertexExist(StateVec s);
+  bool edgeExist(int source_id, int target_id);
   // Basic functions on graph including add new vertex and edge.
   void addVertex(Vertex* v);
   void addEdge(Vertex* v, Vertex* u, double weight);
@@ -349,15 +320,14 @@ public:
   void removeVertex(int id);
   void clearVertex(int id);
 
-
   int getNumVertices() { return graph_->getNumVertices(); }
   int getNumEdges() { return graph_->getNumEdges(); }
 
   // Vertex* getVertex(int id) { return vertices_map_[id]; }
 
-  Vertex* getVertexByState (StateVec s);
+  Vertex* getVertexByState(StateVec s);
 
-  int getIdCount ();
+  int getIdCount();
   void updateFrontierVertices();
   bool findShortestPaths(ShortestPathsReport& rep);
   bool findShortestPaths(int source_id, ShortestPathsReport& rep);
@@ -383,20 +353,20 @@ public:
   bool getNearestVertices(const StateVec* state, double range,
                           std::vector<Vertex*>* v_res);
 
-  Vertex* getVertexBySubId (int s_id);
+  Vertex* getVertexBySubId(int s_id);
 
   void findLeafVertices(const ShortestPathsReport& rep);
   Vertex* getVertex(int id) { return vertices_map_[id]; }
-  int getNumNeighbours (Vertex* v);
+  int getNumNeighbours(Vertex* v);
 
-  void clearStateHistory ();
+  void clearStateHistory();
 
-  // Boost graph 
+  // Boost graph
   std::shared_ptr<Graph> graph_;
   // Mapping from vertex id to vertex property.
   std::unordered_map<int, Vertex*> vertices_map_;
   // id:  <neighbor id, edge cost>
-  std::map<int, std::vector<std::pair<int, double>>> edge_map_;  
+  std::map<int, std::vector<std::pair<int, double>>> edge_map_;
 
   int subgraph_ind_ = -1;
   int gain_max = 1;
@@ -407,8 +377,8 @@ public:
   std::vector<int> state_ids_;
   std::list<int> frontier_vertices_ids_;
   std::vector<int> leaf_vertices_ids_;
-private:
 
+ private:
   // IDs are non-negative integer from 0 (root node)
   // and increased as adding new sub-graph or new vertices.
   // int subgraph_ind_ = -1;
@@ -420,7 +390,6 @@ private:
   // Map from local id for Boost Graph Lib to global ID including
   // <sub-graph-id,vertex-id>. This is mainly for debug purpose.
   std::unordered_map<int, std::pair<int, int>> local_id_map_;
-
 };
 
 // GraphUtils::GraphUtils() {
@@ -429,4 +398,4 @@ private:
 // GraphUtils::~GraphUtils() {
 // }
 
-#endif 
+#endif

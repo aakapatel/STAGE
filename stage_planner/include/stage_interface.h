@@ -1,17 +1,17 @@
 #ifndef STAGE_INTERFACE_H
 #define STAGE_INTERFACE_H
 
-#include "graph_management.h"
-
 #include <actionlib/client/simple_action_client.h>
+
+#include "graph_management.h"
 #include "stage_planner/pathFollowerActionAction.h"
 
-class StageInterface
-{
-public:
-  StageInterface(const ros::NodeHandle &nh, const ros::NodeHandle &nh_private, 
-                 MapManagerVoxblox<MapManagerVoxbloxServer, MapManagerVoxbloxVoxel> *map_manager);
-  
+class StageInterface {
+ public:
+  StageInterface(const ros::NodeHandle& nh, const ros::NodeHandle& nh_private,
+                 MapManagerVoxblox<MapManagerVoxbloxServer,
+                                   MapManagerVoxbloxVoxel>* map_manager);
+
   void initializeAttributes();
   void loadParams();
   void setSharedParams(const RobotParams& robot_params,
@@ -19,44 +19,42 @@ public:
                        const BoundedSpaceParams& local_space_params);
   double projectSample(Eigen::Vector3d& sample,
                        MapManager::VoxelStatus& voxel_status);
-  bool initializePlanner (stage_planner::initializePlanning::Request &req,
-                          stage_planner::initializePlanning::Response &res);
+  bool initializePlanner(stage_planner::initializePlanning::Request& req,
+                         stage_planner::initializePlanning::Response& res);
 
-  bool stopPlanner (stage_planner::stopPlanning::Request &req,
-                    stage_planner::stopPlanning::Response &res);
+  bool stopPlanner(stage_planner::stopPlanning::Request& req,
+                   stage_planner::stopPlanning::Response& res);
 
-  bool homingPlanner (stage_planner::homePlanning::Request &req,
-                      stage_planner::homePlanning::Response &res);
+  bool homingPlanner(stage_planner::homePlanning::Request& req,
+                     stage_planner::homePlanning::Response& res);
 
   Eigen::Vector3d quaternion_to_rpy(Eigen::Quaterniond q);
   Eigen::Quaternion<float> Euler2Quaternion(Eigen::Vector3d v);
   void odometryCallback(const nav_msgs::Odometry& odom);
-  double calculateDistance (Eigen::Vector3d p1, Eigen::Vector3d p2);
-  void segmentPath(const nav_msgs::Path& path,
-                   nav_msgs::Path& path_seg);
-  void generateTrajectory (nav_msgs::Path);
-  
+  double calculateDistance(Eigen::Vector3d p1, Eigen::Vector3d p2);
+  void segmentPath(const nav_msgs::Path& path, nav_msgs::Path& path_seg);
+  void generateTrajectory(nav_msgs::Path);
 
-  bool actionDoneCallback(const actionlib::SimpleClientGoalState& state,
-                          const stage_planner::pathFollowerActionResultConstPtr& result);
+  bool actionDoneCallback(
+      const actionlib::SimpleClientGoalState& state,
+      const stage_planner::pathFollowerActionResultConstPtr& result);
   void actionActiveCallback();
-  void actionFeedbackCallback(const stage_planner::pathFollowerActionFeedbackConstPtr& 
-                              feedback);
-  bool reachedEndOfPath ();
+  void actionFeedbackCallback(
+      const stage_planner::pathFollowerActionFeedbackConstPtr& feedback);
+  bool reachedEndOfPath();
   void setPath();
 
-  void periodicTimerCallback (const ros::TimerEvent& event);
+  void periodicTimerCallback(const ros::TimerEvent& event);
 
-private:
-
+ private:
   ros::NodeHandle nh_;
   ros::NodeHandle nh_private_;
-  MapManagerVoxblox<MapManagerVoxbloxServer,
-  MapManagerVoxbloxVoxel> *map_manager_;
+  MapManagerVoxblox<MapManagerVoxbloxServer, MapManagerVoxbloxVoxel>*
+      map_manager_;
   actionlib::SimpleActionClient<stage_planner::pathFollowerActionAction> ac_;
   const double serverWatingTimeout = 1.0;
   stage_planner::pathFollowerActionGoal goal;
-  
+
   GraphManager* graph_manager_;
   VisualizationServer* visualization_server_;
   std::string sensor_name;
@@ -72,22 +70,19 @@ private:
   StateVec robotState_;
   Eigen::Quaterniond quat_;
 
-  // Subscribers 
+  // Subscribers
   ros::Subscriber odometry_Subscriber_;
 
   // Services
   ros::ServiceServer planner_initialization_service_;
   ros::ServiceServer planner_stop_service_;
   ros::ServiceServer planner_homing_service_;
-  
-  // Timer 
+
+  // Timer
 
   ros::Timer planner_periodic_timer_;
 
-
-
   std::vector<geometry_msgs::PoseStamped> goal_path;
-
 
   ros::Publisher trajectory_Publisher;
   ros::Publisher command_Path_Publisher;
@@ -98,28 +93,24 @@ private:
   bool planning_status_global = false;
   bool planning_status_homing = false;
 
-
-
   int n_seq_;
   double v_max_;
   double yaw_rate_max_;
   double dt_ = 0.1;
   double init_x = 2;
 
-  
   bool firstTime;
   bool planner_initialized = false;
-  bool explore = false; // For debug only! normally should be false.
+  bool explore = false;  // For debug only! normally should be false.
   bool stop_planning = false;
   bool return_home = false;
   bool start_planner_first_time = true;
 
   bool fetch_new_path_ = true;
 
-  double init_x_, init_y_, init_z_; 
+  double init_x_, init_y_, init_z_;
 
-  //reference tracking utilities
-
+  // reference tracking utilities
 };
 
 #endif

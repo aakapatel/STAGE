@@ -5,55 +5,48 @@ VisualizationServer::VisualizationServer(const ros::NodeHandle& nh,
   nh_ = nh;
   nh_private_ = nh_private;
 
+  exploration_Path_Vis_Pub =
+      nh_.advertise<nav_msgs::Path>("exploration_path", 10);
 
-  exploration_Path_Vis_Pub = 
-    nh_.advertise<nav_msgs::Path>("exploration_path", 10);
+  homing_Path_Vis_Pub = nh_.advertise<nav_msgs::Path>("homing_path", 10);
 
-  homing_Path_Vis_Pub = 
-    nh_.advertise<nav_msgs::Path>("homing_path", 10);
+  exploration_Direction_Vis_Pub =
+      nh_.advertise<geometry_msgs::PoseStamped>("exploration_direction", 10);
 
-  exploration_Direction_Vis_Pub = 
-    nh_.advertise<geometry_msgs::PoseStamped>("exploration_direction", 10);
+  local_Graph_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>(
+      "local_planning_graph", 10);
 
-  local_Graph_Vis_Pub_ = 
-    nh_.advertise<visualization_msgs::MarkerArray>("local_planning_graph", 10);
+  voxel_Gain_Vis_Pub_ =
+      nh_.advertise<visualization_msgs::MarkerArray>("voxel_gain", 10);
 
-  voxel_Gain_Vis_Pub_ = 
-    nh_.advertise<visualization_msgs::MarkerArray>("voxel_gain", 10);
+  global_Graph_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>(
+      "global_planning_graph", 10);
 
-  global_Graph_Vis_Pub_ = 
-    nh_.advertise<visualization_msgs::MarkerArray>("global_planning_graph", 10);
+  path_Ways_Graph_Vis_Pub_ =
+      nh_.advertise<visualization_msgs::MarkerArray>("path_ways_graph", 10);
 
-  path_Ways_Graph_Vis_Pub_ = 
-    nh_.advertise<visualization_msgs::MarkerArray>("path_ways_graph", 10);
+  pose_Graph_Vis_Pub_ =
+      nh_.advertise<visualization_msgs::MarkerArray>("pose_graph", 10);
 
-  pose_Graph_Vis_Pub_ = 
-    nh_.advertise<visualization_msgs::MarkerArray>("pose_graph", 10);
+  local_Paths_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>(
+      "local_dijkstra_paths", 10);
 
-  local_Paths_Vis_Pub_ = 
-    nh_.advertise<visualization_msgs::MarkerArray>("local_dijkstra_paths", 10);
-
-  global_Paths_Vis_Pub_ = 
-    nh_.advertise<visualization_msgs::MarkerArray>("global_dijkstra_paths", 10);
+  global_Paths_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>(
+      "global_dijkstra_paths", 10);
 
   pcl_Pub_ = nh_.advertise<sensor_msgs::PointCloud2>("map", 10);
-  
-  reposition_Path_Vis_Pub_ = 
-    nh_.advertise<visualization_msgs::MarkerArray>("global_repos_path", 10);
 
-  random_Nodes_Vis_Pub_ = 
-    nh_.advertise<visualization_msgs::MarkerArray>("random_nodes", 10);
+  reposition_Path_Vis_Pub_ =
+      nh_.advertise<visualization_msgs::MarkerArray>("global_repos_path", 10);
 
-  sparse_Graph_Vis_Pub_ = 
-    nh_.advertise<visualization_msgs::MarkerArray>("sparse_graph", 10);
+  random_Nodes_Vis_Pub_ =
+      nh_.advertise<visualization_msgs::MarkerArray>("random_nodes", 10);
 
-
+  sparse_Graph_Vis_Pub_ =
+      nh_.advertise<visualization_msgs::MarkerArray>("sparse_graph", 10);
 }
 
-
-std_msgs::ColorRGBA VisualizationServer::getGainColor(double h)
-{
-
+std_msgs::ColorRGBA VisualizationServer::getGainColor(double h) {
   std_msgs::ColorRGBA color;
   color.a = 0.8;
   // blend over HSV-values (more colors)
@@ -68,13 +61,11 @@ std_msgs::ColorRGBA VisualizationServer::getGainColor(double h)
 
   i = floor(h);
   f = h - i;
-  if (!(i & 1))
-    f = 1 - f; // if i is even
+  if (!(i & 1)) f = 1 - f;  // if i is even
   m = v * (1 - s);
   n = v * (1 - s * f);
 
-  switch (i)
-  {
+  switch (i) {
     case 6:
     case 0:
       color.r = v;
@@ -116,16 +107,13 @@ std_msgs::ColorRGBA VisualizationServer::getGainColor(double h)
   return color;
 }
 
-void VisualizationServer::visualizePathWaysGraph(std::shared_ptr<GraphUtils> 
-                                                 path_ways_graph) 
-{
-
-
+void VisualizationServer::visualizePathWaysGraph(
+    std::shared_ptr<GraphUtils> path_ways_graph) {
   if (path_ways_graph->getNumVertices() == 0) {
     return;
   }
   std::shared_ptr<Graph> g = path_ways_graph->graph_;
-  std::unordered_map<int, Vertex *> &v_map = path_ways_graph->vertices_map_;
+  std::unordered_map<int, Vertex*>& v_map = path_ways_graph->vertices_map_;
 
   visualization_msgs::MarkerArray marker_array;
   std_msgs::ColorRGBA vertex_color;
@@ -155,10 +143,9 @@ void VisualizationServer::visualizePathWaysGraph(std::shared_ptr<GraphUtils>
   edge_marker.frame_locked = false;
 
   std::pair<Graph::GraphType::edge_iterator, Graph::GraphType::edge_iterator>
-  ei;
+      ei;
   g->getEdgeIterator(ei);
-  for (Graph::GraphType::edge_iterator it = ei.first; it != ei.second; ++it)
-  {
+  for (Graph::GraphType::edge_iterator it = ei.first; it != ei.second; ++it) {
     int src_id, tgt_id;
     double weight;
     std::tie(src_id, tgt_id, weight) = g->getEdgeProperty(it);
@@ -189,15 +176,12 @@ void VisualizationServer::visualizePathWaysGraph(std::shared_ptr<GraphUtils>
   vertex_marker.frame_locked = false;
 
   std::pair<Graph::GraphType::vertex_iterator,
-  Graph::GraphType::vertex_iterator>
-  vi;
+            Graph::GraphType::vertex_iterator>
+      vi;
   g->getVertexIterator(vi);
-  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
-  {
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
     int id = g->getVertexProperty(it);
-    if (v_map[id]->vol_gain.is_frontier)
-    {
-
+    if (v_map[id]->vol_gain.is_frontier) {
       geometry_msgs::Point p1;
       p1.x = v_map[id]->state[0];
       p1.y = v_map[id]->state[1];
@@ -205,7 +189,6 @@ void VisualizationServer::visualizePathWaysGraph(std::shared_ptr<GraphUtils>
       vertex_marker.colors.push_back(frontier_color);
       vertex_marker.points.push_back(p1);
     } else {
-
       geometry_msgs::Point p1;
       p1.x = v_map[id]->state[0];
       p1.y = v_map[id]->state[1];
@@ -213,16 +196,14 @@ void VisualizationServer::visualizePathWaysGraph(std::shared_ptr<GraphUtils>
       vertex_marker.colors.push_back(vertex_color);
       vertex_marker.points.push_back(p1);
     }
-
   }
   marker_array.markers.push_back(vertex_marker);
 
   path_Ways_Graph_Vis_Pub_.publish(marker_array);
 }
 
-void VisualizationServer::visualizeVoxelGain(std::shared_ptr<GraphUtils> graph)
-{ 
-  
+void VisualizationServer::visualizeVoxelGain(
+    std::shared_ptr<GraphUtils> graph) {
   if (graph->frontier_vertices_ids_.empty()) {
     return;
   }
@@ -250,7 +231,7 @@ void VisualizationServer::visualizeVoxelGain(std::shared_ptr<GraphUtils> graph)
     unknown_marker.scale.z = 0.1;
     unknown_marker.color.r = 0.0 / 255.0;
     unknown_marker.color.g = 255.0 / 255.0;
-    unknown_marker.color.b = 0.0/ 255;
+    unknown_marker.color.b = 0.0 / 255;
     unknown_marker.color.a = 0.8;
     unknown_marker.frame_locked = false;
 
@@ -286,24 +267,21 @@ void VisualizationServer::visualizeVoxelGain(std::shared_ptr<GraphUtils> graph)
     occupied_marker.color.a = 0.8;
     occupied_marker.frame_locked = false;
 
-    for (int i = 0; i < unknown.size(); i++)
-    {
+    for (int i = 0; i < unknown.size(); i++) {
       geometry_msgs::Point p1;
       p1.x = unknown[i][0];
       p1.y = unknown[i][1];
       p1.z = unknown[i][2];
       unknown_marker.points.push_back(p1);
     }
-    for (int i = 0; i < free.size(); i++)
-    {
+    for (int i = 0; i < free.size(); i++) {
       geometry_msgs::Point p1;
       p1.x = free[i][0];
       p1.y = free[i][1];
       p1.z = free[i][2];
       free_marker.points.push_back(p1);
     }
-    for (int i = 0; i < occupied.size(); i++)
-    {
+    for (int i = 0; i < occupied.size(); i++) {
       geometry_msgs::Point p1;
       p1.x = occupied[i][0];
       p1.y = occupied[i][1];
@@ -316,17 +294,15 @@ void VisualizationServer::visualizeVoxelGain(std::shared_ptr<GraphUtils> graph)
     marker_array.markers.push_back(occupied_marker);
   }
 
-    voxel_Gain_Vis_Pub_.publish(marker_array);
+  voxel_Gain_Vis_Pub_.publish(marker_array);
 }
 
-void VisualizationServer::visualizeLocalGraph(std::shared_ptr<GraphUtils> 
-                                              local_graph)
-{
+void VisualizationServer::visualizeLocalGraph(
+    std::shared_ptr<GraphUtils> local_graph) {
   std::shared_ptr<Graph> g = local_graph->graph_;
-  std::unordered_map<int, Vertex *> &v_map = local_graph->vertices_map_;
+  std::unordered_map<int, Vertex*>& v_map = local_graph->vertices_map_;
 
-  if (local_graph->getNumVertices() == 0)
-    return;
+  if (local_graph->getNumVertices() == 0) return;
 
   visualization_msgs::MarkerArray marker_array;
   visualization_msgs::Marker edge_marker;
@@ -345,10 +321,9 @@ void VisualizationServer::visualizeLocalGraph(std::shared_ptr<GraphUtils>
   edge_marker.frame_locked = false;
 
   std::pair<Graph::GraphType::edge_iterator, Graph::GraphType::edge_iterator>
-  ei;
+      ei;
   g->getEdgeIterator(ei);
-  for (Graph::GraphType::edge_iterator it = ei.first; it != ei.second; ++it)
-  {
+  for (Graph::GraphType::edge_iterator it = ei.first; it != ei.second; ++it) {
     int src_id, tgt_id;
     double weight;
     std::tie(src_id, tgt_id, weight) = g->getEdgeProperty(it);
@@ -397,43 +372,38 @@ void VisualizationServer::visualizeLocalGraph(std::shared_ptr<GraphUtils>
   frontier_vertex_marker.frame_locked = false;
 
   std::pair<Graph::GraphType::vertex_iterator,
-  Graph::GraphType::vertex_iterator>
-  vi;
+            Graph::GraphType::vertex_iterator>
+      vi;
   g->getVertexIterator(vi);
 
   double minGain = std::numeric_limits<double>::max();
   double maxGain = -std::numeric_limits<double>::max();
 
-  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
-  {
-
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
     int id = g->getVertexProperty(it);
-    if (v_map[id]->vol_gain.gain > maxGain)
-    {
+    if (v_map[id]->vol_gain.gain > maxGain) {
       maxGain = v_map[id]->vol_gain.gain;
     }
 
-    if (v_map[id]->vol_gain.gain < minGain)
-    {
+    if (v_map[id]->vol_gain.gain < minGain) {
       minGain = v_map[id]->vol_gain.gain;
     }
   }
 
-  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
-  {
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
     int id = g->getVertexProperty(it);
     geometry_msgs::Point p1;
     p1.x = v_map[id]->state[0];
     p1.y = v_map[id]->state[1];
     p1.z = v_map[id]->state[2];
     double gain = v_map[id]->vol_gain.gain;
-    double h = (1.0 - std::min(std::max((gain - minGain) / 
-                                        (maxGain - minGain), 0.0), 1.0)) * 0.8;
+    double h =
+        (1.0 -
+         std::min(std::max((gain - minGain) / (maxGain - minGain), 0.0), 1.0)) *
+        0.8;
     vertex_marker.colors.push_back(getGainColor(h));
     vertex_marker.points.push_back(p1);
-    if (v_map[id]->vol_gain.is_frontier)
-    {
-
+    if (v_map[id]->vol_gain.is_frontier) {
       geometry_msgs::Point p1;
       p1.x = v_map[id]->state[0];
       p1.y = v_map[id]->state[1];
@@ -447,14 +417,12 @@ void VisualizationServer::visualizeLocalGraph(std::shared_ptr<GraphUtils>
   local_Graph_Vis_Pub_.publish(marker_array);
 }
 
-void VisualizationServer::visualizeGlobalGraph(std::shared_ptr<GraphUtils>
-                                               global_graph)
-{
-  if (global_graph->getNumVertices() == 0)
-    return;
-  
+void VisualizationServer::visualizeGlobalGraph(
+    std::shared_ptr<GraphUtils> global_graph) {
+  if (global_graph->getNumVertices() == 0) return;
+
   std::shared_ptr<Graph> g = global_graph->graph_;
-  std::unordered_map<int, Vertex *> &v_map = global_graph->vertices_map_;
+  std::unordered_map<int, Vertex*>& v_map = global_graph->vertices_map_;
 
   visualization_msgs::MarkerArray marker_array;
   visualization_msgs::Marker edge_marker;
@@ -473,10 +441,9 @@ void VisualizationServer::visualizeGlobalGraph(std::shared_ptr<GraphUtils>
   edge_marker.frame_locked = false;
 
   std::pair<Graph::GraphType::edge_iterator, Graph::GraphType::edge_iterator>
-  ei;
+      ei;
   g->getEdgeIterator(ei);
-  for (Graph::GraphType::edge_iterator it = ei.first; it != ei.second; ++it)
-  {
+  for (Graph::GraphType::edge_iterator it = ei.first; it != ei.second; ++it) {
     int src_id, tgt_id;
     double weight;
     std::tie(src_id, tgt_id, weight) = g->getEdgeProperty(it);
@@ -530,15 +497,12 @@ void VisualizationServer::visualizeGlobalGraph(std::shared_ptr<GraphUtils>
   frontier_vertex_marker.frame_locked = false;
 
   std::pair<Graph::GraphType::vertex_iterator,
-  Graph::GraphType::vertex_iterator>
-  vi;
+            Graph::GraphType::vertex_iterator>
+      vi;
   g->getVertexIterator(vi);
-  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
-  {
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
     int id = g->getVertexProperty(it);
-    if (v_map[id]->vol_gain.is_frontier)
-    {
-
+    if (v_map[id]->vol_gain.is_frontier) {
       geometry_msgs::Point p1;
       p1.x = v_map[id]->state[0];
       p1.y = v_map[id]->state[1];
@@ -561,8 +525,7 @@ void VisualizationServer::visualizeGlobalGraph(std::shared_ptr<GraphUtils>
 }
 
 void VisualizationServer::visualizeLocalPaths(
-  std::vector<std::pair<std::vector<Vertex *>, double>> local_paths)
-{
+    std::vector<std::pair<std::vector<Vertex*>, double>> local_paths) {
   visualization_msgs::MarkerArray marker_array;
   visualization_msgs::Marker edge_marker;
   visualization_msgs::Marker vertex_marker;
@@ -596,12 +559,8 @@ void VisualizationServer::visualizeLocalPaths(
   vertex_marker.color.a = 1.0;
   vertex_marker.frame_locked = false;
 
-  for (int i = 0; i < local_paths.size(); ++i)
-  {
-
-    for (int it = 0; it < local_paths[i].first.size() - 1; ++it)
-    {
-
+  for (int i = 0; i < local_paths.size(); ++i) {
+    for (int it = 0; it < local_paths[i].first.size() - 1; ++it) {
       geometry_msgs::Point p1;
       geometry_msgs::Point p2;
       p1.x = local_paths[i].first[it]->state[0];
@@ -624,9 +583,7 @@ void VisualizationServer::visualizeLocalPaths(
 }
 
 void VisualizationServer::visualizeGlobalPaths(
-  std::vector<std::pair<std::vector<Vertex *>, double>> global_paths)
-{
-
+    std::vector<std::pair<std::vector<Vertex*>, double>> global_paths) {
   visualization_msgs::MarkerArray marker_array;
 
   visualization_msgs::Marker edge_marker;
@@ -661,12 +618,8 @@ void VisualizationServer::visualizeGlobalPaths(
   vertex_marker.color.a = 0.8;
   vertex_marker.frame_locked = false;
 
-  for (int i = 0; i < global_paths.size(); ++i)
-  {
-
-    for (int it = 0; it < global_paths[i].first.size() - 1; ++it)
-    {
-
+  for (int i = 0; i < global_paths.size(); ++i) {
+    for (int it = 0; it < global_paths[i].first.size() - 1; ++it) {
       geometry_msgs::Point p1;
       geometry_msgs::Point p2;
       p1.x = global_paths[i].first[it]->state[0];
@@ -688,14 +641,12 @@ void VisualizationServer::visualizeGlobalPaths(
   global_Paths_Vis_Pub_.publish(marker_array);
 }
 
-void VisualizationServer::visualizeSparseGraph(std::shared_ptr<GraphUtils> 
-                                               sparse_graph)
-{
-  if (sparse_graph->getNumVertices() == 0)
-    return;
-  
+void VisualizationServer::visualizeSparseGraph(
+    std::shared_ptr<GraphUtils> sparse_graph) {
+  if (sparse_graph->getNumVertices() == 0) return;
+
   std::shared_ptr<Graph> g = sparse_graph->graph_;
-  std::unordered_map<int, Vertex *> &v_map = sparse_graph->vertices_map_;
+  std::unordered_map<int, Vertex*>& v_map = sparse_graph->vertices_map_;
 
   visualization_msgs::MarkerArray marker_array;
   visualization_msgs::Marker edge_marker;
@@ -714,10 +665,9 @@ void VisualizationServer::visualizeSparseGraph(std::shared_ptr<GraphUtils>
   edge_marker.frame_locked = false;
 
   std::pair<Graph::GraphType::edge_iterator, Graph::GraphType::edge_iterator>
-  ei;
+      ei;
   g->getEdgeIterator(ei);
-  for (Graph::GraphType::edge_iterator it = ei.first; it != ei.second; ++it)
-  {
+  for (Graph::GraphType::edge_iterator it = ei.first; it != ei.second; ++it) {
     int src_id, tgt_id;
     double weight;
     std::tie(src_id, tgt_id, weight) = g->getEdgeProperty(it);
@@ -769,14 +719,12 @@ void VisualizationServer::visualizeSparseGraph(std::shared_ptr<GraphUtils>
   frontier_vertex_marker.frame_locked = false;
 
   std::pair<Graph::GraphType::vertex_iterator,
-  Graph::GraphType::vertex_iterator>
-  vi;
+            Graph::GraphType::vertex_iterator>
+      vi;
   g->getVertexIterator(vi);
-  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
-  {
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
     int id = g->getVertexProperty(it);
-    if (v_map[id]->vol_gain.is_frontier)
-    {
+    if (v_map[id]->vol_gain.is_frontier) {
       geometry_msgs::Point p1;
       p1.x = v_map[id]->state[0];
       p1.y = v_map[id]->state[1];
@@ -784,7 +732,6 @@ void VisualizationServer::visualizeSparseGraph(std::shared_ptr<GraphUtils>
 
       frontier_vertex_marker.points.push_back(p1);
     } else {
-
       geometry_msgs::Point p1;
       p1.x = v_map[id]->state[0];
       p1.y = v_map[id]->state[1];
@@ -798,14 +745,12 @@ void VisualizationServer::visualizeSparseGraph(std::shared_ptr<GraphUtils>
   sparse_Graph_Vis_Pub_.publish(marker_array);
 }
 
-void VisualizationServer::visualizePoseGraph(std::shared_ptr<GraphUtils>
-                                             pose_graph)
-{
-  if (pose_graph->getNumVertices() == 0)
-    return;
+void VisualizationServer::visualizePoseGraph(
+    std::shared_ptr<GraphUtils> pose_graph) {
+  if (pose_graph->getNumVertices() == 0) return;
   std::shared_ptr<Graph> g = pose_graph->graph_;
-  std::unordered_map<int, Vertex *> &v_map = pose_graph->vertices_map_;
-  
+  std::unordered_map<int, Vertex*>& v_map = pose_graph->vertices_map_;
+
   visualization_msgs::MarkerArray marker_array;
   visualization_msgs::Marker edge_marker;
   edge_marker.header.stamp = ros::Time::now();
@@ -824,10 +769,9 @@ void VisualizationServer::visualizePoseGraph(std::shared_ptr<GraphUtils>
   edge_marker.frame_locked = false;
 
   std::pair<Graph::GraphType::edge_iterator, Graph::GraphType::edge_iterator>
-  ei;
+      ei;
   g->getEdgeIterator(ei);
-  for (Graph::GraphType::edge_iterator it = ei.first; it != ei.second; ++it)
-  {
+  for (Graph::GraphType::edge_iterator it = ei.first; it != ei.second; ++it) {
     int src_id, tgt_id;
     double weight;
     std::tie(src_id, tgt_id, weight) = g->getEdgeProperty(it);
@@ -865,11 +809,10 @@ void VisualizationServer::visualizePoseGraph(std::shared_ptr<GraphUtils>
   vertex_marker.frame_locked = false;
 
   std::pair<Graph::GraphType::vertex_iterator,
-  Graph::GraphType::vertex_iterator>
-  vi;
+            Graph::GraphType::vertex_iterator>
+      vi;
   g->getVertexIterator(vi);
-  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
-  {
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
     int id = g->getVertexProperty(it);
     geometry_msgs::Point p1;
     p1.x = v_map[id]->state[0];
@@ -883,37 +826,28 @@ void VisualizationServer::visualizePoseGraph(std::shared_ptr<GraphUtils>
   pose_Graph_Vis_Pub_.publish(marker_array);
 }
 
-void VisualizationServer::visualizeExplorationDirection (geometry_msgs::PoseStamped 
-                                                         exploration_dir) 
-{
+void VisualizationServer::visualizeExplorationDirection(
+    geometry_msgs::PoseStamped exploration_dir) {
   exploration_dir.header.frame_id = world_frame_id;
   exploration_dir.header.stamp = ros::Time::now();
   exploration_Direction_Vis_Pub.publish(exploration_dir);
-
 }
 
-void VisualizationServer::visualizeHomingPath (nav_msgs::Path homing_path) 
-{
-  
+void VisualizationServer::visualizeHomingPath(nav_msgs::Path homing_path) {
   homing_path.header.frame_id = world_frame_id;
   homing_path.header.stamp = ros::Time::now();
   homing_Path_Vis_Pub.publish(homing_path);
-
 }
 
-
-void VisualizationServer::visualizeExplorationPath (nav_msgs::Path exploration_path) 
-{
-  
+void VisualizationServer::visualizeExplorationPath(
+    nav_msgs::Path exploration_path) {
   exploration_path.header.frame_id = world_frame_id;
   exploration_path.header.stamp = ros::Time::now();
   exploration_Path_Vis_Pub.publish(exploration_path);
-
 }
 
-void VisualizationServer::visualizePclMap(const pcl::PointCloud<pcl::PointXYZ>* 
-                                          pcl) 
-{
+void VisualizationServer::visualizePclMap(
+    const pcl::PointCloud<pcl::PointXYZ>* pcl) {
   if (pcl_Pub_.getNumSubscribers() < 1) return;
 
   ROS_DEBUG("[PCL Map vis]: PCL size: %d", (int)(pcl->points.size()));

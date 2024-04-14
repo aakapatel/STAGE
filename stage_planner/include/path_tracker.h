@@ -1,72 +1,74 @@
 #pragma once
 
-#include <vector>
+#include <algorithm>
 #include <iostream>
 #include <memory>
-#include <algorithm>
+#include <vector>
 
+#include <actionlib/server/simple_action_server.h>
 #include <eigen3/Eigen/Dense>
+#include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/Twist.h>
+#include <nav_msgs/Odometry.h>
+#include <ros/ros.h>
 #include <tf/transform_datatypes.h>
 #include <tf/transform_listener.h>
 
-#include <ros/ros.h>
-#include <geometry_msgs/Twist.h>
-#include <geometry_msgs/PoseStamped.h>
-#include <nav_msgs/Odometry.h>
-#include <actionlib/server/simple_action_server.h>
 #include "stage_planner/pathFollowerActionAction.h"
 
-class PathTracker
-{
-private:
+class PathTracker {
+ private:
   /* Parameters: */
-	double critical_angle_;
-	double curvature_scaling_angle_;
-	double dt_;
-	double desired_vel_;
-	double max_lin_vel_;
-	double min_lin_vel_;
-	double max_ang_vel_;
-	double min_ang_vel_;
-	double max_lin_acc_;
-	double max_lin_dec_;
-	double look_ahead_distance_;
-	double look_ahead_error_margin_;
-	double goal_reaching_threshold_;
-	std::string fixed_frame_;
-	std::string robot_frame_;
+  double critical_angle_;
+  double curvature_scaling_angle_;
+  double dt_;
+  double desired_vel_;
+  double max_lin_vel_;
+  double min_lin_vel_;
+  double max_ang_vel_;
+  double min_ang_vel_;
+  double max_lin_acc_;
+  double max_lin_dec_;
+  double look_ahead_distance_;
+  double look_ahead_error_margin_;
+  double goal_reaching_threshold_;
+  std::string fixed_frame_;
+  std::string robot_frame_;
 
-	std::vector<geometry_msgs::PoseStamped> path_to_exec_;
-	geometry_msgs::Twist cmd_vel_;
+  std::vector<geometry_msgs::PoseStamped> path_to_exec_;
+  geometry_msgs::Twist cmd_vel_;
 
-	geometry_msgs::Pose current_pose_;
-	geometry_msgs::Twist current_vel_;
+  geometry_msgs::Pose current_pose_;
+  geometry_msgs::Twist current_vel_;
 
-	// State variables
-	bool start_execution_ = false;
+  // State variables
+  bool start_execution_ = false;
 
-	ros::NodeHandle nh_, nh_private_;
-	ros::Timer control_timer_;
-	ros::Publisher cmd_vel_pub_;
-	ros::Publisher carrot_point_pub_;
-	ros::Subscriber odom_sub_;
-	std::shared_ptr<tf::TransformListener> listener_;
+  ros::NodeHandle nh_, nh_private_;
+  ros::Timer control_timer_;
+  ros::Publisher cmd_vel_pub_;
+  ros::Publisher carrot_point_pub_;
+  ros::Subscriber odom_sub_;
+  std::shared_ptr<tf::TransformListener> listener_;
 
-	actionlib::SimpleActionServer<stage_planner::pathFollowerActionAction> as_;
-	stage_planner::pathFollowerActionFeedback feedback_;
-	stage_planner::pathFollowerActionResult result_;
+  actionlib::SimpleActionServer<stage_planner::pathFollowerActionAction> as_;
+  stage_planner::pathFollowerActionFeedback feedback_;
+  stage_planner::pathFollowerActionResult result_;
 
-public:
+ public:
   PathTracker(const ros::NodeHandle& nh, const ros::NodeHandle& nh_private);
-	
-	void actionGoalCallback(const stage_planner::pathFollowerActionGoalConstPtr &goal);
-	void odomCallback(const nav_msgs::Odometry &odom);
 
-	bool computeCommandVelocity();
-	
-	void loadParams();
+  void actionGoalCallback(
+      const stage_planner::pathFollowerActionGoalConstPtr& goal);
+  void odomCallback(const nav_msgs::Odometry& odom);
 
-	double calculateDistance(const geometry_msgs::Pose &p1, const geometry_msgs::Pose &p2);
-	geometry_msgs::Pose convertEigenVecToPose(const Eigen::Vector3d &vec);
-	double calculatePathLength(const std::vector<geometry_msgs::PoseStamped> &path);
+  bool computeCommandVelocity();
+
+  void loadParams();
+
+  double calculateDistance(const geometry_msgs::Pose& p1,
+                           const geometry_msgs::Pose& p2);
+  geometry_msgs::Pose convertEigenVecToPose(const Eigen::Vector3d& vec);
+  double calculatePathLength(
+      const std::vector<geometry_msgs::PoseStamped>& path);
 };

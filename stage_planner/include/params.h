@@ -19,44 +19,47 @@ typedef ros::Time TIMER;
 #define START_TIMER(x) (x = ros::Time::now())
 #define GET_ELAPSED_TIME(x) (float)((ros::Time::now() - x).toSec())
 
-enum Verbosity { SILENT = 0, PLANNER_STATUS = 1, ERROR = 2, WARN = 3, INFO = 4, DEBUG = 5 };
+enum Verbosity {
+  SILENT = 0,
+  PLANNER_STATUS = 1,
+  ERROR = 2,
+  WARN = 3,
+  INFO = 4,
+  DEBUG = 5
+};
 
 #define global_verbosity Verbosity::ERROR
 #define param_verbosity Verbosity::SILENT
 
-#define ROSPARAM_ERROR(param_name)                                         \
-  ({                                                                       \
-    if (param_verbosity >= Verbosity::ERROR) {                     \
-      std::cout << "\033[31m"                                              \
-                << "[ERROR][File: " << __FILE__ << "] [Line: " << __LINE__ \
-                << "]"                                                     \
-                << "\nParam is not set: " << param_name << "\033[0m\n"     \
-                << std::endl;                                              \
-    }                                                                      \
+#define ROSPARAM_ERROR(param_name)                                     \
+  ({                                                                   \
+    if (param_verbosity >= Verbosity::ERROR) {                         \
+      std::cout << "\033[31m" << "[ERROR][File: " << __FILE__          \
+                << "] [Line: " << __LINE__ << "]"                      \
+                << "\nParam is not set: " << param_name << "\033[0m\n" \
+                << std::endl;                                          \
+    }                                                                  \
   })
 
-#define ROSPARAM_WARN(param_name, default_val)                            \
-  ({                                                                      \
-    if (param_verbosity >= Verbosity::WARN) {                  \
-      std::cout << "\033[33m"                                             \
-                << "[WARN][File: " << __FILE__ << "] [Line: " << __LINE__ \
-                << "]"                                                    \
-                << "\nParam is not set: " << param_name                   \
-                << ". Default value is: " << default_val << "\033[0m\n"   \
-                << std::endl;                                             \
-    }                                                                     \
+#define ROSPARAM_WARN(param_name, default_val)                          \
+  ({                                                                    \
+    if (param_verbosity >= Verbosity::WARN) {                           \
+      std::cout << "\033[33m" << "[WARN][File: " << __FILE__            \
+                << "] [Line: " << __LINE__ << "]"                       \
+                << "\nParam is not set: " << param_name                 \
+                << ". Default value is: " << default_val << "\033[0m\n" \
+                << std::endl;                                           \
+    }                                                                   \
   })
 
-#define ROSPARAM_INFO(msg)                                                \
-  ({                                                                      \
-    if (param_verbosity >= Verbosity::INFO) {                     \
-      std::cout << "\033[32m"                                             \
-                << "[INFO][File: " << __FILE__ << "] [Line: " << __LINE__ \
-                << "]"                                                    \
-                << "\n"                                                   \
-                << msg << "\033[0m\n"                                     \
-                << std::endl;                                             \
-    }                                                                     \
+#define ROSPARAM_INFO(msg)                                   \
+  ({                                                         \
+    if (param_verbosity >= Verbosity::INFO) {                \
+      std::cout << "\033[32m" << "[INFO][File: " << __FILE__ \
+                << "] [Line: " << __LINE__ << "]" << "\n"    \
+                << msg << "\033[0m\n"                        \
+                << std::endl;                                \
+    }                                                        \
   })
 
 // #define ROSPARAM_ERROR(param_name)
@@ -76,16 +79,16 @@ enum Verbosity { SILENT = 0, PLANNER_STATUS = 1, ERROR = 2, WARN = 3, INFO = 4, 
 #define PLANNER_INFO(msg) std::cout << msg << std::endl
 
 #define PLANNER_ERROR(msg)                                                    \
-  std::cout << "\033[31m"                                                     \
-            << "[ERROR][File: " << __FILE__ << "] [Line: " << __LINE__ << "]" \
-            << "\n[Planner-Error]: " << msg << "\033[0m\n"                    \
+  std::cout << "\033[31m" << "[ERROR][File: " << __FILE__                     \
+            << "] [Line: " << __LINE__ << "]" << "\n[Planner-Error]: " << msg \
+            << "\033[0m\n"                                                    \
             << std::endl
 
-#define PLANNER_WARN(msg)                                                    \
-  std::cout << "\033[33m"                                                    \
-            << "[WARN][File: " << __FILE__ << "] [Line: " << __LINE__ << "]" \
-            << "\n[Planner-Warn] is not set: " << param_name                 \
-            << ". Default value is: " << msg << "\033[0m\n"                  \
+#define PLANNER_WARN(msg)                                    \
+  std::cout << "\033[33m" << "[WARN][File: " << __FILE__     \
+            << "] [Line: " << __LINE__ << "]"                \
+            << "\n[Planner-Warn] is not set: " << param_name \
+            << ". Default value is: " << msg << "\033[0m\n"  \
             << std::endl
 
 // State of the robot used for planning (x,y,z,yaw)
@@ -142,7 +145,8 @@ struct SensorParamsBase {
   void getFrustumEdges(StateVec& state, std::vector<Eigen::Vector3d>& edges);
   // Check if this is potential frontier given sensor FOV.
   // Number of unknow voxels perceived, scaled to map resolution (per meter).
-  bool isFrontier(double num_unknown_voxels_normalized, double& unknown_percentage);
+  bool isFrontier(double num_unknown_voxels_normalized,
+                  double& unknown_percentage);
   // Convert points from body frame of robot to frame of this sensor
   void convertBodyToSensor(pcl::PointCloud<pcl::PointXYZ>::Ptr ep,
                            pcl::PointCloud<pcl::PointXYZ>::Ptr ep_s);

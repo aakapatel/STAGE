@@ -1,21 +1,22 @@
 #include <ros/ros.h>
-#include "stage_interface.h"
+
 #include "stage_interface.cpp"
+#include "stage_interface.h"
 
 using namespace std;
 
-int main(int argc, char **argv)
-{
+int main(int argc, char** argv) {
   ros::init(argc, argv, "Stage_Interface_Node");
 
   ros::NodeHandle nh;
   ros::NodeHandle nh_private("~");
 
-  MapManagerVoxblox<MapManagerVoxbloxServer, MapManagerVoxbloxVoxel>* map_manager = 
-    new MapManagerVoxblox<MapManagerVoxbloxServer, MapManagerVoxbloxVoxel> (nh, nh_private);   
+  MapManagerVoxblox<MapManagerVoxbloxServer,
+                    MapManagerVoxbloxVoxel>* map_manager =
+      new MapManagerVoxblox<MapManagerVoxbloxServer, MapManagerVoxbloxVoxel>(
+          nh, nh_private);
 
   StageInterface stageInterface(nh, nh_private, map_manager);
-
 
   ros::spin();
 

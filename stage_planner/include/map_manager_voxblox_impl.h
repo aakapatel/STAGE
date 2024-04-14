@@ -172,7 +172,7 @@ class MapManagerVoxblox : MapManager {
   void extractLocalMap(const Eigen::Vector3d& center,
                        const Eigen::Vector3d& bounding_box_size,
                        std::vector<Eigen::Vector3d>& occupied_voxels,
-                       std::vector<Eigen::Vector3d>& free_voxels, 
+                       std::vector<Eigen::Vector3d>& free_voxels,
                        std::vector<Eigen::Vector3d>& unknown_voxels);
 
   void extractLocalMapAlongAxis(const Eigen::Vector3d& center,

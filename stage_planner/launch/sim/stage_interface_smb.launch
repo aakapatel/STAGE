@@ -2,26 +2,22 @@
 <launch>
 
   <env name="ROSCONSOLE_FORMAT" value="[${severity}] : ${message}"/>
+  <env name="ROSCONSOLE_CONFIG_FILE" value="$(find stage_planner)/custom_rosconsole.conf"/>
 
   <arg name="robot_name" default="smb"/>
+
+  <arg name="mapping_config" default="$(find stage_planner)/config/ground/voxblox_sim_config.yaml"/>
   <arg name="stage_config" default="$(find stage_planner)/config/ground/stage_config.yaml"/>
+
 
   <group ns = "$(arg robot_name)"> 
 
     <node pkg="stage_planner" type="stage_interface_node" name="stage_interface_node" output="screen">
 
-      <param name="frame_id" type="string" value="world" />
-
-      <param name="odometry_topic" value="/ground_truth/odometry" />
-
-      <param name ="reference_topic" value="command/pose" />
-
-      <param name ="init_x" value="6" />
-      <param name ="init_y" value="0" />
-      <param name ="init_z" value="1" />
-
-      <param name ="distance_to_new_path" value="0.5" />
-
+      <remap from="odometry" to="/ground_truth/odometry" />
+      <remap from="pointcloud" to="/velodyne_points" />
+      <remap from="reference_topic" to="command/pose" />
+      <rosparam command="load" file="$(arg mapping_config)" /> 
       <rosparam command="load" file="$(arg stage_config)" /> 
 
       </node>

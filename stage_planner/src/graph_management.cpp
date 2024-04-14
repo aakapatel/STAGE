@@ -2,20 +2,19 @@
 
 using namespace std::chrono;
 
-GraphManager::GraphManager(const ros::NodeHandle &nh, 
-                           const ros::NodeHandle &nh_private,
-                           MapManagerVoxblox<MapManagerVoxbloxServer, 
-                           MapManagerVoxbloxVoxel> *map_manager)
-  : nh_(nh),
-  nh_private_(nh_private),
-  map_manager_(map_manager)
+GraphManager::GraphManager(
+    const ros::NodeHandle& nh, const ros::NodeHandle& nh_private,
+    MapManagerVoxblox<MapManagerVoxbloxServer, MapManagerVoxbloxVoxel>*
+        map_manager)
+    : nh_(nh),
+      nh_private_(nh_private),
+      map_manager_(map_manager)
 
 {
   GraphManager::initializeAttributes();
 };
 
-void GraphManager::reset() 
-{
+void GraphManager::reset() {
   // Re-initialize data structs.
 
   stat_.reset(new SampleStatistic());
@@ -34,27 +33,32 @@ void GraphManager::reset()
 
   // First check if this position is free to go.
   MapManager::VoxelStatus voxel_state = map_manager_->getBoxStatus(
-    Eigen::Vector3d(robotState_[0], robotState_[1], robotState_[2]) +
-    robot_params_.center_offset,
-    robot_box_size_, true);
+      Eigen::Vector3d(robotState_[0], robotState_[1], robotState_[2]) +
+          robot_params_.center_offset,
+      robot_box_size_, true);
   if (MapManager::VoxelStatus::kFree != voxel_state) {
     switch (voxel_state) {
       case MapManager::VoxelStatus::kFree:
-        ROS_INFO_COND(global_verbosity >= Verbosity::DEBUG, "Current box is Free.");
+        ROS_INFO_COND(global_verbosity >= Verbosity::DEBUG,
+                      "Current box is Free.");
         break;
       case MapManager::VoxelStatus::kOccupied:
-        ROS_INFO_COND(global_verbosity >= Verbosity::DEBUG, "Current box contains Occupied voxels.");
+        ROS_INFO_COND(global_verbosity >= Verbosity::DEBUG,
+                      "Current box contains Occupied voxels.");
         break;
       case MapManager::VoxelStatus::kUnknown:
-        ROS_INFO_COND(global_verbosity >= Verbosity::DEBUG, "Current box contains Unknown voxels.");
+        ROS_INFO_COND(global_verbosity >= Verbosity::DEBUG,
+                      "Current box contains Unknown voxels.");
         break;
     }
     // Assume that even it is not fully free, but safe to clear these voxels.
-    ROS_WARN_COND(global_verbosity >= Verbosity::WARN, "Starting position is not clear--> clear space around the robot.");
+    ROS_WARN_COND(
+        global_verbosity >= Verbosity::WARN,
+        "Starting position is not clear--> clear space around the robot.");
     map_manager_->augmentFreeBox(
-      Eigen::Vector3d(robotState_[0], robotState_[1], robotState_[2]) +
-      robot_params_.center_offset,
-      robot_box_size_);
+        Eigen::Vector3d(robotState_[0], robotState_[1], robotState_[2]) +
+            robot_params_.center_offset,
+        robot_box_size_);
   }
 
   // Set robot radius when single point collision checking is used
@@ -76,14 +80,12 @@ void GraphManager::reset()
 
   GraphManager::resetPoseGraph();
   GraphManager::resetLocalGraph();
-  GraphManager::resetSparseGraph ();
+  GraphManager::resetSparseGraph();
   GraphManager::resetGlobalGraph();
   GraphManager::resetPathWaysGraph();
-
 }
 
-void GraphManager::initializeAttributes () {
-
+void GraphManager::initializeAttributes() {
   visualization_server_ = new VisualizationServer(nh_, nh_private_);
 
   stat_.reset(new SampleStatistic());
@@ -92,18 +94,17 @@ void GraphManager::initializeAttributes () {
   random_sampler_.reset();
   random_sampler_graph_expansion_.reset();
   stat_->init(robotState_);
-
 }
 
-void GraphManager::loadParams () {
-
+void GraphManager::loadParams() {
   std::string ns = ros::this_node::getName();
   sensor_params_.loadParams(ns + "/SensorParams");
   sensor_name = sensor_params_.sensor_list[0];
   robot_params_.loadParams(ns + "/RobotParams");
   global_space_params_.loadParams(ns + "/BoundedSpaceParams/Global");
   local_space_params_.loadParams(ns + "/BoundedSpaceParams/Local");
-  graph_expansion_global_params_.loadParams(ns + "/GraphExpansionParams/Global");
+  graph_expansion_global_params_.loadParams(ns +
+                                            "/GraphExpansionParams/Global");
   graph_expansion_local_params_.loadParams(ns + "/GraphExpansionParams/Local");
   planning_params_.loadParams(ns + "/PlanningParams");
 
@@ -111,17 +112,19 @@ void GraphManager::loadParams () {
   // robot_state_hist_.reset(new RobotStateHistory());
 
   random_sampler_.loadParams(ns + "/RandomSamplerParams/SamplerForExploration");
-  random_sampler_graph_expansion_.loadParams(ns + "/RandomSamplerParams/SamplerForExploration");
+  random_sampler_graph_expansion_.loadParams(
+      ns + "/RandomSamplerParams/SamplerForExploration");
 
   random_sampler_.setParams(global_space_params_, local_space_params_);
-  random_sampler_graph_expansion_.setParams(graph_expansion_global_params_, graph_expansion_local_params_);
+  random_sampler_graph_expansion_.setParams(graph_expansion_global_params_,
+                                            graph_expansion_local_params_);
   map_manager_->setRobotRadius(robot_box_size_.norm() / 2.0);
-
 }
 
-void GraphManager::setSharedParams(const RobotParams& robot_params,
-                                   const BoundedSpaceParams& global_space_params,
-                                   const BoundedSpaceParams& local_space_params) {
+void GraphManager::setSharedParams(
+    const RobotParams& robot_params,
+    const BoundedSpaceParams& global_space_params,
+    const BoundedSpaceParams& local_space_params) {
   robot_params_ = robot_params;
   robot_params_.getPlanningSize(robot_box_size_);
 
@@ -129,21 +132,16 @@ void GraphManager::setSharedParams(const RobotParams& robot_params,
   local_space_params_ = local_space_params;
 }
 
-void GraphManager::resetPoseGraph () {
-
-  if (pose_graph_ != NULL)
-  {
+void GraphManager::resetPoseGraph() {
+  if (pose_graph_ != NULL) {
     pose_graph_->reset();
   }
   pose_graph_.reset(new GraphUtils());
   pose_graph_rep_.reset();
 }
 
-void GraphManager::resetLocalGraph()
-{
-
-  if (local_graph_ != NULL)
-  {
+void GraphManager::resetLocalGraph() {
+  if (local_graph_ != NULL) {
     local_graph_->reset();
   }
   local_graph_.reset(new GraphUtils());
@@ -152,20 +150,14 @@ void GraphManager::resetLocalGraph()
   local_graph_->subgraph_ind_ = subgraph_ind_;
 }
 
-void GraphManager::resetProjectedGraph()
-{
-
-  if (projected_graph_ != NULL)
-  {
+void GraphManager::resetProjectedGraph() {
+  if (projected_graph_ != NULL) {
     projected_graph_->reset();
   }
   projected_graph_.reset(new GraphUtils());
 }
 
-void GraphManager::resetGlobalGraph()
-{
-
-
+void GraphManager::resetGlobalGraph() {
   StateVec home_state;
   // Adding home vertex at initialization phase for simpler RTB planning
   home_state[0] = robotState_[0];
@@ -173,14 +165,14 @@ void GraphManager::resetGlobalGraph()
   home_state[2] = robotState_[2] + 1;
   home_state[2] = robotState_[3];
 
-  if (global_graph_ != NULL)
-  {
+  if (global_graph_ != NULL) {
     global_graph_->reset();
   }
   global_graph_.reset(new GraphUtils());
   global_graph_rep_.reset();
-    // Adding home vertex at initialization phase for simpler RTB planning
-  Vertex *home_vertex_ = new Vertex(global_graph_->generateVertexID(), home_state);
+  // Adding home vertex at initialization phase for simpler RTB planning
+  Vertex* home_vertex_ =
+      new Vertex(global_graph_->generateVertexID(), home_state);
   home_vertex_->is_root = true;
   global_graph_->addVertex(home_vertex_);
   prev_pose_vertex_ = home_vertex_;
@@ -192,60 +184,61 @@ void GraphManager::setState(StateVec& state) {
     // Reset the octomap
     ROS_WARN("Received the first odometry, reset the map");
     map_manager_->resetMap();
+    prev_state = state;
   }
   robotState_ = state;
+  if ((prev_state.head(3) - robotState_.head(3)).norm() > 1) {
+    Vertex* prev_vertex =
+        new Vertex(pose_graph_->generateVertexID(), prev_state);
+    Vertex* vertex = new Vertex(pose_graph_->generateVertexID(), robotState_);
+    pose_graph_->addVertex(prev_vertex);
+    pose_graph_->addVertex(vertex);
+    double weight = (prev_state.head(3) - robotState_.head(3)).norm();
+    pose_graph_->addEdge(prev_vertex, vertex, weight);
+    prev_state = robotState_;
+    visualization_server_->visualizePoseGraph(pose_graph_);
+  }
   odometry_ready = true;
 }
 
-void GraphManager::resetPathWaysGraph()
-{
-
-  if (path_ways_graph_ != NULL)
-  {
+void GraphManager::resetPathWaysGraph() {
+  if (path_ways_graph_ != NULL) {
     path_ways_graph_->reset();
   }
   path_ways_graph_.reset(new GraphUtils());
   path_ways_graph_rep_.reset();
 }
 
-void GraphManager::resetSparseGraph()
-{
-
-  if (sparse_graph_ != NULL)
-  {
+void GraphManager::resetSparseGraph() {
+  if (sparse_graph_ != NULL) {
     sparse_graph_->reset();
   }
   sparse_graph_.reset(new GraphUtils());
   sparse_graph_rep_.reset();
 }
 
-void GraphManager::setGlobalFrame (std::string frame_id) {
+void GraphManager::setGlobalFrame(std::string frame_id) {
   if (!frame_id.empty()) {
     visualization_server_->setGlobalFrame(frame_id);
     world_frame_id = frame_id;
   }
 }
 
-StateVec GraphManager::eigenToState(Eigen::Vector3d v)
-{
-  StateVec s (v[0], v[1], v[2], 0);
+StateVec GraphManager::eigenToState(Eigen::Vector3d v) {
+  StateVec s(v[0], v[1], v[2], 0);
   return s;
 }
 
-double GraphManager::getPathLength(std::vector<Vertex *> path)
-{
-
+double GraphManager::getPathLength(std::vector<Vertex*> path) {
   double l = 0;
 
-  for (int i = 0; i < path.size() - 1; ++i)
-  {
+  for (int i = 0; i < path.size() - 1; ++i) {
     l = l + (path[i]->state.head(2) - path[i + 1]->state.head(3)).norm();
   }
   return l;
 }
 
-Eigen::Vector3d GraphManager::quaternion_to_rpy(Eigen::Quaterniond q)
-{
+Eigen::Vector3d GraphManager::quaternion_to_rpy(Eigen::Quaterniond q) {
   const double roll = atan2(2.0 * (q.w() * q.x() + q.y() * q.z()),
                             1.0 - 2.0 * (q.x() * q.x() + q.y() * q.y()));
   const double pitch = asin(2.0 * (q.w() * q.y() - q.z() * q.x()));
@@ -255,8 +248,7 @@ Eigen::Vector3d GraphManager::quaternion_to_rpy(Eigen::Quaterniond q)
   return Eigen::Vector3d{roll, pitch, yaw};
 }
 
-Eigen::Quaternion<float> GraphManager::Euler2Quaternion (Eigen::Vector3d v)
-{
+Eigen::Quaternion<float> GraphManager::Euler2Quaternion(Eigen::Vector3d v) {
   float roll = v.x();
   float pitch = v.y();
   float yaw = v.z();
@@ -264,14 +256,14 @@ Eigen::Quaternion<float> GraphManager::Euler2Quaternion (Eigen::Vector3d v)
   Eigen::Quaternion<float> q;
 
   q = Eigen::AngleAxisf(roll, Eigen::Vector3f::UnitX()) *
-    Eigen::AngleAxisf(pitch, Eigen::Vector3f::UnitY()) *
-    Eigen::AngleAxisf(yaw, Eigen::Vector3f::UnitZ());
+      Eigen::AngleAxisf(pitch, Eigen::Vector3f::UnitY()) *
+      Eigen::AngleAxisf(yaw, Eigen::Vector3f::UnitZ());
 
   return q;
 }
 
-void GraphManager::computeVolumetricGainRayCasting(StateVec& state, VolumetricGain& vgain) {
-
+void GraphManager::computeVolumetricGainRayCasting(StateVec& state,
+                                                   VolumetricGain& vgain) {
   vgain.reset();
 
   std::vector<std::tuple<int, int, int, int>> gain_log;
@@ -281,7 +273,7 @@ void GraphManager::computeVolumetricGainRayCasting(StateVec& state, VolumetricGa
   Eigen::Vector3d origin(state[0], state[1], state[2]);
   std::tuple<int, int, int> gain_log_tmp;
   std::vector<std::pair<Eigen::Vector3d, MapManager::VoxelStatus>>
-  voxel_log_tmp;
+      voxel_log_tmp;
   std::vector<Eigen::Vector3d> multiray_endpoints;
   sensor_params_.sensor[sensor_name].getFrustumEndpoints(state,
                                                          multiray_endpoints);
@@ -290,7 +282,7 @@ void GraphManager::computeVolumetricGainRayCasting(StateVec& state, VolumetricGa
                               voxel_log_tmp,
                               sensor_params_.sensor[sensor_name]);
   int num_unknown_voxels = 0, num_free_voxels = 0, num_occupied_voxels = 0,
-  num_unknown_surf_voxels = 0;
+      num_unknown_surf_voxels = 0;
 
   for (auto& vl : voxel_log_tmp) {
     Eigen::Vector3d voxel = vl.first;
@@ -315,9 +307,12 @@ void GraphManager::computeVolumetricGainRayCasting(StateVec& state, VolumetricGa
                                      num_unknown_surf_voxels));
 
   // Check if it is a potential frontier.
-  // double unknown_voxels_scaled = (num_unknown_voxels - 2*num_occupied_voxels) * map_manager_->getResolution();
-  double unknown_voxels_scaled = num_unknown_voxels * map_manager_->getResolution();
-  if (sensor_params_.sensor[sensor_name].isFrontier(unknown_voxels_scaled, vgain.unknown_percentage)) {
+  // double unknown_voxels_scaled = (num_unknown_voxels - 2*num_occupied_voxels)
+  // * map_manager_->getResolution();
+  double unknown_voxels_scaled =
+      num_unknown_voxels * map_manager_->getResolution();
+  if (sensor_params_.sensor[sensor_name].isFrontier(unknown_voxels_scaled,
+                                                    vgain.unknown_percentage)) {
     vgain.is_frontier = true;  // Event E2
   }
 
@@ -332,7 +327,6 @@ void GraphManager::computeVolumetricGainRayCasting(StateVec& state, VolumetricGa
     // vgain.gain += (num_unknown_voxels * 60 - num_occupied_voxels * 40);
     vgain.gain += (num_unknown_voxels * 60);
   }
-
 }
 
 bool GraphManager::sampleState(StateVec root_state, StateVec& vertex_state) {
@@ -376,7 +370,6 @@ bool GraphManager::sampleState(StateVec root_state, StateVec& vertex_state) {
       state[0] = sample[0];
       state[1] = sample[1];
       state[2] -= (ground_dist - planning_params_.max_ground_height);
-
     }
 
     // Check if surrounding area is free.
@@ -397,8 +390,8 @@ bool GraphManager::sampleState(StateVec root_state, StateVec& vertex_state) {
   return found;
 }
 
-
-bool GraphManager::sampleStateToExpandGraph(StateVec root_state, StateVec& vertex_state) {
+bool GraphManager::sampleStateToExpandGraph(StateVec root_state,
+                                            StateVec& vertex_state) {
   StateVec state;
   bool hanging = false;
   bool found = false;
@@ -448,7 +441,8 @@ bool GraphManager::sampleStateToExpandGraph(StateVec root_state, StateVec& verte
             Eigen::Vector3d(state[0], state[1], state[2]) +
                 robot_params_.center_offset,
             robot_box_size_, true)) {
-      random_sampler_graph_expansion_.pushSample(state, true);  // for debug purpose.
+      random_sampler_graph_expansion_.pushSample(state,
+                                                 true);  // for debug purpose.
       found = true;
     } else {
       // stat_->num_vertices_fail++;
@@ -521,50 +515,45 @@ bool GraphManager::sampleVertex(Vertex& vertex) {
   return found;
 }
 
-void GraphManager::clusterNodes (std::shared_ptr<GraphUtils> g) 
-{
+void GraphManager::clusterNodes(std::shared_ptr<GraphUtils> g) {
   if (g->getNumVertices() == 0) {
     return;
   }
-  // cluster frontier nodes based on relative volumetric gain for efficient insertion into sparse graph  
+  // cluster frontier nodes based on relative volumetric gain for efficient
+  // insertion into sparse graph
   std::pair<Graph::GraphType::vertex_iterator,
-  Graph::GraphType::vertex_iterator>
-  vi;
+            Graph::GraphType::vertex_iterator>
+      vi;
   g->graph_->getVertexIterator(vi);
 
   int cluster_count = 0;
 
-  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
-  {
-
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
     int id = g->graph_->getVertexProperty(it);
     StateVec v_s = g->vertices_map_[id]->state;
-    Vertex * v = g->vertices_map_[id];
-    std::vector<Vertex *> nearby_vertices;
+    Vertex* v = g->vertices_map_[id];
+    std::vector<Vertex*> nearby_vertices;
     double my_gain = -std::numeric_limits<double>::max();
-    g->getNearestVertices(&g->vertices_map_[id]->state, 2*planning_params_.nearest_range, &nearby_vertices);
+    g->getNearestVertices(&g->vertices_map_[id]->state,
+                          2 * planning_params_.nearest_range, &nearby_vertices);
 
-    Vertex * centroid_vertex;
-    for (int i = 0; i < nearby_vertices.size() and nearby_vertices[i]->is_leaf_vertex; i++)
-    {
-
-      Vertex * nearby_vertex = nearby_vertices[i];
-      if (nearby_vertex->cluster_id == -1 and nearby_vertex->vol_gain.gain > my_gain) {
-
+    Vertex* centroid_vertex;
+    for (int i = 0;
+         i < nearby_vertices.size() and nearby_vertices[i]->is_leaf_vertex;
+         i++) {
+      Vertex* nearby_vertex = nearby_vertices[i];
+      if (nearby_vertex->cluster_id == -1 and
+          nearby_vertex->vol_gain.gain > my_gain) {
         my_gain = nearby_vertex->vol_gain.gain;
         nearby_vertex->cluster_id = cluster_count;
         centroid_vertex = nearby_vertex;
-
-
       } else {
         nearby_vertex->cluster_id = cluster_count;
       }
-
     }
     centroid_vertex->is_cluster_centroid = true;
     cluster_count = cluster_count + 1;
   }
-
 }
 
 std::vector<int> GraphManager::performShortestPathsClustering(
@@ -606,8 +595,9 @@ std::vector<int> GraphManager::performShortestPathsClustering(
     }
   }
 
-  ROS_INFO_COND(global_verbosity >= Verbosity::INFO, "Cluster %d paths into %d clusters.", (int)vertices.size(),
-           (int)cluster_paths.size());
+  ROS_INFO_COND(global_verbosity >= Verbosity::INFO,
+                "Cluster %d paths into %d clusters.", (int)vertices.size(),
+                (int)cluster_paths.size());
 
   // Refinement step, remove short path and choose closest cluster.
   if (refinement_enable) {
@@ -636,40 +626,37 @@ std::vector<int> GraphManager::performShortestPathsClustering(
         }
       }
     }
-    ROS_INFO_COND(global_verbosity >= Verbosity::INFO, "Clustering with refinement %d paths into %d clusters.",
-             (int)vertices.size(), (int)cluster_paths_refine.size());
+    ROS_INFO_COND(global_verbosity >= Verbosity::INFO,
+                  "Clustering with refinement %d paths into %d clusters.",
+                  (int)vertices.size(), (int)cluster_paths_refine.size());
     return cluster_ids_refine;
   } else {
     return cluster_ids;
   }
 }
 
-void GraphManager::segmentPath(nav_msgs::Path path,
-                               nav_msgs::Path &path_seg)
-{
+void GraphManager::segmentPath(nav_msgs::Path path, nav_msgs::Path& path_seg) {
   float dt_ = 0.5;
   path_seg.poses.clear();
   double v_max_ = 0.5;
   double yaw_rate_max_ = 0.5;
-  if (path.poses.size() == 0)
-    return;
+  if (path.poses.size() == 0) return;
 
-  for (int i = 0; i < (path.poses.size() - 1); ++i)
-  {
-    Eigen::Vector3d start(path.poses[i].pose.position.x, path.poses[i].pose.position.y,
+  for (int i = 0; i < (path.poses.size() - 1); ++i) {
+    Eigen::Vector3d start(path.poses[i].pose.position.x,
+                          path.poses[i].pose.position.y,
                           path.poses[i].pose.position.z);
-    Eigen::Vector3d end(path.poses[i + 1].pose.position.x, path.poses[i + 1].pose.position.y,
+    Eigen::Vector3d end(path.poses[i + 1].pose.position.x,
+                        path.poses[i + 1].pose.position.y,
                         path.poses[i + 1].pose.position.z);
     Eigen::Vector3d distance = end - start;
     double yaw_start = 0;
     double yaw_end = 0;
     double yaw_direction = 0;
-    if (yaw_direction > M_PI)
-    {
+    if (yaw_direction > M_PI) {
       yaw_direction -= 2.0 * M_PI;
     }
-    if (yaw_direction < -M_PI)
-    {
+    if (yaw_direction < -M_PI) {
       yaw_direction += 2.0 * M_PI;
     }
 
@@ -679,18 +666,14 @@ void GraphManager::segmentPath(nav_msgs::Path path,
 
     bool int_flag = true;
 
-    if (int_flag)
-    {
-      for (double it = 0.0; it <= 1.0; it += disc)
-      {
+    if (int_flag) {
+      for (double it = 0.0; it <= 1.0; it += disc) {
         tf::Vector3 origin((1.0 - it) * start[0] + it * end[0],
                            (1.0 - it) * start[1] + it * end[1],
                            (1.0 - it) * start[2] + it * end[2]);
         double yaw = yaw_start + yaw_direction * it;
-        if (yaw > M_PI)
-          yaw -= 2.0 * M_PI;
-        if (yaw < -M_PI)
-          yaw += 2.0 * M_PI;
+        if (yaw > M_PI) yaw -= 2.0 * M_PI;
+        if (yaw < -M_PI) yaw += 2.0 * M_PI;
         tf::Quaternion quat;
         quat.setEuler(0.0, 0.0, yaw);
         tf::Pose poseTF(quat, origin);
@@ -703,7 +686,7 @@ void GraphManager::segmentPath(nav_msgs::Path path,
       }
     }
   }
-} // segmentPath
+}  // segmentPath
 
 bool GraphManager::modifyPath(pcl::PointCloud<pcl::PointXYZ>* obstacle_pcl,
                               Eigen::Vector3d& p0, Eigen::Vector3d& p1,
@@ -721,10 +704,10 @@ bool GraphManager::modifyPath(pcl::PointCloud<pcl::PointXYZ>* obstacle_pcl,
   Eigen::Vector3d p_dir_norm = p_dir.normalized();
   double yaw_angle = std::atan2(p_dir_norm.y(), p_dir_norm.x());
   double pitch_angle =
-    -std::atan2(p_dir_norm.z(), std::sqrt(p_dir_norm.x() * p_dir_norm.x() +
-                                          p_dir_norm.y() * p_dir_norm.y()));
+      -std::atan2(p_dir_norm.z(), std::sqrt(p_dir_norm.x() * p_dir_norm.x() +
+                                            p_dir_norm.y() * p_dir_norm.y()));
   quat_W2S = Eigen::AngleAxisd(yaw_angle, Eigen::Vector3d::UnitZ()) *
-    Eigen::AngleAxisd(pitch_angle, Eigen::Vector3d::UnitY());
+             Eigen::AngleAxisd(pitch_angle, Eigen::Vector3d::UnitY());
 
   pcl::PointCloud<pcl::PointXYZ>* pcl_tf(new pcl::PointCloud<pcl::PointXYZ>());
   Eigen::Translation<double, 3> trans_W2S(p_center);
@@ -762,7 +745,7 @@ bool GraphManager::modifyPath(pcl::PointCloud<pcl::PointXYZ>* obstacle_pcl,
 
   // Keep points inside the local box only
   pcl::PointCloud<pcl::PointXYZ>* pcl_in_box(
-    new pcl::PointCloud<pcl::PointXYZ>());
+      new pcl::PointCloud<pcl::PointXYZ>());
   for (auto p = pcl_tf->begin(); p != pcl_tf->end(); ++p) {
     // Check all 6 hyperplanes
     const double kDSign = 0.05;  // numeric issue
@@ -770,7 +753,7 @@ bool GraphManager::modifyPath(pcl::PointCloud<pcl::PointXYZ>* obstacle_pcl,
     int i = 0;
     for (i = 0; i < 6; ++i) {
       sign = p->x * hyperplane_list[i].x() + p->y * hyperplane_list[i].y() +
-        p->z * hyperplane_list[i].z() - 1;
+             p->z * hyperplane_list[i].z() - 1;
       if (sign > kDSign) break;
     }
     if (i == 6) {
@@ -798,9 +781,10 @@ bool GraphManager::modifyPath(pcl::PointCloud<pcl::PointXYZ>* obstacle_pcl,
 
   const double kDDist = 0.01;  // deal with numeric error.
   if ((dist_min_sq == std::numeric_limits<double>::max()) ||
-    (dist_min_sq < kDDist)) {
+      (dist_min_sq < kDDist)) {
     // the path is too close to obstacle.
-    ROS_WARN_COND(global_verbosity >= Verbosity::DEBUG, "[IMPRV] Path too close to obstacle");
+    ROS_WARN_COND(global_verbosity >= Verbosity::DEBUG,
+                  "[IMPRV] Path too close to obstacle");
     return false;
   }
 
@@ -809,13 +793,13 @@ bool GraphManager::modifyPath(pcl::PointCloud<pcl::PointXYZ>* obstacle_pcl,
   if (dist_min_sq < (radius * radius)) {
     // Reduce other axes
     b = std::sqrt(
-      (p_tangent.y() * p_tangent.y() + p_tangent.z() * p_tangent.z()) /
-      (1 - p_tangent.x() * p_tangent.x() / (a * a)));
+        (p_tangent.y() * p_tangent.y() + p_tangent.z() * p_tangent.z()) /
+        (1 - p_tangent.x() * p_tangent.x() / (a * a)));
     c = b;  // Set equal b for now; but could increase.???
     // Fit the first hyperplane: x x_l + y y_l + z z_l = 1
     Eigen::Vector3d hyperplane_last =
-      Eigen::Vector3d(p_tangent.x() / (a * a), p_tangent.y() / (b * b),
-                      p_tangent.z() / (c * c));
+        Eigen::Vector3d(p_tangent.x() / (a * a), p_tangent.y() / (b * b),
+                        p_tangent.z() / (c * c));
     hyperplane_list.push_back(hyperplane_last);
     tangent_point_list.push_back(p_tangent);
   }
@@ -826,7 +810,7 @@ bool GraphManager::modifyPath(pcl::PointCloud<pcl::PointXYZ>* obstacle_pcl,
   while ((!stop) && (n_max < 50)) {
     ++n_max;
     pcl::PointCloud<pcl::PointXYZ>* pcl_reduced(
-      new pcl::PointCloud<pcl::PointXYZ>());
+        new pcl::PointCloud<pcl::PointXYZ>());
     // Also re-scale each dimension followed the dimentions of ellipsoid
     if (hyperplane_list.size()) {
       Eigen::Vector3d hyperplane_last;
@@ -834,7 +818,7 @@ bool GraphManager::modifyPath(pcl::PointCloud<pcl::PointXYZ>* obstacle_pcl,
       // Reduce point: keep points on the same side with zero origin (sign < 0)
       for (auto p = pcl_tf->begin(); p != pcl_tf->end(); ++p) {
         double sign = p->x * hyperplane_last.x() + p->y * hyperplane_last.y() +
-          p->z * hyperplane_last.z() - 1;
+                      p->z * hyperplane_last.z() - 1;
         const double kDSign = -0.05;  // numeric issue
         if (sign < kDSign) {
           // same side with the ellipsoid.
@@ -860,13 +844,13 @@ bool GraphManager::modifyPath(pcl::PointCloud<pcl::PointXYZ>* obstacle_pcl,
       }
     }
     if ((pcl_reduced->size() == 0) ||
-      (dist_min_sq == std::numeric_limits<double>::max())) {
+        (dist_min_sq == std::numeric_limits<double>::max())) {
       stop = true;
     } else {
       double e_ext = dist_min_sq;
       Eigen::Vector3d hyperplane_new = Eigen::Vector3d(
-        p_tangent1.x() / (a * a * e_ext), p_tangent1.y() / (b * b * e_ext),
-        p_tangent1.z() / (c * c * e_ext));
+          p_tangent1.x() / (a * a * e_ext), p_tangent1.y() / (b * b * e_ext),
+          p_tangent1.z() / (c * c * e_ext));
       hyperplane_list.push_back(hyperplane_new);
       tangent_point_list.push_back(p_tangent1);
       pcl_tf->clear();
@@ -892,7 +876,7 @@ bool GraphManager::modifyPath(pcl::PointCloud<pcl::PointXYZ>* obstacle_pcl,
       int i = 0;
       for (i = 0; i < hyperplane_list.size(); ++i) {
         sign = p.x() * hyperplane_list[i].x() + p.y() * hyperplane_list[i].y() +
-          p.z() * hyperplane_list[i].z() - 1;
+               p.z() * hyperplane_list[i].z() - 1;
         if (sign > kDSign) break;
       }
       if (i == hyperplane_list.size()) {
@@ -903,7 +887,7 @@ bool GraphManager::modifyPath(pcl::PointCloud<pcl::PointXYZ>* obstacle_pcl,
 
   for (int i = 0; i < hyperplane_list.size(); ++i) {
     tangent_point_list[i] =
-      tf_W2S * tangent_point_list[i];  // convert back to world
+        tf_W2S * tangent_point_list[i];  // convert back to world
     Eigen::Matrix4d tf_inv_T = tf_W2S.matrix().inverse().transpose();
     Eigen::Vector4d v_t;
     v_t = tf_inv_T * Eigen::Vector4d(hyperplane_list[i].x(),
@@ -917,10 +901,10 @@ bool GraphManager::modifyPath(pcl::PointCloud<pcl::PointXYZ>* obstacle_pcl,
   int feasible_count = 0;
   for (int i = 0; i < feasible_samples.size(); ++i) {
     feasible_samples[i] =
-      tf_W2S * feasible_samples[i];  // convert back to world
+        tf_W2S * feasible_samples[i];  // convert back to world
     // check if this is free voxel to deal with occluded area.
     if (map_manager_->getVoxelStatus(feasible_samples[i]) ==
-      MapManager::VoxelStatus::kFree) {
+        MapManager::VoxelStatus::kFree) {
       feasible_corridor_pcl_->push_back(pcl::PointXYZ(feasible_samples[i].x(),
                                                       feasible_samples[i].y(),
                                                       feasible_samples[i].z()));
@@ -938,9 +922,10 @@ bool GraphManager::modifyPath(pcl::PointCloud<pcl::PointXYZ>* obstacle_pcl,
   return true;
 }
 
-bool GraphManager::improveFreePath(const std::vector<geometry_msgs::Pose>& path_orig,
-                          std::vector<geometry_msgs::Pose>& path_mod,
-                          bool relaxed, bool edge_refinement) {
+bool GraphManager::improveFreePath(
+    const std::vector<geometry_msgs::Pose>& path_orig,
+    std::vector<geometry_msgs::Pose>& path_mod, bool relaxed,
+    bool edge_refinement) {
   // Few heuristics to improve the path.
   // a) Shorten path by reducing intermidiate nodes. (be careful with turning
   // cases) Shorten/reduce some very short paths to prevent small motion and
@@ -962,7 +947,7 @@ bool GraphManager::improveFreePath(const std::vector<geometry_msgs::Pose>& path_
 
   // Feature a) Remove short intermidiate vertices.
   std::vector<geometry_msgs::Pose> path_mod1 = path_orig_interp;
-  
+
   if (edge_refinement) {
     path_mod1.clear();
     path_mod1 = path_orig;
@@ -985,7 +970,8 @@ bool GraphManager::improveFreePath(const std::vector<geometry_msgs::Pose>& path_
                               path_mod1[i + 2].position.z);
         Eigen::Vector3d segment = p_int - p_start;
         double segment_len = segment.norm();
-        // ROS_WARN_COND(global_verbosity >= Verbosity::WARN, "Segment length %f.", segment_len);
+        // ROS_WARN_COND(global_verbosity >= Verbosity::WARN, "Segment length
+        // %f.", segment_len);
         if (segment_len < kSegmentLenMin) {
           if ((MapManager::VoxelStatus::kFree ==
                map_manager_->getPathStatus(p_start, p_end, robot_box_size_,
@@ -998,7 +984,8 @@ bool GraphManager::improveFreePath(const std::vector<geometry_msgs::Pose>& path_
                     Eigen::Vector2d(robot_box_size_[0],
                                     robot_box_size_[1]))))) {
             // ignore the intermidiate nore, combine the first to the last node.
-            ROS_WARN_COND(global_verbosity >= Verbosity::WARN, "Combine nodes to remove short segments.");
+            ROS_WARN_COND(global_verbosity >= Verbosity::WARN,
+                          "Combine nodes to remove short segments.");
             path_mod1.erase(path_mod1.begin() + i + 1);
             cont_refine = true;
             break;
@@ -1186,7 +1173,7 @@ bool GraphManager::improveFreePath(const std::vector<geometry_msgs::Pose>& path_
 }
 
 double GraphManager::projectSample(Eigen::Vector3d& sample,
-                          MapManager::VoxelStatus& voxel_status) {
+                                   MapManager::VoxelStatus& voxel_status) {
   double max_proj_len = 5.0;
 
   float voxel_size = map_manager_->getResolution();
@@ -1362,91 +1349,93 @@ ProjectedEdgeStatus GraphManager::getProjectedEdgeStatus(
   return ProjectedEdgeStatus::kAdmissible;
 }
 
-
-void GraphManager::improvePath(std::vector<Vertex *> raw_path, std::vector<Vertex *> &path)
-{
-
+void GraphManager::improvePath(std::vector<Vertex*> raw_path,
+                               std::vector<Vertex*>& path) {
   // Reset the improvement graph & clear memory
 
   improvement_graph_.reset(new GraphUtils());
-  if (improvement_graph_ != NULL)
-  {
+  if (improvement_graph_ != NULL) {
     improvement_graph_->reset();
   }
   // Reset SP report
   improvement_graph_rep_.reset();
 
   // Include root vertex as current robot state
-  Vertex *root_vertex = new Vertex(improvement_graph_->generateVertexID(), robotState_);
+  Vertex* root_vertex =
+      new Vertex(improvement_graph_->generateVertexID(), robotState_);
   improvement_graph_->addVertex(root_vertex);
   root_vertex->is_root = true;
 
   // Include goal vertex as last vertex of Dijkstra path
 
-  Vertex *goal_vertex = new Vertex(improvement_graph_->generateVertexID(), raw_path.back()->state);
+  Vertex* goal_vertex = new Vertex(improvement_graph_->generateVertexID(),
+                                   raw_path.back()->state);
   improvement_graph_->addVertex(goal_vertex);
 
-  // Not ideal, but check nearest neighbours to add edges in a graph that will improve the path
-  // by shortcutting some edges
+  // Not ideal, but check nearest neighbours to add edges in a graph that will
+  // improve the path by shortcutting some edges
 
-  for (std::vector<Vertex *>::iterator it_vert = raw_path.begin(); it_vert != std::prev(raw_path.end(), 0); it_vert++)
-  {
-
-    Vertex *imp_vertex = new Vertex(improvement_graph_->generateVertexID(), (*it_vert)->state);
+  for (std::vector<Vertex*>::iterator it_vert = raw_path.begin();
+       it_vert != std::prev(raw_path.end(), 0); it_vert++) {
+    Vertex* imp_vertex =
+        new Vertex(improvement_graph_->generateVertexID(), (*it_vert)->state);
     improvement_graph_->addVertex(imp_vertex);
   }
 
   std::pair<Graph::GraphType::vertex_iterator,
-  Graph::GraphType::vertex_iterator>
-  vi;
+            Graph::GraphType::vertex_iterator>
+      vi;
   improvement_graph_->graph_->getVertexIterator(vi);
 
-  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it)
-  {
-
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
     int id = improvement_graph_->graph_->getVertexProperty(it);
 
-    // Get nearby vertices from the current vertex and connect the them to form local edges
-    std::vector<Vertex *> nearby_vertices;
-    improvement_graph_->getNearestVertices(&improvement_graph_->vertices_map_[id]->state, 5*planning_params_.nearest_range, &nearby_vertices);
+    // Get nearby vertices from the current vertex and connect the them to form
+    // local edges
+    std::vector<Vertex*> nearby_vertices;
+    improvement_graph_->getNearestVertices(
+        &improvement_graph_->vertices_map_[id]->state,
+        2 * planning_params_.nearest_range, &nearby_vertices);
 
-    for (int i = 0; i < nearby_vertices.size(); i++)
-    {
-
+    for (int i = 0; i < nearby_vertices.size(); i++) {
       Eigen::Vector3d v1(improvement_graph_->vertices_map_[id]->state[0],
                          improvement_graph_->vertices_map_[id]->state[1],
                          improvement_graph_->vertices_map_[id]->state[2]);
 
-      Eigen::Vector3d v2(nearby_vertices[i]->state[0], nearby_vertices[i]->state[1], nearby_vertices[i]->state[2]);
-      MapManager::VoxelStatus vn = map_manager_->getPathStatus(v1, v2, robot_box_size_, true);
+      Eigen::Vector3d v2(nearby_vertices[i]->state[0],
+                         nearby_vertices[i]->state[1],
+                         nearby_vertices[i]->state[2]);
+      MapManager::VoxelStatus vn =
+          map_manager_->getPathStatus(v1, v2, robot_box_size_, true);
 
-      double edge_length = improvement_graph_->distanceBetweenVertices(improvement_graph_->vertices_map_[id], nearby_vertices[i]);
+      double edge_length = improvement_graph_->distanceBetweenVertices(
+          improvement_graph_->vertices_map_[id], nearby_vertices[i]);
 
-      if (edge_length < 1.5 * planning_params_.edge_length_max and MapManager::VoxelStatus::kFree == vn)
-      {
-
-        improvement_graph_->addEdge(improvement_graph_->vertices_map_[id], nearby_vertices[i],
-                                    improvement_graph_->distanceBetweenVertices(improvement_graph_->vertices_map_[id], nearby_vertices[i]));
+      if (edge_length < 2 * planning_params_.edge_length_max and
+          MapManager::VoxelStatus::kFree == vn) {
+        improvement_graph_->addEdge(
+            improvement_graph_->vertices_map_[id], nearby_vertices[i],
+            improvement_graph_->distanceBetweenVertices(
+                improvement_graph_->vertices_map_[id], nearby_vertices[i]));
       }
     }
   }
 
   // Dijkstra SP report from root to all vertices in improvement graph
 
-  if (improvement_graph_->findShortestPaths(root_vertex->id, improvement_graph_rep_))
-  {
+  if (improvement_graph_->findShortestPaths(root_vertex->id,
+                                            improvement_graph_rep_)) {
   } else {
     ROS_WARN("Could not find dijkstra shortest paths on graph improvement \n");
   }
 
-  improvement_graph_->getShortestPath(goal_vertex->id, improvement_graph_rep_, true, path);
-
+  improvement_graph_->getShortestPath(goal_vertex->id, improvement_graph_rep_,
+                                      true, path);
 }
 
-
 void GraphManager::expandGraph(std::shared_ptr<GraphUtils> graph_manager,
-                      Vertex& new_vertex, ExpandGraphReport& rep,
-                      bool allow_short_edge) {
+                               Vertex& new_vertex, ExpandGraphReport& rep,
+                               bool allow_short_edge) {
   // Find nearest neighbour
   StateVec new_state;
   new_state = new_vertex.state;
@@ -1690,7 +1679,6 @@ void GraphManager::expandGraph(std::shared_ptr<GraphUtils> graph_manager,
         }
       }
     }
-
   } else {
     stat_->num_edges_fail++;
     if (stat_->num_edges_fail < 500) {
@@ -1704,21 +1692,22 @@ void GraphManager::expandGraph(std::shared_ptr<GraphUtils> graph_manager,
   rep.status = ExpandGraphStatus::kSuccess;
 }
 
-GraphManager::GraphStatus GraphManager::buildGraph(std::shared_ptr<GraphUtils> graph) {
+GraphManager::GraphStatus GraphManager::buildGraph(
+    std::shared_ptr<GraphUtils> graph) {
   int loop_count = 0;
   int num_vertices = 1;
   int num_edges = 0;
-  GraphManager::GraphStatus build_graph_status = GraphManager::GraphStatus::NOT_OK;
+  GraphManager::GraphStatus build_graph_status =
+      GraphManager::GraphStatus::NOT_OK;
 
   resetProjectedGraph();
 
   local_exploration_ongoing_ = true;
 
   while ((loop_count++ < planning_params_.num_loops_max) &&
-    (num_vertices < planning_params_.num_vertices_max) &&
-    (num_edges < planning_params_.num_edges_max)) {
+         (num_vertices < planning_params_.num_vertices_max) &&
+         (num_edges < planning_params_.num_edges_max)) {
     Vertex new_vertex(-1, StateVec::Zero());
-
 
     if (!sampleVertex(new_vertex)) {
       continue;
@@ -1732,7 +1721,7 @@ GraphManager::GraphStatus GraphManager::buildGraph(std::shared_ptr<GraphUtils> g
     }
 
     if ((loop_count >= planning_params_.num_loops_cutoff) &&
-      (graph->getNumVertices() <= 1)) {
+        (graph->getNumVertices() <= 1)) {
       break;
     }
   }
@@ -1740,21 +1729,20 @@ GraphManager::GraphStatus GraphManager::buildGraph(std::shared_ptr<GraphUtils> g
   if (graph->getNumVertices() > 2 and graph->getNumEdges() > 1) {
     build_graph_status = GraphManager::GraphStatus::OK;
   }
-  
+
   // stat_->build_graph_time = GET_ELAPSED_TIME(ttime);
   // t2 = std::chrono::high_resolution_clock::now();
 
   return build_graph_status;
-
 }
 
-GraphManager::GraphStatus GraphManager::runLocalPlanner()
-{
-  GraphManager::GraphStatus local_planner_status = GraphManager::GraphStatus::NOT_OK;
+GraphManager::GraphStatus GraphManager::runLocalPlanner() {
+  GraphManager::GraphStatus local_planner_status =
+      GraphManager::GraphStatus::NOT_OK;
   int frontier_vertices_count = 0;
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
-  GraphManager::updateGlobalGraph(); 
+  GraphManager::updateGlobalGraph();
   GraphManager::resetLocalGraph();
   local_dijkstra_paths_.clear();
 
@@ -1762,12 +1750,16 @@ GraphManager::GraphStatus GraphManager::runLocalPlanner()
   local_root_vertex->is_root = true;
   local_graph_->addVertex(local_root_vertex);
 
-  GraphManager::GraphStatus build_graph_status = GraphManager::buildGraph(local_graph_);
+  GraphManager::GraphStatus build_graph_status =
+      GraphManager::buildGraph(local_graph_);
   switch (build_graph_status) {
     case GraphManager::GraphStatus::OK:
       ROS_DEBUG("[LOCAL PLANNER STATUS] SG build : OK ");
-      if(GraphManager::extractShortestPaths(local_graph_, local_graph_rep_, local_root_vertex, local_dijkstra_paths_)) {
-        local_planner_status = GraphManager::planLocalPath(local_dijkstra_paths_);
+      if (GraphManager::extractShortestPaths(local_graph_, local_graph_rep_,
+                                             local_root_vertex,
+                                             local_dijkstra_paths_)) {
+        local_planner_status =
+            GraphManager::planLocalPath(local_dijkstra_paths_);
       } else {
         local_planner_status = GraphManager::GraphStatus::NO_GAIN;
       }
@@ -1784,91 +1776,89 @@ GraphManager::GraphStatus GraphManager::runLocalPlanner()
   }
 
   if (local_planner_status == GraphManager::GraphManager::OK) {
-    
-    // Reuse the local dijkstra paths to expand the global graph. 
+    // Reuse the local dijkstra paths to expand the global graph.
 
     GraphManager::expandGlobalGraph(local_dijkstra_paths_);
   }
 
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
-  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+  auto duration_total =
+      duration_cast<std::chrono::milliseconds>(stop_total - start_total);
   ROS_DEBUG_STREAM("SG --> build time " << duration_total.count() << " ms \n");
 
-  // ROS_DEBUG_STREAM("Sub graph has " << local_graph_->getNumVertices() << " nodes & " << local_graph_->getNumEdges() << " edges\n");
+  // ROS_DEBUG_STREAM("Sub graph has " << local_graph_->getNumVertices() << "
+  // nodes & " << local_graph_->getNumEdges() << " edges\n");
 
   return local_planner_status;
 
-} // runLocalPlanner 
+}  // runLocalPlanner
 
-nav_msgs::Path GraphManager::getLocalExplorationPath () {
+nav_msgs::Path GraphManager::getLocalExplorationPath() {
   return local_exploration_path_;
 }
 
-
-nav_msgs::Path GraphManager::getGlobalExplorationPath () {
+nav_msgs::Path GraphManager::getGlobalExplorationPath() {
   return global_exploration_path_;
 }
 
-bool GraphManager::extractShortestPaths (std::shared_ptr<GraphUtils> graph, ShortestPathsReport rep, Vertex* root, 
-                                         std::vector<std::vector<Vertex *>> &dijkstra_paths) 
-{
-
+bool GraphManager::extractShortestPaths(
+    std::shared_ptr<GraphUtils> graph, ShortestPathsReport rep, Vertex* root,
+    std::vector<std::vector<Vertex*>>& dijkstra_paths) {
   bool path_status = false;
   // Fetch shortest path report from root vertex to all vertices in the graph
-  if (!graph->findShortestPaths(root->id, rep))
-  {
+  if (!graph->findShortestPaths(root->id, rep)) {
     ROS_WARN("Could not find dijkstra shortest paths on the graph \n");
     return path_status;
-  } 
+  }
 
   dijkstra_paths.clear();
   graph->findLeafVertices(rep);
 
   std::pair<Graph::GraphType::vertex_iterator,
-  Graph::GraphType::vertex_iterator> vi;
+            Graph::GraphType::vertex_iterator>
+      vi;
   graph->graph_->getVertexIterator(vi);
 
   if (graph->leaf_vertices_ids_.empty()) {
     return false;
   }
-  
-  std::vector<Vertex*> frontier_vertices;
-  // ROS_DEBUG_STREAM ("Total vertices : " << graph->getNumVertices() << " \t Leaf vertices " << graph->leaf_vertices_ids_.size() << "\n");
-  
-  high_resolution_clock::time_point start_total = high_resolution_clock::now();
-  for (int id : graph->leaf_vertices_ids_)
-  {
-    Vertex * vertex = graph->vertices_map_[id];
-    vertex->is_leaf_vertex = true;
-    GraphManager::computeVolumetricGainRayCasting(vertex->state, vertex->vol_gain);
-    if (vertex->vol_gain.is_frontier) {
 
+  std::vector<Vertex*> frontier_vertices;
+  // ROS_DEBUG_STREAM ("Total vertices : " << graph->getNumVertices() << " \t
+  // Leaf vertices " << graph->leaf_vertices_ids_.size() << "\n");
+
+  high_resolution_clock::time_point start_total = high_resolution_clock::now();
+  for (int id : graph->leaf_vertices_ids_) {
+    Vertex* vertex = graph->vertices_map_[id];
+    vertex->is_leaf_vertex = true;
+    GraphManager::computeVolumetricGainRayCasting(vertex->state,
+                                                  vertex->vol_gain);
+    if (vertex->vol_gain.is_frontier) {
       graph->frontier_vertices_ids_.push_back(vertex->id);
       frontier_vertices.push_back(vertex);
     }
   }
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
-  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-  ROS_DEBUG_STREAM("SG --> extract frontiers & shortest paths time " << duration_total.count() << " ms \n");
+  auto duration_total =
+      duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+  ROS_DEBUG_STREAM("SG --> extract frontiers & shortest paths time "
+                   << duration_total.count() << " ms \n");
 
-  std::vector<int> cluster_ids = performShortestPathsClustering(
-      graph, rep, frontier_vertices);
+  std::vector<int> cluster_ids =
+      performShortestPathsClustering(graph, rep, frontier_vertices);
   // std::vector<std::vector<Vertex *>> clustered_paths;
-  std::vector<Vertex *> path_to_cid;  
+  std::vector<Vertex*> path_to_cid;
   dijkstra_paths.clear();
   path_to_cid.clear();
-  
-  for (int cid : cluster_ids) {
 
+  for (int cid : cluster_ids) {
     graph->getShortestPath(cid, rep, true, path_to_cid);
     dijkstra_paths.push_back(path_to_cid);
-  
   }
 
   visualization_server_->visualizeLocalGraph(local_graph_);
-  
+
   if (!dijkstra_paths.empty()) {
-    
     path_status = true;
   } else {
     ROS_DEBUG_STREAM("local dijkstra paths do not exist \n");
@@ -1876,77 +1866,79 @@ bool GraphManager::extractShortestPaths (std::shared_ptr<GraphUtils> graph, Shor
   }
 
   return path_status;
-
 }
 
-GraphManager::GraphStatus GraphManager::planLocalPath(std::vector<std::vector<Vertex *>> dijkstra_paths)
-{
-
+GraphManager::GraphStatus GraphManager::planLocalPath(
+    std::vector<std::vector<Vertex*>> dijkstra_paths) {
   exploration_dir_pose.header.frame_id = world_frame_id;
   exploration_dir_pose.header.stamp = ros::Time::now();
   exploration_Direction_Pub.publish(exploration_dir_pose);
   local_exploration_path_.poses.clear();
-  GraphManager::GraphStatus path_status = GraphManager::GraphStatus::ERR_NO_FEASIBLE_PATH;
+  GraphManager::GraphStatus path_status =
+      GraphManager::GraphStatus::ERR_NO_FEASIBLE_PATH;
   local_paths_.clear();
 
   if (!dijkstra_paths.empty()) {
+    for (std::vector<Vertex*> dijkstra_path : dijkstra_paths) {
+      if (!dijkstra_path.empty()) {
+        Eigen::Vector3d path_goal(dijkstra_path.back()->state[0],
+                                  dijkstra_path.back()->state[1],
+                                  dijkstra_path.back()->state[2]);
 
-    for (std::vector<Vertex *> dijkstra_path : dijkstra_paths) {
-
-      if (!dijkstra_path.empty())
-      {
-        Eigen::Vector3d path_goal (dijkstra_path.back()->state[0], dijkstra_path.back()->state[1], dijkstra_path.back()->state[2]);
-
-        std::pair<std::vector<Vertex *>, double> p = std::make_pair(dijkstra_path, getPathLength(dijkstra_path));
+        std::pair<std::vector<Vertex*>, double> p =
+            std::make_pair(dijkstra_path, getPathLength(dijkstra_path));
 
         local_paths_.push_back(p);
       }
     }
-
   } else {
-    ROS_WARN_STREAM ("SG -> No dijkstra paths :( \n");
+    ROS_WARN_STREAM("SG -> No dijkstra paths :( \n");
     return path_status;
   }
-  
+
   std::vector<std::pair<std::vector<Vertex*>, double>> paths_unordered;
   paths_unordered.clear();
-  
-  if (!local_paths_.empty())
-  {
+
+  if (!local_paths_.empty()) {
     visualization_server_->visualizeLocalPaths(local_paths_);
 
     double gain, path_length, reward;
     double my_reward = -std::numeric_limits<double>::max();
 
-    for (auto i = 0; i < local_paths_.size(); i++)
-    {
-
+    for (auto i = 0; i < local_paths_.size(); i++) {
       gain = 100 * local_paths_[i].first.back()->vol_gain.unknown_percentage;
 
       path_length = local_paths_[i].second;
 
-      Eigen::Vector3d p_goal (local_paths_[i].first.back()->state[0], local_paths_[i].first.back()->state[1], local_paths_[i].first.back()->state[2]);
+      Eigen::Vector3d p_goal(local_paths_[i].first.back()->state[0],
+                             local_paths_[i].first.back()->state[1],
+                             local_paths_[i].first.back()->state[2]);
       double ang = getRelativeAngle(p_goal);
-      // ROS_DEBUG_STREAM ("Vertex Gain --> " << gain << "\t Angle --> " << ang << "\t Path length --> " << path_length << "\n");
-      reward = gain - 10*exp(ang*M_PI/180); 
+      // ROS_DEBUG_STREAM ("Vertex Gain --> " << gain << "\t Angle --> " << ang
+      // << "\t Path length --> " << path_length << "\n");
+      reward = gain - 10 * exp(ang * M_PI / 180);
       // ROS_DEBUG_STREAM ("new reward = " << reward << "\n");
-      
-      
-      std::pair<std::vector<Vertex *>, double> path_reward_pair = std::make_pair(local_paths_[i].first, reward);
+
+      std::pair<std::vector<Vertex*>, double> path_reward_pair =
+          std::make_pair(local_paths_[i].first, reward);
       paths_unordered.push_back(path_reward_pair);
     }
-    
-    // sort the paths in descending order based on the leaf vertices exploration reward. 
 
-    std::sort(paths_unordered.begin(), paths_unordered.end(), 
-              [](const std::pair<std::vector<Vertex *>, double>& a, const std::pair<std::vector<Vertex *>, double>& b) 
-              { return a.second>b.second; } );
-        
-    // ROS_DEBUG_STREAM ("first and last element reward << " << paths_unordered.front().second << " , " << paths_unordered.back().second << "\n");
+    // sort the paths in descending order based on the leaf vertices exploration
+    // reward.
+
+    std::sort(paths_unordered.begin(), paths_unordered.end(),
+              [](const std::pair<std::vector<Vertex*>, double>& a,
+                 const std::pair<std::vector<Vertex*>, double>& b) {
+                return a.second > b.second;
+              });
+
+    // ROS_DEBUG_STREAM ("first and last element reward << " <<
+    // paths_unordered.front().second << " , " << paths_unordered.back().second
+    // << "\n");
 
     for (int j = 0; j < paths_unordered.size(); j++) {
-
-      std::vector<Vertex *> path = paths_unordered[j].first;
+      std::vector<Vertex*> path = paths_unordered[j].first;
       best_path_.clear();
       GraphManager::improvePath(path, best_path_);
       if (best_path_.empty()) {
@@ -1968,7 +1960,8 @@ GraphManager::GraphStatus GraphManager::planLocalPath(std::vector<std::vector<Ve
         original_path.push_back(path_pose);
       }
 
-      bool improvement_success = GraphManager::improveFreePath (original_path, modified_path, true, false);
+      bool improvement_success = GraphManager::improveFreePath(
+          original_path, modified_path, true, false);
 
       if (improvement_success) {
         geometry_msgs::PoseStamped pose_mod;
@@ -1977,15 +1970,14 @@ GraphManager::GraphStatus GraphManager::planLocalPath(std::vector<std::vector<Ve
         local_exploration_path_.header.frame_id = world_frame_id;
         local_exploration_path_.header.stamp = ros::Time::now();
 
-        for (int i = 0; i < modified_path.size(); ++i){
-
+        for (int i = 0; i < modified_path.size(); ++i) {
           float angle;
           if (i == 0) {
             angle = robotState_[3];
-
           } else {
-            angle = atan2(modified_path[i].position.y - modified_path[i - 1].position.y,
-                          modified_path[i].position.x - modified_path[i - 1].position.x);
+            angle = atan2(
+                modified_path[i].position.y - modified_path[i - 1].position.y,
+                modified_path[i].position.x - modified_path[i - 1].position.x);
           }
           Eigen::Vector3d v(0, 0, angle);
           Eigen::Quaternion<float> q = Euler2Quaternion(v);
@@ -1999,12 +1991,12 @@ GraphManager::GraphStatus GraphManager::planLocalPath(std::vector<std::vector<Ve
           local_exploration_path_.poses.push_back(pose_mod);
         }
 
-        visualization_server_->visualizeExplorationPath(local_exploration_path_);
+        visualization_server_->visualizeExplorationPath(
+            local_exploration_path_);
         break;
-      } 
+      }
 
-      else if (j == (paths_unordered.size() - 1))
-      {
+      else if (j == (paths_unordered.size() - 1)) {
         ROS_WARN("SG --> Improved local path is empty \n");
         geometry_msgs::PoseStamped pose_mod;
         pose_mod.header.frame_id = world_frame_id;
@@ -2012,13 +2004,14 @@ GraphManager::GraphStatus GraphManager::planLocalPath(std::vector<std::vector<Ve
         local_exploration_path_.header.frame_id = world_frame_id;
         local_exploration_path_.header.stamp = ros::Time::now();
 
-        for (int i = 0; i < original_path.size(); ++i){
+        for (int i = 0; i < original_path.size(); ++i) {
           float angle;
           if (i == 0) {
             angle = robotState_[3];
           } else {
-            angle = atan2(original_path[i].position.y - original_path[i - 1].position.y,
-                          original_path[i].position.x - original_path[i - 1].position.x);
+            angle = atan2(
+                original_path[i].position.y - original_path[i - 1].position.y,
+                original_path[i].position.x - original_path[i - 1].position.x);
           }
           Eigen::Vector3d v(0, 0, angle);
           Eigen::Quaternion<float> q = Euler2Quaternion(v);
@@ -2032,59 +2025,56 @@ GraphManager::GraphStatus GraphManager::planLocalPath(std::vector<std::vector<Ve
           local_exploration_path_.poses.push_back(pose_mod);
         }
 
-        visualization_server_->visualizeExplorationPath(local_exploration_path_);
-      } 
+        visualization_server_->visualizeExplorationPath(
+            local_exploration_path_);
+      }
     }
-    
+
     if (!local_exploration_path_.poses.empty()) {
       path_status = GraphManager::GraphStatus::OK;
       ROS_DEBUG("Local path -> OK \n");
     }
-
-  } 
-  else 
-  {
+  } else {
     ROS_WARN("SG --> No shortest paths to local frontier vertices \n");
     return path_status;
   }
 
   return path_status;
 
-} // planLocalPath
+}  // planLocalPath
 
 void GraphManager::updateGlobalGraph() {
-
   Vertex* vertex = new Vertex(global_graph_->generateVertexID(), robotState_);
   global_graph_->addVertex(vertex);
   vertex->parent = prev_pose_vertex_;
   prev_pose_vertex_->children.push_back(vertex);
   double edge_weight = (prev_pose_vertex_->state_3d - vertex->state_3d).norm();
-  MapManager::VoxelStatus vs = map_manager_->getPathStatus(vertex->state.head(3), 
-                                                           prev_pose_vertex_->state.head(3),
-                                                           robot_box_size_, true);
-  if (edge_weight < 2*planning_params_.nearest_range and MapManager::VoxelStatus::kFree == vs) {
-
+  MapManager::VoxelStatus vs = map_manager_->getPathStatus(
+      vertex->state.head(3), prev_pose_vertex_->state.head(3), robot_box_size_,
+      true);
+  if (edge_weight < 2 * planning_params_.nearest_range and
+      MapManager::VoxelStatus::kFree == vs) {
     global_graph_->addEdge(vertex, prev_pose_vertex_, edge_weight);
   }
 
   prev_pose_vertex_ = vertex;
-  
-  // Add extra edges from pose vertex to densify the graph. 
 
-  std::vector<Vertex *> nearby_vertices;
+  // Add extra edges from pose vertex to densify the graph.
 
-  global_graph_->getNearestVertices(&vertex->state, planning_params_.nearest_range, &nearby_vertices);
-  for (int i = 0; i < nearby_vertices.size(); ++i)
-  {
+  std::vector<Vertex*> nearby_vertices;
+
+  global_graph_->getNearestVertices(
+      &vertex->state, planning_params_.nearest_range, &nearby_vertices);
+  for (int i = 0; i < nearby_vertices.size(); ++i) {
     Vertex* neighbour = nearby_vertices[i];
     int num_edges = vertex->edges;
     double weight = (vertex->state - neighbour->state).norm();
 
-    if (num_edges < planning_params_.num_connections_max and weight < planning_params_.edge_length_max)
-    {
-      if (MapManager::VoxelStatus::kFree == map_manager_->getPathStatus(vertex->state_3d, neighbour->state_3d, robot_box_size_, true))
-      {
-
+    if (num_edges < planning_params_.num_connections_max and
+        weight < planning_params_.edge_length_max) {
+      if (MapManager::VoxelStatus::kFree ==
+          map_manager_->getPathStatus(vertex->state_3d, neighbour->state_3d,
+                                      robot_box_size_, true)) {
         global_graph_->addEdge(vertex, neighbour, weight);
         vertex->edges++;
         // neighbour->edges++;
@@ -2093,28 +2083,30 @@ void GraphManager::updateGlobalGraph() {
   }
 
   visualization_server_->visualizeGlobalGraph(global_graph_);
-  
-  // update the local sub graph seen from robot's current position to handle dynamic change at global graph level.
-  
-  /* 
+
+  // update the local sub graph seen from robot's current position to handle
+  // dynamic change at global graph level.
+
+  /*
   nearby_vertices.clear();
-  global_graph_->getNearestVertices(&robotState_, planning_params_.local_space, &nearby_vertices);
-  std::vector<int> violated_vertices;
+  global_graph_->getNearestVertices(&robotState_, planning_params_.local_space,
+  &nearby_vertices); std::vector<int> violated_vertices;
   violated_vertices.clear();
-  
+
   for (int i = 0; i < nearby_vertices.size(); i++)
   {
 
-    Vertex* vertex1 = nearby_vertices[i]; 
-    std::vector<std::pair<int, double>> edge_pairs = global_graph_->edge_map_[vertex1->id];
-    bool found_violated_edge = false;
-    for (std::pair<int, double> edge_pair : edge_pairs) {
+    Vertex* vertex1 = nearby_vertices[i];
+    std::vector<std::pair<int, double>> edge_pairs =
+  global_graph_->edge_map_[vertex1->id]; bool found_violated_edge = false; for
+  (std::pair<int, double> edge_pair : edge_pairs) {
 
       Vertex* vertex2 = global_graph_->vertices_map_[edge_pair.first];
-      MapManager::VoxelStatus vn = map_manager_->getPathStatus(vertex1->state.head(3), 
-                                                               vertex2->state.head(3), robot_box_size_, false);
-      
-      // remove the violated edge 
+      MapManager::VoxelStatus vn =
+  map_manager_->getPathStatus(vertex1->state.head(3), vertex2->state.head(3),
+  robot_box_size_, false);
+
+      // remove the violated edge
 
       if (MapManager::VoxelStatus::kOccupied == vn) {
 
@@ -2128,7 +2120,8 @@ void GraphManager::updateGlobalGraph() {
   }
   */
 
-  // Try to reconnected additional edges from the violated_vertices. only for debug.. VERY COSTLY. @TODO find a better way to do this reconnections. 
+  // Try to reconnected additional edges from the violated_vertices. only for
+  // debug.. VERY COSTLY. @TODO find a better way to do this reconnections.
 
   /*
   for (int id : violated_vertices) {
@@ -2136,14 +2129,17 @@ void GraphManager::updateGlobalGraph() {
     Vertex * vertex = global_graph_->vertices_map_[id];
     std::vector<Vertex *> nearby_vertices;
 
-    global_graph_->getNearestVertices(&vertex->state, planning_params_.nearest_range, &nearby_vertices);
-    for (int i = 0; i < nearby_vertices.size(); ++i)
+    global_graph_->getNearestVertices(&vertex->state,
+  planning_params_.nearest_range, &nearby_vertices); for (int i = 0; i <
+  nearby_vertices.size(); ++i)
     {
       Vertex* neighbour = nearby_vertices[i];
       int num_edges = vertex->edges;
       double weight = (vertex->state - neighbour->state).norm();
 
-      if (MapManager::VoxelStatus::kFree == map_manager_->getPathStatus(vertex->state.head(3), neighbour->state.head(3), robot_box_size_, true))
+      if (MapManager::VoxelStatus::kFree ==
+  map_manager_->getPathStatus(vertex->state.head(3), neighbour->state.head(3),
+  robot_box_size_, true))
       {
         global_graph_->addEdge(vertex, neighbour, weight);
       }
@@ -2152,36 +2148,32 @@ void GraphManager::updateGlobalGraph() {
   */
 
   // visualization_server_->visualizeGlobalGraph(global_graph_);
-
 }
 
-void GraphManager::expandGlobalGraph(std::vector<std::vector<Vertex *>> dijkstra_paths) 
-{
-  
+void GraphManager::expandGlobalGraph(
+    std::vector<std::vector<Vertex*>> dijkstra_paths) {
   GraphManager::updateGlobalGraph();
 
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
   bool graph_status = true;
-  
+
   if (!dijkstra_paths.empty()) {
-  
     Vertex* prev_vertex = nullptr;
-    std::vector<Vertex *> newly_added_vertices;
+    std::vector<Vertex*> newly_added_vertices;
     newly_added_vertices.clear();
     for (int i = 0; i < dijkstra_paths.size(); ++i) {
-
       if (i == 0) {
-
-        std::vector<Vertex *> path = dijkstra_paths[i];
+        std::vector<Vertex*> path = dijkstra_paths[i];
 
         for (int j = 0; j < path.size(); ++j) {
-
           if (!path[j]->is_evaluated) {
-
-            Vertex * new_vertex = new Vertex(global_graph_->generateVertexID(), path[j]->state);
+            Vertex* new_vertex =
+                new Vertex(global_graph_->generateVertexID(), path[j]->state);
             new_vertex->vol_gain = path[j]->vol_gain;
             global_graph_->addVertex(new_vertex);
-            if (new_vertex->vol_gain.is_frontier) {global_graph_->frontier_vertices_ids_.push_back(new_vertex->id);}
+            if (new_vertex->vol_gain.is_frontier) {
+              global_graph_->frontier_vertices_ids_.push_back(new_vertex->id);
+            }
             newly_added_vertices.push_back(new_vertex);
             path[j]->is_evaluated = true;
             path[j]->sub_id = new_vertex->id;
@@ -2189,82 +2181,84 @@ void GraphManager::expandGlobalGraph(std::vector<std::vector<Vertex *>> dijkstra
             if (j == 0) {
               new_vertex->parent = prev_pose_vertex_;
               prev_pose_vertex_->children.push_back(new_vertex);
-              double edge_weight = (prev_pose_vertex_->state_3d - new_vertex->state_3d).norm();
-              global_graph_->addEdge(new_vertex, prev_pose_vertex_, edge_weight);
+              double edge_weight =
+                  (prev_pose_vertex_->state_3d - new_vertex->state_3d).norm();
+              global_graph_->addEdge(new_vertex, prev_pose_vertex_,
+                                     edge_weight);
               prev_vertex = new_vertex;
-
             } else {
               new_vertex->parent = prev_vertex;
               prev_vertex->children.push_back(new_vertex);
-              double edge_weight = (prev_vertex->state_3d - new_vertex->state_3d).norm();
+              double edge_weight =
+                  (prev_vertex->state_3d - new_vertex->state_3d).norm();
               global_graph_->addEdge(new_vertex, prev_vertex, edge_weight);
               prev_vertex = new_vertex;
-
             }
           }
         }
-      } 
+      }
 
       else {
-
-        std::vector<Vertex *> path = dijkstra_paths[i];
+        std::vector<Vertex*> path = dijkstra_paths[i];
 
         for (int j = 0; j < path.size(); ++j) {
-
           if (path[j]->is_evaluated) {
             int evaluated_vert_id = path[j]->sub_id;
             prev_vertex = global_graph_->vertices_map_[evaluated_vert_id];
           }
 
           if (!path[j]->is_evaluated) {
-
-            Vertex * new_vertex = new Vertex(global_graph_->generateVertexID(), path[j]->state);
+            Vertex* new_vertex =
+                new Vertex(global_graph_->generateVertexID(), path[j]->state);
             new_vertex->vol_gain = path[j]->vol_gain;
             global_graph_->addVertex(new_vertex);
-            if (new_vertex->vol_gain.is_frontier) {global_graph_->frontier_vertices_ids_.push_back(new_vertex->id);}
+            if (new_vertex->vol_gain.is_frontier) {
+              global_graph_->frontier_vertices_ids_.push_back(new_vertex->id);
+            }
             newly_added_vertices.push_back(new_vertex);
             path[j]->is_evaluated = true;
             path[j]->sub_id = new_vertex->id;
 
             new_vertex->parent = prev_vertex;
             prev_vertex->children.push_back(new_vertex);
-            double edge_weight = (prev_vertex->state_3d - new_vertex->state_3d).norm();
+            double edge_weight =
+                (prev_vertex->state_3d - new_vertex->state_3d).norm();
             global_graph_->addEdge(new_vertex, prev_vertex, edge_weight);
             prev_vertex = new_vertex;
-
           }
         }
       }
     }
 
     for (Vertex* new_vertex : newly_added_vertices) {
-
       if (new_vertex->children.empty()) {
-        
         bool sampled = false;
         int temp_it = 0;
         StateVec vertex_state;
-        while(temp_it < 100) {
-
-          if(GraphManager::sampleStateToExpandGraph(new_vertex->state, vertex_state)) {
+        while (temp_it < 100) {
+          if (GraphManager::sampleStateToExpandGraph(new_vertex->state,
+                                                     vertex_state)) {
             sampled_states_.push_back(vertex_state);
           }
-          Vertex * temp_vertex = new Vertex (0, vertex_state);
-          GraphManager::computeVolumetricGainRayCasting(vertex_state, temp_vertex->vol_gain);
-          
+          Vertex* temp_vertex = new Vertex(0, vertex_state);
+          GraphManager::computeVolumetricGainRayCasting(vertex_state,
+                                                        temp_vertex->vol_gain);
+
           if (temp_vertex->vol_gain.is_frontier) {
-
-            double weight = (vertex_state.head(3) - new_vertex->state.head(3)).norm();
-            if (MapManager::VoxelStatus::kOccupied != map_manager_->getPathStatus(vertex_state.head(3), 
-                                                                                  new_vertex->state_3d, robot_box_size_, false))
-            {
-
-              Vertex* new_sampled_vertex = new Vertex(global_graph_->generateVertexID(), vertex_state);
+            double weight =
+                (vertex_state.head(3) - new_vertex->state.head(3)).norm();
+            if (MapManager::VoxelStatus::kOccupied !=
+                map_manager_->getPathStatus(vertex_state.head(3),
+                                            new_vertex->state_3d,
+                                            robot_box_size_, false)) {
+              Vertex* new_sampled_vertex =
+                  new Vertex(global_graph_->generateVertexID(), vertex_state);
               new_sampled_vertex->vol_gain = temp_vertex->vol_gain;
               new_sampled_vertex->parent = new_vertex;
               new_vertex->children.push_back(new_sampled_vertex);
               global_graph_->addVertex(new_sampled_vertex);
-              global_graph_->frontier_vertices_ids_.push_back(new_sampled_vertex->id);
+              global_graph_->frontier_vertices_ids_.push_back(
+                  new_sampled_vertex->id);
               new_sampled_vertex->parent->vol_gain.is_frontier = false;
               global_graph_->addEdge(new_vertex, new_sampled_vertex, weight);
               break;
@@ -2274,26 +2268,29 @@ void GraphManager::expandGlobalGraph(std::vector<std::vector<Vertex *>> dijkstra
           ++temp_it;
         }
       }
-    
 
-      // Get nearby vertices from the current vertex and connect the them to form local edges
+      // Get nearby vertices from the current vertex and connect the them to
+      // form local edges
 
-      // GraphManager::computeVolumetricGainRayCasting(new_vertex->state, new_vertex->vol_gain);
+      // GraphManager::computeVolumetricGainRayCasting(new_vertex->state,
+      // new_vertex->vol_gain);
 
-      std::vector<Vertex *> nearby_vertices;
-      global_graph_->getNearestVertices(&new_vertex->state, 2*planning_params_.nearest_range, &nearby_vertices);
+      std::vector<Vertex*> nearby_vertices;
+      global_graph_->getNearestVertices(&new_vertex->state,
+                                        2 * planning_params_.nearest_range,
+                                        &nearby_vertices);
 
-      for (int i = 0; i < nearby_vertices.size(); ++i)
-      {
+      for (int i = 0; i < nearby_vertices.size(); ++i) {
         Vertex* neighbour = nearby_vertices[i];
         int num_edges = new_vertex->edges;
         double weight = (new_vertex->state - neighbour->state).norm();
 
-        if (num_edges < planning_params_.num_connections_max and weight < planning_params_.edge_length_max)
-        {
-          if (MapManager::VoxelStatus::kFree == map_manager_->getPathStatus(new_vertex->state_3d, neighbour->state_3d, robot_box_size_, true))
-          {
-
+        if (num_edges < planning_params_.num_connections_max and
+            weight < planning_params_.edge_length_max) {
+          if (MapManager::VoxelStatus::kFree ==
+              map_manager_->getPathStatus(new_vertex->state_3d,
+                                          neighbour->state_3d, robot_box_size_,
+                                          true)) {
             global_graph_->addEdge(new_vertex, neighbour, weight);
             new_vertex->edges++;
             // neighbour->edges++;
@@ -2303,51 +2300,54 @@ void GraphManager::expandGlobalGraph(std::vector<std::vector<Vertex *>> dijkstra
     }
   }
 
-  // update the peviously added frontier vertices in updated global graph 
+  // update the peviously added frontier vertices in updated global graph
 
-  for (std::list<int>::iterator i = global_graph_->frontier_vertices_ids_.begin(); i != global_graph_->frontier_vertices_ids_.end(); i++) {
-
+  for (std::list<int>::iterator i =
+           global_graph_->frontier_vertices_ids_.begin();
+       i != global_graph_->frontier_vertices_ids_.end(); i++) {
     Vertex* vertex = global_graph_->vertices_map_[*i];
-    // GraphManager::computeVolumetricGainRayCasting(vertex->state, vertex->vol_gain);
-    
-    // only update frontier status of vertices within local space (sensor range) 
-    if ((vertex->state.head(3) - robotState_.head(3)).norm() < planning_params_.local_space) {
-      GraphManager::computeVolumetricGainRayCasting(vertex->state, vertex->vol_gain);
+    // GraphManager::computeVolumetricGainRayCasting(vertex->state,
+    // vertex->vol_gain);
+
+    // only update frontier status of vertices within local space (sensor range)
+    if ((vertex->state.head(3) - robotState_.head(3)).norm() <
+        planning_params_.local_space) {
+      GraphManager::computeVolumetricGainRayCasting(vertex->state,
+                                                    vertex->vol_gain);
     }
   }
-  
-  // remove vertices ids from frontier list if they are no longer frontiers. 
+
+  // remove vertices ids from frontier list if they are no longer frontiers.
 
   global_graph_->updateFrontierVertices();
-  
-  visualization_server_->visualizeVoxelGain(global_graph_); 
+
+  visualization_server_->visualizeVoxelGain(global_graph_);
   global_root_vertex = prev_pose_vertex_;
 
-  // run dijkstra shortest paths on updated global graph 
+  // run dijkstra shortest paths on updated global graph
 
-  if (!global_graph_->findShortestPaths(global_root_vertex->id, global_graph_rep_))
-  {
+  if (!global_graph_->findShortestPaths(global_root_vertex->id,
+                                        global_graph_rep_)) {
     ROS_WARN("Could not find dijkstra shortest paths on the global graph \n");
-  } 
+  }
 
-  std::vector<std::vector<Vertex *>> global_dijkstra_paths;
+  std::vector<std::vector<Vertex*>> global_dijkstra_paths;
 
   global_dijkstra_paths.clear();
 
-  for (int id : global_graph_->frontier_vertices_ids_)
-  {
-    Vertex * vertex = global_graph_->vertices_map_[id];
+  for (int id : global_graph_->frontier_vertices_ids_) {
+    Vertex* vertex = global_graph_->vertices_map_[id];
 
     // if (vertex->vol_gain.is_frontier and vertex->is_cluster_centroid)
-    if (vertex->vol_gain.is_frontier)
-    {
-      std::vector<Vertex *> global_dijkstra_path;
+    if (vertex->vol_gain.is_frontier) {
+      std::vector<Vertex*> global_dijkstra_path;
       global_dijkstra_path.clear();
 
-      global_graph_->getShortestPath(vertex->id, global_graph_rep_, true, global_dijkstra_path);
+      global_graph_->getShortestPath(vertex->id, global_graph_rep_, true,
+                                     global_dijkstra_path);
 
-      if (!global_dijkstra_path.empty() and getPathLength(global_dijkstra_path) > 4)
-      {
+      if (!global_dijkstra_path.empty() and
+          getPathLength(global_dijkstra_path) > 4) {
         global_dijkstra_paths.push_back(global_dijkstra_path);
       }
     }
@@ -2356,42 +2356,42 @@ void GraphManager::expandGlobalGraph(std::vector<std::vector<Vertex *>> dijkstra
   global_paths_.clear();
 
   if (!global_dijkstra_paths.empty()) {
+    for (std::vector<Vertex*> global_dijkstra_path : global_dijkstra_paths) {
+      if (!global_dijkstra_path.empty()) {
+        Eigen::Vector3d path_goal(global_dijkstra_path.back()->state[0],
+                                  global_dijkstra_path.back()->state[1],
+                                  global_dijkstra_path.back()->state[2]);
 
-    for (std::vector<Vertex *> global_dijkstra_path : global_dijkstra_paths) {
-
-      if (!global_dijkstra_path.empty())
-      {
-        Eigen::Vector3d path_goal (global_dijkstra_path.back()->state[0], global_dijkstra_path.back()->state[1], global_dijkstra_path.back()->state[2]);
-
-        std::pair<std::vector<Vertex *>, double> p = std::make_pair(global_dijkstra_path, getPathLength(global_dijkstra_path));
+        std::pair<std::vector<Vertex*>, double> p = std::make_pair(
+            global_dijkstra_path, getPathLength(global_dijkstra_path));
 
         global_paths_.push_back(p);
       }
     }
-
   } else {
-    ROS_WARN_STREAM ("GG --> No dijkstra paths :( \n");
+    ROS_WARN_STREAM("GG --> No dijkstra paths :( \n");
   }
 
   visualization_server_->visualizeGlobalPaths(global_paths_);
   visualization_server_->visualizeGlobalGraph(global_graph_);
 
-  // update path to return to base upon every global graph update --> mainly to find shortest route to base station. 
+  // update path to return to base upon every global graph update --> mainly to
+  // find shortest route to base station.
 
   homing_dijkstra_path_.clear();
-  global_graph_->getShortestPath(0, global_graph_rep_, true, homing_dijkstra_path_);
-  
+  global_graph_->getShortestPath(home_vertex_->id, global_graph_rep_, true,
+                                 homing_dijkstra_path_);
+
   homing_path_.poses.clear();
   if (!homing_dijkstra_path_.empty()) {
-
     geometry_msgs::PoseStamped homing_path_pose;
     for (int i = 0; i < homing_dijkstra_path_.size(); i++) {
-      homing_path_pose.pose.position.x = homing_dijkstra_path_[i]->state[0];    
-      homing_path_pose.pose.position.y = homing_dijkstra_path_[i]->state[1];    
-      homing_path_pose.pose.position.z = homing_dijkstra_path_[i]->state[2];    
-      homing_path_pose.pose.orientation.x = 0;    
-      homing_path_pose.pose.orientation.y = 0;    
-      homing_path_pose.pose.orientation.z = 0;    
+      homing_path_pose.pose.position.x = homing_dijkstra_path_[i]->state[0];
+      homing_path_pose.pose.position.y = homing_dijkstra_path_[i]->state[1];
+      homing_path_pose.pose.position.z = homing_dijkstra_path_[i]->state[2];
+      homing_path_pose.pose.orientation.x = 0;
+      homing_path_pose.pose.orientation.y = 0;
+      homing_path_pose.pose.orientation.z = 0;
       homing_path_pose.pose.orientation.w = 1;
       homing_path_pose.header.frame_id = world_frame_id;
       homing_path_pose.header.stamp = ros::Time::now();
@@ -2401,12 +2401,13 @@ void GraphManager::expandGlobalGraph(std::vector<std::vector<Vertex *>> dijkstra
   visualization_server_->visualizeHomingPath(homing_path_);
 
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
-  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-  ROS_DEBUG_STREAM("GG -> update & homing planning time \t " << duration_total.count() << " ms \n");
+  auto duration_total =
+      duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+  ROS_DEBUG_STREAM("GG -> update & homing planning time \t "
+                   << duration_total.count() << " ms \n");
 }
 
-void GraphManager::setHomingPath () {
-  
+void GraphManager::setHomingPath() {
   path_iterator_ = 0;
   GraphManager::updateGlobalGraph();
   std::vector<geometry_msgs::Pose> original_path;
@@ -2420,9 +2421,10 @@ void GraphManager::setHomingPath () {
   for (int i = 0; i < homing_path_.poses.size(); ++i) {
     original_path.push_back(homing_path_.poses[i].pose);
   }
-  
+
   improved_homing_path_.poses.clear();
-  bool improvement_success = GraphManager::improveFreePath (original_path, modified_path, true, false);
+  bool improvement_success =
+      GraphManager::improveFreePath(original_path, modified_path, true, false);
 
   if (improvement_success) {
     geometry_msgs::PoseStamped pose_mod;
@@ -2431,15 +2433,15 @@ void GraphManager::setHomingPath () {
     improved_homing_path_.header.frame_id = world_frame_id;
     improved_homing_path_.header.stamp = ros::Time::now();
 
-    for (int i = 0; i < modified_path.size(); ++i){
-          float angle;
-          if (i == 0) {
-            angle = robotState_[3];
-
-          } else {
-            angle = atan2(modified_path[i].position.y - modified_path[i - 1].position.y,
-                          modified_path[i].position.x - modified_path[i - 1].position.x);
-          }
+    for (int i = 0; i < modified_path.size(); ++i) {
+      float angle;
+      if (i == 0) {
+        angle = robotState_[3];
+      } else {
+        angle = atan2(
+            modified_path[i].position.y - modified_path[i - 1].position.y,
+            modified_path[i].position.x - modified_path[i - 1].position.x);
+      }
       Eigen::Vector3d v(0, 0, angle);
       Eigen::Quaternion<float> q = Euler2Quaternion(v);
       pose_mod.pose.position.x = modified_path[i].position.x;
@@ -2455,22 +2457,22 @@ void GraphManager::setHomingPath () {
     visualization_server_->visualizeHomingPath(improved_homing_path_);
   } else {
     ROS_WARN("Failed to improve homing path : Publishing raw path \n");
-    
+
     geometry_msgs::PoseStamped pose_mod;
     pose_mod.header.frame_id = world_frame_id;
     pose_mod.header.stamp = ros::Time::now();
     improved_homing_path_.header.frame_id = world_frame_id;
     improved_homing_path_.header.stamp = ros::Time::now();
 
-    for (int i = 0; i < original_path.size(); ++i){
-          float angle;
-          if (i == 0) {
-            angle = robotState_[3];
-
-          } else {
-            angle = atan2(original_path[i].position.y - original_path[i - 1].position.y,
-                          original_path[i].position.x - original_path[i - 1].position.x);
-          }
+    for (int i = 0; i < original_path.size(); ++i) {
+      float angle;
+      if (i == 0) {
+        angle = robotState_[3];
+      } else {
+        angle = atan2(
+            original_path[i].position.y - original_path[i - 1].position.y,
+            original_path[i].position.x - original_path[i - 1].position.x);
+      }
       Eigen::Vector3d v(0, 0, angle);
       Eigen::Quaternion<float> q = Euler2Quaternion(v);
       pose_mod.pose.position.x = original_path[i].position.x;
@@ -2484,55 +2486,57 @@ void GraphManager::setHomingPath () {
     }
 
     visualization_server_->visualizeHomingPath(improved_homing_path_);
-    // return; 
+    // return;
   }
-
 }
 
 bool GraphManager::planGlobalPath() {
-
   bool path_status = true;
   global_exploration_path_.poses.clear();
   std::vector<std::pair<std::vector<Vertex*>, double>> paths_unordered;
   paths_unordered.clear();
 
-  if (!global_paths_.empty())
-  {
+  if (!global_paths_.empty()) {
     visualization_server_->visualizeGlobalPaths(global_paths_);
 
     double gain, path_length, reward;
     double my_reward = -std::numeric_limits<double>::max();
 
-    for (auto i = 0; i < global_paths_.size(); i++)
-    {
-
+    for (auto i = 0; i < global_paths_.size(); i++) {
       gain = 100 * global_paths_[i].first.back()->vol_gain.unknown_percentage;
 
       path_length = global_paths_[i].second;
 
-      Eigen::Vector3d p_goal (global_paths_[i].first.back()->state[0], global_paths_[i].first.back()->state[1], global_paths_[i].first.back()->state[2]);
+      Eigen::Vector3d p_goal(global_paths_[i].first.back()->state[0],
+                             global_paths_[i].first.back()->state[1],
+                             global_paths_[i].first.back()->state[2]);
       // double ang = getRelativeAngle(p_goal);
-      // ROS_DEBUG_STREAM ("Vertex Gain --> " << gain << "\t Angle --> " << ang << "\t Path length --> " << path_length << "\n");
-      // reward = gain - 10*exp(ang*M_PI/180); 
-      reward = gain/(path_length + 2); 
+      // ROS_DEBUG_STREAM ("Vertex Gain --> " << gain << "\t Angle --> " << ang
+      // << "\t Path length --> " << path_length << "\n"); reward = gain -
+      // 10*exp(ang*M_PI/180); reward = gain/(path_length + 2);
+      reward = 1 / (path_length + 1);
       // ROS_DEBUG_STREAM ("new reward = " << reward << "\n");
 
-      std::pair<std::vector<Vertex *>, double> path_reward_pair = std::make_pair(global_paths_[i].first, reward);
+      std::pair<std::vector<Vertex*>, double> path_reward_pair =
+          std::make_pair(global_paths_[i].first, reward);
       paths_unordered.push_back(path_reward_pair);
     }
 
-    // sort the paths in descending order based on the leaf vertices exploration reward. 
-    // The lambda expression to compare reward 
+    // sort the paths in descending order based on the leaf vertices exploration
+    // reward. The lambda expression to compare reward
 
-    std::sort(paths_unordered.begin(), paths_unordered.end(), 
-              [](const std::pair<std::vector<Vertex *>, double>& a, const std::pair<std::vector<Vertex *>, double>& b) 
-              { return a.second>b.second; } );
+    std::sort(paths_unordered.begin(), paths_unordered.end(),
+              [](const std::pair<std::vector<Vertex*>, double>& a,
+                 const std::pair<std::vector<Vertex*>, double>& b) {
+                return a.second > b.second;
+              });
 
-    // ROS_DEBUG_STREAM ("first and last element reward << " << paths_unordered.front().second << " , " << paths_unordered.back().second << "\n");
+    // ROS_DEBUG_STREAM ("first and last element reward << " <<
+    // paths_unordered.front().second << " , " << paths_unordered.back().second
+    // << "\n");
 
     for (int j = 0; j < paths_unordered.size(); j++) {
-
-      std::vector<Vertex *> path = paths_unordered[j].first;
+      std::vector<Vertex*> path = paths_unordered[j].first;
       best_path_.clear();
       GraphManager::improvePath(path, best_path_);
       if (best_path_.empty()) {
@@ -2554,7 +2558,8 @@ bool GraphManager::planGlobalPath() {
         original_path.push_back(path_pose);
       }
 
-      bool improvement_success = GraphManager::improveFreePath (original_path, modified_path, true, false);
+      bool improvement_success = GraphManager::improveFreePath(
+          original_path, modified_path, true, false);
 
       if (improvement_success) {
         geometry_msgs::PoseStamped pose_mod;
@@ -2563,14 +2568,14 @@ bool GraphManager::planGlobalPath() {
         global_exploration_path_.header.frame_id = world_frame_id;
         global_exploration_path_.header.stamp = ros::Time::now();
 
-        for (int i = 0; i < modified_path.size(); ++i){
+        for (int i = 0; i < modified_path.size(); ++i) {
           float angle;
           if (i == 0) {
             angle = robotState_[3];
-
           } else {
-            angle = atan2(modified_path[i].position.y - modified_path[i - 1].position.y,
-                          modified_path[i].position.x - modified_path[i - 1].position.x);
+            angle = atan2(
+                modified_path[i].position.y - modified_path[i - 1].position.y,
+                modified_path[i].position.x - modified_path[i - 1].position.x);
           }
           Eigen::Vector3d v(0, 0, angle);
           Eigen::Quaternion<float> q = Euler2Quaternion(v);
@@ -2583,11 +2588,10 @@ bool GraphManager::planGlobalPath() {
           pose_mod.pose.orientation.w = q.w();
           global_exploration_path_.poses.push_back(pose_mod);
         }
-        visualization_server_->visualizeExplorationPath(global_exploration_path_);
+        visualization_server_->visualizeExplorationPath(
+            global_exploration_path_);
         break;
-      } 
-      else if (j == (paths_unordered.size() - 1))
-      {
+      } else if (j == (paths_unordered.size() - 1)) {
         ROS_WARN("GG -> Improved global path is empty \n");
         geometry_msgs::PoseStamped pose_mod;
         pose_mod.header.frame_id = world_frame_id;
@@ -2595,14 +2599,14 @@ bool GraphManager::planGlobalPath() {
         global_exploration_path_.header.frame_id = world_frame_id;
         global_exploration_path_.header.stamp = ros::Time::now();
 
-        for (int i = 0; i < original_path.size(); ++i){
+        for (int i = 0; i < original_path.size(); ++i) {
           float angle;
           if (i == 0) {
             angle = robotState_[3];
-
           } else {
-            angle = atan2(original_path[i].position.y - original_path[i - 1].position.y,
-                          original_path[i].position.x - original_path[i - 1].position.x);
+            angle = atan2(
+                original_path[i].position.y - original_path[i - 1].position.y,
+                original_path[i].position.x - original_path[i - 1].position.x);
           }
           Eigen::Vector3d v(0, 0, angle);
           Eigen::Quaternion<float> q = Euler2Quaternion(v);
@@ -2616,11 +2620,10 @@ bool GraphManager::planGlobalPath() {
           global_exploration_path_.poses.push_back(pose_mod);
         }
 
-        visualization_server_->visualizeExplorationPath(global_exploration_path_);
-      } 
-
+        visualization_server_->visualizeExplorationPath(
+            global_exploration_path_);
+      }
     }
-
   } else {
     path_status = false;
     ROS_WARN("GG : No shortest paths to frontiers \n");
@@ -2629,12 +2632,12 @@ bool GraphManager::planGlobalPath() {
 
   return path_status;
 
-} // planGlobalPaths
+}  // planGlobalPaths
 
 GraphManager::GraphStatus GraphManager::runGlobalPlanner() {
+  GraphManager::GraphStatus global_planner_status =
+      GraphManager::GraphStatus::NOT_OK;
 
-  GraphManager::GraphStatus global_planner_status = GraphManager::GraphStatus::NOT_OK;
-  
   GraphManager::expandGlobalGraph(local_dijkstra_paths_);
 
   if (GraphManager::planGlobalPath()) {
@@ -2644,17 +2647,13 @@ GraphManager::GraphStatus GraphManager::runGlobalPlanner() {
   }
 
   return global_planner_status;
-
 }
 
-void GraphManager::setExplorationDirection (geometry_msgs::PoseStamped pose) {
-
+void GraphManager::setExplorationDirection(geometry_msgs::PoseStamped pose) {
   exploration_dir_pose = pose;
 }
 
-double GraphManager::getRelativeAngle(Eigen::Vector3d point)
-{
-
+double GraphManager::getRelativeAngle(Eigen::Vector3d point) {
   float yaw_angle = atan2(point[1] - exploration_dir_pose.pose.position.y,
                           point[0] - exploration_dir_pose.pose.position.x);
   Eigen::Vector3d v(0, 0, yaw_angle);
@@ -2668,21 +2667,18 @@ double GraphManager::getRelativeAngle(Eigen::Vector3d point)
   goal_dir.pose.orientation.z = q.z();
   goal_dir.pose.orientation.w = q.w();
 
-  Eigen::Quaterniond q1(exploration_dir_pose.pose.orientation.w, 
-                        exploration_dir_pose.pose.orientation.x, 
-                        exploration_dir_pose.pose.orientation.y, 
+  Eigen::Quaterniond q1(exploration_dir_pose.pose.orientation.w,
+                        exploration_dir_pose.pose.orientation.x,
+                        exploration_dir_pose.pose.orientation.y,
                         exploration_dir_pose.pose.orientation.z);
-  Eigen::Quaterniond q2(goal_dir.pose.orientation.w, 
-                        goal_dir.pose.orientation.x, 
-                        goal_dir.pose.orientation.y, 
-                        goal_dir.pose.orientation.z);
+  Eigen::Quaterniond q2(
+      goal_dir.pose.orientation.w, goal_dir.pose.orientation.x,
+      goal_dir.pose.orientation.y, goal_dir.pose.orientation.z);
 
-  double angle = std::acos(q1.dot(q2)) * 2.0 * 180/M_PI;
+  double angle = std::acos(q1.dot(q2)) * 2.0 * 180 / M_PI;
 
   return angle;
-
 }
-
 
 /*
 
@@ -2690,13 +2686,13 @@ TODO:
 
   1. Homing planner to be running in the background -- done
 
-  2. Rosservice to fetch new exploration path -- done 
+  2. Rosservice to fetch new exploration path -- done
 
-  3. Convert path to trajectory in stage_interface. -- done 
+  3. Convert path to trajectory in stage_interface. -- done
 
-  4. Add initialization behaviour in stage_interface. -- done 
+  4. Add initialization behaviour in stage_interface. -- done
 
-  3. Rosservice to fetch return to home path -- done 
+  3. Rosservice to fetch return to home path -- done
 
   4. Rosnode health monitoring ????
 
