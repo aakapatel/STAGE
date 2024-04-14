@@ -2055,9 +2055,8 @@ void GraphManager::updateGlobalGraph() {
   if (edge_weight < 2 * planning_params_.nearest_range and
       MapManager::VoxelStatus::kFree == vs) {
     global_graph_->addEdge(vertex, prev_pose_vertex_, edge_weight);
+    prev_pose_vertex_ = vertex;
   }
-
-  prev_pose_vertex_ = vertex;
 
   // Add extra edges from pose vertex to densify the graph.
 
@@ -2379,7 +2378,7 @@ void GraphManager::expandGlobalGraph(
   // find shortest route to base station.
 
   homing_dijkstra_path_.clear();
-  global_graph_->getShortestPath(home_vertex_->id, global_graph_rep_, true,
+  global_graph_->getShortestPath(1, global_graph_rep_, true,
                                  homing_dijkstra_path_);
 
   homing_path_.poses.clear();
