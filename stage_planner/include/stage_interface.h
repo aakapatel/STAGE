@@ -8,7 +8,13 @@
 
 class StageInterface {
  public:
-  enum PlannerStatus { OK = 0, READY, EXECUTING_PATH, NOT_READY };
+  enum PlannerStatus {
+    READY = 0,
+    EXECUTING_PATH,
+    EXECUTING_HOMING_PATH,
+    NOT_READY,
+    HOMING
+  };
 
   StageInterface(const ros::NodeHandle& nh, const ros::NodeHandle& nh_private,
                  MapManagerVoxblox<MapManagerVoxbloxServer,
@@ -75,7 +81,7 @@ class StageInterface {
   // status
   StageInterface::PlannerStatus planner_status_ =
       StageInterface::PlannerStatus::NOT_READY;
-
+  GraphManager::GraphStatus graph_status_ = GraphManager::GraphStatus::NOT_OK;
   // Subscribers
   ros::Subscriber odometry_Subscriber_;
 
@@ -96,6 +102,7 @@ class StageInterface {
   ros::Publisher reference_Publisher;
   nav_msgs::Path command_path;
   nav_msgs::Path exploration_path_;
+  nav_msgs::Path temp_path;
   bool planning_status_local = false;
   bool planning_status_global = false;
   bool planning_status_homing = false;
@@ -105,7 +112,9 @@ class StageInterface {
   double yaw_rate_max_;
   double dt_ = 0.1;
   double init_x = 2;
+  double time_budget_remaining_ = 0;
   int path_iterator_ = 0;
+  int planning_iteration_ = 0;
 
   bool firstTime;
   bool planner_initialized = false;

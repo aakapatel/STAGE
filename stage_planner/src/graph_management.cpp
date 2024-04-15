@@ -2319,7 +2319,8 @@ void GraphManager::expandGlobalGraph(
   global_graph_->updateFrontierVertices();
 
   visualization_server_->visualizeVoxelGain(global_graph_);
-  global_root_vertex = prev_pose_vertex_;
+  global_graph_->getNearestVertex(&robotState_, &global_root_vertex); 
+  // global_root_vertex = prev_pose_vertex_;
 
   // run dijkstra shortest paths on updated global graph
 
