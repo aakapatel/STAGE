@@ -23,6 +23,8 @@ void GraphManager::reset() {
   random_sampler_.reset();
   random_sampler_graph_expansion_.reset();
 
+  exploration_dir_pose.header.frame_id = world_frame_id;
+  exploration_dir_pose.header.stamp = ros::Time::now();
   exploration_dir_pose.pose.position.x = robotState_[0];
   exploration_dir_pose.pose.position.y = robotState_[1];
   exploration_dir_pose.pose.position.z = robotState_[2];
@@ -1870,9 +1872,6 @@ bool GraphManager::extractShortestPaths(
 
 GraphManager::GraphStatus GraphManager::planLocalPath(
     std::vector<std::vector<Vertex*>> dijkstra_paths) {
-  exploration_dir_pose.header.frame_id = world_frame_id;
-  exploration_dir_pose.header.stamp = ros::Time::now();
-  exploration_Direction_Pub.publish(exploration_dir_pose);
   local_exploration_path_.poses.clear();
   GraphManager::GraphStatus path_status =
       GraphManager::GraphStatus::ERR_NO_FEASIBLE_PATH;
@@ -1909,11 +1908,7 @@ GraphManager::GraphStatus GraphManager::planLocalPath(
       gain = 100 * local_paths_[i].first.back()->vol_gain.unknown_percentage;
 
       path_length = local_paths_[i].second;
-
-      Eigen::Vector3d p_goal(local_paths_[i].first.back()->state[0],
-                             local_paths_[i].first.back()->state[1],
-                             local_paths_[i].first.back()->state[2]);
-      double ang = getRelativeAngle(p_goal);
+      double ang = getRelativeAngle(local_paths_[i].first);
       // ROS_DEBUG_STREAM ("Vertex Gain --> " << gain << "\t Angle --> " << ang
       // << "\t Path length --> " << path_length << "\n");
       reward = gain - 10 * exp(ang * M_PI / 180);
@@ -2519,12 +2514,7 @@ bool GraphManager::planGlobalPath() {
       Eigen::Vector3d p_goal(global_paths_[i].first.back()->state[0],
                              global_paths_[i].first.back()->state[1],
                              global_paths_[i].first.back()->state[2]);
-      // double ang = getRelativeAngle(p_goal);
-      // ROS_DEBUG_STREAM ("Vertex Gain --> " << gain << "\t Angle --> " << ang
-      // << "\t Path length --> " << path_length << "\n"); reward = gain -
-      // 10*exp(ang*M_PI/180); reward = gain/(path_length + 2);
       reward = 1 / (path_length + 1);
-      // ROS_DEBUG_STREAM ("new reward = " << reward << "\n");
 
       std::pair<std::vector<Vertex*>, double> path_reward_pair =
           std::make_pair(global_paths_[i].first, reward);
@@ -2663,27 +2653,46 @@ void GraphManager::setExplorationDirection(geometry_msgs::PoseStamped pose) {
   exploration_dir_pose = pose;
 }
 
-double GraphManager::getRelativeAngle(Eigen::Vector3d point) {
-  float yaw_angle = atan2(point[1] - exploration_dir_pose.pose.position.y,
-                          point[0] - exploration_dir_pose.pose.position.x);
-  Eigen::Vector3d v(0, 0, yaw_angle);
-  Eigen::Quaternion<float> q = Euler2Quaternion(v);
-  geometry_msgs::PoseStamped goal_dir;
-  goal_dir.pose.position.x = point[0];
-  goal_dir.pose.position.y = point[1];
-  goal_dir.pose.position.z = point[2];
-  goal_dir.pose.orientation.x = q.x();
-  goal_dir.pose.orientation.y = q.y();
-  goal_dir.pose.orientation.z = q.z();
-  goal_dir.pose.orientation.w = q.w();
+double GraphManager::getRelativeAngle(std::vector<Vertex*> exp_path) {
+  std::vector<Eigen::Vector3d> path;
+  path.clear();
+  for (int i = 0; i < exp_path.size(); ++i) {
+    path.push_back(exp_path[i]->state.head(3));
+  }
 
-  Eigen::Quaterniond q1(exploration_dir_pose.pose.orientation.w,
-                        exploration_dir_pose.pose.orientation.x,
-                        exploration_dir_pose.pose.orientation.y,
-                        exploration_dir_pose.pose.orientation.z);
-  Eigen::Quaterniond q2(
-      goal_dir.pose.orientation.w, goal_dir.pose.orientation.x,
-      goal_dir.pose.orientation.y, goal_dir.pose.orientation.z);
+  double yaw = Trajectory::estimateDirectionFromPath(path);
+
+  std::vector<Eigen::Vector3d> state_hist_path;
+  state_hist_path.clear();
+  int pose_graph_vertices = pose_graph_->getNumVertices();
+  if (pose_graph_vertices > 1) {
+    Eigen::Vector3d v1 =
+        pose_graph_->vertices_map_[pose_graph_vertices - 1]->state.head(3);
+    Eigen::Vector3d v0 =
+        pose_graph_->vertices_map_[pose_graph_vertices - 2]->state.head(3);
+    state_hist_path.push_back(v0);
+    state_hist_path.push_back(v1);
+
+  }
+  
+  double state_hist_yaw = Trajectory::estimateDirectionFromPath(state_hist_path);
+
+  Eigen::Vector3d v_path(0, 0, yaw);
+  Eigen::Quaternion<float> q2 = Euler2Quaternion(v_path);
+  Eigen::Vector3d v_state(0, 0, state_hist_yaw);
+  Eigen::Quaternion<float> q1 = Euler2Quaternion(v_state);
+
+  exploration_dir_pose.header.frame_id = world_frame_id;
+  exploration_dir_pose.header.stamp = ros::Time::now();
+  exploration_dir_pose.pose.position.x = robotState_[0];
+  exploration_dir_pose.pose.position.y = robotState_[1];
+  exploration_dir_pose.pose.position.z = robotState_[2];
+
+  exploration_dir_pose.pose.orientation.x = q1.x();
+  exploration_dir_pose.pose.orientation.y = q1.y();
+  exploration_dir_pose.pose.orientation.z = q1.z();
+  exploration_dir_pose.pose.orientation.w = q1.w();
+  visualization_server_->visualizeExplorationDirection(exploration_dir_pose);
 
   double angle = std::acos(q1.dot(q2)) * 2.0 * 180 / M_PI;
 

@@ -46,7 +46,7 @@ class GraphManager {
                             ShortestPathsReport rep, Vertex* root,
                             std::vector<std::vector<Vertex*>>& dijkstra_paths);
 
-  double getRelativeAngle(Eigen::Vector3d point);
+  double getRelativeAngle(std::vector<Vertex *> exp_path);
   double getPathLength(std::vector<Vertex*> path);
 
   StateVec eigenToState(Eigen::Vector3d v);
