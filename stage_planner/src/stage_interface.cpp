@@ -633,14 +633,15 @@ void StageInterface::periodicTimerCallback(const ros::TimerEvent& event) {
         temp_path.poses.push_back(p);
         temp_path.poses.push_back(exploration_path_.poses[path_iterator_]);
         path_iterator_ = path_iterator_ + 1;
-        planner_status_ = StageInterface::PlannerStatus::EXECUTING_PATH;
+        planner_status_ = StageInterface::PlannerStatus::EXECUTING_HOMING_PATH;
       } else {
         path_iterator_ = 0;
         exploration_path_.poses.clear();
-        planner_status_ = StageInterface::PlannerStatus::READY;
-        // if (homing_planner_triggered_) {
-        //   planner_status_ = StageInterface::PlannerStatus::NOT_READY;
-        // } else {
+        // planner_status_ = StageInterface::PlannerStatus::READY;
+        if (homing_planner_triggered_) {
+          planner_status_ = StageInterface::PlannerStatus::NOT_READY;
+        } 
+        // else {
         //   planner_status_ = StageInterface::PlannerStatus::READY;
         // }
       }
