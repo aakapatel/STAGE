@@ -504,7 +504,9 @@ void StageInterface::setPath() {
 }
 
 void StageInterface::periodicTimerCallback(const ros::TimerEvent& event) {
-  if (!reachedEndOfPath()) {
+  if (!manual_homing_triggered_ && !reachedEndOfPath()) {
+    return;
+  } else if (!reachedEndOfPath()) {
     return;
   }
 
@@ -572,11 +574,23 @@ void StageInterface::periodicTimerCallback(const ros::TimerEvent& event) {
       if (path_iterator_ < (exploration_path_.poses.size())) {
         temp_path.poses.clear();
         geometry_msgs::PoseStamped p;
-        p.pose.position.x = robotState_[0];
-        p.pose.position.y = robotState_[1];
-        p.pose.position.z = robotState_[2];
-        p.pose.orientation =
-            exploration_path_.poses[path_iterator_].pose.orientation;
+        if (path_iterator_ == 0) {
+          p.pose.position.x = robotState_[0];
+          p.pose.position.y = robotState_[1];
+          p.pose.position.z = robotState_[2];
+          p.pose.orientation =
+              exploration_path_.poses[path_iterator_].pose.orientation;
+
+        } else {
+          p.pose.position.x =
+              exploration_path_.poses[path_iterator_ - 1].pose.position.x;
+          p.pose.position.y =
+              exploration_path_.poses[path_iterator_ - 1].pose.position.y;
+          p.pose.position.z =
+              exploration_path_.poses[path_iterator_ - 1].pose.position.z;
+          p.pose.orientation =
+              exploration_path_.poses[path_iterator_ - 1].pose.orientation;
+        }
         p.header.stamp = ros::Time::now();
         p.header.frame_id = world_frame_id;
         temp_path.poses.push_back(p);
@@ -616,7 +630,6 @@ void StageInterface::periodicTimerCallback(const ros::TimerEvent& event) {
       }
       break;
 
-
     case StageInterface::PlannerStatus::EXECUTING_HOMING_PATH:
       ROS_DEBUG("[PLANNER STATUS : ] Executing homing path \n");
 
@@ -640,10 +653,7 @@ void StageInterface::periodicTimerCallback(const ros::TimerEvent& event) {
         // planner_status_ = StageInterface::PlannerStatus::READY;
         if (homing_planner_triggered_) {
           planner_status_ = StageInterface::PlannerStatus::NOT_READY;
-        } 
-        // else {
-        //   planner_status_ = StageInterface::PlannerStatus::READY;
-        // }
+        }
       }
       StageInterface::generateTrajectory(temp_path);
       if (!command_path.poses.empty()) {
@@ -658,7 +668,6 @@ void StageInterface::periodicTimerCallback(const ros::TimerEvent& event) {
         }
       }
       break;
-
 
     case StageInterface::PlannerStatus::NOT_READY:
       ROS_WARN("[PLANNER STATUS] NOT READY \n");

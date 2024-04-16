@@ -183,8 +183,8 @@ void GraphManager::resetGlobalGraph() {
 void GraphManager::setState(StateVec& state) {
   if (!odometry_ready) {
     // First time receive the pose/odometry for planning purpose.
-    // Reset the octomap
-    ROS_WARN("Received the first odometry, reset the map");
+    // Reset the voxblox map manager
+    ROS_WARN("Received the first odometry, resetting the map manager");
     map_manager_->resetMap();
     prev_state = state;
   }
@@ -1758,8 +1758,7 @@ GraphManager::GraphStatus GraphManager::runLocalPlanner() {
     case GraphManager::GraphStatus::OK:
       ROS_DEBUG("[LOCAL PLANNER STATUS] SG build : OK ");
       if (GraphManager::extractShortestPaths(local_graph_, local_graph_rep_,
-                                             local_root_vertex,
-                                             local_dijkstra_paths_)) {
+                                             local_root_vertex)) {
         local_planner_status =
             GraphManager::planLocalPath(local_dijkstra_paths_);
       } else {
@@ -1803,9 +1802,8 @@ nav_msgs::Path GraphManager::getGlobalExplorationPath() {
   return global_exploration_path_;
 }
 
-bool GraphManager::extractShortestPaths(
-    std::shared_ptr<GraphUtils> graph, ShortestPathsReport rep, Vertex* root,
-    std::vector<std::vector<Vertex*>>& dijkstra_paths) {
+bool GraphManager::extractShortestPaths(std::shared_ptr<GraphUtils> graph,
+                                        ShortestPathsReport rep, Vertex* root) {
   bool path_status = false;
   // Fetch shortest path report from root vertex to all vertices in the graph
   if (!graph->findShortestPaths(root->id, rep)) {
@@ -1813,7 +1811,8 @@ bool GraphManager::extractShortestPaths(
     return path_status;
   }
 
-  dijkstra_paths.clear();
+  local_dijkstra_paths_.clear();
+  // dijkstra_paths.clear();
   graph->findLeafVertices(rep);
 
   std::pair<Graph::GraphType::vertex_iterator,
@@ -1850,17 +1849,25 @@ bool GraphManager::extractShortestPaths(
       performShortestPathsClustering(graph, rep, frontier_vertices);
   // std::vector<std::vector<Vertex *>> clustered_paths;
   std::vector<Vertex*> path_to_cid;
-  dijkstra_paths.clear();
+  local_dijkstra_paths_.clear();
   path_to_cid.clear();
 
   for (int cid : cluster_ids) {
+    path_to_cid.clear();
     graph->getShortestPath(cid, rep, true, path_to_cid);
-    dijkstra_paths.push_back(path_to_cid);
+    local_dijkstra_paths_.push_back(path_to_cid);
+    /*
+    for (int k = 0; k < path_to_cid.size(); ++k) {
+      ROS_DEBUG_STREAM("path point " << k << " >> " << path_to_cid[k]->state[0]
+                                     << ", " << path_to_cid[k]->state[1] << ", "
+                                     << path_to_cid[k]->state[2] << "\n");
+    }
+    */
   }
 
   visualization_server_->visualizeLocalGraph(local_graph_);
 
-  if (!dijkstra_paths.empty()) {
+  if (!local_dijkstra_paths_.empty()) {
     path_status = true;
   } else {
     ROS_DEBUG_STREAM("local dijkstra paths do not exist \n");
@@ -1876,19 +1883,12 @@ GraphManager::GraphStatus GraphManager::planLocalPath(
   GraphManager::GraphStatus path_status =
       GraphManager::GraphStatus::ERR_NO_FEASIBLE_PATH;
   local_paths_.clear();
-
+  std::pair<std::vector<Vertex*>, double> path_pair;
   if (!dijkstra_paths.empty()) {
-    for (std::vector<Vertex*> dijkstra_path : dijkstra_paths) {
-      if (!dijkstra_path.empty()) {
-        Eigen::Vector3d path_goal(dijkstra_path.back()->state[0],
-                                  dijkstra_path.back()->state[1],
-                                  dijkstra_path.back()->state[2]);
-
-        std::pair<std::vector<Vertex*>, double> p =
-            std::make_pair(dijkstra_path, getPathLength(dijkstra_path));
-
-        local_paths_.push_back(p);
-      }
+    for (int i = 0; i < dijkstra_paths.size(); ++i) {
+      path_pair =
+          std::make_pair(dijkstra_paths[i], getPathLength(dijkstra_paths[i]));
+      local_paths_.push_back(path_pair);
     }
   } else {
     ROS_WARN_STREAM("SG -> No dijkstra paths :( \n");
@@ -1934,6 +1934,23 @@ GraphManager::GraphStatus GraphManager::planLocalPath(
 
     for (int j = 0; j < paths_unordered.size(); j++) {
       std::vector<Vertex*> path = paths_unordered[j].first;
+      geometry_msgs::PoseStamped raw_path_pose;
+      raw_path_pose.header.frame_id = world_frame_id;
+      raw_path_pose.header.stamp = ros::Time::now();
+      nav_msgs::Path raw_path;
+      raw_path.poses.clear();
+      for (int i = 0; i < path.size(); ++i) {
+        raw_path_pose.pose.position.x = path[i]->state[0];
+        raw_path_pose.pose.position.y = path[i]->state[1];
+        raw_path_pose.pose.position.z = path[i]->state[2];
+        raw_path_pose.pose.orientation.x = 0;
+        raw_path_pose.pose.orientation.y = 0;
+        raw_path_pose.pose.orientation.z = 0.2;
+        raw_path_pose.pose.orientation.w = 1;
+        raw_path.poses.push_back(raw_path_pose);
+      }
+      visualization_server_->visualizeRawPath(raw_path);
+
       best_path_.clear();
       GraphManager::improvePath(path, best_path_);
       if (best_path_.empty()) {
@@ -2319,7 +2336,7 @@ void GraphManager::expandGlobalGraph(
   global_graph_->updateFrontierVertices();
 
   visualization_server_->visualizeVoxelGain(global_graph_);
-  global_graph_->getNearestVertex(&robotState_, &global_root_vertex); 
+  global_graph_->getNearestVertex(&robotState_, &global_root_vertex);
   // global_root_vertex = prev_pose_vertex_;
 
   // run dijkstra shortest paths on updated global graph
@@ -2673,10 +2690,10 @@ double GraphManager::getRelativeAngle(std::vector<Vertex*> exp_path) {
         pose_graph_->vertices_map_[pose_graph_vertices - 2]->state.head(3);
     state_hist_path.push_back(v0);
     state_hist_path.push_back(v1);
-
   }
-  
-  double state_hist_yaw = Trajectory::estimateDirectionFromPath(state_hist_path);
+
+  double state_hist_yaw =
+      Trajectory::estimateDirectionFromPath(state_hist_path);
 
   Eigen::Vector3d v_path(0, 0, yaw);
   Eigen::Quaternion<float> q2 = Euler2Quaternion(v_path);

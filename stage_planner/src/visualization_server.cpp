@@ -7,6 +7,9 @@ VisualizationServer::VisualizationServer(const ros::NodeHandle& nh,
 
   exploration_Path_Vis_Pub =
       nh_.advertise<nav_msgs::Path>("exploration_path", 10);
+  
+  raw_Path_Vis_Pub =
+      nh_.advertise<nav_msgs::Path>("raw_path", 10);
 
   homing_Path_Vis_Pub = nh_.advertise<nav_msgs::Path>("homing_path", 10);
 
@@ -844,6 +847,12 @@ void VisualizationServer::visualizeExplorationPath(
   exploration_path.header.frame_id = world_frame_id;
   exploration_path.header.stamp = ros::Time::now();
   exploration_Path_Vis_Pub.publish(exploration_path);
+}
+
+void VisualizationServer::visualizeRawPath (nav_msgs::Path raw_path) {
+  raw_path.header.frame_id = world_frame_id;
+  raw_path.header.stamp = ros::Time::now();
+  raw_Path_Vis_Pub.publish(raw_path);
 }
 
 void VisualizationServer::visualizePclMap(

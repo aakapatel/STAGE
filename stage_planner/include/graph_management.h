@@ -43,10 +43,9 @@ class GraphManager {
   Eigen::Quaternion<float> Euler2Quaternion(Eigen::Vector3d v);
 
   bool extractShortestPaths(std::shared_ptr<GraphUtils> graph,
-                            ShortestPathsReport rep, Vertex* root,
-                            std::vector<std::vector<Vertex*>>& dijkstra_paths);
+                            ShortestPathsReport rep, Vertex* root);
 
-  double getRelativeAngle(std::vector<Vertex *> exp_path);
+  double getRelativeAngle(std::vector<Vertex*> exp_path);
   double getPathLength(std::vector<Vertex*> path);
 
   StateVec eigenToState(Eigen::Vector3d v);

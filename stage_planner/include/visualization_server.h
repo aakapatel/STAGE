@@ -38,6 +38,7 @@ class VisualizationServer {
       geometry_msgs::PoseStamped exploration_dir);
   void visualizeHomingPath(nav_msgs::Path homing_path);
   void visualizeExplorationPath(nav_msgs::Path exploration_path);
+  void visualizeRawPath(nav_msgs::Path raw_path);
   void visualizePclMap(const pcl::PointCloud<pcl::PointXYZ>* pcl);
 
   // Set the fixed frame of the mission for visualization
@@ -48,6 +49,7 @@ class VisualizationServer {
   ros::NodeHandle nh_private_;
 
   ros::Publisher exploration_Path_Vis_Pub;
+  ros::Publisher raw_Path_Vis_Pub;
   ros::Publisher homing_Path_Vis_Pub;
   ros::Publisher local_Paths_Vis_Pub_;
   ros::Publisher voxel_Gain_Vis_Pub_;
