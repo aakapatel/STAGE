@@ -71,9 +71,7 @@ Visualization Manager:
       Marker Topic: /hummingbird/global_planning_graph
       Name: MarkerArray
       Namespaces:
-        edges: true
-        frontier: true
-        vertices: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -117,17 +115,17 @@ Visualization Manager:
       Queue Size: 100
       Value: false
     - Class: rviz/MarkerArray
-      Enabled: false
+      Enabled: true
       Marker Topic: /hummingbird/global_dijkstra_paths
       Name: MarkerArray
       Namespaces:
         {}
       Queue Size: 100
-      Value: false
+      Value: true
     - Alpha: 0.10000000149011612
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 12.100000381469727
+        Max Value: 10.5
         Min Value: -0.7000000476837158
         Value: true
       Axis: Z
@@ -154,7 +152,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/MarkerArray
       Enabled: false
-      Marker Topic: /hummingbird/graph_management_node/occupied_nodes
+      Marker Topic: /hummingbird/stage_interface_node/occupied_nodes
       Name: MarkerArray
       Namespaces:
         {}
@@ -197,8 +195,7 @@ Visualization Manager:
       Marker Topic: /hummingbird/pose_graph
       Name: MarkerArray
       Namespaces:
-        edges: true
-        vertices: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -329,7 +326,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 24.611631393432617
+      Distance: 70.59745025634766
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -345,9 +342,9 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.8597968816757202
+      Pitch: 1.5697963237762451
       Target Frame: hummingbird/base_link
-      Yaw: 2.941770553588867
+      Yaw: 3.186774492263794
     Saved: ~
 Window Geometry:
   Displays:
