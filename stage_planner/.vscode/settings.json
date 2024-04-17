@@ -1,8 +1,0 @@
-{
-    "python.autoComplete.extraPaths": [
-        "/home/aakapatel/catkin_workspaces/exploration_ws/devel/lib/python3/dist-packages"
-    ],
-    "python.analysis.extraPaths": [
-        "/home/aakapatel/catkin_workspaces/exploration_ws/devel/lib/python3/dist-packages"
-    ]
-}
