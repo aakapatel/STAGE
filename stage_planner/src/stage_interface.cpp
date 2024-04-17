@@ -189,6 +189,13 @@ void StageInterface::odometryCallback(const nav_msgs::Odometry& odom) {
     exploration_path_.poses.clear();
     planner_status_ == StageInterface::PlannerStatus::HOMING;
     homing_planner_triggered_ = true;
+    // manual_homing_triggered_ = true;
+  }
+
+  if (reachedEndOfPath()) {
+    path_execution_complete_ = true;
+  } else {
+    path_execution_complete_ = false;
   }
 }
 
@@ -203,7 +210,7 @@ bool StageInterface::initializePlanner(
   world_frame_id = planning_params_.global_frame_id;
 
   if (req.initialize) {
-    ROS_DEBUG("Planner initialization requested \n");
+    ROS_INFO("Planner initialization requested \n");
 
     exploration_path_.poses.clear();
     path_iterator_ = 0;
@@ -453,7 +460,6 @@ void StageInterface::generateTrajectory(nav_msgs::Path raw_path) {
                                                        &trajectory_point_msg_);
     time_sum += dt_;
     trajectory_point_msg_.time_from_start = ros::Duration(time_sum);
-    // trajectory_array_.points.insert(trajectory_array_.points.begin(),trajectory_point_msg_);
     trajectory_array_.points.push_back(trajectory_point_msg_);
 
     // TODO Need to optimize this insertion! may be assign new_path directly to
@@ -472,7 +478,7 @@ void StageInterface::generateTrajectory(nav_msgs::Path raw_path) {
 
 bool StageInterface::reachedEndOfPath() {
   if (command_path.poses.empty()) {
-    // ROS_DEBUG("command path empty \n");
+    // ROS_INFO("command path empty \n");
     return false;
   }
 
@@ -484,17 +490,15 @@ bool StageInterface::reachedEndOfPath() {
   double d = (robotState_.head(3) - end_of_path).norm();
 
   if (d < planning_params_.distance_to_new_path) {
-    fetch_new_path_ = true;
     return true;
   } else {
-    fetch_new_path_ = false;
     return false;
   }
 }
 
-void StageInterface::setPath() {
+void StageInterface::callActionServer() {
   if (robot_params_.type == RobotType::kGroundRobot) {
-    ROS_DEBUG("Ready to set goal to Action Server \n");
+    ROS_INFO("Ready to set goal to Action Server \n");
     ac_.waitForServer();
     ac_.sendGoal(
         goal, boost::bind(&StageInterface::actionDoneCallback, this, _1, _2),
@@ -504,25 +508,26 @@ void StageInterface::setPath() {
 }
 
 void StageInterface::periodicTimerCallback(const ros::TimerEvent& event) {
-  if (!manual_homing_triggered_ && !reachedEndOfPath()) {
+  if (!manual_homing_triggered_ && !path_execution_complete_) {
     return;
-  } else if (!reachedEndOfPath()) {
-    return;
+  } else if (!path_execution_complete_ && manual_homing_triggered_) {
+    planner_status_ = StageInterface::PlannerStatus::HOMING;
+    manual_homing_triggered_ = false;
   }
 
-  ROS_DEBUG_STREAM("Time remaining : " << time_budget_remaining_ << "s \n");
+  ROS_INFO_STREAM("Time remaining : " << time_budget_remaining_ << "s \n");
 
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
   switch (planner_status_) {
     case StageInterface::PlannerStatus::READY:
-      ROS_DEBUG("[PLANNER STATUS : ] Ready for new path \n");
+      ROS_INFO("[PLANNER STATUS : ] Ready for new path \n");
       exploration_path_.poses.clear();
       path_iterator_ = 0;
 
       graph_status_ = graph_manager_->runLocalPlanner();
       switch (graph_status_) {
         case GraphManager::GraphStatus::OK:
-          ROS_DEBUG("[LOCAL GRAPH STATUS] OK \n");
+          ROS_INFO("[LOCAL GRAPH STATUS] OK \n");
           exploration_path_ = graph_manager_->getLocalExplorationPath();
           break;
         case GraphManager::GraphStatus::ERR_KDTREE:
@@ -547,7 +552,7 @@ void StageInterface::periodicTimerCallback(const ros::TimerEvent& event) {
         graph_status_ = graph_manager_->runGlobalPlanner();
         switch (graph_status_) {
           case GraphManager::GraphStatus::OK:
-            ROS_DEBUG("[GLOBAL GRAPH STATUS] OK \n");
+            ROS_INFO("[GLOBAL GRAPH STATUS] OK \n");
             exploration_path_ = graph_manager_->getGlobalExplorationPath();
             break;
           case GraphManager::GraphStatus::NO_GAIN:
@@ -569,7 +574,7 @@ void StageInterface::periodicTimerCallback(const ros::TimerEvent& event) {
       break;
 
     case StageInterface::PlannerStatus::EXECUTING_PATH:
-      ROS_DEBUG("[PLANNER STATUS : ] Executing path \n");
+      ROS_INFO("[PLANNER STATUS : ] Executing path \n");
 
       if (path_iterator_ < (exploration_path_.poses.size())) {
         temp_path.poses.clear();
@@ -609,14 +614,7 @@ void StageInterface::periodicTimerCallback(const ros::TimerEvent& event) {
       StageInterface::generateTrajectory(temp_path);
       if (!command_path.poses.empty()) {
         command_Path_Publisher.publish(command_path);
-
-        if (robot_params_.type == RobotType::kGroundRobot) {
-          ac_.sendGoal(
-              goal,
-              boost::bind(&StageInterface::actionDoneCallback, this, _1, _2),
-              boost::bind(&StageInterface::actionActiveCallback, this),
-              boost::bind(&StageInterface::actionFeedbackCallback, this, _1));
-        }
+        StageInterface::callActionServer();  // only for ground robot
       }
       break;
 
@@ -631,7 +629,7 @@ void StageInterface::periodicTimerCallback(const ros::TimerEvent& event) {
       break;
 
     case StageInterface::PlannerStatus::EXECUTING_HOMING_PATH:
-      ROS_DEBUG("[PLANNER STATUS : ] Executing homing path \n");
+      ROS_INFO("[PLANNER STATUS : ] Executing homing path \n");
 
       if (path_iterator_ < (exploration_path_.poses.size())) {
         temp_path.poses.clear();
@@ -650,7 +648,6 @@ void StageInterface::periodicTimerCallback(const ros::TimerEvent& event) {
       } else {
         path_iterator_ = 0;
         exploration_path_.poses.clear();
-        // planner_status_ = StageInterface::PlannerStatus::READY;
         if (homing_planner_triggered_) {
           planner_status_ = StageInterface::PlannerStatus::NOT_READY;
         }
@@ -658,14 +655,7 @@ void StageInterface::periodicTimerCallback(const ros::TimerEvent& event) {
       StageInterface::generateTrajectory(temp_path);
       if (!command_path.poses.empty()) {
         command_Path_Publisher.publish(command_path);
-
-        if (robot_params_.type == RobotType::kGroundRobot) {
-          ac_.sendGoal(
-              goal,
-              boost::bind(&StageInterface::actionDoneCallback, this, _1, _2),
-              boost::bind(&StageInterface::actionActiveCallback, this),
-              boost::bind(&StageInterface::actionFeedbackCallback, this, _1));
-        }
+        StageInterface::callActionServer();  // only for ground robot
       }
       break;
 
@@ -681,7 +671,8 @@ void StageInterface::periodicTimerCallback(const ros::TimerEvent& event) {
 
   auto duration_total =
       duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-  if (graph_status_ == GraphManager::GraphStatus::OK) {
+  if (graph_status_ == GraphManager::GraphStatus::OK &&
+      duration_total.count() > 10) {
     ++planning_iteration_;
     ROS_INFO_STREAM("\033[;34m[Planning iter -> "
                     << planning_iteration_ << "] \t Exec time :"

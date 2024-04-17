@@ -50,7 +50,7 @@ class StageInterface {
   void actionFeedbackCallback(
       const stage_planner::pathFollowerActionFeedbackConstPtr& feedback);
   bool reachedEndOfPath();
-  void setPath();
+  void callActionServer();
 
   void periodicTimerCallback(const ros::TimerEvent& event);
 
@@ -124,6 +124,7 @@ class StageInterface {
   bool stop_planning = false;
   bool return_home = false;
   bool start_planner_first_time = true;
+  bool path_execution_complete_ = false;
 
   bool fetch_new_path_ = true;
 
