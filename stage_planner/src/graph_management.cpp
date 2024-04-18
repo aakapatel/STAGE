@@ -173,11 +173,13 @@ void GraphManager::resetGlobalGraph() {
   global_graph_.reset(new GraphUtils());
   global_graph_rep_.reset();
   // Adding home vertex at initialization phase for simpler RTB planning
+  /*
   Vertex* home_vertex_ =
       new Vertex(global_graph_->generateVertexID(), home_state);
   home_vertex_->is_root = true;
   global_graph_->addVertex(home_vertex_);
   prev_pose_vertex_ = home_vertex_;
+*/
 }
 
 void GraphManager::setState(StateVec& state) {
@@ -199,6 +201,7 @@ void GraphManager::setState(StateVec& state) {
     pose_graph_->addEdge(prev_vertex, vertex, weight);
     prev_state = robotState_;
     visualization_server_->visualizePoseGraph(pose_graph_);
+    GraphManager::updateGlobalGraph();
   }
   odometry_ready = true;
 }
@@ -1744,7 +1747,7 @@ GraphManager::GraphStatus GraphManager::runLocalPlanner() {
   int frontier_vertices_count = 0;
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
-  GraphManager::updateGlobalGraph();
+  // GraphManager::updateGlobalGraph();
   GraphManager::resetLocalGraph();
   local_dijkstra_paths_.clear();
 
@@ -2058,19 +2061,19 @@ GraphManager::GraphStatus GraphManager::planLocalPath(
 void GraphManager::updateGlobalGraph() {
   Vertex* vertex = new Vertex(global_graph_->generateVertexID(), robotState_);
   global_graph_->addVertex(vertex);
-  vertex->parent = prev_pose_vertex_;
-  prev_pose_vertex_->children.push_back(vertex);
-  double edge_weight = (prev_pose_vertex_->state_3d - vertex->state_3d).norm();
-  // global_graph_->addEdge(vertex, prev_pose_vertex_, edge_weight);
-  // /*
-  MapManager::VoxelStatus vs = map_manager_->getPathStatus(
-      vertex->state.head(3), prev_pose_vertex_->state.head(3), robot_box_size_,
-      true);
-  if (edge_weight < 2 * planning_params_.nearest_range and
-      MapManager::VoxelStatus::kOccupied != vs) {
-    global_graph_->addEdge(vertex, prev_pose_vertex_, edge_weight);
+  if (prev_pose_vertex_ != nullptr) {
+    vertex->parent = prev_pose_vertex_;
+    prev_pose_vertex_->children.push_back(vertex);
+    double edge_weight =
+        (prev_pose_vertex_->state_3d - vertex->state_3d).norm();
+    MapManager::VoxelStatus vs = map_manager_->getPathStatus(
+        vertex->state.head(3), prev_pose_vertex_->state.head(3),
+        robot_box_size_, true);
+    if (edge_weight < 2 * planning_params_.nearest_range and
+        MapManager::VoxelStatus::kOccupied != vs) {
+      global_graph_->addEdge(vertex, prev_pose_vertex_, edge_weight);
+    }
   }
-  // */
   prev_pose_vertex_ = vertex;
 
   // Add extra edges from pose vertex to densify the graph.
@@ -2166,11 +2169,12 @@ void GraphManager::updateGlobalGraph() {
 
 void GraphManager::expandGlobalGraph(
     std::vector<std::vector<Vertex*>> dijkstra_paths) {
-  // GraphManager::updateGlobalGraph();
+  GraphManager::updateGlobalGraph();
 
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
   bool graph_status = true;
 
+  // global_graph_->getNearestVertex(&robotState_, &prev_pose_vertex_);
   if (!dijkstra_paths.empty()) {
     Vertex* prev_vertex = nullptr;
     std::vector<Vertex*> newly_added_vertices;
@@ -2298,7 +2302,7 @@ void GraphManager::expandGlobalGraph(
 
         if (num_edges < planning_params_.num_connections_max and
             weight < planning_params_.edge_length_max) {
-          if (MapManager::VoxelStatus::kFree ==
+          if (MapManager::VoxelStatus::kOccupied !=
               map_manager_->getPathStatus(new_vertex->state_3d,
                                           neighbour->state_3d, robot_box_size_,
                                           true)) {
@@ -2338,27 +2342,7 @@ void GraphManager::expandGlobalGraph(
 
   // visualization_server_->visualizeVoxelGain(global_graph_);
 
-  global_graph_->getNearestVertex(&robotState_, &global_root_vertex);
-  // global_root_vertex = prev_pose_vertex_;
-
-  std::vector<Vertex*> nearby_vertices;
-
-  global_graph_->getNearestVertices(&global_root_vertex->state,
-                                    planning_params_.nearest_range,
-                                    &nearby_vertices);
-  for (int i = 0; i < nearby_vertices.size(); ++i) {
-    Vertex* neighbour = nearby_vertices[i];
-    double weight = (global_root_vertex->state - neighbour->state).norm();
-
-    if (weight < planning_params_.edge_length_max) {
-      if (MapManager::VoxelStatus::kFree ==
-          map_manager_->getPathStatus(global_root_vertex->state_3d,
-                                      neighbour->state_3d, robot_box_size_,
-                                      true)) {
-        global_graph_->addEdge(global_root_vertex, neighbour, weight);
-      }
-    }
-  }
+  global_root_vertex = prev_pose_vertex_;
 
   // run dijkstra shortest paths on updated global graph
 
@@ -2446,7 +2430,7 @@ void GraphManager::expandGlobalGraph(
 
 void GraphManager::setHomingPath() {
   path_iterator_ = 0;
-  GraphManager::updateGlobalGraph();
+  // GraphManager::updateGlobalGraph();
   local_dijkstra_paths_.clear();
   GraphManager::expandGlobalGraph(local_dijkstra_paths_);
   std::vector<geometry_msgs::Pose> original_path;
