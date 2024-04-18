@@ -395,8 +395,6 @@ bool GraphManager::sampleStateToExpandGraph(StateVec root_state,
 
   int while_thres = 1000;  // magic number
   BoundedSpaceParams reduced_global_space = global_space_params_;
-  // reduced_global_space.min_val += 0.5 * robot_box_size_;
-  // reduced_global_space.max_val -= 0.5 * robot_box_size_;
   while (!found && while_thres--) {
     hanging = false;
     random_sampler_graph_expansion_.generate(root_state, state);
