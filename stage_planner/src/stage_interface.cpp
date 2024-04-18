@@ -62,7 +62,7 @@ void StageInterface::loadParams() {
   global_space_params_.loadParams(ns + "/BoundedSpaceParams/Global");
   local_space_params_.loadParams(ns + "/BoundedSpaceParams/Local");
   planning_params_.loadParams(ns + "/PlanningParams");
-  Eigen::Vector3d robot_box_size_(0.8, 0.8, 0.8);
+  robot_box_size_ = robot_params_.size;
   map_manager_->setRobotRadius(robot_box_size_.norm() / 2.0);
 }
 
@@ -599,14 +599,32 @@ void StageInterface::periodicTimerCallback(const ros::TimerEvent& event) {
         }
         p.header.stamp = ros::Time::now();
         p.header.frame_id = world_frame_id;
-        temp_path.poses.push_back(p);
-        temp_path.poses.push_back(exploration_path_.poses[path_iterator_]);
-        path_iterator_ = path_iterator_ + 1;
-        planner_status_ = StageInterface::PlannerStatus::EXECUTING_PATH;
-        StageInterface::generateTrajectory(temp_path);
-        if (!command_path.poses.empty()) {
-          command_Path_Publisher.publish(command_path);
-          StageInterface::callActionServer();  // only for ground robot
+        geometry_msgs::PoseStamped p1 = exploration_path_.poses[path_iterator_];
+        Eigen::Vector3d v(p.pose.position.x, p.pose.position.y,
+                          p.pose.position.z);
+        Eigen::Vector3d v1(p1.pose.position.x, p1.pose.position.y,
+                           p1.pose.position.z);
+        MapManager::VoxelStatus vs =
+            map_manager_->getPathStatus(v, v1, robot_box_size_, true);
+        if (MapManager::VoxelStatus::kOccupied != vs) {
+          temp_path.poses.push_back(p);
+          temp_path.poses.push_back(p1);
+          path_iterator_ = path_iterator_ + 1;
+          planner_status_ = StageInterface::PlannerStatus::EXECUTING_PATH;
+          StageInterface::generateTrajectory(temp_path);
+          if (!command_path.poses.empty()) {
+            command_Path_Publisher.publish(command_path);
+            StageInterface::callActionServer();  // only for ground robot
+          }
+        } else {
+          ROS_ERROR("Path segment not traversable \n");
+          path_iterator_ = 0;
+          exploration_path_.poses.clear();
+          if (homing_planner_triggered_) {
+            planner_status_ = StageInterface::PlannerStatus::HOMING;
+          } else {
+            planner_status_ = StageInterface::PlannerStatus::READY;
+          }
         }
       } else {
         path_iterator_ = 0;

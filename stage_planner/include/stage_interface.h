@@ -77,7 +77,7 @@ class StageInterface {
 
   StateVec robotState_;
   Eigen::Quaterniond quat_;
-
+  Eigen::Vector3d robot_box_size_;
   // status
   StageInterface::PlannerStatus planner_status_ =
       StageInterface::PlannerStatus::NOT_READY;
