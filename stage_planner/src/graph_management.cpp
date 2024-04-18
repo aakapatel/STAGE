@@ -172,14 +172,6 @@ void GraphManager::resetGlobalGraph() {
   }
   global_graph_.reset(new GraphUtils());
   global_graph_rep_.reset();
-  // Adding home vertex at initialization phase for simpler RTB planning
-  /*
-  Vertex* home_vertex_ =
-      new Vertex(global_graph_->generateVertexID(), home_state);
-  home_vertex_->is_root = true;
-  global_graph_->addVertex(home_vertex_);
-  prev_pose_vertex_ = home_vertex_;
-*/
 }
 
 void GraphManager::setState(StateVec& state) {
