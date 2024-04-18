@@ -111,7 +111,7 @@ PlanningParams:
   exp_sensor_list:  ["OS064"]
   # no_gain_zones_list: ["g1"]
   global_frame_id: "world"
-  init_forward_x:   1.0 # initialization motion forward m
+  init_forward_x:   3.0 # initialization motion forward m
   dt:               0.1 # dt for traj 
   v_max:            1.0 # max velocity m/s
   v_homing_max:     0.9 # max velocity m/s
@@ -151,7 +151,7 @@ PlanningParams:
   clustering_radius: 0.5
   path_interpolation_distance: 1.5
   
-  time_budget_limit: 30 # seconds
+  time_budget_limit: 300000 # seconds
   auto_homing_enable: true
   go_home_if_fully_explored: true
 

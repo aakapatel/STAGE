@@ -1744,7 +1744,7 @@ GraphManager::GraphStatus GraphManager::runLocalPlanner() {
   int frontier_vertices_count = 0;
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
-  // GraphManager::updateGlobalGraph();
+  GraphManager::updateGlobalGraph();
   GraphManager::resetLocalGraph();
   local_dijkstra_paths_.clear();
 
@@ -2166,7 +2166,7 @@ void GraphManager::updateGlobalGraph() {
 
 void GraphManager::expandGlobalGraph(
     std::vector<std::vector<Vertex*>> dijkstra_paths) {
-  GraphManager::updateGlobalGraph();
+  // GraphManager::updateGlobalGraph();
 
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
   bool graph_status = true;
@@ -2286,9 +2286,6 @@ void GraphManager::expandGlobalGraph(
       // Get nearby vertices from the current vertex and connect the them to
       // form local edges
 
-      // GraphManager::computeVolumetricGainRayCasting(new_vertex->state,
-      // new_vertex->vol_gain);
-
       std::vector<Vertex*> nearby_vertices;
       global_graph_->getNearestVertices(&new_vertex->state,
                                         2 * planning_params_.nearest_range,
@@ -2334,8 +2331,13 @@ void GraphManager::expandGlobalGraph(
   // remove vertices ids from frontier list if they are no longer frontiers.
 
   global_graph_->updateFrontierVertices();
+  
+  // careful !! visualizeVoxelGain only for debug purpose!!
+  // it will tank the computation time for whole planner as atm it is poorly formulated. 
 
-  visualization_server_->visualizeVoxelGain(global_graph_);
+  // visualization_server_->visualizeVoxelGain(global_graph_);
+  
+
   global_graph_->getNearestVertex(&robotState_, &global_root_vertex);
   // global_root_vertex = prev_pose_vertex_;
 
