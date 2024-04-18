@@ -236,7 +236,7 @@ bool StageInterface::initializePlanner(
       init_pose.pose.position.z = robotState_[2];
     } else {
       ROS_WARN("robot type --> aerial \n");
-      init_pose.pose.position.z = robotState_[2] + 1.5;
+      init_pose.pose.position.z = robotState_[2];
     }
     init_pose.pose.orientation.x = 0;
     init_pose.pose.orientation.y = 0;
@@ -248,7 +248,7 @@ bool StageInterface::initializePlanner(
     if (robot_params_.type == RobotType::kGroundRobot) {
       init_pose.pose.position.z = robotState_[2];
     } else {
-      init_pose.pose.position.z = robotState_[2] + 1.5;
+      init_pose.pose.position.z = robotState_[2];
     }
     init_pose.pose.orientation.x = 0;
     init_pose.pose.orientation.y = 0;
