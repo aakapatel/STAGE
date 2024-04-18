@@ -13,7 +13,7 @@ SensorParams:
     rotations:      [0.0, 0.0, 0.0]
     fov:            [rad(2*pi), rad(pi/6)]
     resolution:     [rad(7.0*pi/180), rad(7.0*pi/180)]
-    frontier_percentage_threshold: 0.06
+    frontier_percentage_threshold: 0.1
 
 #-------------------------------------------------------------------------------
 RobotParams:
@@ -121,7 +121,7 @@ PlanningParams:
   distance_to_new_wp: 0.4
   edge_length_min:  0.2
   edge_length_max:  2.0
-  
+  local_space: 20 
   num_connections_max: 10 # maximum edges a vertex can have
   edge_overshoot:   0.0 # m - Account for possible tracking error by collision checking on an extended edge
   num_vertices_max: 700 # graph building stops if these many vertices are added 

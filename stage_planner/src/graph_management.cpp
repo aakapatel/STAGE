@@ -1756,7 +1756,7 @@ GraphManager::GraphStatus GraphManager::runLocalPlanner() {
       GraphManager::buildGraph(local_graph_);
   switch (build_graph_status) {
     case GraphManager::GraphStatus::OK:
-      ROS_DEBUG("[LOCAL PLANNER STATUS] SG build : OK ");
+      ROS_DEBUG("[LOCAL GRAPH STATUS] SG build : OK ");
       if (GraphManager::extractShortestPaths(local_graph_, local_graph_rep_,
                                              local_root_vertex)) {
         local_planner_status =
@@ -1769,7 +1769,7 @@ GraphManager::GraphStatus GraphManager::runLocalPlanner() {
       ROS_WARN("[PLANNER_ERROR] An issue occurred with kdtree data.");
       break;
     case GraphManager::GraphStatus::NOT_OK:
-      ROS_WARN("[LOCAL PLANNER STATUS] : NOT_OK");
+      ROS_WARN("[LOCAL GRAPH STATUS] : NOT_OK");
       break;
     default:
       ROS_WARN("[PLANNER_ERROR] Error occurred in global planning.");
@@ -2331,18 +2331,38 @@ void GraphManager::expandGlobalGraph(
   // remove vertices ids from frontier list if they are no longer frontiers.
 
   global_graph_->updateFrontierVertices();
-  
+
   // careful !! visualizeVoxelGain only for debug purpose!!
-  // it will tank the computation time for whole planner as atm it is poorly formulated. 
+  // it will tank the computation time for whole planner as atm it is poorly
+  // formulated.
 
   // visualization_server_->visualizeVoxelGain(global_graph_);
-  
 
   global_graph_->getNearestVertex(&robotState_, &global_root_vertex);
   // global_root_vertex = prev_pose_vertex_;
 
+  std::vector<Vertex*> nearby_vertices;
+
+  global_graph_->getNearestVertices(&global_root_vertex->state,
+                                    planning_params_.nearest_range,
+                                    &nearby_vertices);
+  for (int i = 0; i < nearby_vertices.size(); ++i) {
+    Vertex* neighbour = nearby_vertices[i];
+    double weight = (global_root_vertex->state - neighbour->state).norm();
+
+    if (weight < planning_params_.edge_length_max) {
+      if (MapManager::VoxelStatus::kFree ==
+          map_manager_->getPathStatus(global_root_vertex->state_3d,
+                                      neighbour->state_3d, robot_box_size_,
+                                      true)) {
+        global_graph_->addEdge(global_root_vertex, neighbour, weight);
+      }
+    }
+  }
+
   // run dijkstra shortest paths on updated global graph
 
+  global_graph_rep_.reset();
   if (!global_graph_->findShortestPaths(global_root_vertex->id,
                                         global_graph_rep_)) {
     ROS_WARN("Could not find dijkstra shortest paths on the global graph \n");

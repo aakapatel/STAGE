@@ -211,7 +211,7 @@ bool StageInterface::initializePlanner(
 
   if (req.initialize) {
     ROS_INFO("Planner initialization requested \n");
-
+    homing_planner_triggered_ = false;
     exploration_path_.poses.clear();
     path_iterator_ = 0;
     rostime_start_ = ros::Time::now();
@@ -298,7 +298,8 @@ bool StageInterface::homingPlanner(stage_planner::homePlanning::Request& req,
     explore = false;
     res.success = true;
   }
-  ROS_INFO("Return to home requested ");
+  // ROS_WARN("Return to home requested ");
+  ROS_WARN("Return to home requested ");
   return true;
 }
 
@@ -602,19 +603,20 @@ void StageInterface::periodicTimerCallback(const ros::TimerEvent& event) {
         temp_path.poses.push_back(exploration_path_.poses[path_iterator_]);
         path_iterator_ = path_iterator_ + 1;
         planner_status_ = StageInterface::PlannerStatus::EXECUTING_PATH;
+        StageInterface::generateTrajectory(temp_path);
+        if (!command_path.poses.empty()) {
+          command_Path_Publisher.publish(command_path);
+          StageInterface::callActionServer();  // only for ground robot
+        }
       } else {
         path_iterator_ = 0;
         exploration_path_.poses.clear();
+
         if (homing_planner_triggered_) {
           planner_status_ = StageInterface::PlannerStatus::HOMING;
         } else {
           planner_status_ = StageInterface::PlannerStatus::READY;
         }
-      }
-      StageInterface::generateTrajectory(temp_path);
-      if (!command_path.poses.empty()) {
-        command_Path_Publisher.publish(command_path);
-        StageInterface::callActionServer();  // only for ground robot
       }
       break;
 
@@ -645,17 +647,17 @@ void StageInterface::periodicTimerCallback(const ros::TimerEvent& event) {
         temp_path.poses.push_back(exploration_path_.poses[path_iterator_]);
         path_iterator_ = path_iterator_ + 1;
         planner_status_ = StageInterface::PlannerStatus::EXECUTING_HOMING_PATH;
+        StageInterface::generateTrajectory(temp_path);
+        if (!command_path.poses.empty()) {
+          command_Path_Publisher.publish(command_path);
+          StageInterface::callActionServer();  // only for ground robot
+        }
       } else {
         path_iterator_ = 0;
         exploration_path_.poses.clear();
         if (homing_planner_triggered_) {
           planner_status_ = StageInterface::PlannerStatus::NOT_READY;
         }
-      }
-      StageInterface::generateTrajectory(temp_path);
-      if (!command_path.poses.empty()) {
-        command_Path_Publisher.publish(command_path);
-        StageInterface::callActionServer();  // only for ground robot
       }
       break;
 
