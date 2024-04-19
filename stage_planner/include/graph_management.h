@@ -68,8 +68,8 @@ class GraphManager {
   std::vector<int> performShortestPathsClustering(
       const std::shared_ptr<GraphUtils> graph_manager,
       const ShortestPathsReport& graph_rep, std::vector<Vertex*>& vertices,
-      double dist_threshold = 0.5, double principle_path_min_length = 0.5,
-      bool refinement_enable = true);
+      double dist_threshold, double principle_path_min_length,
+      bool refinement_enable);
 
   void resetLocalGraph();
   void resetPoseGraph();

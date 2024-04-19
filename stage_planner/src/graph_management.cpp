@@ -1838,8 +1838,9 @@ bool GraphManager::extractShortestPaths(std::shared_ptr<GraphUtils> graph,
   ROS_DEBUG_STREAM("SG --> extract frontiers & shortest paths time "
                    << duration_total.count() << " ms \n");
 
-  std::vector<int> cluster_ids =
-      performShortestPathsClustering(graph, rep, frontier_vertices);
+  std::vector<int> cluster_ids = performShortestPathsClustering(
+      graph, rep, frontier_vertices, planning_params_.clustering_radius,
+      planning_params_.clustering_radius, true);
   // std::vector<std::vector<Vertex *>> clustered_paths;
   std::vector<Vertex*> path_to_cid;
   local_dijkstra_paths_.clear();

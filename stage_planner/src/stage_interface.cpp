@@ -259,13 +259,8 @@ bool StageInterface::initializePlanner(
     StageInterface::generateTrajectory(initialization_path);
     command_Path_Publisher.publish(command_path);
     planner_initialized = true;
+    StageInterface::callActionServer();
     planner_status_ = StageInterface::PlannerStatus::READY;
-    if (robot_params_.type == RobotType::kGroundRobot) {
-      ac_.sendGoal(
-          goal, boost::bind(&StageInterface::actionDoneCallback, this, _1, _2),
-          boost::bind(&StageInterface::actionActiveCallback, this),
-          boost::bind(&StageInterface::actionFeedbackCallback, this, _1));
-    }
 
     res.success = true;
     ROS_INFO("Initialization Successful : Ready ");
@@ -421,8 +416,8 @@ void StageInterface::segmentPath(const nav_msgs::Path& path,
 void StageInterface::generateTrajectory(nav_msgs::Path raw_path) {
   nav_msgs::Path new_path;
   new_path.poses.clear();
-  // StageInterface::segmentPath(raw_path, new_path);
-  new_path = raw_path;
+  StageInterface::segmentPath(raw_path, new_path);
+  // new_path = raw_path;
   n_seq_++;
   trajectory_msgs::MultiDOFJointTrajectory trajectory_array_;
   mav_msgs::EigenTrajectoryPoint trajectory_point_;
@@ -488,7 +483,7 @@ bool StageInterface::reachedEndOfPath() {
   end_of_path.y() = command_path.poses.back().pose.position.y;
   end_of_path.z() = command_path.poses.back().pose.position.z;
 
-  double d = (robotState_.head(3) - end_of_path).norm();
+  double d = calculateDistance(robotState_.head(3), end_of_path);
 
   if (d < planning_params_.distance_to_new_path) {
     return true;

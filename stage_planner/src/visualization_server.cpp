@@ -407,6 +407,7 @@ void VisualizationServer::visualizeLocalGraph(
     vertex_marker.colors.push_back(getGainColor(h));
     vertex_marker.points.push_back(p1);
     if (v_map[id]->vol_gain.is_frontier) {
+    // if (v_map[id]->is_leaf_vertex) {
       geometry_msgs::Point p1;
       p1.x = v_map[id]->state[0];
       p1.y = v_map[id]->state[1];
