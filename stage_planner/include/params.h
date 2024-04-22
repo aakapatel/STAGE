@@ -189,6 +189,9 @@ enum BoundModeType {
 };
 // Represent the robot as a cuboid.
 enum RobotType { kAerialRobot = 0, kGroundRobot };
+
+enum PlannerMode { kSim = 0, kReal};
+
 struct RobotParams {
   // Set the robot type here.
   RobotType type;
@@ -261,6 +264,7 @@ enum RRModeType {
 
 struct PlanningParams {
   // Common
+  PlannerMode planner_mode;
   std::string global_frame_id;
   bool freespace_cloud_enable;
   // Robot dynamics

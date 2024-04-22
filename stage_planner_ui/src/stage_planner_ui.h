@@ -3,20 +3,20 @@
 
 #include <stdio.h>
 
+#include "stage_planner/homePlanning.h"
 #include "stage_planner/initializePlanning.h"
 #include "stage_planner/stopPlanning.h"
-#include "stage_planner/homePlanning.h"
 #include <ros/ros.h>
 #include <std_msgs/ColorRGBA.h>
 #include <std_srvs/Empty.h>
 #include <std_srvs/Trigger.h>
 
-#include <std_msgs/String.h>
 #include <std_msgs/Bool.h>
+#include <std_msgs/String.h>
 
 #ifndef Q_MOC_RUN
-#include <QHBoxLayout>
 #include <QGridLayout>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPainter>
@@ -32,50 +32,48 @@ class QPushButton;
 namespace stage_planner_ui {
 class stage_planner_panel : public rviz::Panel {
   Q_OBJECT
- public:
-  stage_planner_panel(QWidget* parent = 0);
-  virtual void load(const rviz::Config& config);
+public:
+  stage_planner_panel(QWidget *parent = 0);
+  virtual void load(const rviz::Config &config);
   virtual void save(rviz::Config config) const;
 
- public Q_SLOTS:
-  
+public Q_SLOTS:
+
   void takeoff_click();
-  
+
   void initialize_click();
-  
+
   void on_state_path_click();
-  
+
   void on_stop_planner_click();
-  
+
   void on_homing_click();
 
   void on_state_hold_click();
 
 protected Q_SLOTS:
 
- protected:
-  
-  
-  QPushButton* button_takeoff;
+protected:
+  QPushButton *button_takeoff;
   ros::ServiceClient planner_client_takeoff;
 
-  QPushButton* button_initialize;
+  QPushButton *button_initialize;
   ros::ServiceClient planner_client_initialize;
-  
-  QPushButton* button_set_state_path;
+
+  QPushButton *button_set_state_path;
   ros::Publisher planner_client_state;
-  
-  QPushButton* button_stop_planner;
+
+  QPushButton *button_stop_planner;
   ros::ServiceClient planner_client_stop_planner;
 
-  QPushButton* button_homing;
+  QPushButton *button_homing;
   ros::ServiceClient planner_client_homing;
 
-  QPushButton* button_set_state_hold;
+  QPushButton *button_set_state_hold;
 
   ros::NodeHandle nh;
 };
 
-}  // namespace stage_planner_ui
+} // namespace stage_planner_ui
 
-#endif  // STAGE_PLANNER_UI_H
+#endif // STAGE_PLANNER_UI_H

@@ -1,5 +1,7 @@
 #include "stage_interface.h"
 
+#include <cstdlib>
+
 #include "std_srvs/Empty.h"
 using namespace std::chrono;
 
@@ -209,12 +211,43 @@ bool StageInterface::initializePlanner(
     return false;
   }
 
+  std::string namespace_str;
+  std::string command;
+  std_srvs::Empty takeoff_srv;
   if (req.takeoff) {
-    std_srvs::Empty takeoff_srv;
-    if (planner_takeoff_service_.call(takeoff_srv)) {
-      ROS_WARN("Takeoff service sent! \n");
-    } else {
-      ROS_WARN("Takeoff service failed \n");
+    switch (planning_params_.planner_mode) {
+      case PlannerMode::kSim:
+        if (planner_takeoff_service_.call(takeoff_srv)) {
+          ROS_WARN("Takeoff service sent! \n");
+        } else {
+          // ROS_WARN("Takeoff service failed \n");
+        }
+        break;
+      case PlannerMode::kReal:
+        namespace_str = ros::this_node::getNamespace();
+        // send Arm command
+        command =
+            "rosservice call " + namespace_str + "/mavros/cmd/arming \"True\"";
+        system(command.c_str());
+        // Wait for 2 seconds
+        ros::Duration(2).sleep();
+
+        // set offboard mode
+        command = "rosservice call " + namespace_str +
+                  "mavros/set_mode \"base_mode: 0 "
+                  "custom_mode: 'OFFBOARD'\"";
+        system(command.c_str());
+        // Wait for 2 seconds
+        ros::Duration(2).sleep();
+
+        // Publish start string to controller
+        command = "rosservice call " + namespace_str +
+                  "/start std_msgs/String \"data: ''\" -1";
+        system(command.c_str());
+        break;
+      default:
+        ROS_ERROR("Planner mode not set in params \n");
+        break;
     }
   }
 

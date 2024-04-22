@@ -780,6 +780,20 @@ bool PlanningParams::loadParams(std::string ns) {
     ROSPARAM_WARN(ns + "/type", "kBasicExploration");
   }
 
+
+  std::string mode_parse_str;
+  param_name = ns + "/planner_mode";
+  ros::param::get(param_name, mode_parse_str);
+  if (!mode_parse_str.compare("kSim"))
+    planner_mode = PlannerMode::kSim;
+  else if (!mode_parse_str.compare("kReal"))
+    planner_mode = PlannerMode::kReal;
+  else {
+    planner_mode = PlannerMode::kReal;
+    ROSPARAM_WARN(ns + "/planner_mode", "kSim");
+  }
+
+
   parse_str = "";
   param_name = ns + "/rr_mode";
   ros::param::get(param_name, parse_str);
