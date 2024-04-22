@@ -18,6 +18,7 @@
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QTimer>
 #include <QLineEdit>
 #include <QPainter>
 #include <QPushButton>
@@ -37,7 +38,17 @@ public:
   virtual void load(const rviz::Config &config);
   virtual void save(rviz::Config config) const;
 
+private:
+    QLabel* duration_label;
+    QTimer* update_timer;
+
+  ros::Time rostime_start_;
+  double time_elapsed = 0.0;
+  double time_budget = 0.0;
+
 public Q_SLOTS:
+  
+  void updateDuration();
 
   void on_takeoff_click();
 

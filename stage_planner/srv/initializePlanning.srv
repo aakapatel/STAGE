@@ -1,4 +1,5 @@
 bool initialize
 bool takeoff
 ---
+float64 mission_duration
 bool success

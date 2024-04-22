@@ -183,7 +183,7 @@ void StageInterface::odometryCallback(const nav_msgs::Odometry& odom) {
     graph_manager_->setState(robotState_);
   }
 
-  double time_elapsed = 0.0;
+  // double time_elapsed = 0.0;
   if ((ros::Time::now()).toSec() != 0.0) {
     if (rostime_start_.toSec() == 0.0) rostime_start_ = ros::Time::now();
     time_elapsed = (double)((ros::Time::now() - rostime_start_).toSec());
@@ -258,6 +258,9 @@ bool StageInterface::initializePlanner(
         ROS_ERROR("Planner mode not set in params \n");
         break;
     }
+  
+    res.mission_duration = planning_params_.time_budget_before_landing;
+
   }
 
   if (req.initialize) {
@@ -325,6 +328,8 @@ bool StageInterface::initializePlanner(
 
     res.success = true;
     ROS_INFO("Initialization Successful : Ready ");
+  
+    res.mission_duration = planning_params_.time_budget_before_landing;
   }
 
   return true;

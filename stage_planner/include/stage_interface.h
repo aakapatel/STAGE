@@ -95,6 +95,7 @@ class StageInterface {
 
   ros::Time rostime_start_;
   ros::Timer planner_periodic_timer_;
+  double time_elapsed = 0.0;
 
   std::vector<geometry_msgs::PoseStamped> goal_path;
 
