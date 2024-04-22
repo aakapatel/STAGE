@@ -26,6 +26,7 @@ PlanningParams:
   nearest_range:    2.0 # The max range within which a new vertex can be connected to an existing vertex
   nearest_range_min: 0.5 # >= edge_length_min
   nearest_range_max: 2.0 # <= edge_length_max
+  time_budget_limit: 30 # seconds
   
 
 
@@ -49,7 +50,6 @@ PlanningParams:
   cluster_vertices_for_gain: true
   clustering_radius: 0.3
   
-  time_budget_limit: 300000 # seconds
   auto_homing_enable: true
   go_home_if_fully_explored: true
 

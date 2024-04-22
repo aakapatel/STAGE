@@ -616,7 +616,7 @@ void StageInterface::periodicTimerCallback(const ros::TimerEvent& event) {
     manual_homing_triggered_ = false;
   }
 
-  ROS_INFO_STREAM("Time remaining : " << time_budget_remaining_ << "s \n");
+  // ROS_INFO_STREAM("Time remaining : " << time_budget_remaining_ << "s \n");
 
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
   switch (planner_status_) {

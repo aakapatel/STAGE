@@ -46,6 +46,8 @@ private:
   double time_elapsed = 0.0;
   double time_budget = 0.0;
 
+  bool init_success = false;
+
 public Q_SLOTS:
   
   void updateDuration();

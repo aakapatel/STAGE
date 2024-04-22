@@ -12,7 +12,6 @@ stage_planner_panel::stage_planner_panel(QWidget *parent)
   planner_client_initialize =
       nh.serviceClient<stage_planner::initializePlanning>("initialize_planner");
 
-
   QGridLayout *grid_layout = new QGridLayout;
 
   button_set_state_path = new QPushButton;
@@ -31,10 +30,13 @@ stage_planner_panel::stage_planner_panel(QWidget *parent)
 
   duration_label = new QLabel("Remaining Time : 0 sec", this);
   update_timer = new QTimer(this);
-  
+
   // SET TEXT ON BUTTON
-  
+  QFont font("Arial", 12); // Font family: Arial, Size: 12
+  font.setBold(true); // Set the font style to bold
+  duration_label->setAlignment(Qt::AlignCenter);
   duration_label->setStyleSheet("background-color : Pink");
+  duration_label->setFont(font);
 
   button_takeoff->setText("Arm-OffB-Start");
   button_takeoff->setStyleSheet("background-color : Grey");
@@ -48,7 +50,7 @@ stage_planner_panel::stage_planner_panel(QWidget *parent)
   button_stop_planner->setText("Stop Planning");
   button_stop_planner->setStyleSheet("background-color : Orange");
 
-  button_land->setText("!! LAND !!");
+  button_land->setText(">> LAND <<");
   button_land->setStyleSheet("background-color : Red");
 
   button_homing->setText("Return to Base");
@@ -70,9 +72,8 @@ stage_planner_panel::stage_planner_panel(QWidget *parent)
   grid_layout->addWidget(button_stop_planner, 2, 1, 1, 1);
 
   grid_layout->addWidget(button_land, 3, 0, 1, 2);
-  
-  grid_layout->addWidget(duration_label, 4, 0, 1, 2);
 
+  grid_layout->addWidget(duration_label, 4, 0, 1, 2);
 
   // setLayout(v_box_layout);
   setLayout(grid_layout);
@@ -101,14 +102,21 @@ stage_planner_panel::stage_planner_panel(QWidget *parent)
 
 void stage_planner_panel::updateDuration() {
   // Implement logic to update the remaining mission duration
-  
 
-  if ((ros::Time::now()).toSec() != 0.0) {
-    if (rostime_start_.toSec() == 0.0) rostime_start_ = ros::Time::now();
-    time_elapsed = (double)((ros::Time::now() - rostime_start_).toSec());
+  if (init_success) {
+    if ((ros::Time::now()).toSec() != 0.0) {
+      if (rostime_start_.toSec() == 0.0)
+        rostime_start_ = ros::Time::now();
+      time_elapsed = (double)((ros::Time::now() - rostime_start_).toSec());
+    }
   }
 
   int remaining_duration = int(time_budget - time_elapsed);
+  if (remaining_duration > 0) {
+    remaining_duration = remaining_duration;
+  } else {
+    remaining_duration = 0;
+  }
   duration_label->setText(
       QString("Remaining Time : %1 sec").arg(remaining_duration));
 }
@@ -121,10 +129,10 @@ void stage_planner_panel::on_takeoff_click() {
     ROS_ERROR("[STAGE_PLANNER-UI] Takeoff Service call failed: %s",
               planner_client_initialize.getService().c_str());
   }
-  
+
   time_budget = takeoff_planner_srv.response.mission_duration;
 
-  button_takeoff->setText("Drone ARMED");
+  button_takeoff->setText("Drone ARMED !!");
   button_takeoff->setStyleSheet("background-color : Green");
 }
 
@@ -138,6 +146,7 @@ void stage_planner_panel::on_initialize_click() {
   }
 
   time_budget = init_planner_srv.response.mission_duration;
+  init_success = true;
 }
 
 void stage_planner_panel::on_state_path_click() {
