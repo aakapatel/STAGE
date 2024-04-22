@@ -39,13 +39,15 @@ public:
 
 public Q_SLOTS:
 
-  void takeoff_click();
+  void on_takeoff_click();
 
-  void initialize_click();
+  void on_initialize_click();
 
   void on_state_path_click();
 
   void on_stop_planner_click();
+  
+  void on_land_click();
 
   void on_homing_click();
 
@@ -56,7 +58,7 @@ protected Q_SLOTS:
 protected:
   QPushButton *button_takeoff;
   ros::ServiceClient planner_client_takeoff;
-
+  
   QPushButton *button_initialize;
   ros::ServiceClient planner_client_initialize;
 
@@ -64,6 +66,7 @@ protected:
   ros::Publisher planner_client_state;
 
   QPushButton *button_stop_planner;
+  QPushButton *button_land;
   ros::ServiceClient planner_client_stop_planner;
 
   QPushButton *button_homing;

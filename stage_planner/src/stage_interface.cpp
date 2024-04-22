@@ -36,6 +36,8 @@ void StageInterface::initializeAttributes() {
 
   planner_takeoff_service_ = nh_.serviceClient<std_srvs::Empty>("takeoff");
 
+  planner_land_service_ = nh_.serviceClient<std_srvs::Empty>("land");
+
   planner_initialization_service_ = nh_.advertiseService(
       "initialize_planner", &StageInterface::initializePlanner, this);
 
@@ -81,6 +83,7 @@ void StageInterface::setSharedParams(
   dt_ = planning_params_.dt;
   v_max_ = planning_params_.v_max;
   yaw_rate_max_ = planning_params_.yaw_rate_max;
+  world_frame_id = planning_params_.global_frame_id;
 }
 
 double StageInterface::projectSample(Eigen::Vector3d& sample,
@@ -211,12 +214,17 @@ bool StageInterface::initializePlanner(
     return false;
   }
 
+  StageInterface::setSharedParams(robot_params_, global_space_params_,
+                                  local_space_params_);
+
   std::string namespace_str;
   std::string command;
   std_srvs::Empty takeoff_srv;
   if (req.takeoff) {
     switch (planning_params_.planner_mode) {
       case PlannerMode::kSim:
+
+        ROS_WARN("PlannerMode : kSim ! \n");
         if (planner_takeoff_service_.call(takeoff_srv)) {
           ROS_WARN("Takeoff service sent! \n");
         } else {
@@ -224,26 +232,27 @@ bool StageInterface::initializePlanner(
         }
         break;
       case PlannerMode::kReal:
+        ROS_WARN("PlannerMode : kReal ! \n");
         namespace_str = ros::this_node::getNamespace();
         // send Arm command
         command =
             "rosservice call " + namespace_str + "/mavros/cmd/arming \"True\"";
-        system(command.c_str());
+        (void)system(command.c_str());
         // Wait for 2 seconds
         ros::Duration(2).sleep();
 
         // set offboard mode
         command = "rosservice call " + namespace_str +
-                  "mavros/set_mode \"base_mode: 0 "
+                  "/mavros/set_mode \"base_mode: 0 "
                   "custom_mode: 'OFFBOARD'\"";
-        system(command.c_str());
+        (void)system(command.c_str());
         // Wait for 2 seconds
         ros::Duration(2).sleep();
 
         // Publish start string to controller
         command = "rosservice call " + namespace_str +
                   "/start std_msgs/String \"data: ''\" -1";
-        system(command.c_str());
+        (void)system(command.c_str());
         break;
       default:
         ROS_ERROR("Planner mode not set in params \n");
@@ -255,15 +264,15 @@ bool StageInterface::initializePlanner(
     ROS_INFO("Planner initialization requested \n");
 
     ROS_WARN_STREAM("Init robotState Z : " << robotState_[2] << "\n");
+
     graph_manager_->loadParams();
     graph_manager_->reset();
-    setSharedParams(robot_params_, global_space_params_, local_space_params_);
     graph_manager_->setSharedParams(robot_params_, global_space_params_,
                                     local_space_params_);
     graph_manager_->setGlobalFrame(planning_params_.global_frame_id);
-    world_frame_id = planning_params_.global_frame_id;
-
-    homing_planner_triggered_ = false;
+    homing_planner_triggered_ = false; // safety guard
+    
+    // clear and initialize first init motion path
     exploration_path_.poses.clear();
     path_iterator_ = 0;
     rostime_start_ = ros::Time::now();
@@ -273,7 +282,7 @@ bool StageInterface::initializePlanner(
     initialization_poses.clear();
     geometry_msgs::PoseStamped init_pose;
 
-    init_pose.pose.position.x = robotState_[0];
+  init_pose.pose.position.x = robotState_[0];
     init_pose.pose.position.y = robotState_[1];
     init_pose.pose.position.z = robotState_[2];
     init_pose.pose.orientation.x = 0;
@@ -325,10 +334,49 @@ bool StageInterface::stopPlanner(stage_planner::stopPlanning::Request& req,
                                  stage_planner::stopPlanning::Response& res)
 
 {
+  std::string namespace_str;
+  std::string command;
+  std_srvs::Empty land_srv;
+  if (req.land) {
+    switch (planning_params_.planner_mode) {
+      case PlannerMode::kSim:
+        if (planner_land_service_.call(land_srv)) {
+          ROS_WARN("Land service sent! \n");
+        } else {
+          // ROS_WARN("Takeoff service failed \n");
+        }
+        break;
+      case PlannerMode::kReal:
+        namespace_str = ros::this_node::getNamespace();
+
+        // Publish safety land string to controller
+        command = "rosservice call " + namespace_str +
+                  "/safety_land std_msgs/String \"data: ''\" -1";
+        (void)system(command.c_str());
+
+        ros::Duration(4).sleep();
+
+        // set manual mode
+        command = "rosservice call " + namespace_str +
+                  "/mavros/set_mode \"base_mode: 0 "
+                  "custom_mode: 'MANUAL'\"";
+        (void)system(command.c_str());
+        // Wait for 2 seconds
+        ros::Duration(3).sleep();
+        // send Disarm command
+        command =
+            "rosservice call " + namespace_str + "/mavros/cmd/arming \"False\"";
+        (void)system(command.c_str());
+
+        break;
+      default:
+        ROS_ERROR("Planner mode not set in params \n");
+        break;
+    }
+  }
+
   if (req.stop) {
-    stop_planning = true;
-    explore = false;
-    res.success = true;
+    planner_status_ = StageInterface::PlannerStatus::NOT_READY;
   }
   ROS_INFO("Stop Success ^_^");
   return true;

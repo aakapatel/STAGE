@@ -26,6 +26,8 @@ stage_planner_panel::stage_planner_panel(QWidget *parent)
 
   button_set_state_hold = new QPushButton;
 
+  button_land = new QPushButton;
+
   // SET TEXT ON BUTTON
 
   button_takeoff->setText("Arm-OffB-Start");
@@ -40,11 +42,14 @@ stage_planner_panel::stage_planner_panel(QWidget *parent)
   button_stop_planner->setText("Stop Planning");
   button_stop_planner->setStyleSheet("background-color : Orange");
 
+  button_land->setText("!! LAND !!");
+  button_land->setStyleSheet("background-color : Red");
+
   button_homing->setText("Return to Base");
   button_homing->setStyleSheet("background-color : Blue");
 
   button_set_state_hold->setText("HOLD");
-  button_set_state_hold->setStyleSheet("background-color : Red");
+  button_set_state_hold->setStyleSheet("background-color : Cyan");
 
   grid_layout->addWidget(button_takeoff, 0, 0, 1, 1);
 
@@ -58,12 +63,15 @@ stage_planner_panel::stage_planner_panel(QWidget *parent)
 
   grid_layout->addWidget(button_set_state_hold, 2, 1, 1, 1);
 
+  grid_layout->addWidget(button_land, 3, 0, 1, 2);
+
   // setLayout(v_box_layout);
   setLayout(grid_layout);
 
-  connect(button_takeoff, SIGNAL(clicked()), this, SLOT(takeoff_click()));
+  connect(button_takeoff, SIGNAL(clicked()), this, SLOT(on_takeoff_click()));
 
-  connect(button_initialize, SIGNAL(clicked()), this, SLOT(initialize_click()));
+  connect(button_initialize, SIGNAL(clicked()), this,
+          SLOT(on_initialize_click()));
 
   connect(button_set_state_path, SIGNAL(clicked()), this,
           SLOT(on_state_path_click()));
@@ -71,13 +79,15 @@ stage_planner_panel::stage_planner_panel(QWidget *parent)
   connect(button_stop_planner, SIGNAL(clicked()), this,
           SLOT(on_stop_planner_click()));
 
+  connect(button_land, SIGNAL(clicked()), this, SLOT(on_land_click()));
+
   connect(button_homing, SIGNAL(clicked()), this, SLOT(on_homing_click()));
 
   connect(button_set_state_hold, SIGNAL(clicked()), this,
           SLOT(on_state_hold_click()));
 }
 
-void stage_planner_panel::takeoff_click() {
+void stage_planner_panel::on_takeoff_click() {
   stage_planner::initializePlanning takeoff_planner_srv;
   takeoff_planner_srv.request.takeoff = true;
   takeoff_planner_srv.request.initialize = false;
@@ -87,7 +97,7 @@ void stage_planner_panel::takeoff_click() {
   }
 }
 
-void stage_planner_panel::initialize_click() {
+void stage_planner_panel::on_initialize_click() {
   stage_planner::initializePlanning init_planner_srv;
   init_planner_srv.request.initialize = true;
   init_planner_srv.request.takeoff = false;
@@ -109,6 +119,15 @@ void stage_planner_panel::on_stop_planner_click() {
   stop_planner_srv.request.stop = true;
   if (!planner_client_stop_planner.call(stop_planner_srv)) {
     ROS_ERROR("[STAGE_PLANNER-UI] Service call failed: %s",
+              planner_client_stop_planner.getService().c_str());
+  }
+}
+
+void stage_planner_panel::on_land_click() {
+  stage_planner::stopPlanning stop_planner_srv;
+  stop_planner_srv.request.land = true;
+  if (!planner_client_stop_planner.call(stop_planner_srv)) {
+    ROS_ERROR("[STAGE_PLANNER-UI] Land Service call failed: %s",
               planner_client_stop_planner.getService().c_str());
   }
 }

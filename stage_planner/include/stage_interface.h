@@ -90,6 +90,7 @@ class StageInterface {
   ros::ServiceServer planner_stop_service_;
   ros::ServiceServer planner_homing_service_;
   ros::ServiceClient planner_takeoff_service_;
+  ros::ServiceClient planner_land_service_;
   // Timer
 
   ros::Time rostime_start_;
