@@ -9,7 +9,7 @@ stage_planner_panel::stage_planner_panel(QWidget* parent) : rviz::Panel(parent) 
       "stop_planner");
   planner_client_homing = nh.serviceClient<stage_planner::homePlanning>(
       "start_homing_planner");
-  planner_client_init_motion =
+  planner_client_initialize =
       nh.serviceClient<stage_planner::initializePlanning>(
           "initialize_planner");
 
@@ -22,14 +22,19 @@ stage_planner_panel::stage_planner_panel(QWidget* parent) : rviz::Panel(parent) 
   
   button_homing = new QPushButton;
   
-  button_init_motion = new QPushButton;
+  button_takeoff = new QPushButton;
+
+  button_initialize = new QPushButton;
   
   button_set_state_hold = new QPushButton; 
   
   // SET TEXT ON BUTTON 
 
-  button_init_motion->setText("Initialize");
-  button_init_motion->setStyleSheet("background-color : Yellow");
+  button_takeoff->setText("Arm-OffB-Start");
+  button_takeoff->setStyleSheet("background-color : Green");
+
+  button_initialize->setText("Initialize");
+  button_initialize->setStyleSheet("background-color : Yellow");
   
   button_set_state_path->setText("PATH");
   button_set_state_path->setStyleSheet("background-color : Green");
@@ -43,21 +48,26 @@ stage_planner_panel::stage_planner_panel(QWidget* parent) : rviz::Panel(parent) 
   button_set_state_hold->setText("HOLD");
   button_set_state_hold->setStyleSheet("background-color : Red");
 
-  grid_layout->addWidget(button_init_motion, 0, 0, 1 ,1);
+  grid_layout->addWidget(button_takeoff, 0, 0, 1 ,1);
   
-  grid_layout->addWidget(button_set_state_path, 0, 1, 1, 1);
+  grid_layout->addWidget(button_initialize, 0, 1, 1 ,1);
   
-  grid_layout->addWidget(button_stop_planner, 1, 0, 1, 1);
+  grid_layout->addWidget(button_set_state_path, 1, 0, 1, 1);
+  
+  grid_layout->addWidget(button_stop_planner, 1, 1, 1, 1);
  
-  grid_layout->addWidget(button_homing, 1, 1, 1, 1);
+  grid_layout->addWidget(button_homing, 2, 0, 1, 1);
 
-  grid_layout->addWidget(button_set_state_hold, 2, 0, 1, 2);
+  grid_layout->addWidget(button_set_state_hold, 2, 1, 1, 1);
 
   // setLayout(v_box_layout);
   setLayout(grid_layout);
 
-  connect(button_init_motion, SIGNAL(clicked()), this,
-          SLOT(on_init_motion_click()));
+  connect(button_takeoff, SIGNAL(clicked()), this,
+          SLOT(takeoff_click()));
+  
+  connect(button_initialize, SIGNAL(clicked()), this,
+          SLOT(initialize_click()));
 
   connect(button_set_state_path, SIGNAL(clicked()), this,
           SLOT(on_state_path_click()));
@@ -73,12 +83,24 @@ stage_planner_panel::stage_planner_panel(QWidget* parent) : rviz::Panel(parent) 
 
 }
 
-void stage_planner_panel::on_init_motion_click() {
+
+void stage_planner_panel::takeoff_click() {
+  stage_planner::initializePlanning takeoff_planner_srv;
+  takeoff_planner_srv.request.takeoff = true;
+  takeoff_planner_srv.request.initialize = false;
+  if (!planner_client_initialize.call(takeoff_planner_srv)) {
+    ROS_ERROR("[STAGE_PLANNER-UI] Takeoff Service call failed: %s",
+              planner_client_initialize.getService().c_str());
+  }
+}
+
+void stage_planner_panel::initialize_click() {
   stage_planner::initializePlanning init_planner_srv;
   init_planner_srv.request.initialize = true;
-  if (!planner_client_init_motion.call(init_planner_srv)) {
-    ROS_ERROR("[STAGE_PLANNER-UI] Service call failed: %s",
-              planner_client_init_motion.getService().c_str());
+  init_planner_srv.request.takeoff = false;
+  if (!planner_client_initialize.call(init_planner_srv)) {
+    ROS_ERROR("[STAGE_PLANNER-UI] Init Service call failed: %s",
+              planner_client_initialize.getService().c_str());
   }
 }
 

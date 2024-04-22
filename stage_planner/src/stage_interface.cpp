@@ -1,4 +1,6 @@
 #include "stage_interface.h"
+
+#include "std_srvs/Empty.h"
 using namespace std::chrono;
 
 StageInterface::StageInterface(
@@ -11,9 +13,6 @@ StageInterface::StageInterface(
       ac_("stage_interface_path", true)
 
 {
-  graph_manager_ = new GraphManager(nh, nh_private, map_manager);
-
-  graph_manager_->loadParams();
   StageInterface::initializeAttributes();
 };
 
@@ -33,6 +32,8 @@ void StageInterface::initializeAttributes() {
 
   // Ros services
 
+  planner_takeoff_service_ = nh_.serviceClient<std_srvs::Empty>("takeoff");
+
   planner_initialization_service_ = nh_.advertiseService(
       "initialize_planner", &StageInterface::initializePlanner, this);
 
@@ -47,6 +48,7 @@ void StageInterface::initializeAttributes() {
   planner_periodic_timer_ = nh_.createTimer(
       ros::Duration(0.1), &StageInterface::periodicTimerCallback, this);
 
+  graph_manager_ = new GraphManager(nh_, nh_private_, map_manager_);
   visualization_server_ = new VisualizationServer(nh_, nh_private_);
 
   stat_.reset(new SampleStatistic());
@@ -159,6 +161,8 @@ double StageInterface::projectSample(Eigen::Vector3d& sample,
 }
 
 void StageInterface::odometryCallback(const nav_msgs::Odometry& odom) {
+  odom_received = true;
+
   robotState_[0] = odom.pose.pose.position.x;
   robotState_[1] = odom.pose.pose.position.y;
   robotState_[2] = odom.pose.pose.position.z;
@@ -185,11 +189,10 @@ void StageInterface::odometryCallback(const nav_msgs::Odometry& odom) {
 
   if ((time_budget_remaining_ <= 0 || manual_homing_triggered_) &&
       !homing_planner_triggered_) {
-    ROS_WARN("Homing should be engaged \n");
+    // ROS_WARN("Homing should be engaged \n");
     exploration_path_.poses.clear();
     planner_status_ == StageInterface::PlannerStatus::HOMING;
     homing_planner_triggered_ = true;
-    // manual_homing_triggered_ = true;
   }
 
   if (reachedEndOfPath()) {
@@ -202,15 +205,31 @@ void StageInterface::odometryCallback(const nav_msgs::Odometry& odom) {
 bool StageInterface::initializePlanner(
     stage_planner::initializePlanning::Request& req,
     stage_planner::initializePlanning::Response& res) {
-  graph_manager_->reset();
-  setSharedParams(robot_params_, global_space_params_, local_space_params_);
-  graph_manager_->setSharedParams(robot_params_, global_space_params_,
-                                  local_space_params_);
-  graph_manager_->setGlobalFrame(planning_params_.global_frame_id);
-  world_frame_id = planning_params_.global_frame_id;
+  if (!odom_received) {
+    return false;
+  }
+
+  if (req.takeoff) {
+    std_srvs::Empty takeoff_srv;
+    if (planner_takeoff_service_.call(takeoff_srv)) {
+      ROS_WARN("Takeoff service sent! \n");
+    } else {
+      ROS_WARN("Takeoff service failed \n");
+    }
+  }
 
   if (req.initialize) {
     ROS_INFO("Planner initialization requested \n");
+
+    ROS_WARN_STREAM("Init robotState Z : " << robotState_[2] << "\n");
+    graph_manager_->loadParams();
+    graph_manager_->reset();
+    setSharedParams(robot_params_, global_space_params_, local_space_params_);
+    graph_manager_->setSharedParams(robot_params_, global_space_params_,
+                                    local_space_params_);
+    graph_manager_->setGlobalFrame(planning_params_.global_frame_id);
+    world_frame_id = planning_params_.global_frame_id;
+
     homing_planner_triggered_ = false;
     exploration_path_.poses.clear();
     path_iterator_ = 0;
@@ -466,7 +485,7 @@ void StageInterface::generateTrajectory(nav_msgs::Path raw_path) {
   }
 
   goal.path = goal_path;
-  // trajectory_Publisher.publish(trajectory_array_);
+  trajectory_Publisher.publish(trajectory_array_);
 
 }  // generateTrajectory
 

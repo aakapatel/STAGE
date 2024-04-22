@@ -1,3 +1,4 @@
 bool initialize
+bool takeoff
 ---
 bool success

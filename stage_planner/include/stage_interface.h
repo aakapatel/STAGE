@@ -89,7 +89,7 @@ class StageInterface {
   ros::ServiceServer planner_initialization_service_;
   ros::ServiceServer planner_stop_service_;
   ros::ServiceServer planner_homing_service_;
-
+  ros::ServiceClient planner_takeoff_service_;
   // Timer
 
   ros::Time rostime_start_;
@@ -125,7 +125,7 @@ class StageInterface {
   bool return_home = false;
   bool start_planner_first_time = true;
   bool path_execution_complete_ = false;
-
+  bool odom_received = false;
   bool fetch_new_path_ = true;
 
   double init_x_, init_y_, init_z_;

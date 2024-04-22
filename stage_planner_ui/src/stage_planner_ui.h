@@ -39,7 +39,9 @@ class stage_planner_panel : public rviz::Panel {
 
  public Q_SLOTS:
   
-  void on_init_motion_click();
+  void takeoff_click();
+  
+  void initialize_click();
   
   void on_state_path_click();
   
@@ -53,8 +55,12 @@ protected Q_SLOTS:
 
  protected:
   
-  QPushButton* button_init_motion;
-  ros::ServiceClient planner_client_init_motion;
+  
+  QPushButton* button_takeoff;
+  ros::ServiceClient planner_client_takeoff;
+
+  QPushButton* button_initialize;
+  ros::ServiceClient planner_client_initialize;
   
   QPushButton* button_set_state_path;
   ros::Publisher planner_client_state;
