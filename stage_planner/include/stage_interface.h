@@ -39,6 +39,7 @@ class StageInterface {
   Eigen::Vector3d quaternion_to_rpy(Eigen::Quaterniond q);
   Eigen::Quaternion<float> Euler2Quaternion(Eigen::Vector3d v);
   void odometryCallback(const nav_msgs::Odometry& odom);
+  void goalCallback(const geometry_msgs::PoseStamped::ConstPtr& goal_msg);
   double calculateDistance(Eigen::Vector3d p1, Eigen::Vector3d p2);
   void segmentPath(const nav_msgs::Path& path, nav_msgs::Path& path_seg);
   void generateTrajectory(nav_msgs::Path);
@@ -84,6 +85,7 @@ class StageInterface {
   GraphManager::GraphStatus graph_status_ = GraphManager::GraphStatus::NOT_OK;
   // Subscribers
   ros::Subscriber odometry_Subscriber_;
+  ros::Subscriber goalSubscriber_;
 
   // Services
   ros::ServiceServer planner_initialization_service_;

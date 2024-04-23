@@ -77,7 +77,7 @@ class GraphManager {
   void resetGlobalGraph();
   void resetPathWaysGraph();
   void resetSparseGraph();
-
+  nav_msgs::Path runPlannerkManualMode(StateVec s);
   GraphManager::GraphStatus runLocalPlanner();
   GraphManager::GraphStatus runGlobalPlanner();
   GraphManager::GraphStatus planLocalPath(

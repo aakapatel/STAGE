@@ -1731,6 +1731,142 @@ GraphManager::GraphStatus GraphManager::buildGraph(
   return build_graph_status;
 }
 
+nav_msgs::Path GraphManager::runPlannerkManualMode(StateVec s) {
+  // ROS_WARN_STREAM("robotState_ : " << robotState_[0] << " ," <<
+  // robotState_[1]
+  //                                  << " ," << robotState_[2] << " ,"
+  //                                  << robotState_[3] << "\n");
+
+  GraphManager::GraphStatus local_planner_status =
+      GraphManager::GraphStatus::NOT_OK;
+  high_resolution_clock::time_point start_total = high_resolution_clock::now();
+  GraphManager::resetLocalGraph();
+  local_dijkstra_paths_.clear();
+
+  std::vector<Vertex*> path;
+  path.clear();
+  nav_msgs::Path path_to_goal;
+  path_to_goal.poses.clear();
+  geometry_msgs::PoseStamped p;
+  Vertex* vertex = nullptr;
+  local_root_vertex = new Vertex(local_graph_->generateVertexID(), robotState_);
+  local_root_vertex->is_root = true;
+  local_graph_->addVertex(local_root_vertex);
+
+  GraphManager::GraphStatus build_graph_status =
+      GraphManager::buildGraph(local_graph_);
+  switch (build_graph_status) {
+    case GraphManager::GraphStatus::OK:
+      ROS_DEBUG("[kManual Mode LOCAL GRAPH STATUS] SG build : OK ");
+
+      // Fetch shortest path report from root vertex to all vertices in the
+      // graph
+      if (!local_graph_->findShortestPaths(local_root_vertex->id,
+                                           local_graph_rep_)) {
+        ROS_WARN(
+            "kManual Mode : Could not find dijkstra shortest paths on the "
+            "graph \n");
+      }
+
+      local_graph_->getNearestVertex(&s, &vertex);
+
+      ROS_WARN_STREAM("Nearest vertex : "
+                      << vertex->state[0] << " ," << vertex->state[1] << " ,"
+                      << vertex->state[2] << " ," << vertex->state[3] << "\n");
+      local_graph_->getShortestPath(vertex->id, local_graph_rep_, true, path);
+      if (!path.empty()) {
+        best_path_.clear();
+        GraphManager::improvePath(path, best_path_);
+        if (best_path_.empty()) {
+          best_path_ = path;
+        }
+        local_planner_status = GraphManager::GraphManager::OK;
+      } else {
+        ROS_WARN("manual mode could not plan path \n");
+      }
+      break;
+    case GraphManager::GraphStatus::ERR_KDTREE:
+      ROS_WARN(
+          "[kManual Mode PLANNER_ERROR] An issue occurred with kdtree data.");
+      break;
+    case GraphManager::GraphStatus::NOT_OK:
+      ROS_WARN("[kManual Mode LOCAL GRAPH STATUS] : NOT_OK");
+      break;
+    default:
+      ROS_WARN(
+          "[kManual Mode PLANNER_ERROR] Error occurred in global planning.");
+      break;
+  }
+
+  if (local_planner_status == GraphManager::GraphManager::OK) {
+    p.header.stamp = ros::Time::now();
+    p.header.frame_id = world_frame_id;
+    path_to_goal.header.stamp = ros::Time::now();
+    path_to_goal.header.frame_id = world_frame_id;
+    std::vector<geometry_msgs::Pose> original_path;
+    std::vector<geometry_msgs::Pose> modified_path;
+    original_path.clear();
+    modified_path.clear();
+    geometry_msgs::Pose path_pose;
+    for (int i = 0; i != best_path_.size(); ++i) {
+      path_pose.position.x = best_path_[i]->state[0];
+      path_pose.position.y = best_path_[i]->state[1];
+      path_pose.position.z = best_path_[i]->state[2];
+      path_pose.orientation.x = 0;
+      path_pose.orientation.y = 0;
+      path_pose.orientation.z = 0.2;
+      path_pose.orientation.w = 1;
+      original_path.push_back(path_pose);
+    }
+
+    bool improvement_success = GraphManager::improveFreePath(
+        original_path, modified_path, true, false);
+    if (!improvement_success) {
+      modified_path.clear();
+      modified_path = original_path;
+    }
+    geometry_msgs::PoseStamped pose_mod;
+    pose_mod.header.frame_id = world_frame_id;
+    pose_mod.header.stamp = ros::Time::now();
+
+    for (int i = 0; i < modified_path.size(); ++i) {
+      float angle;
+      if (i == 0) {
+        angle = robotState_[3];
+      } else {
+        angle = atan2(
+            modified_path[i].position.y - modified_path[i - 1].position.y,
+            modified_path[i].position.x - modified_path[i - 1].position.x);
+      }
+      Eigen::Vector3d v(0, 0, angle);
+      Eigen::Quaternion<float> q = Euler2Quaternion(v);
+      pose_mod.pose.position.x = modified_path[i].position.x;
+      pose_mod.pose.position.y = modified_path[i].position.y;
+      pose_mod.pose.position.z = modified_path[i].position.z;
+      pose_mod.pose.orientation.x = q.x();
+      pose_mod.pose.orientation.y = q.y();
+      pose_mod.pose.orientation.z = q.z();
+      pose_mod.pose.orientation.w = q.w();
+      path_to_goal.poses.push_back(pose_mod);
+    }
+
+    visualization_server_->visualizeExplorationPath(path_to_goal);
+  }
+  // else {
+  //   runPlannerkManualMode(s);
+  // }
+  ROS_INFO_STREAM("MG graph has " << local_graph_->getNumVertices()
+                                  << " nodes & " << local_graph_->getNumEdges()
+                                  << " edges\n");
+
+  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+  auto duration_total =
+      duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+  ROS_INFO_STREAM("MG --> build time " << duration_total.count() << " ms \n");
+
+  return path_to_goal;
+}  // runPlannerkManualMode
+
 GraphManager::GraphStatus GraphManager::runLocalPlanner() {
   GraphManager::GraphStatus local_planner_status =
       GraphManager::GraphStatus::NOT_OK;

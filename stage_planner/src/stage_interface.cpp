@@ -22,6 +22,9 @@ void StageInterface::initializeAttributes() {
   odometry_Subscriber_ =
       nh_.subscribe("odometry", 100, &StageInterface::odometryCallback, this);
 
+  goalSubscriber_ = nh_.subscribe("/move_base_simple/goal", 1,
+                                  &StageInterface::goalCallback, this);
+
   trajectory_Publisher =
       nh_.advertise<trajectory_msgs::MultiDOFJointTrajectory>(
           "command/trajectory", 1, true);
@@ -224,6 +227,7 @@ bool StageInterface::initializePlanner(
 
         ROS_WARN("PlannerMode : kSim ! \n");
         if (planner_takeoff_service_.call(takeoff_srv)) {
+          ros::Duration(2).sleep();
           ROS_WARN("Takeoff service sent! \n");
         } else {
           // ROS_WARN("Takeoff service failed \n");
@@ -278,6 +282,9 @@ bool StageInterface::initializePlanner(
     rostime_start_ = ros::Time::now();
     nav_msgs::Path initialization_path;
     initialization_path.poses.clear();
+
+    /*
+
     std::vector<geometry_msgs::PoseStamped> initialization_poses;
     initialization_poses.clear();
     geometry_msgs::PoseStamped init_pose;
@@ -322,7 +329,10 @@ bool StageInterface::initializePlanner(
     planner_initialized = true;
     StageInterface::callActionServer();
     planner_status_ = StageInterface::PlannerStatus::READY;
+  
+  */
 
+    planner_initialized = true;
     res.success = true;
     ROS_INFO("Initialization Successful : Ready ");
 
@@ -330,6 +340,30 @@ bool StageInterface::initializePlanner(
   }
 
   return true;
+}
+
+void StageInterface::goalCallback(
+    const geometry_msgs::PoseStamped::ConstPtr& goal_msg) {
+  StateVec s = StateVec::Zero();
+  s[0] = goal_msg->pose.position.x;
+  s[1] = goal_msg->pose.position.y;
+  s[2] = robotState_[2];
+  s[3] = robotState_[3];
+
+  nav_msgs::Path initialization_path;
+  initialization_path.poses.clear();
+  initialization_path = graph_manager_->runPlannerkManualMode(s);
+
+  if (initialization_path.poses.empty()) {
+    ROS_ERROR("Init path empty \n");
+    return;
+  }
+
+  StageInterface::generateTrajectory(initialization_path);
+  command_Path_Publisher.publish(command_path);
+  planner_initialized = true;
+  StageInterface::callActionServer();
+  planner_status_ = StageInterface::PlannerStatus::READY;
 }
 
 bool StageInterface::stopPlanner(stage_planner::stopPlanning::Request& req,
@@ -566,10 +600,10 @@ void StageInterface::generateTrajectory(nav_msgs::Path raw_path) {
     command_path.poses.push_back(pose_ref);
     goal_path.push_back(pose_ref);
   }
-  
+
   // set the goal path for action server --> Ground robot
   goal.path = goal_path;
-  // Publish the trajectory --> Aerial robot 
+  // Publish the trajectory --> Aerial robot
   // trajectory_Publisher.publish(trajectory_array_);
 
 }  // generateTrajectory
