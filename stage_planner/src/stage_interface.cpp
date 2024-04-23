@@ -2,6 +2,10 @@
 
 #include <cstdlib>
 
+#include <mavros_msgs/CommandBool.h>
+#include <mavros_msgs/SetMode.h>
+#include <std_msgs/String.h>
+
 #include "std_srvs/Empty.h"
 using namespace std::chrono;
 
@@ -40,6 +44,16 @@ void StageInterface::initializeAttributes() {
   planner_takeoff_service_ = nh_.serviceClient<std_srvs::Empty>("takeoff");
 
   planner_land_service_ = nh_.serviceClient<std_srvs::Empty>("land");
+
+  planner_arming_client_ =
+      nh_.serviceClient<mavros_msgs::CommandBool>("mavros/cmd/arming");
+
+  planner_set_mode_client_ =
+      nh_.serviceClient<mavros_msgs::SetMode>("mavros/set_mode");
+
+  controller_Start_Publisher = nh_.advertise<std_msgs::String>("start", 1);
+
+  controller_Land_Publisher = nh_.advertise<std_msgs::String>("safety_land", 1);
 
   planner_initialization_service_ = nh_.advertiseService(
       "initialize_planner", &StageInterface::initializePlanner, this);
@@ -218,9 +232,10 @@ bool StageInterface::initializePlanner(
   StageInterface::setSharedParams(robot_params_, global_space_params_,
                                   local_space_params_);
 
-  std::string namespace_str;
-  std::string command;
   std_srvs::Empty takeoff_srv;
+  mavros_msgs::CommandBool arm_cmd;
+  mavros_msgs::SetMode offboard_set_mode;
+  std_msgs::String start_msg;
   if (req.takeoff) {
     switch (planning_params_.planner_mode) {
       case PlannerMode::kSim:
@@ -235,26 +250,32 @@ bool StageInterface::initializePlanner(
         break;
       case PlannerMode::kReal:
         ROS_WARN("PlannerMode : kReal ! \n");
-        namespace_str = ros::this_node::getNamespace();
-        // send Arm command
-        command =
-            "rosservice call " + namespace_str + "/mavros/cmd/arming \"True\"";
-        (void)system(command.c_str());
+
+        arm_cmd.request.value = true;
+        if (planner_arming_client_.call(arm_cmd) && arm_cmd.response.success) {
+          ROS_INFO("Drone armed \n");
+        } else {
+          ROS_ERROR("Failed to arm the drone \n");
+        }
+
         // Wait for 2 seconds
         ros::Duration(2).sleep();
 
-        // set offboard mode
-        command = "rosservice call " + namespace_str +
-                  "/mavros/set_mode \"base_mode: 0 "
-                  "custom_mode: 'OFFBOARD'\"";
-        (void)system(command.c_str());
+        // Set offboard mode
+        offboard_set_mode.request.custom_mode = "OFFBOARD";
+        if (planner_set_mode_client_.call(offboard_set_mode) &&
+            offboard_set_mode.response.mode_sent) {
+          ROS_INFO("Offboard mode set \n");
+        } else {
+          ROS_ERROR("Failed to set offboard mode \n");
+        }
+
         // Wait for 2 seconds
         ros::Duration(2).sleep();
 
-        // Publish start string to controller
-        command = "rosservice call " + namespace_str +
-                  "/start std_msgs/String \"data: ''\" -1";
-        (void)system(command.c_str());
+        start_msg.data = "";
+        controller_Start_Publisher.publish(start_msg);
+
         break;
       default:
         ROS_ERROR("Planner mode not set in params \n");
@@ -329,7 +350,7 @@ bool StageInterface::initializePlanner(
     planner_initialized = true;
     StageInterface::callActionServer();
     planner_status_ = StageInterface::PlannerStatus::READY;
-  
+
   */
 
     planner_initialized = true;
@@ -370,9 +391,10 @@ bool StageInterface::stopPlanner(stage_planner::stopPlanning::Request& req,
                                  stage_planner::stopPlanning::Response& res)
 
 {
-  std::string namespace_str;
-  std::string command;
   std_srvs::Empty land_srv;
+  std_msgs::String safety_land_msg;
+  mavros_msgs::SetMode manual_set_mode;
+  mavros_msgs::CommandBool disarm_cmd;
   if (req.land) {
     switch (planning_params_.planner_mode) {
       case PlannerMode::kSim:
@@ -383,26 +405,33 @@ bool StageInterface::stopPlanner(stage_planner::stopPlanning::Request& req,
         }
         break;
       case PlannerMode::kReal:
-        namespace_str = ros::this_node::getNamespace();
 
-        // Publish safety land string to controller
-        command = "rosservice call " + namespace_str +
-                  "/safety_land std_msgs/String \"data: ''\" -1";
-        (void)system(command.c_str());
+        safety_land_msg.data = "";
+        controller_Land_Publisher.publish(safety_land_msg);
 
+        // Wait for 4 seconds
         ros::Duration(4).sleep();
 
-        // set manual mode
-        command = "rosservice call " + namespace_str +
-                  "/mavros/set_mode \"base_mode: 0 "
-                  "custom_mode: 'MANUAL'\"";
-        (void)system(command.c_str());
-        // Wait for 2 seconds
+        // Set manual mode
+        manual_set_mode.request.custom_mode = "MANUAL";
+        if (planner_set_mode_client_.call(manual_set_mode) &&
+            manual_set_mode.response.mode_sent) {
+          ROS_INFO("Manual mode set \n");
+        } else {
+          ROS_ERROR("Failed to set manual mode \n");
+        }
+
+        // Wait for 3 seconds
         ros::Duration(3).sleep();
-        // send Disarm command
-        command =
-            "rosservice call " + namespace_str + "/mavros/cmd/arming \"False\"";
-        (void)system(command.c_str());
+
+        // Send Disarm command
+        disarm_cmd.request.value = false;
+        if (planner_arming_client_.call(disarm_cmd) &&
+            disarm_cmd.response.success) {
+          ROS_INFO("Drone disarmed \n");
+        } else {
+          ROS_ERROR("Failed to disarm the drone \n");
+        }
 
         break;
       default:

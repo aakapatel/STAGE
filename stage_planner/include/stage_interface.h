@@ -93,6 +93,8 @@ class StageInterface {
   ros::ServiceServer planner_homing_service_;
   ros::ServiceClient planner_takeoff_service_;
   ros::ServiceClient planner_land_service_;
+  ros::ServiceClient planner_arming_client_;
+  ros::ServiceClient planner_set_mode_client_;
   // Timer
 
   ros::Time rostime_start_;
@@ -104,6 +106,8 @@ class StageInterface {
   ros::Publisher trajectory_Publisher;
   ros::Publisher command_Path_Publisher;
   ros::Publisher reference_Publisher;
+  ros::Publisher controller_Start_Publisher;
+  ros::Publisher controller_Land_Publisher;
   nav_msgs::Path command_path;
   nav_msgs::Path exploration_path_;
   nav_msgs::Path temp_path;

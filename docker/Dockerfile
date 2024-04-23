@@ -60,6 +60,7 @@ RUN set -x \
   && apt-get install -y ros-noetic-teleop-twist-joy \
   && apt-get install -y ros-noetic-rviz-imu-plugin \
   && apt-get install -y ros-noetic-gmapping \
+  && apt-get install -y ros-noetic-mavros-msgs \
 
 # && pip3 install powerline-shell dearpygui \
 	&& rm -rf /var/lib/apt/lists/* \
