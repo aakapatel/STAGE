@@ -1,10 +1,10 @@
 PlanningParams:
-  planner_mode:     "kSim" #"kReal"
+  planner_mode:     "kReal" #"kSim" #"kReal"
   type:             kBasicExploration #kAdaptiveExploration, kBasicExploration
   rr_mode:          kGraph
   exp_sensor_list:  ["OS064"]
   # no_gain_zones_list: ["g1"]
-  global_frame_id: "world"
+  global_frame_id: "shafterx3/world"
   init_forward_x:   4.0 # initialization motion forward m
   dt:               0.8 # dt for traj 
   v_max:            1.0 # max velocity m/s

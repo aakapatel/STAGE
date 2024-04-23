@@ -59,9 +59,9 @@ stage_planner_panel::stage_planner_panel(QWidget *parent)
   button_set_state_hold->setText("HOLD");
   button_set_state_hold->setStyleSheet("background-color : Cyan");
 
-  grid_layout->addWidget(button_takeoff, 0, 0, 1, 1);
-
-  grid_layout->addWidget(button_initialize, 0, 1, 1, 1);
+  grid_layout->addWidget(button_initialize, 0, 0, 1, 1);
+  
+  grid_layout->addWidget(button_takeoff, 0, 1, 1, 1);
 
   grid_layout->addWidget(button_set_state_path, 1, 0, 1, 1);
 
