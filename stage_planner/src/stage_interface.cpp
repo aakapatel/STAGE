@@ -181,16 +181,14 @@ void StageInterface::odometryCallback(const nav_msgs::Odometry& odom) {
   }
   if (planner_initialized) {
     graph_manager_->setState(robotState_);
+    // double time_elapsed = 0.0;
+    if ((ros::Time::now()).toSec() != 0.0) {
+      if (rostime_start_.toSec() == 0.0) rostime_start_ = ros::Time::now();
+      time_elapsed = (double)((ros::Time::now() - rostime_start_).toSec());
+    }
+    time_budget_remaining_ =
+        planning_params_.time_budget_before_landing - time_elapsed;
   }
-
-  // double time_elapsed = 0.0;
-  if ((ros::Time::now()).toSec() != 0.0) {
-    if (rostime_start_.toSec() == 0.0) rostime_start_ = ros::Time::now();
-    time_elapsed = (double)((ros::Time::now() - rostime_start_).toSec());
-  }
-
-  time_budget_remaining_ =
-      planning_params_.time_budget_before_landing - time_elapsed;
 
   if ((time_budget_remaining_ <= 0 || manual_homing_triggered_) &&
       !homing_planner_triggered_) {
@@ -258,9 +256,8 @@ bool StageInterface::initializePlanner(
         ROS_ERROR("Planner mode not set in params \n");
         break;
     }
-  
-    res.mission_duration = planning_params_.time_budget_before_landing;
 
+    res.mission_duration = planning_params_.time_budget_before_landing;
   }
 
   if (req.initialize) {
@@ -273,8 +270,8 @@ bool StageInterface::initializePlanner(
     graph_manager_->setSharedParams(robot_params_, global_space_params_,
                                     local_space_params_);
     graph_manager_->setGlobalFrame(planning_params_.global_frame_id);
-    homing_planner_triggered_ = false; // safety guard
-    
+    homing_planner_triggered_ = false;  // safety guard
+
     // clear and initialize first init motion path
     exploration_path_.poses.clear();
     path_iterator_ = 0;
@@ -285,7 +282,7 @@ bool StageInterface::initializePlanner(
     initialization_poses.clear();
     geometry_msgs::PoseStamped init_pose;
 
-  init_pose.pose.position.x = robotState_[0];
+    init_pose.pose.position.x = robotState_[0];
     init_pose.pose.position.y = robotState_[1];
     init_pose.pose.position.z = robotState_[2];
     init_pose.pose.orientation.x = 0;
@@ -328,7 +325,7 @@ bool StageInterface::initializePlanner(
 
     res.success = true;
     ROS_INFO("Initialization Successful : Ready ");
-  
+
     res.mission_duration = planning_params_.time_budget_before_landing;
   }
 
@@ -569,9 +566,11 @@ void StageInterface::generateTrajectory(nav_msgs::Path raw_path) {
     command_path.poses.push_back(pose_ref);
     goal_path.push_back(pose_ref);
   }
-
+  
+  // set the goal path for action server --> Ground robot
   goal.path = goal_path;
-  trajectory_Publisher.publish(trajectory_array_);
+  // Publish the trajectory --> Aerial robot 
+  // trajectory_Publisher.publish(trajectory_array_);
 
 }  // generateTrajectory
 

@@ -6,7 +6,7 @@ PlanningParams:
   # no_gain_zones_list: ["g1"]
   global_frame_id: "world"
   init_forward_x:   4.0 # initialization motion forward m
-  dt:               1.0 # dt for traj 
+  dt:               0.8 # dt for traj 
   v_max:            1.0 # max velocity m/s
   v_homing_max:     0.9 # max velocity m/s
   yaw_rate_max:     0.15 # max angular velocity rad/s
