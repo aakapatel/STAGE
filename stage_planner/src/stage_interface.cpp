@@ -84,6 +84,7 @@ void StageInterface::loadParams() {
   robot_params_.loadParams(ns + "/RobotParams");
   global_space_params_.loadParams(ns + "/BoundedSpaceParams/Global");
   local_space_params_.loadParams(ns + "/BoundedSpaceParams/Local");
+  manual_mode_params_.loadParams(ns + "/BoundedSpaceParams/LocalSearch");
   planning_params_.loadParams(ns + "/PlanningParams");
   robot_box_size_ = robot_params_.size;
   map_manager_->setRobotRadius(robot_box_size_.norm() / 2.0);
@@ -92,10 +93,11 @@ void StageInterface::loadParams() {
 void StageInterface::setSharedParams(
     const RobotParams& robot_params,
     const BoundedSpaceParams& global_space_params,
-    const BoundedSpaceParams& local_space_params) {
+    const BoundedSpaceParams& local_space_params,
+    const BoundedSpaceParams& manual_mode_params) {
   StageInterface::loadParams();
   graph_manager_->setSharedParams(robot_params, global_space_params,
-                                  local_space_params);
+                                  local_space_params, manual_mode_params);
   init_x = planning_params_.init_forward_x;
   dt_ = planning_params_.dt;
   v_max_ = planning_params_.v_max;
@@ -198,6 +200,9 @@ void StageInterface::odometryCallback(const nav_msgs::Odometry& odom) {
   }
   if (planner_initialized) {
     graph_manager_->setState(robotState_);
+  }
+
+  if (received_init_location) {
     // double time_elapsed = 0.0;
     if ((ros::Time::now()).toSec() != 0.0) {
       if (rostime_start_.toSec() == 0.0) rostime_start_ = ros::Time::now();
@@ -230,7 +235,7 @@ bool StageInterface::initializePlanner(
   }
 
   StageInterface::setSharedParams(robot_params_, global_space_params_,
-                                  local_space_params_);
+                                  local_space_params_, manual_mode_params_);
 
   std_srvs::Empty takeoff_srv;
   mavros_msgs::CommandBool arm_cmd;
@@ -293,7 +298,7 @@ bool StageInterface::initializePlanner(
     graph_manager_->loadParams();
     graph_manager_->reset();
     graph_manager_->setSharedParams(robot_params_, global_space_params_,
-                                    local_space_params_);
+                                    local_space_params_, manual_mode_params_);
     graph_manager_->setGlobalFrame(planning_params_.global_frame_id);
     homing_planner_triggered_ = false;  // safety guard
 
@@ -382,7 +387,7 @@ void StageInterface::goalCallback(
 
   StageInterface::generateTrajectory(initialization_path);
   command_Path_Publisher.publish(command_path);
-  planner_initialized = true;
+  received_init_location = true;
   StageInterface::callActionServer();
   planner_status_ = StageInterface::PlannerStatus::READY;
 }

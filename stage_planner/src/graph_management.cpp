@@ -21,6 +21,7 @@ void GraphManager::reset() {
   stat_chrono_.reset(new SampleStatistic());
   geofence_manager_.reset(new GeofenceManager());
   random_sampler_.reset();
+  random_sampler_manual_mode_.reset();
   random_sampler_graph_expansion_.reset();
 
   exploration_dir_pose.header.frame_id = world_frame_id;
@@ -94,6 +95,7 @@ void GraphManager::initializeAttributes() {
   stat_chrono_.reset(new SampleStatistic());
   geofence_manager_.reset(new GeofenceManager());
   random_sampler_.reset();
+  random_sampler_manual_mode_.reset();
   random_sampler_graph_expansion_.reset();
   stat_->init(robotState_);
 }
@@ -105,6 +107,7 @@ void GraphManager::loadParams() {
   robot_params_.loadParams(ns + "/RobotParams");
   global_space_params_.loadParams(ns + "/BoundedSpaceParams/Global");
   local_space_params_.loadParams(ns + "/BoundedSpaceParams/Local");
+  manual_mode_params_.loadParams(ns + "/BoundedSpaceParams/LocalSearch");
   graph_expansion_global_params_.loadParams(ns +
                                             "/GraphExpansionParams/Global");
   graph_expansion_local_params_.loadParams(ns + "/GraphExpansionParams/Local");
@@ -114,10 +117,14 @@ void GraphManager::loadParams() {
   // robot_state_hist_.reset(new RobotStateHistory());
 
   random_sampler_.loadParams(ns + "/RandomSamplerParams/SamplerForExploration");
+  random_sampler_manual_mode_.loadParams(
+      ns + "/RandomSamplerParams/SamplerForExploration");
   random_sampler_graph_expansion_.loadParams(
       ns + "/RandomSamplerParams/SamplerForExploration");
 
   random_sampler_.setParams(global_space_params_, local_space_params_);
+  random_sampler_manual_mode_.setParams(global_space_params_,
+                                        manual_mode_params_);
   random_sampler_graph_expansion_.setParams(graph_expansion_global_params_,
                                             graph_expansion_local_params_);
   map_manager_->setRobotRadius(robot_box_size_.norm() / 2.0);
@@ -126,12 +133,14 @@ void GraphManager::loadParams() {
 void GraphManager::setSharedParams(
     const RobotParams& robot_params,
     const BoundedSpaceParams& global_space_params,
-    const BoundedSpaceParams& local_space_params) {
+    const BoundedSpaceParams& local_space_params,
+    const BoundedSpaceParams& manual_mode_params) {
   robot_params_ = robot_params;
   robot_params_.getPlanningSize(robot_box_size_);
 
   global_space_params_ = global_space_params;
   local_space_params_ = local_space_params;
+  manual_mode_params_ = manual_mode_params;
 }
 
 void GraphManager::resetPoseGraph() {
@@ -449,7 +458,7 @@ bool GraphManager::sampleStateToExpandGraph(StateVec root_state,
   return found;
 }
 
-bool GraphManager::sampleVertex(Vertex& vertex) {
+bool GraphManager::sampleVertex(Vertex& vertex, bool manual_mode) {
   StateVec state;
   bool hanging = false;
   bool found = false;
@@ -460,7 +469,11 @@ bool GraphManager::sampleVertex(Vertex& vertex) {
   reduced_global_space.max_val -= 0.5 * robot_box_size_;
   while (!found && while_thres--) {
     hanging = false;
-    random_sampler_.generate(robotState_, state);
+    if (manual_mode) {
+      random_sampler_manual_mode_.generate(robotState_, state);
+    } else {
+      random_sampler_.generate(robotState_, state);
+    }
     // Very fast check if the sampled point is inside the planning space.
     // This helps eliminate quickly points outside the sampling space.
     Eigen::Vector3d sample = state.head(3);
@@ -498,11 +511,21 @@ bool GraphManager::sampleVertex(Vertex& vertex) {
             Eigen::Vector3d(state[0], state[1], state[2]) +
                 robot_params_.center_offset,
             robot_box_size_, true)) {
-      random_sampler_.pushSample(state, true);  // for debug purpose.
+      if (manual_mode) {
+        random_sampler_manual_mode_.pushSample(state, true);  // for debug.
+
+      } else {
+        random_sampler_.pushSample(state, true);  // for debug.
+      }
       found = true;
     } else {
       stat_->num_vertices_fail++;
-      random_sampler_.pushSample(state, false);
+      if (manual_mode) {
+        random_sampler_manual_mode_.pushSample(state, false);  // for debug.
+
+      } else {
+        random_sampler_.pushSample(state, false);  // for debug.
+      }
     }
   }
   vertex.state = state;
@@ -1688,23 +1711,37 @@ void GraphManager::expandGraph(std::shared_ptr<GraphUtils> graph_manager,
 }
 
 GraphManager::GraphStatus GraphManager::buildGraph(
-    std::shared_ptr<GraphUtils> graph) {
+    std::shared_ptr<GraphUtils> graph, bool manual_mode) {
   int loop_count = 0;
   int num_vertices = 1;
   int num_edges = 0;
+  int loop_count_max = 0;
+  int num_vertices_max = 1;
+  int num_edges_max = 0;
   GraphManager::GraphStatus build_graph_status =
       GraphManager::GraphStatus::NOT_OK;
+
+  // For manual mode scale max vertices and edges to match  larger sampling
+  // space
+  if (manual_mode) {
+    loop_count_max = 2 * planning_params_.num_loops_max;
+    num_vertices_max = 4 * planning_params_.num_vertices_max;
+    num_edges_max = 2 * planning_params_.num_edges_max;
+  } else {
+    loop_count_max = planning_params_.num_loops_max;
+    num_vertices_max = planning_params_.num_vertices_max;
+    num_edges_max = planning_params_.num_edges_max;
+  }
 
   resetProjectedGraph();
 
   local_exploration_ongoing_ = true;
 
-  while ((loop_count++ < planning_params_.num_loops_max) &&
-         (num_vertices < planning_params_.num_vertices_max) &&
-         (num_edges < planning_params_.num_edges_max)) {
+  while ((loop_count++ < loop_count_max) && (num_vertices < num_vertices_max) &&
+         (num_edges < num_edges_max)) {
     Vertex new_vertex(-1, StateVec::Zero());
 
-    if (!sampleVertex(new_vertex)) {
+    if (!sampleVertex(new_vertex, manual_mode)) {
       continue;
     }
     ExpandGraphReport rep;
@@ -1752,9 +1789,9 @@ nav_msgs::Path GraphManager::runPlannerkManualMode(StateVec s) {
   local_root_vertex = new Vertex(local_graph_->generateVertexID(), robotState_);
   local_root_vertex->is_root = true;
   local_graph_->addVertex(local_root_vertex);
-
+  bool manual_mode = true;
   GraphManager::GraphStatus build_graph_status =
-      GraphManager::buildGraph(local_graph_);
+      GraphManager::buildGraph(local_graph_, manual_mode);
   switch (build_graph_status) {
     case GraphManager::GraphStatus::OK:
       ROS_DEBUG("[kManual Mode LOCAL GRAPH STATUS] SG build : OK ");
@@ -1850,6 +1887,7 @@ nav_msgs::Path GraphManager::runPlannerkManualMode(StateVec s) {
       path_to_goal.poses.push_back(pose_mod);
     }
 
+    visualization_server_->visualizeLocalGraph(local_graph_);
     visualization_server_->visualizeExplorationPath(path_to_goal);
   }
   // else {
@@ -1881,8 +1919,9 @@ GraphManager::GraphStatus GraphManager::runLocalPlanner() {
   local_root_vertex->is_root = true;
   local_graph_->addVertex(local_root_vertex);
 
+  bool manual_mode = false;
   GraphManager::GraphStatus build_graph_status =
-      GraphManager::buildGraph(local_graph_);
+      GraphManager::buildGraph(local_graph_, manual_mode);
   switch (build_graph_status) {
     case GraphManager::GraphStatus::OK:
       ROS_DEBUG("[LOCAL GRAPH STATUS] SG build : OK ");

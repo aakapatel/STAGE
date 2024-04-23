@@ -26,7 +26,8 @@ class GraphManager {
   void loadParams();
   void setSharedParams(const RobotParams& robot_params,
                        const BoundedSpaceParams& global_space_params,
-                       const BoundedSpaceParams& local_space_params);
+                       const BoundedSpaceParams& local_space_params,
+                       const BoundedSpaceParams& manual_mode_params);
   void setState(StateVec& state);
   void setGlobalFrame(std::string frame_id);
   void setExplorationDirection(geometry_msgs::PoseStamped pose);
@@ -34,11 +35,12 @@ class GraphManager {
   bool sampleState(StateVec root_state, StateVec& vertex);
   bool sampleStateToExpandGraph(StateVec root_state, StateVec& vertex);
 
-  bool sampleVertex(Vertex& vertex);
+  bool sampleVertex(Vertex& vertex, bool manual_mode);
   void expandGraph(std::shared_ptr<GraphUtils> graph_manager,
                    Vertex& new_vertex, ExpandGraphReport& rep,
                    bool allow_short_edge = false);
-  GraphStatus buildGraph(std::shared_ptr<GraphUtils> graph);
+  GraphStatus buildGraph(std::shared_ptr<GraphUtils> graph,
+                         bool manual_mode);
 
   Eigen::Quaternion<float> Euler2Quaternion(Eigen::Vector3d v);
 
@@ -140,11 +142,14 @@ class GraphManager {
   RobotParams robot_params_;
   BoundedSpaceParams local_space_params_;
   BoundedSpaceParams global_space_params_;
+  BoundedSpaceParams manual_mode_params_;
   BoundedSpaceParams graph_expansion_local_params_;
   BoundedSpaceParams graph_expansion_global_params_;
   PlanningParams planning_params_;
 
   RandomSampler random_sampler_;  // x,y,z,yaw: for exploration purpose
+  RandomSampler
+      random_sampler_manual_mode_;  // x,y,z,yaw: for exploration purpose
   RandomSampler
       random_sampler_graph_expansion_;  // x,y,z,yaw: for exploration purpose
   std::vector<BoundedSpaceParams> no_gain_zones_;

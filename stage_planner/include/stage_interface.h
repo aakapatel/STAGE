@@ -24,7 +24,8 @@ class StageInterface {
   void loadParams();
   void setSharedParams(const RobotParams& robot_params,
                        const BoundedSpaceParams& global_space_params,
-                       const BoundedSpaceParams& local_space_params);
+                       const BoundedSpaceParams& local_space_params,
+                       const BoundedSpaceParams& manual_mode_params);
   double projectSample(Eigen::Vector3d& sample,
                        MapManager::VoxelStatus& voxel_status);
   bool initializePlanner(stage_planner::initializePlanning::Request& req,
@@ -72,6 +73,7 @@ class StageInterface {
   SensorParams free_frustum_params_;
   RobotParams robot_params_;
   BoundedSpaceParams local_space_params_;
+  BoundedSpaceParams manual_mode_params_;
   BoundedSpaceParams global_space_params_;
   PlanningParams planning_params_;
   std::shared_ptr<SampleStatistic> stat_, stat_chrono_;
@@ -126,6 +128,7 @@ class StageInterface {
 
   bool firstTime;
   bool planner_initialized = false;
+  bool received_init_location = false;
   bool manual_homing_triggered_ = false;
   bool homing_planner_triggered_ = false;
   bool explore = false;  // For debug only! normally should be false.

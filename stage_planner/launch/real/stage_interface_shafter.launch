@@ -24,7 +24,7 @@
     <node name="control_interface" pkg="stage_planner" type="control_interface" output="screen">
 
       <param name="state_topic" type="string" value="/state"/>
-      <param name="frame_id" type="string" value="world" />
+      <param name="frame_id" type="string" value="shafterx3/world" />
       <param name="path_topic" type="string" value="command_path"/>
       <param name="odom_topic" type="string" value="odometry/imu"/>
       <param name="wp_topic" type="string" value="/next_waypoint"/>

@@ -145,7 +145,7 @@ void stage_planner_panel::on_initialize_click() {
               planner_client_initialize.getService().c_str());
   }
 
-  time_budget = init_planner_srv.response.mission_duration;
+  // time_budget = init_planner_srv.response.mission_duration;
   init_success = true;
 }
 
