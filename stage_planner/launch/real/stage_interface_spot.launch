@@ -43,7 +43,7 @@
       </node>
 
     <node name="spot_path_tracker_node" pkg="stage_planner" type="spot_path_tracker_ros_node" output="screen">
-      <remap from="cmd_vel" to="/smb_velocity_controller/cmd_vel" />
+      <remap from="cmd_vel" to="/spot/cmd_vel" />
       <!-- <remap from="cmd_vel" to="/husky_velocity_controller/cmd_vel" /> -->
       <remap from="odometry" to="odometry/imu" />
       <param name="critical_angle" value="0.52"/>
@@ -52,7 +52,7 @@
       <param name="look_ahead_error_margin" value="0.2"/>
       <param name="look_ahead_distance" value="0.5"/>
       <param name="fixed_frame" type="string" value="world" />
-      <param name="robot_frame" type="string" value="base_link" />
+      <param name="robot_frame" type="string" value="spot/base_link" />
       </node>
     
     <node type="rviz" name="rviz" pkg="rviz" args="-d $(find stage_planner)/config/rviz/stage_planner_$(arg robot_name).rviz" />
