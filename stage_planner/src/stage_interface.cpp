@@ -202,12 +202,13 @@ void StageInterface::odometryCallback(const nav_msgs::Odometry& odom) {
     graph_manager_->setState(robotState_);
   }
 
-  if (received_init_location) { // manual mode initialization 
+  if (received_init_location) {  // manual mode initialization
     // double time_elapsed = 0.0;
     if ((ros::Time::now()).toSec() != 0.0) {
       if (rostime_start_.toSec() == 0.0) rostime_start_ = ros::Time::now();
       time_elapsed = (double)((ros::Time::now() - rostime_start_).toSec());
     }
+
     time_budget_remaining_ =
         planning_params_.time_budget_before_landing - time_elapsed;
   }
@@ -288,6 +289,7 @@ bool StageInterface::initializePlanner(
     }
 
     res.mission_duration = planning_params_.time_budget_before_landing;
+    rostime_start_ = ros::Time::now();
   }
 
   if (req.initialize) {
@@ -305,7 +307,6 @@ bool StageInterface::initializePlanner(
     // clear and initialize first init motion path
     exploration_path_.poses.clear();
     path_iterator_ = 0;
-    rostime_start_ = ros::Time::now();
     nav_msgs::Path initialization_path;
     initialization_path.poses.clear();
 
@@ -376,6 +377,7 @@ void StageInterface::goalCallback(
   s[2] = robotState_[2];
   s[3] = robotState_[3];
 
+  received_init_location = true;
   nav_msgs::Path initialization_path;
   initialization_path.poses.clear();
   initialization_path = graph_manager_->runPlannerkManualMode(s);
@@ -387,7 +389,7 @@ void StageInterface::goalCallback(
 
   StageInterface::generateTrajectory(initialization_path);
   command_Path_Publisher.publish(command_path);
-  received_init_location = true;
+  // received_init_location = true;
   StageInterface::callActionServer();
   planner_status_ = StageInterface::PlannerStatus::READY;
 }
@@ -506,7 +508,7 @@ double StageInterface::calculateDistance(Eigen::Vector3d point1,
 }
 
 void StageInterface::actionActiveCallback() {
-  ROS_INFO("Action Server : Goal went active");
+  // ROS_INFO("Action Server : Goal went active");
 }
 
 void StageInterface::actionFeedbackCallback(
@@ -517,7 +519,7 @@ void StageInterface::actionFeedbackCallback(
 bool StageInterface::actionDoneCallback(
     const actionlib::SimpleClientGoalState& state,
     const stage_planner::pathFollowerActionResultConstPtr& result) {
-  ROS_INFO("Finished follow action.");
+  // ROS_INFO("Finished follow action.");
   if (state == actionlib::SimpleClientGoalState::SUCCEEDED) {
     // trigger replanning here ?
 
@@ -682,7 +684,7 @@ void StageInterface::periodicTimerCallback(const ros::TimerEvent& event) {
     manual_homing_triggered_ = false;
   }
 
-  // ROS_INFO_STREAM("Time remaining : " << time_budget_remaining_ << "s \n");
+  ROS_INFO_STREAM("Time remaining : " << time_budget_remaining_ << "s \n");
 
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
   switch (planner_status_) {

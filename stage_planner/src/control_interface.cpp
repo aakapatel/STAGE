@@ -74,7 +74,7 @@ void ControlInterface::publishCallback(const ros::TimerEvent&) {
         if (!atPoint(end_pos)) {
           ref_pub.publish(path_pose);
         } else {
-          ROS_WARN("Reached end of path, fetching new path.. \n");
+          // ROS_WARN("Reached end of path, fetching new path.. \n");
         }
         // ROS_INFO_STREAM ("Publishing Reference " << "\n");
       }
