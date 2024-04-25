@@ -2724,11 +2724,11 @@ bool GraphManager::planGlobalPath() {
     for (int j = 0; j < paths_unordered.size(); j++) {
       std::vector<Vertex*> path = paths_unordered[j].first;
       best_path_.clear();
-      best_path_ = path;
-      // GraphManager::improvePath(path, best_path_);
-      // if (best_path_.empty()) {
-      //   best_path_ = path;
-      // }
+      // best_path_ = path;
+      GraphManager::improvePath(path, best_path_);
+      if (best_path_.empty()) {
+        best_path_ = path;
+      }
       std::vector<geometry_msgs::Pose> original_path;
       std::vector<geometry_msgs::Pose> modified_path;
       original_path.clear();
