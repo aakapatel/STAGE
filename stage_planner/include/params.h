@@ -291,6 +291,7 @@ struct PlanningParams {
   double nearest_range_min;
   double nearest_range_max;
   double local_space;
+  double graph_density_scalar;
   bool use_current_state;
   bool geofence_checking_enable;
   // Ground robot specific

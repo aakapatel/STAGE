@@ -93,8 +93,8 @@ class StageInterface {
   ros::ServiceServer planner_initialization_service_;
   ros::ServiceServer planner_stop_service_;
   ros::ServiceServer planner_homing_service_;
-  ros::ServiceClient planner_takeoff_service_;
-  ros::ServiceClient planner_land_service_;
+  ros::ServiceClient planner_takeoff_client_;
+  ros::ServiceClient planner_land_client_;
   ros::ServiceClient planner_arming_client_;
   ros::ServiceClient planner_set_mode_client_;
   // Timer
@@ -122,7 +122,7 @@ class StageInterface {
   double yaw_rate_max_;
   double dt_ = 0.1;
   double init_x = 2;
-  double time_budget_remaining_ = 0;
+  double time_budget_remaining_ = 1;
   int path_iterator_ = 0;
   int planning_iteration_ = 0;
 
@@ -131,15 +131,11 @@ class StageInterface {
   bool received_init_location = false;
   bool manual_homing_triggered_ = false;
   bool homing_planner_triggered_ = false;
-  bool explore = false;  // For debug only! normally should be false.
   bool stop_planning = false;
-  bool return_home = false;
   bool start_planner_first_time = true;
   bool path_execution_complete_ = false;
   bool odom_received = false;
   bool fetch_new_path_ = true;
-
-  double init_x_, init_y_, init_z_;
 
   // reference tracking utilities
 };

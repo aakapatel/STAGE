@@ -134,6 +134,7 @@ void stage_planner_panel::on_takeoff_click() {
 
   button_takeoff->setText("Drone ARMED !!");
   button_takeoff->setStyleSheet("background-color : Green");
+  init_success = true;
 }
 
 void stage_planner_panel::on_initialize_click() {
@@ -146,7 +147,6 @@ void stage_planner_panel::on_initialize_click() {
   }
 
   // time_budget = init_planner_srv.response.mission_duration;
-  init_success = true;
 }
 
 void stage_planner_panel::on_state_path_click() {

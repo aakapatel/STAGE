@@ -39,21 +39,21 @@ void StageInterface::initializeAttributes() {
   reference_Publisher =
       nh_.advertise<geometry_msgs::PoseStamped>("command/pose", 1, true);
 
+  controller_Start_Publisher = nh_.advertise<std_msgs::String>("start", 1);
+
+  controller_Land_Publisher = nh_.advertise<std_msgs::String>("safety_land", 1);
+
   // Ros services
 
-  planner_takeoff_service_ = nh_.serviceClient<std_srvs::Empty>("takeoff");
+  planner_takeoff_client_ = nh_.serviceClient<std_srvs::Empty>("takeoff");
 
-  planner_land_service_ = nh_.serviceClient<std_srvs::Empty>("land");
+  planner_land_client_ = nh_.serviceClient<std_srvs::Empty>("land");
 
   planner_arming_client_ =
       nh_.serviceClient<mavros_msgs::CommandBool>("mavros/cmd/arming");
 
   planner_set_mode_client_ =
       nh_.serviceClient<mavros_msgs::SetMode>("mavros/set_mode");
-
-  controller_Start_Publisher = nh_.advertise<std_msgs::String>("start", 1);
-
-  controller_Land_Publisher = nh_.advertise<std_msgs::String>("safety_land", 1);
 
   planner_initialization_service_ = nh_.advertiseService(
       "initialize_planner", &StageInterface::initializePlanner, this);
@@ -202,7 +202,7 @@ void StageInterface::odometryCallback(const nav_msgs::Odometry& odom) {
     graph_manager_->setState(robotState_);
   }
 
-  if (received_init_location) {
+  if (received_init_location) { // manual mode initialization 
     // double time_elapsed = 0.0;
     if ((ros::Time::now()).toSec() != 0.0) {
       if (rostime_start_.toSec() == 0.0) rostime_start_ = ros::Time::now();
@@ -246,7 +246,7 @@ bool StageInterface::initializePlanner(
       case PlannerMode::kSim:
 
         ROS_WARN("PlannerMode : kSim ! \n");
-        if (planner_takeoff_service_.call(takeoff_srv)) {
+        if (planner_takeoff_client_.call(takeoff_srv)) {
           ros::Duration(2).sleep();
           ROS_WARN("Takeoff service sent! \n");
         } else {
@@ -403,7 +403,7 @@ bool StageInterface::stopPlanner(stage_planner::stopPlanning::Request& req,
   if (req.land) {
     switch (planning_params_.planner_mode) {
       case PlannerMode::kSim:
-        if (planner_land_service_.call(land_srv)) {
+        if (planner_land_client_.call(land_srv)) {
           ROS_WARN("Land service sent! \n");
         } else {
           // ROS_WARN("Takeoff service failed \n");
@@ -459,8 +459,7 @@ bool StageInterface::homingPlanner(stage_planner::homePlanning::Request& req,
   if (req.homing) {
     manual_homing_triggered_ = true;
     homing_planner_triggered_ = true;
-    return_home = true;
-    explore = false;
+    planner_status_ = StageInterface::PlannerStatus::HOMING;
     res.success = true;
   }
   // ROS_WARN("Return to home requested ");

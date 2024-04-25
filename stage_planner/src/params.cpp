@@ -985,6 +985,12 @@ bool PlanningParams::loadParams(std::string ns) {
     local_space = 10;
     ROSPARAM_WARN(param_name, local_space);
   }
+  
+  param_name = ns + "/graph_density_scalar";
+  if (!ros::param::get(param_name, graph_density_scalar)) {
+    graph_density_scalar = 1;
+    ROSPARAM_WARN(param_name, graph_density_scalar);
+  }
 
   param_name = ns + "/use_current_state";
   if (!ros::param::get(param_name, use_current_state)) {

@@ -1723,10 +1723,11 @@ GraphManager::GraphStatus GraphManager::buildGraph(
 
   // For manual mode scale max vertices and edges to match  larger sampling
   // space
+  double scalar = planning_params_.graph_density_scalar;
   if (manual_mode) {
-    loop_count_max = 2 * planning_params_.num_loops_max;
-    num_vertices_max = 4 * planning_params_.num_vertices_max;
-    num_edges_max = 2 * planning_params_.num_edges_max;
+    loop_count_max = scalar * planning_params_.num_loops_max;
+    num_vertices_max = scalar * planning_params_.num_vertices_max;
+    num_edges_max = scalar * planning_params_.num_edges_max;
   } else {
     loop_count_max = planning_params_.num_loops_max;
     num_vertices_max = planning_params_.num_vertices_max;
@@ -1769,10 +1770,6 @@ GraphManager::GraphStatus GraphManager::buildGraph(
 }
 
 nav_msgs::Path GraphManager::runPlannerkManualMode(StateVec s) {
-  // ROS_WARN_STREAM("robotState_ : " << robotState_[0] << " ," <<
-  // robotState_[1]
-  //                                  << " ," << robotState_[2] << " ,"
-  //                                  << robotState_[3] << "\n");
 
   GraphManager::GraphStatus local_planner_status =
       GraphManager::GraphStatus::NOT_OK;
