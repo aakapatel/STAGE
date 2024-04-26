@@ -14,10 +14,10 @@
 
       <remap from="odometry" to="odometry/imu" />
       <remap from="pointcloud" to="ouster/points" />
-      <remap from="reference_topic" to="command/pose" />
+      <remap from="reference_topic" to="reference" />
       <rosparam command="load" file="$(arg mapping_config)" /> 
       <rosparam command="load" file="$(arg stage_config)" /> 
-
+      <param name="world_frame" value="shafterx3/world" />
       </node>
 
 
@@ -28,7 +28,7 @@
       <param name="path_topic" type="string" value="command_path"/>
       <param name="odom_topic" type="string" value="odometry/imu"/>
       <param name="wp_topic" type="string" value="/next_waypoint"/>
-      <param name="reference_topic" type="string" value="command/pose"/>
+      <param name="reference_topic" type="string" value="reference"/>
 
       <rosparam command="load" file="$(arg stage_config)" /> 
 

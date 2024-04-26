@@ -587,8 +587,11 @@ void StageInterface::segmentPath(const nav_msgs::Path& path,
 void StageInterface::generateTrajectory(nav_msgs::Path raw_path) {
   nav_msgs::Path new_path;
   new_path.poses.clear();
-  StageInterface::segmentPath(raw_path, new_path);
-  // new_path = raw_path;
+  if (planning_params_.planner_mode == PlannerMode::kSim) {
+    StageInterface::segmentPath(raw_path, new_path);
+  } else {
+    new_path = raw_path;
+  }
   n_seq_++;
   trajectory_msgs::MultiDOFJointTrajectory trajectory_array_;
   mav_msgs::EigenTrajectoryPoint trajectory_point_;
@@ -639,7 +642,9 @@ void StageInterface::generateTrajectory(nav_msgs::Path raw_path) {
   // set the goal path for action server --> Ground robot
   goal.path = goal_path;
   // Publish the trajectory --> Aerial robot
-  // trajectory_Publisher.publish(trajectory_array_);
+  if (planning_params_.planner_mode == PlannerMode::kSim) {
+    trajectory_Publisher.publish(trajectory_array_);
+  }
 
 }  // generateTrajectory
 
