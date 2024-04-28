@@ -1461,13 +1461,21 @@ void GraphManager::expandGraph(std::shared_ptr<GraphUtils> graph_manager,
   Vertex* nearest_vertex = NULL;
   if (!graph_manager->getNearestVertex(&new_state, &nearest_vertex)) {
     rep.status = ExpandGraphStatus::kErrorKdTree;
+    ROS_WARN("Err kdtree \n");
     return;
   }
   if (nearest_vertex == NULL) {
     rep.status = ExpandGraphStatus::kErrorKdTree;
+    ROS_WARN("null \n");
     return;
   }
+  if (graph_manager == global_graph_) {
 
+    ROS_WARN_STREAM("GG nearest vertex : " << (nearest_vertex)->state[0] << " ,"
+                                           << (nearest_vertex)->state[1] << " ,"
+                                           << (nearest_vertex)->state[2] << " ,"
+                                           << (nearest_vertex)->state[3] << "\n");
+  }
   // Check for collision of new connection plus some overshoot distance.
   Eigen::Vector3d origin(nearest_vertex->state[0], nearest_vertex->state[1],
                          nearest_vertex->state[2]);
@@ -1481,6 +1489,7 @@ void GraphManager::expandGraph(std::shared_ptr<GraphUtils> graph_manager,
              (direction_norm <= planning_params_.edge_length_min)) {
     // Should not add short edge.
     rep.status = ExpandGraphStatus::kErrorShortEdge;
+    ROS_WARN("Short edge \n");
     return;
   }
 
@@ -1521,6 +1530,7 @@ void GraphManager::expandGraph(std::shared_ptr<GraphUtils> graph_manager,
            Eigen::Vector2d(end_pos[0], end_pos[1]),
            Eigen::Vector2d(robot_box_size_[0], robot_box_size_[1])))) {
     rep.status = ExpandGraphStatus::kErrorGeofenceViolated;
+    ROS_WARN("geofence voilated \n");
     return;
   }
 
@@ -1532,6 +1542,8 @@ void GraphManager::expandGraph(std::shared_ptr<GraphUtils> graph_manager,
         map_manager_->getPathStatus(start_pos, end_pos, robot_box_size_, true);
     if (MapManager::VoxelStatus::kFree == vs) {
       admissible_edge = true;
+    } else {
+      ROS_WARN("not an admissible edge \n");
     }
   } else if (robot_params_.type == RobotType::kGroundRobot) {
     bool is_hanging = nearest_vertex->is_hanging || new_vertex.is_hanging;
@@ -1602,6 +1614,8 @@ void GraphManager::expandGraph(std::shared_ptr<GraphUtils> graph_manager,
       if (!graph_manager->getNearestVertices(
               &new_state, planning_params_.nearest_range, &nearest_vertices)) {
         rep.status = ExpandGraphStatus::kErrorKdTree;
+
+        ROS_WARN("Err kdtree in kGraph \n");
         return;
       }
       origin << new_vertex_ptr->state[0], new_vertex_ptr->state[1],
@@ -1705,6 +1719,7 @@ void GraphManager::expandGraph(std::shared_ptr<GraphUtils> graph_manager,
       stat_->edges_fail.push_back(vtmp);
     }
     rep.status = ExpandGraphStatus::kErrorCollisionEdge;
+    ROS_WARN("Err final check collision edge \n");
     return;
   }
   rep.status = ExpandGraphStatus::kSuccess;
@@ -1747,6 +1762,8 @@ GraphManager::GraphStatus GraphManager::buildGraph(
     }
     ExpandGraphReport rep;
     expandGraph(graph, new_vertex, rep);
+    // visualization_server_->visualizeLocalGraph(graph);
+    // ros::Duration(0.005).sleep();
     if (rep.status == ExpandGraphStatus::kSuccess) {
       num_vertices += rep.num_vertices_added;
       num_edges += rep.num_edges_added;
@@ -1770,7 +1787,6 @@ GraphManager::GraphStatus GraphManager::buildGraph(
 }
 
 nav_msgs::Path GraphManager::runPlannerkManualMode(StateVec s) {
-
   GraphManager::GraphStatus local_planner_status =
       GraphManager::GraphStatus::NOT_OK;
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
@@ -1804,9 +1820,6 @@ nav_msgs::Path GraphManager::runPlannerkManualMode(StateVec s) {
 
       local_graph_->getNearestVertex(&s, &vertex);
 
-      ROS_WARN_STREAM("Nearest vertex : "
-                      << vertex->state[0] << " ," << vertex->state[1] << " ,"
-                      << vertex->state[2] << " ," << vertex->state[3] << "\n");
       local_graph_->getShortestPath(vertex->id, local_graph_rep_, true, path);
       if (!path.empty()) {
         best_path_.clear();
@@ -2236,13 +2249,29 @@ void GraphManager::updateGlobalGraph() {
         MapManager::VoxelStatus::kOccupied != vs) {
       global_graph_->addEdge(vertex, prev_pose_vertex_, edge_weight);
     }
+
+    Vertex new_vertex(++fake_id_count, robotState_);
+    ExpandGraphReport rep;
+
+    ROS_WARN_STREAM("Expanding from RS : " << (&new_vertex)->state[0] << " ,"
+                                           << (&new_vertex)->state[1] << " ,"
+                                           << (&new_vertex)->state[2] << " ,"
+                                           << (&new_vertex)->state[3] << "\n");
+    expandGraph(global_graph_, new_vertex, rep);
+    visualization_server_->visualizeGlobalGraph(global_graph_);
+    if (rep.status == ExpandGraphStatus::kSuccess) {
+      ROS_WARN("Expanded global graph from pose vertex \n");
+
+      prev_pose_vertex_ = &new_vertex;
+    }
   }
+
   prev_pose_vertex_ = vertex;
 
   // Add extra edges from pose vertex to densify the graph.
 
+  /*
   std::vector<Vertex*> nearby_vertices;
-
   global_graph_->getNearestVertices(
       &vertex->state, planning_params_.nearest_range, &nearby_vertices);
   for (int i = 0; i < nearby_vertices.size(); ++i) {
@@ -2261,7 +2290,7 @@ void GraphManager::updateGlobalGraph() {
       }
     }
   }
-
+  */
   visualization_server_->visualizeGlobalGraph(global_graph_);
 
   // update the local sub graph seen from robot's current position to handle
