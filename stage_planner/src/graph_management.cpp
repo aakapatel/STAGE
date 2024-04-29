@@ -192,7 +192,7 @@ void GraphManager::setState(StateVec& state) {
     prev_state = state;
   }
   robotState_ = state;
-  if ((prev_state.head(3) - robotState_.head(3)).norm() > 1) {
+  if ((prev_state.head(3) - robotState_.head(3)).norm() > 2) {
     Vertex* prev_vertex =
         new Vertex(pose_graph_->generateVertexID(), prev_state);
     Vertex* vertex = new Vertex(pose_graph_->generateVertexID(), robotState_);
@@ -1471,7 +1471,7 @@ void GraphManager::expandGraph(std::shared_ptr<GraphUtils> graph_manager,
   }
   if (graph_manager == global_graph_) {
 
-    ROS_WARN_STREAM("GG nearest vertex : " << (nearest_vertex)->state[0] << " ,"
+    ROS_DEBUG_STREAM("GG nearest vertex : " << (nearest_vertex)->state[0] << " ,"
                                            << (nearest_vertex)->state[1] << " ,"
                                            << (nearest_vertex)->state[2] << " ,"
                                            << (nearest_vertex)->state[3] << "\n");
@@ -1530,7 +1530,7 @@ void GraphManager::expandGraph(std::shared_ptr<GraphUtils> graph_manager,
            Eigen::Vector2d(end_pos[0], end_pos[1]),
            Eigen::Vector2d(robot_box_size_[0], robot_box_size_[1])))) {
     rep.status = ExpandGraphStatus::kErrorGeofenceViolated;
-    ROS_WARN("geofence voilated \n");
+    ROS_WARN("geofence violated \n");
     return;
   }
 
@@ -2253,10 +2253,10 @@ void GraphManager::updateGlobalGraph() {
     Vertex new_vertex(++fake_id_count, robotState_);
     ExpandGraphReport rep;
 
-    ROS_WARN_STREAM("Expanding from RS : " << (&new_vertex)->state[0] << " ,"
-                                           << (&new_vertex)->state[1] << " ,"
-                                           << (&new_vertex)->state[2] << " ,"
-                                           << (&new_vertex)->state[3] << "\n");
+    // ROS_WARN_STREAM("Expanding from RS : " << (&new_vertex)->state[0] << " ,"
+    //                                        << (&new_vertex)->state[1] << " ,"
+    //                                        << (&new_vertex)->state[2] << " ,"
+    //                                        << (&new_vertex)->state[3] << "\n");
     expandGraph(global_graph_, new_vertex, rep);
     visualization_server_->visualizeGlobalGraph(global_graph_);
     if (rep.status == ExpandGraphStatus::kSuccess) {
