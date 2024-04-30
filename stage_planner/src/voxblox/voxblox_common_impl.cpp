@@ -495,13 +495,13 @@ void MapManagerVoxblox<SDFServerType, SDFVoxelType>::extractLocalMapAlongAxis(
 template <typename SDFServerType, typename SDFVoxelType>
 void MapManagerVoxblox<SDFServerType, SDFVoxelType>::getLocalPointcloud(
     const Eigen::Vector3d& center, const double& range, const double& yaw,
-    pcl::PointCloud<pcl::PointXYZI>& pcl, bool include_unknown_voxels) {
+    pcl::PointCloud<pcl::PointXYZ>& pcl, bool include_unknown_voxels) {
   // use ray cast function
   // x = range * cos (theta) * sin(phi), y = range * sin(theta) * sin(phi), z =
   // range * cos(phi) theta - 0 to 2pi, phi - 0 to pi
 
-  pcl::PointXYZI point;
-  point.intensity = 250;
+  pcl::PointXYZ point;
+  // point.intensity = 250;
 
   const float voxel_size = sdf_layer_->voxel_size();
   const float voxel_size_inv = 1.0 / voxel_size;

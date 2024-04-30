@@ -183,7 +183,7 @@ class MapManagerVoxblox : MapManager {
 
   void getLocalPointcloud(const Eigen::Vector3d& center, const double& range,
                           const double& yaw,
-                          pcl::PointCloud<pcl::PointXYZI>& pcl,
+                          pcl::PointCloud<pcl::PointXYZ>& pcl,
                           bool include_unknown_voxels = false);
   void getLocalPointcloud(const Eigen::Vector3d& center, const double& range,
                           const double& yaw, const Eigen::Vector2d& z_limits,

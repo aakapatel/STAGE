@@ -151,6 +151,7 @@ class GraphManager {
   PlannerMode planner_mode_ = GraphManager::PlannerMode::EXPLORE;
   GraphStatus graph_status_ = GraphManager::GraphStatus::OK;
 
+
  private:
   ros::NodeHandle nh_;
   ros::NodeHandle nh_private_;

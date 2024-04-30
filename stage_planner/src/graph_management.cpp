@@ -1105,6 +1105,14 @@ bool GraphManager::improveFreePath(
     map_manager_->extractLocalMapAlongAxis(p_center, p_dir, local_bbx,
                                            occupied_voxels, free_voxels);
 
+    /*
+    pcl::PointCloud<pcl::PointXYZ>* map_pcl(
+        new pcl::PointCloud<pcl::PointXYZ>());
+    map_manager_->getLocalPointcloud(robotState_.head(3), 50, robotState_[3],
+                                     *map_pcl);
+    visualization_server_->visualizePclMap(map_pcl);
+    */ 
+    
     pcl::PointCloud<pcl::PointXYZ>* obstacle_pcl(
         new pcl::PointCloud<pcl::PointXYZ>());
     for (auto& v : occupied_voxels) {
@@ -1974,7 +1982,6 @@ GraphManager::GraphStatus GraphManager::runLocalPlanner() {
   int frontier_vertices_count = 0;
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
-  // GraphManager::updateGlobalGraph();
   GraphManager::resetLocalGraph();
   local_dijkstra_paths_.clear();
 
@@ -2678,7 +2685,6 @@ void GraphManager::expandGlobalGraph(
 
 void GraphManager::setHomingPath() {
   path_iterator_ = 0;
-  // GraphManager::updateGlobalGraph();
   local_dijkstra_paths_.clear();
   GraphManager::expandGlobalGraph(local_dijkstra_paths_);
   std::vector<geometry_msgs::Pose> original_path;

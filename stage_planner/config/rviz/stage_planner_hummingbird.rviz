@@ -26,6 +26,7 @@ Panels:
         - /Path3
         - /PointCloud22
         - /MarkerArray11
+        - /PointCloud23
       Splitter Ratio: 0.5
     Tree Height: 731
   - Class: rviz/Selection
@@ -71,9 +72,7 @@ Visualization Manager:
       Marker Topic: /hummingbird/global_planning_graph
       Name: MarkerArray
       Namespaces:
-        edges: true
-        frontier: true
-        vertices: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -127,8 +126,8 @@ Visualization Manager:
     - Alpha: 0.10000000149011612
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 11.875
-        Min Value: -0.625
+        Max Value: 4.125
+        Min Value: -0.125
         Value: true
       Axis: Z
       Channel Name: intensity
@@ -197,8 +196,7 @@ Visualization Manager:
       Marker Topic: /hummingbird/pose_graph
       Name: MarkerArray
       Namespaces:
-        edges: true
-        vertices: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -301,6 +299,34 @@ Visualization Manager:
       Topic: /hummingbird/exploration_direction
       Unreliable: false
       Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/PointCloud2
+      Color: 141; 233; 248
+      Color Transformer: FlatColor
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Min Color: 0; 0; 0
+      Name: PointCloud2
+      Position Transformer: XYZ
+      Queue Size: 10
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.05000000074505806
+      Style: Flat Squares
+      Topic: /hummingbird/map
+      Unreliable: false
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 0; 0; 0
@@ -329,7 +355,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 59.18813705444336
+      Distance: 61.62715148925781
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -337,9 +363,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 1.295179843902588
-        Y: 1.8318275213241577
-        Z: -0.7204597592353821
+        X: 0.13632771372795105
+        Y: 0.004956711083650589
+        Z: 1.1298959255218506
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -347,7 +373,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: hummingbird/base_link
-      Yaw: 3.13859486579895
+      Yaw: 3.138610363006592
     Saved: ~
 Window Geometry:
   Displays:
