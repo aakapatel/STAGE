@@ -90,7 +90,7 @@ void GraphManager::reset() {
 
 void GraphManager::initializeAttributes() {
   visualization_server_ = new VisualizationServer(nh_, nh_private_);
-
+  robot_state_hist_.reset(new RobotStateHistory());
   stat_.reset(new SampleStatistic());
   stat_chrono_.reset(new SampleStatistic());
   geofence_manager_.reset(new GeofenceManager());
@@ -170,11 +170,6 @@ void GraphManager::resetProjectedGraph() {
 
 void GraphManager::resetGlobalGraph() {
   StateVec home_state;
-  // Adding home vertex at initialization phase for simpler RTB planning
-  home_state[0] = robotState_[0];
-  home_state[1] = robotState_[1];
-  home_state[2] = robotState_[2] + 1;
-  home_state[2] = robotState_[3];
 
   if (global_graph_ != NULL) {
     global_graph_->reset();
@@ -192,7 +187,15 @@ void GraphManager::setState(StateVec& state) {
     prev_state = state;
   }
   robotState_ = state;
-  if ((prev_state.head(3) - robotState_.head(3)).norm() > 2) {
+  if ((prev_state.head(3) - robotState_.head(3)).norm() > 1.9) {
+    StateVec* nearest_state = nullptr;
+    if (!robot_state_hist_->getNearestStateInRange(&robotState_, 1.8,
+                                                   &nearest_state)) {
+      GraphManager::updateGlobalGraph();
+    }
+    StateVec* cur_state = new StateVec(robotState_[0], robotState_[1],
+                                       robotState_[2], robotState_[3]);
+    robot_state_hist_->addState(cur_state);
     Vertex* prev_vertex =
         new Vertex(pose_graph_->generateVertexID(), prev_state);
     Vertex* vertex = new Vertex(pose_graph_->generateVertexID(), robotState_);
@@ -202,7 +205,6 @@ void GraphManager::setState(StateVec& state) {
     pose_graph_->addEdge(prev_vertex, vertex, weight);
     prev_state = robotState_;
     visualization_server_->visualizePoseGraph(pose_graph_);
-    GraphManager::updateGlobalGraph();
   }
   odometry_ready = true;
 }
@@ -1470,11 +1472,11 @@ void GraphManager::expandGraph(std::shared_ptr<GraphUtils> graph_manager,
     return;
   }
   if (graph_manager == global_graph_) {
-
-    ROS_DEBUG_STREAM("GG nearest vertex : " << (nearest_vertex)->state[0] << " ,"
-                                           << (nearest_vertex)->state[1] << " ,"
-                                           << (nearest_vertex)->state[2] << " ,"
-                                           << (nearest_vertex)->state[3] << "\n");
+    ROS_DEBUG_STREAM("GG nearest vertex : "
+                     << (nearest_vertex)->state[0] << " ,"
+                     << (nearest_vertex)->state[1] << " ,"
+                     << (nearest_vertex)->state[2] << " ,"
+                     << (nearest_vertex)->state[3] << "\n");
   }
   // Check for collision of new connection plus some overshoot distance.
   Eigen::Vector3d origin(nearest_vertex->state[0], nearest_vertex->state[1],
@@ -1721,6 +1723,57 @@ void GraphManager::expandGraph(std::shared_ptr<GraphUtils> graph_manager,
     rep.status = ExpandGraphStatus::kErrorCollisionEdge;
     ROS_WARN("Err final check collision edge \n");
     return;
+  }
+  rep.status = ExpandGraphStatus::kSuccess;
+}
+
+void GraphManager::expandGraphEdges(std::shared_ptr<GraphUtils> graph_manager,
+                                    Vertex* new_vertex,
+                                    ExpandGraphReport& rep) {
+  std::vector<Vertex*> nearest_vertices;
+  if (!graph_manager->getNearestVertices(&(new_vertex->state),
+                                         planning_params_.nearest_range,
+                                         &nearest_vertices)) {
+    rep.status = ExpandGraphStatus::kErrorKdTree;
+    return;
+  }
+  Eigen::Vector3d origin;
+  origin << new_vertex->state[0], new_vertex->state[1], new_vertex->state[2];
+  for (int i = 0; i < nearest_vertices.size(); ++i) {
+    Eigen::Vector3d direction;
+    direction << nearest_vertices[i]->state[0] - origin[0],
+        nearest_vertices[i]->state[1] - origin[1],
+        nearest_vertices[i]->state[2] - origin[2];
+    double d_norm = direction.norm();
+    if ((d_norm > planning_params_.edge_length_min) &&
+        (d_norm < planning_params_.edge_length_max)) {
+      Eigen::Vector3d p_overshoot =
+          direction / d_norm * planning_params_.edge_overshoot;
+      Eigen::Vector3d p_start =
+          origin + robot_params_.center_offset - p_overshoot;
+      Eigen::Vector3d p_end = origin + robot_params_.center_offset + direction;
+      if (nearest_vertices[i]->id != 0) p_end = p_end + p_overshoot;
+
+      bool admissible_edge = false;
+      std::vector<Eigen::Vector3d> projected_edge;
+      if (robot_params_.type == RobotType::kAerialRobot) {
+        MapManager::VoxelStatus vs =
+            map_manager_->getPathStatus(p_start, p_end, robot_box_size_, true);
+        if (MapManager::VoxelStatus::kFree == vs) {
+          admissible_edge = true;
+        }
+      } else if (robot_params_.type == RobotType::kGroundRobot) {
+        ProjectedEdgeStatus es = getProjectedEdgeStatus(
+            p_start, p_end, robot_box_size_, true, projected_edge, false);
+        if (ProjectedEdgeStatus::kAdmissible == es) {
+          admissible_edge = true;
+        }
+      }
+      if (admissible_edge) {
+        graph_manager->addEdge(new_vertex, nearest_vertices[i], d_norm);
+        ++rep.num_edges_added;
+      }
+    }
   }
   rep.status = ExpandGraphStatus::kSuccess;
 }
@@ -2234,6 +2287,69 @@ GraphManager::GraphStatus GraphManager::planLocalPath(
 
 }  // planLocalPath
 
+bool GraphManager::connectStateToGraph(std::shared_ptr<GraphUtils> graph,
+                                       StateVec& cur_state, Vertex*& v_added,
+                                       double dist_ignore_collision_check) {
+  Vertex* nearest_vertex = NULL;
+  if (!graph->getNearestVertex(&cur_state, &nearest_vertex)) return false;
+  if (nearest_vertex == NULL) return false;
+  Eigen::Vector3d origin(nearest_vertex->state[0], nearest_vertex->state[1],
+                         nearest_vertex->state[2]);
+  Eigen::Vector3d direction(cur_state[0] - origin[0], cur_state[1] - origin[1],
+                            cur_state[2] - origin[2]);
+  double direction_norm = direction.norm();
+  bool connect_state_to_graph = true;
+  const double kDelta = 0.05;
+  if (direction_norm <= kDelta) {
+    // Add edges only from this vertex.
+    ExpandGraphReport rep;
+    expandGraphEdges(graph, nearest_vertex, rep);
+    v_added = nearest_vertex;
+  } else if (direction_norm <= std::max(dist_ignore_collision_check,
+                                        planning_params_.edge_length_min)) {
+    // Blindly add a link/vertex to the graph if small radius.
+    Vertex* new_vertex = new Vertex(graph->generateVertexID(), cur_state);
+    new_vertex->parent = nearest_vertex;
+    new_vertex->distance = nearest_vertex->distance + direction_norm;
+    graph->addVertex(new_vertex);
+    graph->addEdge(new_vertex, nearest_vertex, direction_norm);
+    // Add edges only from this vertex.
+    ExpandGraphReport rep;
+    expandGraphEdges(graph, new_vertex, rep);
+    v_added = new_vertex;
+  } else {
+    ROS_WARN_COND(global_verbosity >= Verbosity::WARN,
+                  "[GlobalGraph] Try to add current state to the graph.");
+    ExpandGraphReport rep;
+    Vertex new_vertex(-1, cur_state);
+    expandGraph(graph, new_vertex, rep);
+    if (rep.status == ExpandGraphStatus::kSuccess) {
+      ROS_WARN_COND(global_verbosity >= Verbosity::WARN,
+                    "[GlobalGraph] Added successfully.");
+      v_added = rep.vertex_added;
+    } else {
+      // Not implemented solution for this case yet.
+      connect_state_to_graph = false;
+      ROS_WARN_COND(global_verbosity >= Verbosity::WARN,
+                    "[GlobalGraph] Can not add current state to graph since: ");
+      switch (rep.status) {
+        case ExpandGraphStatus::kErrorKdTree:
+          ROS_WARN_COND(global_verbosity >= Verbosity::WARN, "kErrorKdTree.");
+          break;
+        case ExpandGraphStatus::kErrorCollisionEdge:
+          ROS_WARN_COND(global_verbosity >= Verbosity::WARN,
+                        "kErrorCollisionEdge.");
+          break;
+        case ExpandGraphStatus::kErrorShortEdge:
+          ROS_WARN_COND(global_verbosity >= Verbosity::WARN,
+                        "kErrorShortEdge.");
+          break;
+      }
+    }
+  }
+  return connect_state_to_graph;
+}
+
 void GraphManager::updateGlobalGraph() {
   Vertex* vertex = new Vertex(global_graph_->generateVertexID(), robotState_);
   global_graph_->addVertex(vertex);
@@ -2253,44 +2369,15 @@ void GraphManager::updateGlobalGraph() {
     Vertex new_vertex(++fake_id_count, robotState_);
     ExpandGraphReport rep;
 
-    // ROS_WARN_STREAM("Expanding from RS : " << (&new_vertex)->state[0] << " ,"
-    //                                        << (&new_vertex)->state[1] << " ,"
-    //                                        << (&new_vertex)->state[2] << " ,"
-    //                                        << (&new_vertex)->state[3] << "\n");
     expandGraph(global_graph_, new_vertex, rep);
     visualization_server_->visualizeGlobalGraph(global_graph_);
     if (rep.status == ExpandGraphStatus::kSuccess) {
-      ROS_WARN("Expanded global graph from pose vertex \n");
-
-      prev_pose_vertex_ = &new_vertex;
+      ROS_DEBUG("Expanded global graph from pose vertex \n");
     }
   }
 
   prev_pose_vertex_ = vertex;
 
-  // Add extra edges from pose vertex to densify the graph.
-
-  /*
-  std::vector<Vertex*> nearby_vertices;
-  global_graph_->getNearestVertices(
-      &vertex->state, planning_params_.nearest_range, &nearby_vertices);
-  for (int i = 0; i < nearby_vertices.size(); ++i) {
-    Vertex* neighbour = nearby_vertices[i];
-    int num_edges = vertex->edges;
-    double weight = (vertex->state - neighbour->state).norm();
-
-    if (num_edges < planning_params_.num_connections_max and
-        weight < planning_params_.edge_length_max) {
-      if (MapManager::VoxelStatus::kFree ==
-          map_manager_->getPathStatus(vertex->state_3d, neighbour->state_3d,
-                                      robot_box_size_, true)) {
-        global_graph_->addEdge(vertex, neighbour, weight);
-        vertex->edges++;
-        // neighbour->edges++;
-      }
-    }
-  }
-  */
   visualization_server_->visualizeGlobalGraph(global_graph_);
 
   // update the local sub graph seen from robot's current position to handle
@@ -2441,44 +2528,6 @@ void GraphManager::expandGlobalGraph(
     }
 
     for (Vertex* new_vertex : newly_added_vertices) {
-      if (new_vertex->children.empty()) {
-        bool sampled = false;
-        int temp_it = 0;
-        StateVec vertex_state;
-        while (temp_it < 100) {
-          if (GraphManager::sampleStateToExpandGraph(new_vertex->state,
-                                                     vertex_state)) {
-            sampled_states_.push_back(vertex_state);
-          }
-          Vertex* temp_vertex = new Vertex(0, vertex_state);
-          GraphManager::computeVolumetricGainRayCasting(vertex_state,
-                                                        temp_vertex->vol_gain);
-
-          if (temp_vertex->vol_gain.is_frontier) {
-            double weight =
-                (vertex_state.head(3) - new_vertex->state.head(3)).norm();
-            if (MapManager::VoxelStatus::kOccupied !=
-                map_manager_->getPathStatus(vertex_state.head(3),
-                                            new_vertex->state_3d,
-                                            robot_box_size_, false)) {
-              Vertex* new_sampled_vertex =
-                  new Vertex(global_graph_->generateVertexID(), vertex_state);
-              new_sampled_vertex->vol_gain = temp_vertex->vol_gain;
-              new_sampled_vertex->parent = new_vertex;
-              new_vertex->children.push_back(new_sampled_vertex);
-              global_graph_->addVertex(new_sampled_vertex);
-              global_graph_->frontier_vertices_ids_.push_back(
-                  new_sampled_vertex->id);
-              new_sampled_vertex->parent->vol_gain.is_frontier = false;
-              global_graph_->addEdge(new_vertex, new_sampled_vertex, weight);
-              break;
-            }
-          }
-
-          ++temp_it;
-        }
-      }
-
       // Get nearby vertices from the current vertex and connect the them to
       // form local edges
 
@@ -2534,7 +2583,15 @@ void GraphManager::expandGlobalGraph(
 
   // visualization_server_->visualizeVoxelGain(global_graph_);
 
-  global_root_vertex = prev_pose_vertex_;
+  Vertex* link_vertex = NULL;
+  const double kRadiusLimit = 1.5;  // 0.5
+  bool connected_to_graph = connectStateToGraph(global_graph_, robotState_,
+                                                link_vertex, kRadiusLimit);
+  if (connected_to_graph) {
+    global_root_vertex = link_vertex;
+  } else {
+    global_root_vertex = prev_pose_vertex_;
+  }
 
   // run dijkstra shortest paths on updated global graph
 
@@ -2551,7 +2608,6 @@ void GraphManager::expandGlobalGraph(
   for (int id : global_graph_->frontier_vertices_ids_) {
     Vertex* vertex = global_graph_->vertices_map_[id];
 
-    // if (vertex->vol_gain.is_frontier and vertex->is_cluster_centroid)
     if (vertex->vol_gain.is_frontier) {
       std::vector<Vertex*> global_dijkstra_path;
       global_dijkstra_path.clear();
@@ -2913,6 +2969,73 @@ double GraphManager::getRelativeAngle(std::vector<Vertex*> exp_path) {
   double angle = std::acos(q1.dot(q2)) * 2.0 * 180 / M_PI;
 
   return angle;
+}
+
+RobotStateHistory::RobotStateHistory() {
+  kd_tree_ = NULL;
+  reset();
+}
+
+void RobotStateHistory::reset() {
+  // Reset kdtree first.
+  if (kd_tree_) kd_free(kd_tree_);
+  kd_tree_ = kd_create(3);
+}
+
+void RobotStateHistory::addState(StateVec* s) {
+  kd_insert3(kd_tree_, s->x(), s->y(), s->z(), s);
+  state_hist_.push_back(s);
+}
+
+bool RobotStateHistory::getNearestState(const StateVec* state,
+                                        StateVec** s_res) {
+  // it seems kdtree lib  can not deal with empty tree, put a guard check here.
+  if (state_hist_.size() == 0) return false;
+  kdres* nearest = kd_nearest3(kd_tree_, state->x(), state->y(), state->z());
+  if (kd_res_size(nearest) <= 0) {
+    kd_res_free(nearest);
+    return false;
+  }
+  *s_res = (StateVec*)kd_res_item_data(nearest);
+  kd_res_free(nearest);
+  return true;
+}
+
+bool RobotStateHistory::getNearestStates(const StateVec* state, double range,
+                                         std::vector<StateVec*>* s_res) {
+  // Notice that this might include the same vertex in the result.
+  // if that vertex is added to the tree before.
+  // Use the distance 0 or small threshold to filter out.
+  if (state_hist_.size() == 0) return false;
+  kdres* neighbors =
+      kd_nearest_range3(kd_tree_, state->x(), state->y(), state->z(), range);
+  int neighbors_size = kd_res_size(neighbors);
+  if (neighbors_size <= 0) return false;
+  s_res->clear();
+  for (int i = 0; i < neighbors_size; ++i) {
+    StateVec* new_neighbor = (StateVec*)kd_res_item_data(neighbors);
+    s_res->push_back(new_neighbor);
+    if (kd_res_next(neighbors) <= 0) break;
+  }
+  kd_res_free(neighbors);
+  return true;
+}
+
+bool RobotStateHistory::getNearestStateInRange(const StateVec* state,
+                                               double range, StateVec** s_res) {
+  if (state_hist_.size() == 0) return false;
+  kdres* nearest = kd_nearest3(kd_tree_, state->x(), state->y(), state->z());
+  if (kd_res_size(nearest) <= 0) {
+    kd_res_free(nearest);
+    return false;
+  }
+  *s_res = (StateVec*)kd_res_item_data(nearest);
+  Eigen::Vector3d dist;
+  dist << state->x() - (*s_res)->x(), state->y() - (*s_res)->y(),
+      state->z() - (*s_res)->z();
+  kd_res_free(nearest);
+  if (dist.norm() > range) return false;
+  return true;
 }
 
 /*

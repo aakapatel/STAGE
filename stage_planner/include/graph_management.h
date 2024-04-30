@@ -4,6 +4,24 @@
 #include "graph_utils.h"
 #include "visualization_server.h"
 
+// Keep tracking state of the robot every T seconds.
+class RobotStateHistory {
+ public:
+  RobotStateHistory();
+  void addState(StateVec* s);
+  bool getNearestState(const StateVec* state, StateVec** s_res);
+  bool getNearestStateInRange(const StateVec* state, double range,
+                              StateVec** s_res);
+  bool getNearestStates(const StateVec* state, double range,
+                        std::vector<StateVec*>* s_res);
+  void reset();
+  std::vector<StateVec*> state_hist_;
+
+ private:
+  // Kd-tree for nearest neigbor lookup.
+  kdtree* kd_tree_;
+};
+
 class GraphManager {
  public:
   enum GraphStatus {
@@ -34,13 +52,17 @@ class GraphManager {
   Eigen::Vector3d quaternion_to_rpy(Eigen::Quaterniond q);
   bool sampleState(StateVec root_state, StateVec& vertex);
   bool sampleStateToExpandGraph(StateVec root_state, StateVec& vertex);
-
+  bool connectStateToGraph(std::shared_ptr<GraphUtils> graph,
+                           StateVec& cur_state, Vertex*& v_added,
+                           double dist_ignore_collision_check);
   bool sampleVertex(Vertex& vertex, bool manual_mode);
   void expandGraph(std::shared_ptr<GraphUtils> graph_manager,
                    Vertex& new_vertex, ExpandGraphReport& rep,
                    bool allow_short_edge = false);
-  GraphStatus buildGraph(std::shared_ptr<GraphUtils> graph,
-                         bool manual_mode);
+
+  void expandGraphEdges(std::shared_ptr<GraphUtils> graph_manager,
+                        Vertex* new_vertex, ExpandGraphReport& rep);
+  GraphStatus buildGraph(std::shared_ptr<GraphUtils> graph, bool manual_mode);
 
   Eigen::Quaternion<float> Euler2Quaternion(Eigen::Vector3d v);
 
@@ -171,7 +193,7 @@ class GraphManager {
   std::shared_ptr<SampleStatistic> stat_, stat_chrono_;
   std::vector<std::shared_ptr<GraphUtils>> graph_vec_;
 
-  std::vector<Vertex*> state_history;
+  std::shared_ptr<RobotStateHistory> robot_state_hist_;
 
   kdtree* kd_tree_;
 
