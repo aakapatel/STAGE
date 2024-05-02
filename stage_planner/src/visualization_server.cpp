@@ -47,6 +47,9 @@ VisualizationServer::VisualizationServer(const ros::NodeHandle& nh,
 
   sparse_Graph_Vis_Pub_ =
       nh_.advertise<visualization_msgs::MarkerArray>("sparse_graph", 10);
+  
+  central_Graph_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>(
+    "/central_graph", 10);
 }
 
 std_msgs::ColorRGBA VisualizationServer::getGainColor(double h) {
@@ -871,4 +874,111 @@ void VisualizationServer::visualizePclMap(
   output.header.frame_id = world_frame_id;
   output.header.stamp = ros::Time::now();
   pcl_Pub_.publish(output);
+}
+
+void VisualizationServer::visualizeCentralGraph(
+    std::shared_ptr<GraphUtils> central_graph) {
+  if (central_graph->getNumVertices() == 0) return;
+
+  std::shared_ptr<Graph> g = central_graph->graph_;
+  std::unordered_map<int, Vertex*>& v_map = central_graph->vertices_map_;
+
+  visualization_msgs::MarkerArray marker_array;
+  visualization_msgs::Marker edge_marker;
+  edge_marker.header.stamp = ros::Time::now();
+  edge_marker.header.seq = 0;
+  edge_marker.header.frame_id = world_frame_id;
+  edge_marker.id = 0;
+  edge_marker.ns = "edges";
+  edge_marker.action = visualization_msgs::Marker::ADD;
+  edge_marker.type = visualization_msgs::Marker::LINE_LIST;
+  edge_marker.scale.x = 0.04;
+  edge_marker.color.r = 0.0 / 255.0;
+  edge_marker.color.g = 216.0 / 255.0;
+  edge_marker.color.b = 0.0 / 255.0;
+  edge_marker.color.a = 1.0;
+  edge_marker.frame_locked = false;
+
+  std::pair<Graph::GraphType::edge_iterator, Graph::GraphType::edge_iterator>
+      ei;
+  g->getEdgeIterator(ei);
+  for (Graph::GraphType::edge_iterator it = ei.first; it != ei.second; ++it) {
+    int src_id, tgt_id;
+    double weight;
+    std::tie(src_id, tgt_id, weight) = g->getEdgeProperty(it);
+
+    geometry_msgs::Point p1;
+    p1.x = v_map[src_id]->state[0];
+    p1.y = v_map[src_id]->state[1];
+    p1.z = v_map[src_id]->state[2];
+    geometry_msgs::Point p2;
+    p2.x = v_map[tgt_id]->state[0];
+    p2.y = v_map[tgt_id]->state[1];
+    p2.z = v_map[tgt_id]->state[2];
+    edge_marker.points.push_back(p1);
+    edge_marker.points.push_back(p2);
+  }
+  marker_array.markers.push_back(edge_marker);
+
+  // Plot all vertices
+  visualization_msgs::Marker vertex_marker;
+  vertex_marker.header.stamp = ros::Time::now();
+  vertex_marker.header.seq = 0;
+  vertex_marker.header.frame_id = world_frame_id;
+  vertex_marker.id = 0;
+  vertex_marker.ns = "vertices";
+  vertex_marker.action = visualization_msgs::Marker::ADD;
+  vertex_marker.type = visualization_msgs::Marker::SPHERE_LIST;
+  vertex_marker.scale.x = 0.3;
+  vertex_marker.scale.y = 0.3;
+  vertex_marker.scale.z = 0.3;
+  vertex_marker.color.r = 0.0 / 255.0;
+  vertex_marker.color.g = 216.0 / 255.0;
+  vertex_marker.color.b = 0.0 / 255.0;
+  vertex_marker.color.a = 1.0;
+  vertex_marker.frame_locked = false;
+
+  visualization_msgs::Marker frontier_vertex_marker;
+  frontier_vertex_marker.header.stamp = ros::Time::now();
+  frontier_vertex_marker.header.seq = 0;
+  frontier_vertex_marker.header.frame_id = world_frame_id;
+  frontier_vertex_marker.id = 0;
+  frontier_vertex_marker.ns = "frontier";
+  frontier_vertex_marker.action = visualization_msgs::Marker::ADD;
+  frontier_vertex_marker.type = visualization_msgs::Marker::SPHERE_LIST;
+  frontier_vertex_marker.scale.x = 0.4;
+  frontier_vertex_marker.scale.y = 0.4;
+  frontier_vertex_marker.scale.z = 0.4;
+  frontier_vertex_marker.color.r = 255.0 / 255.0;
+  frontier_vertex_marker.color.g = 0.0 / 255.0;
+  frontier_vertex_marker.color.b = 0.0 / 255.0;
+  frontier_vertex_marker.color.a = 1.0;
+  frontier_vertex_marker.frame_locked = false;
+
+  std::pair<Graph::GraphType::vertex_iterator,
+            Graph::GraphType::vertex_iterator>
+      vi;
+  g->getVertexIterator(vi);
+  for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
+    int id = g->getVertexProperty(it);
+    if (v_map[id]->vol_gain.is_frontier) {
+      geometry_msgs::Point p1;
+      p1.x = v_map[id]->state[0];
+      p1.y = v_map[id]->state[1];
+      p1.z = v_map[id]->state[2];
+
+      frontier_vertex_marker.points.push_back(p1);
+    }
+
+    geometry_msgs::Point p1;
+    p1.x = v_map[id]->state[0];
+    p1.y = v_map[id]->state[1];
+    p1.z = v_map[id]->state[2];
+
+    vertex_marker.points.push_back(p1);
+  }
+  marker_array.markers.push_back(vertex_marker);
+  marker_array.markers.push_back(frontier_vertex_marker);
+
+  central_Graph_Vis_Pub_.publish(marker_array);
 }

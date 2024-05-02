@@ -94,18 +94,19 @@
 #include "map_manager_voxblox_impl.h"
 #include "params.h"
 #include "random_sampler.h"
+#include <stage_planner/Edge.h>
+#include <stage_planner/Graph.h>
+#include <stage_planner/Vertex.h>
 #include "stage_planner/explorationPath.h"
 #include "stage_planner/frontierRequest.h"
 #include "stage_planner/homePlanning.h"
 #include "stage_planner/initializePlanning.h"
 #include "stage_planner/isFrontier.h"
 #include "stage_planner/stopPlanning.h"
+#include "stage_planner/shareGraph.h"
 #include "std_msgs/Int64.h"
 #include "trajectory.h"
 
-#include <stage_planner/Edge.h>
-#include <stage_planner/Graph.h>
-#include <stage_planner/Vertex.h>
 
 typedef Eigen::Vector3d State;  // x, y, z
 

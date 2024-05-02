@@ -57,6 +57,10 @@ void StageInterface::initializeAttributes() {
 
   planner_initialization_service_ = nh_.advertiseService(
       "initialize_planner", &StageInterface::initializePlanner, this);
+  
+
+  planner_share_graph_service_ = nh_.advertiseService(
+      "/share_graph", &StageInterface::shareGraphToServer, this);
 
   planner_stop_service_ =
       nh_.advertiseService("stop_planner", &StageInterface::stopPlanner, this);
@@ -679,6 +683,26 @@ void StageInterface::callActionServer() {
         boost::bind(&StageInterface::actionActiveCallback, this),
         boost::bind(&StageInterface::actionFeedbackCallback, this, _1));
   }
+}
+
+bool StageInterface::shareGraphToServer(
+    stage_planner::shareGraph::Request& req,
+    stage_planner::shareGraph::Response& res) {
+  std::string robot_name = ros::this_node::getNamespace();
+  robot_name.erase(std::remove(robot_name.begin(), robot_name.end(), '/'), robot_name.end());
+  if (req.robot_name == robot_name) {
+    stage_planner::Graph graph_msg;
+    bool get_graph_success = graph_manager_->shareGraph(graph_msg);
+
+    if (get_graph_success) {
+      res.graph = graph_msg;
+      ROS_INFO("successfully shared graph to server \n");
+    } else {
+      ROS_WARN("Failed to get graph from graph manager \n");
+    }
+  }
+
+  return true;
 }
 
 void StageInterface::periodicTimerCallback(const ros::TimerEvent& event) {

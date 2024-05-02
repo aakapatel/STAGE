@@ -98,7 +98,7 @@ add_service_files(
   initializePlanning.srv
   stopPlanning.srv
   homePlanning.srv
-
+  shareGraph.srv
 )
 
 add_action_files(

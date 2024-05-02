@@ -11,7 +11,8 @@ class ExplorationManager {
                                        MapManagerVoxbloxVoxel>* map_manager);
   
   void initializeAttributes();
-
+  void reset();
+  void periodicTimerCallback(const ros::TimerEvent& event);
 
 
  private:
@@ -21,16 +22,17 @@ class ExplorationManager {
       map_manager_;
 
   std::vector<std::string> robots_list_;
+  ros::Timer periodic_timer_;
+
+  ros::ServiceClient planner_client_share_graph;
 
 
 
-
-
-  VisualizationServer* visualization_server_;
+  VisualizationServer* central_visualization_server_;
   StateVec robotState_;
-  std::shared_ptr<GraphUtils> centeral_graph_;
+  std::shared_ptr<GraphUtils> central_graph_;
 
-  ShortestPathsReport centeral_graph_rep_;
+  ShortestPathsReport central_graph_rep_;
 };
 
 #endif

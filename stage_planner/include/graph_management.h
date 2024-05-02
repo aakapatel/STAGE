@@ -118,7 +118,7 @@ class GraphManager {
 
   void expandGraph(int iterations_max, Vertex* root, Vertex* goal,
                    double radius);
-
+  bool shareGraph(stage_planner::Graph& g);
   void setHomingPath();
   double projectSample(Eigen::Vector3d& sample,
                        MapManager::VoxelStatus& voxel_status);

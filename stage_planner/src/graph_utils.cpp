@@ -438,12 +438,15 @@ void GraphUtils::convertGraphToMsg(stage_planner::Graph& graph_msg) {
 void GraphUtils::convertMsgToGraph(const stage_planner::Graph& graph_msg) {
   // Add all the vertices first
   for (auto& v : graph_msg.vertices) {
-    generateVertexID();  // must call this one to increase the count inside
     StateVec state;
     state[0] = v.pose.position.x;
     state[1] = v.pose.position.y;
     state[2] = v.pose.position.z;
     state[3] = tf::getYaw(v.pose.orientation);
+    if (stateExist(&state)) {
+      continue;
+    }
+    generateVertexID();  // must call this one to increase the count inside
     Vertex* vertex = new Vertex(v.id, state);
     // Copy other info
     vertex->vol_gain.num_unknown_voxels = v.num_unknown_voxels;

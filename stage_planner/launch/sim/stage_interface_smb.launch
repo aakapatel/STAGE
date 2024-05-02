@@ -7,21 +7,21 @@
 
   <arg name="mapping_config" default="$(find stage_planner)/config/ground/voxblox_sim_config.yaml"/>
   <arg name="stage_config" default="$(find stage_planner)/config/ground/stage_config.yaml"/>
-  <arg name="server_config" default="$(find stage_planner)/config/aerial/central_server_params.yaml"/>
+  <arg name="server_config" default="$(find stage_planner)/config/ground/central_server_params.yaml"/>
 
-    <node pkg="stage_planner" type="exploration_manager_node" name="exploration_manager_node" output="screen">
+  <node pkg="stage_planner" type="exploration_manager_node" name="exploration_manager_node" output="screen">
 
-      <rosparam command="load" file="$(arg server_config)" /> 
+    <rosparam command="load" file="$(arg server_config)" /> 
 
-    </node>
+  </node>
 
   <group ns = "$(arg robot_name)"> 
 
     <node pkg="stage_planner" type="stage_interface_node" name="stage_interface_node" output="screen">
 
       <!-- <env name="ROSCONSOLE_CONFIG_FILE" value="$(find stage_planner)/custom_rosconsole.conf"/> -->
-      <remap from="odometry" to="/ground_truth/state" />
-      <remap from="pointcloud" to="/velodyne_points" />
+      <remap from="odometry" to="ground_truth/state" />
+      <remap from="pointcloud" to="velodyne_points" />
       <remap from="reference_topic" to="command/pose" />
       <rosparam command="load" file="$(arg mapping_config)" /> 
       <rosparam command="load" file="$(arg stage_config)" /> 
@@ -38,9 +38,9 @@
 
       <param name="path_topic" type="string" value="command_path"/>
 
-      <param name="odom_topic" type="string" value="/ground_truth/state"/>
+      <param name="odom_topic" type="string" value="ground_truth/state"/>
 
-      <param name="wp_topic" type="string" value="/next_waypoint"/>
+      <param name="wp_topic" type="string" value="next_waypoint"/>
 
       <param name="reference_topic" type="string" value="command/pose"/>
 
@@ -49,9 +49,9 @@
       </node>
 
     <node name="spot_path_tracker_node" pkg="stage_planner" type="spot_path_tracker_ros_node" output="screen">
-      <remap from="cmd_vel" to="/smb_velocity_controller/cmd_vel" />
+      <remap from="cmd_vel" to="smb_velocity_controller/cmd_vel" />
       <!-- <remap from="cmd_vel" to="/husky_velocity_controller/cmd_vel" /> -->
-      <remap from="odometry" to="/ground_truth/state" />
+      <remap from="odometry" to="ground_truth/state" />
       <param name="critical_angle" value="0.52"/>
       <param name="max_ang_vel" value="1.0"/>
       <param name="desired_vel" value="1.0"/>

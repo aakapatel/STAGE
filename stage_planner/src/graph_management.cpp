@@ -2683,6 +2683,18 @@ void GraphManager::expandGlobalGraph(
                    << duration_total.count() << " ms \n");
 }
 
+bool GraphManager::shareGraph (stage_planner::Graph& g) {
+  
+  if (global_graph_->getNumVertices() > 1) {
+    global_graph_->convertGraphToMsg(g);
+    return true;
+  } else {
+    ROS_WARN("Global graph is empty \n");
+    return false;
+  }
+
+}
+
 void GraphManager::setHomingPath() {
   path_iterator_ = 0;
   local_dijkstra_paths_.clear();

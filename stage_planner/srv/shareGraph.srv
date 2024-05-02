@@ -1,0 +1,3 @@
+string robot_name
+---
+stage_planner/Graph graph

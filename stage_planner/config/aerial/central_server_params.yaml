@@ -1,1 +1,2 @@
-robots_list:      ["smb0", "smb1"]
+robots_list:      ["hummingbird1", "hummingbird2"]
+world_frame:      "world"

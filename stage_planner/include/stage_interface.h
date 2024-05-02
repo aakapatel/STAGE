@@ -30,6 +30,8 @@ class StageInterface {
                        MapManager::VoxelStatus& voxel_status);
   bool initializePlanner(stage_planner::initializePlanning::Request& req,
                          stage_planner::initializePlanning::Response& res);
+  bool shareGraphToServer(stage_planner::shareGraph::Request& req,
+                         stage_planner::shareGraph::Response& res);
 
   bool stopPlanner(stage_planner::stopPlanning::Request& req,
                    stage_planner::stopPlanning::Response& res);
@@ -93,6 +95,7 @@ class StageInterface {
   ros::ServiceServer planner_initialization_service_;
   ros::ServiceServer planner_stop_service_;
   ros::ServiceServer planner_homing_service_;
+  ros::ServiceServer planner_share_graph_service_;
   ros::ServiceClient planner_takeoff_client_;
   ros::ServiceClient planner_land_client_;
   ros::ServiceClient planner_arming_client_;

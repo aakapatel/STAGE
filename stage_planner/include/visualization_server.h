@@ -40,6 +40,7 @@ class VisualizationServer {
   void visualizeExplorationPath(nav_msgs::Path exploration_path);
   void visualizeRawPath(nav_msgs::Path raw_path);
   void visualizePclMap(const pcl::PointCloud<pcl::PointXYZ>* pcl);
+  void visualizeCentralGraph(std::shared_ptr<GraphUtils> central_graph);
 
   // Set the fixed frame of the mission for visualization
   void setGlobalFrame(std::string frame_id) { world_frame_id = frame_id; }
@@ -57,6 +58,7 @@ class VisualizationServer {
   ros::Publisher reposition_Path_Vis_Pub_;
   ros::Publisher local_Graph_Vis_Pub_;
   ros::Publisher global_Graph_Vis_Pub_;
+  ros::Publisher central_Graph_Vis_Pub_;
   ros::Publisher path_Ways_Graph_Vis_Pub_;
   ros::Publisher pose_Graph_Vis_Pub_;
   ros::Publisher overlap_Vis_Pub_;
@@ -65,7 +67,7 @@ class VisualizationServer {
   ros::Publisher exploration_Direction_Vis_Pub;
   ros::Publisher pcl_Pub_;
 
-  std::string world_frame_id;
+  std::string world_frame_id = "world";
 };
 
 #endif  // VISUALIZATION_SEREVR_H_
