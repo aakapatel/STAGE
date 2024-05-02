@@ -7,7 +7,13 @@
 
   <arg name="mapping_config" default="$(find stage_planner)/config/ground/voxblox_sim_config.yaml"/>
   <arg name="stage_config" default="$(find stage_planner)/config/ground/stage_config.yaml"/>
+  <arg name="server_config" default="$(find stage_planner)/config/aerial/central_server_params.yaml"/>
 
+    <node pkg="stage_planner" type="exploration_manager_node" name="exploration_manager_node" output="screen">
+
+      <rosparam command="load" file="$(arg server_config)" /> 
+
+    </node>
 
   <group ns = "$(arg robot_name)"> 
 

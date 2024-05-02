@@ -144,6 +144,16 @@ add_library(${PROJECT_NAME}
 )
 
 
+add_executable(exploration_manager_node src/exploration_manager_node.cpp)
+## Specify libraries to link a library or executable target against
+ target_link_libraries(
+   exploration_manager_node
+   stage_planner
+   ${catkin_LIBRARIES}
+   ${OCTOMAP_LIBRARIES}
+   ${PCL_LIBRARIES}
+  ${CMAKE_DL_LIBS}
+)
 add_executable(stage_interface_node src/stage_interface_node.cpp)
 ## Specify libraries to link a library or executable target against
  target_link_libraries(
