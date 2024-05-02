@@ -1111,8 +1111,8 @@ bool GraphManager::improveFreePath(
     map_manager_->getLocalPointcloud(robotState_.head(3), 50, robotState_[3],
                                      *map_pcl);
     visualization_server_->visualizePclMap(map_pcl);
-    */ 
-    
+    */
+
     pcl::PointCloud<pcl::PointXYZ>* obstacle_pcl(
         new pcl::PointCloud<pcl::PointXYZ>());
     for (auto& v : occupied_voxels) {
@@ -2360,6 +2360,9 @@ bool GraphManager::connectStateToGraph(std::shared_ptr<GraphUtils> graph,
 void GraphManager::updateGlobalGraph() {
   Vertex* vertex = new Vertex(global_graph_->generateVertexID(), robotState_);
   global_graph_->addVertex(vertex);
+  StateVec s ((double)rand() / RAND_MAX,1,2,3);
+  ROS_WARN_COND(global_graph_->stateExist(&vertex->state), "State exits.");
+  ROS_WARN_COND(!global_graph_->stateExist(&s), "State does not exits.");
   if (prev_pose_vertex_ != nullptr) {
     vertex->parent = prev_pose_vertex_;
     prev_pose_vertex_->children.push_back(vertex);

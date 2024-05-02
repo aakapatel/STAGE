@@ -205,6 +205,15 @@ void GraphUtils::addVertex(Vertex* v) {
   else
     graph_->addVertex(v->id);
   vertices_map_[v->id] = v;
+  state_map_[&(v->state)] = v;
+}
+
+bool GraphUtils::stateExist(StateVec* state) {
+  bool exist = false;
+  if (state_map_[state] != nullptr) {
+    exist = true;
+  }
+  return exist;
 }
 
 void GraphUtils::addEdge(Vertex* v, Vertex* u, double weight) {
@@ -391,4 +400,63 @@ int GraphUtils::generateVertexID() {
 }
 
 
+void GraphUtils::convertGraphToMsg(stage_planner::Graph& graph_msg) {
+  // Get all the vertices
+  for (auto& v : vertices_map_) {
+    stage_planner::Vertex vertex;
+    vertex.id = v.second->id;
+
+    // convertStateToPoseMsg
+    vertex.pose.position.x = v.second->state[0];
+    vertex.pose.position.y = v.second->state[1];
+    vertex.pose.position.z = v.second->state[2];
+    double yawhalf = v.second->state[3] * 0.5;
+    vertex.pose.orientation.x = 0.0;
+    vertex.pose.orientation.y = 0.0;
+    vertex.pose.orientation.z = sin(yawhalf);
+    vertex.pose.orientation.w = cos(yawhalf);
+
+    vertex.num_unknown_voxels = v.second->vol_gain.num_unknown_voxels;
+    vertex.num_occupied_voxels = v.second->vol_gain.num_occupied_voxels;
+    vertex.num_free_voxels = v.second->vol_gain.num_free_voxels;
+    vertex.is_frontier = v.second->vol_gain.is_frontier;
+    graph_msg.vertices.emplace_back(vertex);
+  }
+
+  // Get all the edges through iterator of the boost graph lib.
+  std::pair<Graph::GraphType::edge_iterator, Graph::GraphType::edge_iterator>
+      ei;
+  graph_->getEdgeIterator(ei);
+  for (Graph::GraphType::edge_iterator it = ei.first; it != ei.second; ++it) {
+    stage_planner::Edge edge;
+    std::tie(edge.source_id, edge.target_id, edge.weight) =
+        graph_->getEdgeProperty(it);
+    graph_msg.edges.emplace_back(edge);
+  }
+}
+
+void GraphUtils::convertMsgToGraph(const stage_planner::Graph& graph_msg) {
+  // Add all the vertices first
+  for (auto& v : graph_msg.vertices) {
+    generateVertexID();  // must call this one to increase the count inside
+    StateVec state;
+    state[0] = v.pose.position.x;
+    state[1] = v.pose.position.y;
+    state[2] = v.pose.position.z;
+    state[3] = tf::getYaw(v.pose.orientation);
+    Vertex* vertex = new Vertex(v.id, state);
+    // Copy other info
+    vertex->vol_gain.num_unknown_voxels = v.num_unknown_voxels;
+    vertex->vol_gain.num_occupied_voxels = v.num_occupied_voxels;
+    vertex->vol_gain.num_free_voxels = v.num_free_voxels;
+    vertex->vol_gain.is_frontier = v.is_frontier;
+    // if (v.is_frontier) vertex->type = VertexType::kFrontier;
+    addVertex(vertex);
+  }
+
+  // Add all edges
+  for (auto& e : graph_msg.edges) {
+    addEdge(getVertex(e.source_id), getVertex(e.target_id), e.weight);
+  }
+}
 

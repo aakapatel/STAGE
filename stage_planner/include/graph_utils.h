@@ -103,6 +103,10 @@
 #include "std_msgs/Int64.h"
 #include "trajectory.h"
 
+#include <stage_planner/Edge.h>
+#include <stage_planner/Graph.h>
+#include <stage_planner/Vertex.h>
+
 typedef Eigen::Vector3d State;  // x, y, z
 
 struct VolumetricGain {
@@ -312,6 +316,7 @@ class GraphUtils {
   void insertVertexKdtree(Vertex* v);
 
   bool vertexExist(StateVec s);
+  bool stateExist(StateVec* s);
   bool edgeExist(int source_id, int target_id);
   // Basic functions on graph including add new vertex and edge.
   void addVertex(Vertex* v);
@@ -360,11 +365,14 @@ class GraphUtils {
   int getNumNeighbours(Vertex* v);
 
   void clearStateHistory();
-
+  void convertGraphToMsg(stage_planner::Graph& graph_msg);
+  void convertMsgToGraph(const stage_planner::Graph& graph_msg);
   // Boost graph
   std::shared_ptr<Graph> graph_;
   // Mapping from vertex id to vertex property.
   std::unordered_map<int, Vertex*> vertices_map_;
+  // Mapping from state to existance in the graph. // debug
+  std::unordered_map<StateVec*, Vertex*> state_map_;
   // id:  <neighbor id, edge cost>
   std::map<int, std::vector<std::pair<int, double>>> edge_map_;
 

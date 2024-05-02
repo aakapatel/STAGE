@@ -84,9 +84,9 @@ include_directories( ${Eigen_INCLUDE_DIRS} ${catkin_INCLUDE_DIRS})
 
 add_message_files(
   FILES
-  Frontiers.msg
-  Frontier.msg
-  path.msg
+  Vertex.msg
+  Edge.msg
+  Graph.msg 
 
 )
 
