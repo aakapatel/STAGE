@@ -1,0 +1,26 @@
+#!/bin/bash
+
+# XAUTH=/path/to/Xauthority
+#
+# docker run -it --rm \
+#     --name stage \
+#     --gpus all \
+#     --runtime=nvidia \
+#     --net=host \
+#     -e DISPLAY=$DISPLAY \
+#     --env="NVIDIA_DRIVER_CAPABILITIES=all" \
+#     --env="NVIDIA_VISIBLE_DEVICES" \
+#     $DOCKER_VISUAL_NVIDIA \
+#     --env="QT_X11_NO_MITSHM=1" \
+#     --env="XAUTHORITY=$XAUTH" \
+#     -v /home/aakapatel/catkin_workspaces:/home/aakapatel/catkin_workspaces \
+#     -v /home/aakapatel/.gazebo/models:/home/aakpatel/.gazebo/models \
+#     stage
+#
+
+xhost +local:root
+docker run -it --rm --gpus all \
+  --env="DISPLAY" \
+  --env="QT_X11_NO_MITSHM=1" \
+  --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
+  stage gazebo
