@@ -34,8 +34,9 @@ publish_esdf_map: True ###False
 
 # ESDF #
 esdf_max_distance_m: 2.0
-clear_sphere_for_planning: False
-clear_sphere_radius: 0.8
+clear_sphere_for_planning: True
+clear_sphere_radius: 1.5
+occupied_sphere_radius: 8.0
 
 # OVERLAP BETWEEN VERSIONS #
 use_const_weight: False

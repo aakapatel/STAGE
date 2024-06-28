@@ -42,22 +42,17 @@ void GraphManager::reset() {
   if (MapManager::VoxelStatus::kFree != voxel_state) {
     switch (voxel_state) {
       case MapManager::VoxelStatus::kFree:
-        ROS_INFO_COND(global_verbosity >= Verbosity::DEBUG,
-                      "Current box is Free.");
+        ROS_INFO("Current box is Free.");
         break;
       case MapManager::VoxelStatus::kOccupied:
-        ROS_INFO_COND(global_verbosity >= Verbosity::DEBUG,
-                      "Current box contains Occupied voxels.");
+        ROS_WARN("Current box contains Occupied voxels.");
         break;
       case MapManager::VoxelStatus::kUnknown:
-        ROS_INFO_COND(global_verbosity >= Verbosity::DEBUG,
-                      "Current box contains Unknown voxels.");
+        ROS_WARN("Current box contains Unknown voxels.");
         break;
     }
     // Assume that even it is not fully free, but safe to clear these voxels.
-    ROS_WARN_COND(
-        global_verbosity >= Verbosity::WARN,
-        "Starting position is not clear--> clear space around the robot.");
+    ROS_WARN("Starting position is not clear--> clear space around the robot.");
     map_manager_->augmentFreeBox(
         Eigen::Vector3d(robotState_[0], robotState_[1], robotState_[2]) +
             robot_params_.center_offset,

@@ -302,10 +302,11 @@ bool StageInterface::initializePlanner(
     ROS_WARN_STREAM("Init robotState Z : " << robotState_[2] << "\n");
 
     graph_manager_->loadParams();
-    graph_manager_->reset();
+    // graph_manager_->reset();
     graph_manager_->setSharedParams(robot_params_, global_space_params_,
                                     local_space_params_, manual_mode_params_);
     graph_manager_->setGlobalFrame(planning_params_.global_frame_id);
+    graph_manager_->reset();
     homing_planner_triggered_ = false;  // safety guard
 
     // clear and initialize first init motion path
