@@ -314,6 +314,7 @@ bool StageInterface::initializePlanner(
     nav_msgs::Path initialization_path;
     initialization_path.poses.clear();
 
+    // old initialization behaviour
     /*
 
     std::vector<geometry_msgs::PoseStamped> initialization_poses;
