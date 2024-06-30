@@ -31,9 +31,6 @@ typedef voxblox::EsdfServer MapManagerVoxbloxServer;
 typedef voxblox::EsdfVoxel MapManagerVoxbloxVoxel;
 #endif
 
-// typedef voxblox::TsdfServer MapManagerVoxbloxServer;
-// typedef voxblox::TsdfVoxel MapManagerVoxbloxVoxel;
-
 // Experimental: enable __gnu_parallel:: variants
 #ifdef _GLIBCXX_PARALLEL
 #include <parallel/algorithm>
