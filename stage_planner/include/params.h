@@ -270,7 +270,7 @@ struct PlanningParams {
   // Robot dynamics
   double v_max;
   double dt;
-  double init_forward_x;
+  double pose_graph_update_dist;
   double v_homing_max;
   double yaw_rate_max;
   bool yaw_tangent_correction;

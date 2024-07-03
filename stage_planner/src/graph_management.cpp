@@ -182,10 +182,12 @@ void GraphManager::setState(StateVec& state) {
     prev_state = state;
   }
   robotState_ = state;
-  if ((prev_state.head(3) - robotState_.head(3)).norm() > 1.9) {
+  if ((prev_state.head(3) - robotState_.head(3)).norm() >
+      planning_params_.pose_graph_update_dist) {
     StateVec* nearest_state = nullptr;
-    if (!robot_state_hist_->getNearestStateInRange(&robotState_, 1.8,
-                                                   &nearest_state)) {
+    if (!robot_state_hist_->getNearestStateInRange(
+            &robotState_, planning_params_.pose_graph_update_dist - 0.1,
+            &nearest_state)) {
       GraphManager::updateGlobalGraph();
     }
     StateVec* cur_state = new StateVec(robotState_[0], robotState_[1],
@@ -2678,8 +2680,7 @@ void GraphManager::expandGlobalGraph(
                    << duration_total.count() << " ms \n");
 }
 
-bool GraphManager::shareGraph (stage_planner::Graph& g) {
-  
+bool GraphManager::shareGraph(stage_planner::Graph& g) {
   if (global_graph_->getNumVertices() > 1) {
     global_graph_->convertGraphToMsg(g);
     return true;
@@ -2687,7 +2688,6 @@ bool GraphManager::shareGraph (stage_planner::Graph& g) {
     ROS_WARN("Global graph is empty \n");
     return false;
   }
-
 }
 
 void GraphManager::setHomingPath() {

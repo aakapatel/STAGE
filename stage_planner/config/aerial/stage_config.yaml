@@ -5,8 +5,8 @@ PlanningParams:
   exp_sensor_list:  ["OS064"]
   # no_gain_zones_list: ["g1"]
   global_frame_id: "world"
-  init_forward_x:   4.0 # initialization motion forward m
-  dt:               1.5 # dt for traj 
+  pose_graph_update_dist:   1.0 # initialization motion forward m
+  dt:               1.0 # dt for traj 
   v_max:            1.0 # max velocity m/s
   v_homing_max:     0.9 # max velocity m/s
   yaw_rate_max:     0.15 # max angular velocity rad/s
@@ -49,7 +49,7 @@ PlanningParams:
   freespace_cloud_enable: false
   leafs_only_for_volumetric_gain: true # Whether to calculate gain of the entire path or only the leaf nodes
   cluster_vertices_for_gain: true
-  clustering_radius: 0.3
+  clustering_radius: 0.1
   
   auto_homing_enable: true
   go_home_if_fully_explored: true

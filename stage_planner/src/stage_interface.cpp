@@ -102,7 +102,6 @@ void StageInterface::setSharedParams(
   StageInterface::loadParams();
   graph_manager_->setSharedParams(robot_params, global_space_params,
                                   local_space_params, manual_mode_params);
-  init_x = planning_params_.init_forward_x;
   dt_ = planning_params_.dt;
   v_max_ = planning_params_.v_max;
   yaw_rate_max_ = planning_params_.yaw_rate_max;
@@ -314,56 +313,6 @@ bool StageInterface::initializePlanner(
     path_iterator_ = 0;
     nav_msgs::Path initialization_path;
     initialization_path.poses.clear();
-
-    // old initialization behaviour
-    /*
-
-    std::vector<geometry_msgs::PoseStamped> initialization_poses;
-    initialization_poses.clear();
-    geometry_msgs::PoseStamped init_pose;
-
-    init_pose.pose.position.x = robotState_[0];
-    init_pose.pose.position.y = robotState_[1];
-    init_pose.pose.position.z = robotState_[2];
-    init_pose.pose.orientation.x = 0;
-    init_pose.pose.orientation.y = 0;
-    init_pose.pose.orientation.z = 0;
-    init_pose.pose.orientation.w = 1;
-    initialization_path.poses.push_back(init_pose);
-    init_pose.pose.position.x = robotState_[0];
-    init_pose.pose.position.y = robotState_[1];
-    if (robot_params_.type == RobotType::kGroundRobot) {
-      ROS_WARN("robot type --> ground \n");
-      init_pose.pose.position.z = robotState_[2];
-    } else {
-      ROS_WARN("robot type --> aerial \n");
-      init_pose.pose.position.z = robotState_[2];
-    }
-    init_pose.pose.orientation.x = 0;
-    init_pose.pose.orientation.y = 0;
-    init_pose.pose.orientation.z = 0;
-    init_pose.pose.orientation.w = 1;
-    initialization_path.poses.push_back(init_pose);
-    init_pose.pose.position.x = robotState_[0] + init_x;
-    init_pose.pose.position.y = robotState_[1];
-    if (robot_params_.type == RobotType::kGroundRobot) {
-      init_pose.pose.position.z = robotState_[2];
-    } else {
-      init_pose.pose.position.z = robotState_[2];
-    }
-    init_pose.pose.orientation.x = 0;
-    init_pose.pose.orientation.y = 0;
-    init_pose.pose.orientation.z = 0;
-    init_pose.pose.orientation.w = 1;
-    initialization_path.poses.push_back(init_pose);
-
-    StageInterface::generateTrajectory(initialization_path);
-    command_Path_Publisher.publish(command_path);
-    planner_initialized = true;
-    StageInterface::callActionServer();
-    planner_status_ = StageInterface::PlannerStatus::READY;
-
-  */
 
     planner_initialized = true;
     res.success = true;

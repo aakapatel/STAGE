@@ -833,10 +833,10 @@ bool PlanningParams::loadParams(std::string ns) {
     ROSPARAM_INFO(str_tmp);
   }
 
-  param_name = ns + "/init_forward_x";
-  if (!ros::param::get(param_name, init_forward_x)) {
-    init_forward_x = 2;
-    ROSPARAM_WARN(param_name, "2 m");
+  param_name = ns + "/pose_graph_update_dist";
+  if (!ros::param::get(param_name, pose_graph_update_dist)) {
+    pose_graph_update_dist = 0.5;
+    ROSPARAM_WARN(param_name, "0.5 m");
   }
 
   param_name = ns + "/v_max";
