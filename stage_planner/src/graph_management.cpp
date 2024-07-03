@@ -1466,12 +1466,12 @@ void GraphManager::expandGraph(std::shared_ptr<GraphUtils> graph_manager,
   Vertex* nearest_vertex = NULL;
   if (!graph_manager->getNearestVertex(&new_state, &nearest_vertex)) {
     rep.status = ExpandGraphStatus::kErrorKdTree;
-    ROS_WARN("Err kdtree \n");
+    // ROS_WARN("Err kdtree \n");
     return;
   }
   if (nearest_vertex == NULL) {
     rep.status = ExpandGraphStatus::kErrorKdTree;
-    ROS_WARN("null \n");
+    // ROS_WARN("null \n");
     return;
   }
   if (graph_manager == global_graph_) {
@@ -1494,7 +1494,7 @@ void GraphManager::expandGraph(std::shared_ptr<GraphUtils> graph_manager,
              (direction_norm <= planning_params_.edge_length_min)) {
     // Should not add short edge.
     rep.status = ExpandGraphStatus::kErrorShortEdge;
-    ROS_WARN("Short edge \n");
+    // ROS_WARN("Short edge \n");
     return;
   }
 
@@ -1535,7 +1535,7 @@ void GraphManager::expandGraph(std::shared_ptr<GraphUtils> graph_manager,
            Eigen::Vector2d(end_pos[0], end_pos[1]),
            Eigen::Vector2d(robot_box_size_[0], robot_box_size_[1])))) {
     rep.status = ExpandGraphStatus::kErrorGeofenceViolated;
-    ROS_WARN("geofence violated \n");
+    // ROS_WARN("geofence violated \n");
     return;
   }
 
@@ -1548,7 +1548,7 @@ void GraphManager::expandGraph(std::shared_ptr<GraphUtils> graph_manager,
     if (MapManager::VoxelStatus::kFree == vs) {
       admissible_edge = true;
     } else {
-      ROS_WARN("not an admissible edge \n");
+      // ROS_WARN("not an admissible edge \n");
     }
   } else if (robot_params_.type == RobotType::kGroundRobot) {
     bool is_hanging = nearest_vertex->is_hanging || new_vertex.is_hanging;
@@ -1620,7 +1620,7 @@ void GraphManager::expandGraph(std::shared_ptr<GraphUtils> graph_manager,
               &new_state, planning_params_.nearest_range, &nearest_vertices)) {
         rep.status = ExpandGraphStatus::kErrorKdTree;
 
-        ROS_WARN("Err kdtree in kGraph \n");
+        // ROS_WARN("Err kdtree in kGraph \n");
         return;
       }
       origin << new_vertex_ptr->state[0], new_vertex_ptr->state[1],
@@ -1724,7 +1724,7 @@ void GraphManager::expandGraph(std::shared_ptr<GraphUtils> graph_manager,
       stat_->edges_fail.push_back(vtmp);
     }
     rep.status = ExpandGraphStatus::kErrorCollisionEdge;
-    ROS_WARN("Err final check collision edge \n");
+    // ROS_WARN("Err final check collision edge \n");
     return;
   }
   rep.status = ExpandGraphStatus::kSuccess;

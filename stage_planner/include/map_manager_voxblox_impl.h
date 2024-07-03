@@ -21,15 +21,15 @@
 #include "map_manager.h"
 #include "params.h"
 
-#define use_tsdf
-
-#ifdef use_tsdf
+// #define use_tsdf
+//
+// #ifdef use_tsdf
 typedef voxblox::TsdfServer MapManagerVoxbloxServer;
 typedef voxblox::TsdfVoxel MapManagerVoxbloxVoxel;
-#else
-typedef voxblox::EsdfServer MapManagerVoxbloxServer;
-typedef voxblox::EsdfVoxel MapManagerVoxbloxVoxel;
-#endif
+// #else
+// typedef voxblox::EsdfServer MapManagerVoxbloxServer;
+// typedef voxblox::EsdfVoxel MapManagerVoxbloxVoxel;
+// #endif
 
 // Experimental: enable __gnu_parallel:: variants
 #ifdef _GLIBCXX_PARALLEL
