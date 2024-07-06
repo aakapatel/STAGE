@@ -2,17 +2,14 @@ cmake_minimum_required(VERSION 3.0.2)
 project(stage_planner)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(octomap_DIR "/opt/ros/noetic/share/octomap")
 set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-##set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Wall -Wextra")
 
 find_package(catkin_simple REQUIRED)
 find_package(Eigen3 REQUIRED)
-find_package(SuiteSparse REQUIRED)
 
-find_package (PCL 1.10 REQUIRED)
+# find_package (PCL 1.10 REQUIRED)
 
-set(PCL_INCLUDE_DIRS /usr/include/pcl-1.10 /usr/include/eigen3/)
+# set(PCL_INCLUDE_DIRS /usr/include/pcl-1.10 /usr/include/eigen3/)
 
 
 # Point collision checking:
@@ -38,8 +35,6 @@ message( "COMPILE DEFINITIONS: ${DirDefs}" )
 
 
 include_directories(${PCL_INCLUDE_DIRS})
-
-
 include_directories(${EIGEN3_INCLUDE_DIR} ${CHOLMOD_INCLUDE_DIR})
 
 find_package(OpenMP)
@@ -54,8 +49,6 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_ros
   roslib
   geometry_msgs
-  octomap_msgs
-  octomap_ros
   mav_msgs
   mav_planning_msgs
   std_srvs
@@ -68,7 +61,6 @@ find_package(catkin REQUIRED COMPONENTS
   actionlib
   actionlib_msgs
   message_generation
-  roscpp_serialization
   kdtree
   voxblox_ros
   voxblox
@@ -77,7 +69,6 @@ find_package(catkin REQUIRED COMPONENTS
 find_package(catkin_simple REQUIRED)
 find_package(Boost REQUIRED)
 find_package(Eigen3 REQUIRED)
-find_package(roscpp_serialization REQUIRED)
 
 
 include_directories( ${Eigen_INCLUDE_DIRS} ${catkin_INCLUDE_DIRS})
@@ -87,7 +78,6 @@ add_message_files(
   Vertex.msg
   Edge.msg
   Graph.msg 
-
 )
 
 add_service_files(
@@ -123,7 +113,6 @@ catkin_package(
 
 include_directories(
     ${catkin_INCLUDE_DIRS}
-    $(OCTOMAP_INCLUDE_DIRS)
     include/
     ${Eigen_INCLUDE_DIRS}
     ${Boost_INCLUDE_DIRS}
@@ -150,7 +139,6 @@ add_executable(exploration_manager_node src/exploration_manager_node.cpp)
    exploration_manager_node
    stage_planner
    ${catkin_LIBRARIES}
-   ${OCTOMAP_LIBRARIES}
    ${PCL_LIBRARIES}
   ${CMAKE_DL_LIBS}
 )
@@ -160,7 +148,6 @@ add_executable(stage_interface_node src/stage_interface_node.cpp)
    stage_interface_node
    stage_planner
    ${catkin_LIBRARIES}
-   ${OCTOMAP_LIBRARIES}
    ${PCL_LIBRARIES}
   ${CMAKE_DL_LIBS}
 )
@@ -169,7 +156,6 @@ add_executable(control_interface src/control_interface.cpp)
  target_link_libraries(
    control_interface
    ${catkin_LIBRARIES}
-   ${OCTOMAP_LIBRARIES}
    ${PCL_LIBRARIES}
   ${CMAKE_DL_LIBS}
 )
@@ -180,7 +166,6 @@ add_executable(spot_path_tracker_ros_node src/path_tracker_node.cpp)
    spot_path_tracker_ros_node
    stage_planner
    ${catkin_LIBRARIES}
-   ${OCTOMAP_LIBRARIES}
    ${PCL_LIBRARIES}
   ${CMAKE_DL_LIBS}
 )
