@@ -29,6 +29,9 @@ void StageInterface::initializeAttributes() {
   goalSubscriber_ = nh_.subscribe("/move_base_simple/goal", 1,
                                   &StageInterface::goalCallback, this);
 
+  global_route_subscriber_ = nh_.subscribe(
+      "/scout_planner/path_grounded", 1, &StageInterface::globalRouteCallback, this);
+
   trajectory_Publisher =
       nh_.advertise<trajectory_msgs::MultiDOFJointTrajectory>(
           "command/trajectory", 1, true);
@@ -68,6 +71,10 @@ void StageInterface::initializeAttributes() {
 
   planner_periodic_timer_ = nh_.createTimer(
       ros::Duration(0.1), &StageInterface::periodicTimerCallback, this);
+
+  global_route_periodic_timer_ =
+      nh_.createTimer(ros::Duration(0.1),
+                      &StageInterface::globalRoutePeriodicTimerCallback, this);
 
   graph_manager_ = new GraphManager(nh_, nh_private_, map_manager_);
   visualization_server_ = new VisualizationServer(nh_, nh_private_);
@@ -369,6 +376,99 @@ bool StageInterface::initializePlanner(
   return true;
 }
 
+void StageInterface::globalRouteCallback(
+    const nav_msgs::Path::ConstPtr& global_route) {
+  path_orig_.clear();
+
+  command_path.poses.clear();
+  for (int i = 0; i < global_route->poses.size(); i++) {
+    geometry_msgs::Pose p = global_route->poses[i].pose;
+    path_orig_.push_back(p);
+  }
+  global_path_iterator_ = 0;
+
+  std::cout << "Path orig size : " << path_orig_.size() << std::endl;
+}
+
+void StageInterface::globalRoutePeriodicTimerCallback(
+    const ros::TimerEvent& event) {
+  if (!path_execution_complete_) {
+    return;
+  } else {
+    command_path.poses.clear();
+  }
+
+  if (path_orig_.empty()) {
+    ROS_WARN("Original path is empty \n");
+    return;
+  }
+
+  if (global_path_iterator_ == path_orig_.size() - 1) {
+    path_orig_.clear();
+    // planner_status_ = StageInterface::PlannerStatus::READY;
+    global_path_iterator_ = 0;
+  }
+
+  // command_path.poses.clear();
+
+  geometry_msgs::PoseStamped p;
+  p.pose = path_orig_[global_path_iterator_];
+  geometry_msgs::PoseStamped p1;
+  p1.pose = path_orig_[global_path_iterator_ + 1];
+  p.header.stamp = p1.header.stamp = ros::Time::now();
+  p.header.frame_id = p1.header.frame_id = world_frame_id;
+  Eigen::Vector3d v(p.pose.position.x, p.pose.position.y, p.pose.position.z);
+  Eigen::Vector3d v1(p1.pose.position.x, p1.pose.position.y,
+                     p1.pose.position.z);
+  MapManager::VoxelStatus vs =
+      map_manager_->getPathStatus(v, v1, robot_box_size_, true);
+  if (MapManager::VoxelStatus::kOccupied != vs) {
+    command_path.poses.push_back(p);
+    command_path.poses.push_back(p1);
+    global_path_iterator_ = global_path_iterator_ + 1;
+    command_path.header.frame_id = world_frame_id;
+    command_path.header.stamp = ros::Time::now();
+    if (!command_path.poses.empty()) {
+      command_Path_Publisher.publish(command_path);
+      planner_status_ = StageInterface::PlannerStatus::EXECUTING_PATH;
+      // StageInterface::callActionServer();  // only for ground robot
+    }
+  } else {
+    ROS_WARN_STREAM("Global route index " << global_path_iterator_ << " to "
+                                          << global_path_iterator_ + 1
+                                          << " is not traversable \n");
+    std::vector<geometry_msgs::Pose> improved_path;
+    std::vector<geometry_msgs::Pose> raw_path;
+    raw_path.clear();
+    improved_path.clear();
+    raw_path.push_back(path_orig_[global_path_iterator_]);
+    raw_path.push_back(path_orig_[global_path_iterator_ + 1]);
+    bool path_improvement_success =
+        graph_manager_->improveFreePath(raw_path, improved_path, true, false);
+
+    if (path_improvement_success) {
+      for (int j = 0; j < improved_path.size(); j++) {
+        geometry_msgs::PoseStamped p2;
+        p2.pose = improved_path[j];
+        p2.header.stamp = ros::Time::now();
+        p2.header.frame_id = world_frame_id;
+        command_path.poses.push_back(p2);
+      }
+
+      if (!command_path.poses.empty()) {
+        ROS_INFO("Path improvement success! \n");
+        command_path.header.frame_id = world_frame_id;
+        command_path.header.stamp = ros::Time::now();
+        command_Path_Publisher.publish(command_path);
+        planner_status_ = StageInterface::PlannerStatus::EXECUTING_PATH;
+      }
+    } else {
+      ROS_ERROR("No alternate solution found! :( \n");
+      planner_status_ = StageInterface::PlannerStatus::NOT_READY;
+    }
+  }
+}
+
 void StageInterface::goalCallback(
     const geometry_msgs::PoseStamped::ConstPtr& goal_msg) {
   StateVec s = StateVec::Zero();
@@ -653,7 +753,8 @@ void StageInterface::generateTrajectory(nav_msgs::Path raw_path) {
 bool StageInterface::reachedEndOfPath() {
   if (command_path.poses.empty()) {
     // ROS_INFO("command path empty \n");
-    return false;
+    // return false;
+    return true;
   }
 
   Eigen::Vector3d end_of_path;
@@ -682,193 +783,198 @@ void StageInterface::callActionServer() {
 }
 
 void StageInterface::periodicTimerCallback(const ros::TimerEvent& event) {
-  if (!manual_homing_triggered_ && !path_execution_complete_) {
-    return;
-  } else if (!path_execution_complete_ && manual_homing_triggered_) {
-    planner_status_ = StageInterface::PlannerStatus::HOMING;
-    manual_homing_triggered_ = false;
-  }
-
-  ROS_INFO_STREAM("Time remaining : " << time_budget_remaining_ << "s \n");
-
-  high_resolution_clock::time_point start_total = high_resolution_clock::now();
-  switch (planner_status_) {
-    case StageInterface::PlannerStatus::READY:
-      ROS_INFO("[PLANNER STATUS : ] Ready for new path \n");
-      exploration_path_.poses.clear();
-      path_iterator_ = 0;
-
-      graph_status_ = graph_manager_->runLocalPlanner();
-      switch (graph_status_) {
-        case GraphManager::GraphStatus::OK:
-          ROS_INFO("[LOCAL GRAPH STATUS] OK \n");
-          exploration_path_ = graph_manager_->getLocalExplorationPath();
-          break;
-        case GraphManager::GraphStatus::ERR_KDTREE:
-          ROS_WARN("[LOCAL GRAPH STATUS] Issue occurred with kdtree data. \n");
-          break;
-        case GraphManager::GraphStatus::ERR_NO_FEASIBLE_PATH:
-          ROS_WARN("[LOCAL GRAPH STATUS] No feasible path was found. \n");
-          break;
-        case GraphManager::GraphStatus::NO_GAIN:
-          ROS_WARN("[LOCAL GRAPH STATUS] Not enough gain \n");
-          break;
-        case GraphManager::GraphStatus::NOT_OK:
-          ROS_WARN("[LOCAL GRAPH STATUS] NOT OK \n");
-          break;
-        default:
-          ROS_WARN(
-              "[LOCAL GRAPH ERROR] Error occurred in building local graph \n");
-          break;
-      }
-
-      if (graph_status_ == GraphManager::GraphStatus::NO_GAIN) {
-        graph_status_ = graph_manager_->runGlobalPlanner();
-        switch (graph_status_) {
-          case GraphManager::GraphStatus::OK:
-            ROS_INFO("[GLOBAL GRAPH STATUS] OK \n");
-            exploration_path_ = graph_manager_->getGlobalExplorationPath();
-            break;
-          case GraphManager::GraphStatus::NO_GAIN:
-            ROS_WARN("[GLOBAL GRAPH STATUS] Not enough gain \n");
-            break;
-          case GraphManager::GraphStatus::NOT_OK:
-            ROS_WARN("[GLOBAL GRAPH STATUS] NOT OK \n");
-            break;
-          default:
-            ROS_WARN("[GLOBAL GRAPH STATUS] Error occurred in global graph.");
-            break;
-        }
-      }
-
-      if (!exploration_path_.poses.empty()) {
-        path_iterator_ = 0;
-        planner_status_ = StageInterface::PlannerStatus::EXECUTING_PATH;
-      }
-      break;
-
-    case StageInterface::PlannerStatus::EXECUTING_PATH:
-      ROS_INFO("[PLANNER STATUS : ] Executing path \n");
-
-      if (path_iterator_ < (exploration_path_.poses.size())) {
-        temp_path.poses.clear();
-        geometry_msgs::PoseStamped p;
-        if (path_iterator_ == 0) {
-          p.pose.position.x = robotState_[0];
-          p.pose.position.y = robotState_[1];
-          p.pose.position.z = robotState_[2];
-          p.pose.orientation =
-              exploration_path_.poses[path_iterator_].pose.orientation;
-
-        } else {
-          p.pose.position.x =
-              exploration_path_.poses[path_iterator_ - 1].pose.position.x;
-          p.pose.position.y =
-              exploration_path_.poses[path_iterator_ - 1].pose.position.y;
-          p.pose.position.z =
-              exploration_path_.poses[path_iterator_ - 1].pose.position.z;
-          p.pose.orientation =
-              exploration_path_.poses[path_iterator_ - 1].pose.orientation;
-        }
-        p.header.stamp = ros::Time::now();
-        p.header.frame_id = world_frame_id;
-        geometry_msgs::PoseStamped p1 = exploration_path_.poses[path_iterator_];
-        Eigen::Vector3d v(p.pose.position.x, p.pose.position.y,
-                          p.pose.position.z);
-        Eigen::Vector3d v1(p1.pose.position.x, p1.pose.position.y,
-                           p1.pose.position.z);
-        MapManager::VoxelStatus vs =
-            map_manager_->getPathStatus(v, v1, robot_box_size_, true);
-        if (MapManager::VoxelStatus::kOccupied != vs) {
-          temp_path.poses.push_back(p);
-          temp_path.poses.push_back(p1);
-          path_iterator_ = path_iterator_ + 1;
-          planner_status_ = StageInterface::PlannerStatus::EXECUTING_PATH;
-          StageInterface::generateTrajectory(temp_path);
-          if (!command_path.poses.empty()) {
-            command_Path_Publisher.publish(command_path);
-            StageInterface::callActionServer();  // only for ground robot
-          }
-        } else {
-          ROS_ERROR("Path segment not traversable \n");
-          path_iterator_ = 0;
-          exploration_path_.poses.clear();
-          if (homing_planner_triggered_) {
-            planner_status_ = StageInterface::PlannerStatus::HOMING;
-          } else {
-            planner_status_ = StageInterface::PlannerStatus::READY;
-          }
-        }
-      } else {
-        path_iterator_ = 0;
-        exploration_path_.poses.clear();
-
-        if (homing_planner_triggered_) {
-          planner_status_ = StageInterface::PlannerStatus::HOMING;
-        } else {
-          planner_status_ = StageInterface::PlannerStatus::READY;
-        }
-      }
-      break;
-
-    case StageInterface::PlannerStatus::HOMING:
-      ROS_WARN("Auto homing triggered \n");
-      exploration_path_.poses.clear();
-      exploration_path_ = graph_manager_->getHomingPath();
-      if (!exploration_path_.poses.empty()) {
-        path_iterator_ = 0;
-        planner_status_ = StageInterface::PlannerStatus::EXECUTING_HOMING_PATH;
-      }
-      break;
-
-    case StageInterface::PlannerStatus::EXECUTING_HOMING_PATH:
-      ROS_INFO("[PLANNER STATUS : ] Executing homing path \n");
-
-      if (path_iterator_ < (exploration_path_.poses.size())) {
-        temp_path.poses.clear();
-        geometry_msgs::PoseStamped p;
-        p.pose.position.x = robotState_[0];
-        p.pose.position.y = robotState_[1];
-        p.pose.position.z = robotState_[2];
-        p.pose.orientation =
-            exploration_path_.poses[path_iterator_].pose.orientation;
-        p.header.stamp = ros::Time::now();
-        p.header.frame_id = world_frame_id;
-        temp_path.poses.push_back(p);
-        temp_path.poses.push_back(exploration_path_.poses[path_iterator_]);
-        path_iterator_ = path_iterator_ + 1;
-        planner_status_ = StageInterface::PlannerStatus::EXECUTING_HOMING_PATH;
-        StageInterface::generateTrajectory(temp_path);
-        if (!command_path.poses.empty()) {
-          command_Path_Publisher.publish(command_path);
-          StageInterface::callActionServer();  // only for ground robot
-        }
-      } else {
-        path_iterator_ = 0;
-        exploration_path_.poses.clear();
-        if (homing_planner_triggered_) {
-          planner_status_ = StageInterface::PlannerStatus::NOT_READY;
-        }
-      }
-      break;
-
-    case StageInterface::PlannerStatus::NOT_READY:
-      ROS_WARN("[PLANNER STATUS] NOT READY \n");
-      break;
-
-    default:
-      break;
-  }
-
-  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
-
-  auto duration_total =
-      duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-  if (graph_status_ == GraphManager::GraphStatus::OK &&
-      duration_total.count() > 10) {
-    ++planning_iteration_;
-    ROS_INFO_STREAM("\033[;34m[Planning iter -> "
-                    << planning_iteration_ << "] \t Exec time :"
-                    << duration_total.count() << " ms \033[0m\n");
-  }
+  // if (!manual_homing_triggered_ && !path_execution_complete_) {
+  //   return;
+  // } else if (!path_execution_complete_ && manual_homing_triggered_) {
+  //   planner_status_ = StageInterface::PlannerStatus::HOMING;
+  //   manual_homing_triggered_ = false;
+  // }
+  //
+  // ROS_INFO_STREAM("Time remaining : " << time_budget_remaining_ << "s \n");
+  //
+  // high_resolution_clock::time_point start_total =
+  // high_resolution_clock::now(); switch (planner_status_) {
+  //   case StageInterface::PlannerStatus::READY:
+  //     ROS_INFO("[PLANNER STATUS : ] Ready for new path \n");
+  //     exploration_path_.poses.clear();
+  //     path_iterator_ = 0;
+  //
+  //     graph_status_ = graph_manager_->runLocalPlanner();
+  //     switch (graph_status_) {
+  //       case GraphManager::GraphStatus::OK:
+  //         ROS_INFO("[LOCAL GRAPH STATUS] OK \n");
+  //         exploration_path_ = graph_manager_->getLocalExplorationPath();
+  //         break;
+  //       case GraphManager::GraphStatus::ERR_KDTREE:
+  //         ROS_WARN("[LOCAL GRAPH STATUS] Issue occurred with kdtree data.
+  //         \n"); break;
+  //       case GraphManager::GraphStatus::ERR_NO_FEASIBLE_PATH:
+  //         ROS_WARN("[LOCAL GRAPH STATUS] No feasible path was found. \n");
+  //         break;
+  //       case GraphManager::GraphStatus::NO_GAIN:
+  //         ROS_WARN("[LOCAL GRAPH STATUS] Not enough gain \n");
+  //         break;
+  //       case GraphManager::GraphStatus::NOT_OK:
+  //         ROS_WARN("[LOCAL GRAPH STATUS] NOT OK \n");
+  //         break;
+  //       default:
+  //         ROS_WARN(
+  //             "[LOCAL GRAPH ERROR] Error occurred in building local graph
+  //             \n");
+  //         break;
+  //     }
+  //
+  //     if (graph_status_ == GraphManager::GraphStatus::NO_GAIN) {
+  //       graph_status_ = graph_manager_->runGlobalPlanner();
+  //       switch (graph_status_) {
+  //         case GraphManager::GraphStatus::OK:
+  //           ROS_INFO("[GLOBAL GRAPH STATUS] OK \n");
+  //           exploration_path_ = graph_manager_->getGlobalExplorationPath();
+  //           break;
+  //         case GraphManager::GraphStatus::NO_GAIN:
+  //           ROS_WARN("[GLOBAL GRAPH STATUS] Not enough gain \n");
+  //           break;
+  //         case GraphManager::GraphStatus::NOT_OK:
+  //           ROS_WARN("[GLOBAL GRAPH STATUS] NOT OK \n");
+  //           break;
+  //         default:
+  //           ROS_WARN("[GLOBAL GRAPH STATUS] Error occurred in global
+  //           graph."); break;
+  //       }
+  //     }
+  //
+  //     if (!exploration_path_.poses.empty()) {
+  //       path_iterator_ = 0;
+  //       planner_status_ = StageInterface::PlannerStatus::EXECUTING_PATH;
+  //     }
+  //     break;
+  //
+  //   case StageInterface::PlannerStatus::EXECUTING_PATH:
+  //     ROS_INFO("[PLANNER STATUS : ] Executing path \n");
+  //
+  //     if (path_iterator_ < (exploration_path_.poses.size())) {
+  //       temp_path.poses.clear();
+  //       geometry_msgs::PoseStamped p;
+  //       if (path_iterator_ == 0) {
+  //         p.pose.position.x = robotState_[0];
+  //         p.pose.position.y = robotState_[1];
+  //         p.pose.position.z = robotState_[2];
+  //         p.pose.orientation =
+  //             exploration_path_.poses[path_iterator_].pose.orientation;
+  //
+  //       } else {
+  //         p.pose.position.x =
+  //             exploration_path_.poses[path_iterator_ - 1].pose.position.x;
+  //         p.pose.position.y =
+  //             exploration_path_.poses[path_iterator_ - 1].pose.position.y;
+  //         p.pose.position.z =
+  //             exploration_path_.poses[path_iterator_ - 1].pose.position.z;
+  //         p.pose.orientation =
+  //             exploration_path_.poses[path_iterator_ - 1].pose.orientation;
+  //       }
+  //       p.header.stamp = ros::Time::now();
+  //       p.header.frame_id = world_frame_id;
+  //       geometry_msgs::PoseStamped p1 =
+  //       exploration_path_.poses[path_iterator_]; Eigen::Vector3d
+  //       v(p.pose.position.x, p.pose.position.y,
+  //                         p.pose.position.z);
+  //       Eigen::Vector3d v1(p1.pose.position.x, p1.pose.position.y,
+  //                          p1.pose.position.z);
+  //       MapManager::VoxelStatus vs =
+  //           map_manager_->getPathStatus(v, v1, robot_box_size_, true);
+  //       if (MapManager::VoxelStatus::kOccupied != vs) {
+  //         temp_path.poses.push_back(p);
+  //         temp_path.poses.push_back(p1);
+  //         path_iterator_ = path_iterator_ + 1;
+  //         planner_status_ = StageInterface::PlannerStatus::EXECUTING_PATH;
+  //         StageInterface::generateTrajectory(temp_path);
+  //         if (!command_path.poses.empty()) {
+  //           command_Path_Publisher.publish(command_path);
+  //           StageInterface::callActionServer();  // only for ground robot
+  //         }
+  //       } else {
+  //         ROS_ERROR("Path segment not traversable \n");
+  //         path_iterator_ = 0;
+  //         exploration_path_.poses.clear();
+  //         if (homing_planner_triggered_) {
+  //           planner_status_ = StageInterface::PlannerStatus::HOMING;
+  //         } else {
+  //           planner_status_ = StageInterface::PlannerStatus::READY;
+  //         }
+  //       }
+  //     } else {
+  //       path_iterator_ = 0;
+  //       exploration_path_.poses.clear();
+  //
+  //       if (homing_planner_triggered_) {
+  //         planner_status_ = StageInterface::PlannerStatus::HOMING;
+  //       } else {
+  //         planner_status_ = StageInterface::PlannerStatus::READY;
+  //       }
+  //     }
+  //     break;
+  //
+  //   case StageInterface::PlannerStatus::HOMING:
+  //     ROS_WARN("Auto homing triggered \n");
+  //     exploration_path_.poses.clear();
+  //     exploration_path_ = graph_manager_->getHomingPath();
+  //     if (!exploration_path_.poses.empty()) {
+  //       path_iterator_ = 0;
+  //       planner_status_ =
+  //       StageInterface::PlannerStatus::EXECUTING_HOMING_PATH;
+  //     }
+  //     break;
+  //
+  //   case StageInterface::PlannerStatus::EXECUTING_HOMING_PATH:
+  //     ROS_INFO("[PLANNER STATUS : ] Executing homing path \n");
+  //
+  //     if (path_iterator_ < (exploration_path_.poses.size())) {
+  //       temp_path.poses.clear();
+  //       geometry_msgs::PoseStamped p;
+  //       p.pose.position.x = robotState_[0];
+  //       p.pose.position.y = robotState_[1];
+  //       p.pose.position.z = robotState_[2];
+  //       p.pose.orientation =
+  //           exploration_path_.poses[path_iterator_].pose.orientation;
+  //       p.header.stamp = ros::Time::now();
+  //       p.header.frame_id = world_frame_id;
+  //       temp_path.poses.push_back(p);
+  //       temp_path.poses.push_back(exploration_path_.poses[path_iterator_]);
+  //       path_iterator_ = path_iterator_ + 1;
+  //       planner_status_ =
+  //       StageInterface::PlannerStatus::EXECUTING_HOMING_PATH;
+  //       StageInterface::generateTrajectory(temp_path);
+  //       if (!command_path.poses.empty()) {
+  //         command_Path_Publisher.publish(command_path);
+  //         StageInterface::callActionServer();  // only for ground robot
+  //       }
+  //     } else {
+  //       path_iterator_ = 0;
+  //       exploration_path_.poses.clear();
+  //       if (homing_planner_triggered_) {
+  //         planner_status_ = StageInterface::PlannerStatus::NOT_READY;
+  //       }
+  //     }
+  //     break;
+  //
+  //   case StageInterface::PlannerStatus::NOT_READY:
+  //     ROS_WARN("[PLANNER STATUS] NOT READY \n");
+  //     break;
+  //
+  //   default:
+  //     break;
+  // }
+  //
+  // high_resolution_clock::time_point stop_total =
+  // high_resolution_clock::now();
+  //
+  // auto duration_total =
+  //     duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+  // if (graph_status_ == GraphManager::GraphStatus::OK &&
+  //     duration_total.count() > 10) {
+  //   ++planning_iteration_;
+  //   ROS_INFO_STREAM("\033[;34m[Planning iter -> "
+  //                   << planning_iteration_ << "] \t Exec time :"
+  //                   << duration_total.count() << " ms \033[0m\n");
+  // }
 }

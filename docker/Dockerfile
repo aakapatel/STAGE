@@ -125,11 +125,11 @@ RUN echo "alias cde=\"cd catkin_workspaces/exploration_ws \" " >> /home/aakapate
 
 WORKDIR /home/aakapatel/.gazebo/
 RUN mkdir -p models
-COPY models /home/aakapatel/.gazebo/models
+# COPY models /home/aakapatel/.gazebo/models
 
 WORKDIR /home/aakapatel/ 
 RUN mkdir -p .ignition
-COPY ignition_models /home/aakapatel/.ignition/
+# COPY ignition_models /home/aakapatel/.ignition/
 
 WORKDIR /home/aakapatel/catkin_workspaces/exploration_ws/
 

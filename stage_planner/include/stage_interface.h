@@ -41,6 +41,8 @@ class StageInterface {
   Eigen::Quaternion<float> Euler2Quaternion(Eigen::Vector3d v);
   void odometryCallback(const nav_msgs::Odometry& odom);
   void goalCallback(const geometry_msgs::PoseStamped::ConstPtr& goal_msg);
+
+  void globalRouteCallback(const nav_msgs::Path::ConstPtr& global_route);
   double calculateDistance(Eigen::Vector3d p1, Eigen::Vector3d p2);
   void segmentPath(const nav_msgs::Path& path, nav_msgs::Path& path_seg);
   void generateTrajectory(nav_msgs::Path);
@@ -55,6 +57,7 @@ class StageInterface {
   void callActionServer();
 
   void periodicTimerCallback(const ros::TimerEvent& event);
+  void globalRoutePeriodicTimerCallback(const ros::TimerEvent& event);
 
  private:
   ros::NodeHandle nh_;
@@ -88,6 +91,7 @@ class StageInterface {
   // Subscribers
   ros::Subscriber odometry_Subscriber_;
   ros::Subscriber goalSubscriber_;
+  ros::Subscriber global_route_subscriber_;
 
   // Services
   ros::ServiceServer planner_initialization_service_;
@@ -101,9 +105,11 @@ class StageInterface {
 
   ros::Time rostime_start_;
   ros::Timer planner_periodic_timer_;
+  ros::Timer global_route_periodic_timer_;
   double time_elapsed = 0.0;
 
   std::vector<geometry_msgs::PoseStamped> goal_path;
+  std::vector<geometry_msgs::Pose> path_orig_;
 
   ros::Publisher trajectory_Publisher;
   ros::Publisher command_Path_Publisher;
@@ -113,6 +119,7 @@ class StageInterface {
   nav_msgs::Path command_path;
   nav_msgs::Path exploration_path_;
   nav_msgs::Path temp_path;
+  nav_msgs::Path global_temp_path;
   bool planning_status_local = false;
   bool planning_status_global = false;
   bool planning_status_homing = false;
@@ -124,6 +131,7 @@ class StageInterface {
   double init_x = 2;
   double time_budget_remaining_ = 1;
   int path_iterator_ = 0;
+  int global_path_iterator_ = 0;
   int planning_iteration_ = 0;
 
   bool firstTime;
@@ -133,7 +141,7 @@ class StageInterface {
   bool homing_planner_triggered_ = false;
   bool stop_planning = false;
   bool start_planner_first_time = true;
-  bool path_execution_complete_ = false;
+  bool path_execution_complete_ = true;
   bool odom_received = false;
   bool fetch_new_path_ = true;
 
