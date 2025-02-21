@@ -1553,7 +1553,7 @@ void GraphManager::expandGraph(std::shared_ptr<GraphUtils> graph_manager,
     if (MapManager::VoxelStatus::kFree == vs) {
       admissible_edge = true;
     } else {
-      ROS_WARN("not an admissible edge \n");
+      // ROS_WARN("not an admissible edge \n");
     }
   } else if (robot_params_.type == RobotType::kGroundRobot) {
     bool is_hanging = nearest_vertex->is_hanging || new_vertex.is_hanging;
@@ -1729,7 +1729,7 @@ void GraphManager::expandGraph(std::shared_ptr<GraphUtils> graph_manager,
       stat_->edges_fail.push_back(vtmp);
     }
     rep.status = ExpandGraphStatus::kErrorCollisionEdge;
-    ROS_WARN("Err final check collision edge \n");
+    // ROS_WARN("Err final check collision edge \n");
     return;
   }
   rep.status = ExpandGraphStatus::kSuccess;
@@ -2360,6 +2360,9 @@ bool GraphManager::connectStateToGraph(std::shared_ptr<GraphUtils> graph,
 void GraphManager::updateGlobalGraph() {
   Vertex* vertex = new Vertex(global_graph_->generateVertexID(), robotState_);
   global_graph_->addVertex(vertex);
+  StateVec s (0,1,2,3);
+  ROS_DEBUG_COND(global_graph_->stateExist(&vertex->state), "State exits.");
+  ROS_DEBUG_COND(global_graph_->stateExist(&s), "State does not exits.");
   if (prev_pose_vertex_ != nullptr) {
     vertex->parent = prev_pose_vertex_;
     prev_pose_vertex_->children.push_back(vertex);

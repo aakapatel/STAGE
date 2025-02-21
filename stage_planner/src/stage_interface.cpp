@@ -489,6 +489,7 @@ void StageInterface::actionGoalCallback(
 
           result_.success = false;
           std::string path_status = "Next segment is not traversable";
+          std::cout << "global path iterator FB : " << global_path_iterator_ << std::endl;
           feedback_.collision_segment_index = global_path_iterator_ + 1;
           feedback_.status = path_status;
           action_server_.setSucceeded(result_);
