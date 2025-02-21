@@ -396,7 +396,6 @@ void StageInterface::actionGoalCallback(
       return;
     }
 
-    // Check if the path to execute is empty
     // std::cout << path_to_exec_.size() << std::endl;
     if (path_to_exec_.poses.size() <= 0) {
       ROS_WARN("Path Tracker: scout planner path is empty, stopping");
