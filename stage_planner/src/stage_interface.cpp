@@ -373,9 +373,9 @@ bool StageInterface::initializePlanner(
 }
 
 void StageInterface::actionGoalCallback(
-    const scout_planner::pathFollowerActionGoalConstPtr& goal) {
+    const scout_planner_msgs::scoutExecutePathActionGoalConstPtr& goal_path) {
   path_to_exec_.poses.clear();
-  path_to_exec_ = goal->path;
+  path_to_exec_ = goal_path->path;
   start_execution_ = true;
   float dt = 0.05;
   ros::Rate rate(1.0 / dt);

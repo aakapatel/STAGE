@@ -72,6 +72,7 @@ find_package(catkin REQUIRED COMPONENTS
   kdtree
   voxblox_ros
   voxblox
+  scout_planner_msgs
 )
 
 find_package(catkin_simple REQUIRED)

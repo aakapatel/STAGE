@@ -6,7 +6,7 @@
 
 #include "graph_management.h"
 #include "stage_planner/pathFollowerActionAction.h"
-#include "scout_planner/pathFollowerActionAction.h"
+#include "scout_planner_msgs/scoutExecutePathActionAction.h"
 
 class StageInterface {
  public:
@@ -58,7 +58,7 @@ class StageInterface {
   void callActionServer();
 
   void periodicTimerCallback(const ros::TimerEvent& event);
-  void actionGoalCallback(const scout_planner::pathFollowerActionGoalConstPtr &goal);
+  void actionGoalCallback(const scout_planner_msgs::scoutExecutePathActionGoalConstPtr &goal);
 
  private:
   ros::NodeHandle nh_;
@@ -103,9 +103,9 @@ class StageInterface {
   ros::ServiceClient planner_set_mode_client_;
 
 
-  actionlib::SimpleActionServer<scout_planner::pathFollowerActionAction> action_server_;
-  scout_planner::pathFollowerActionFeedback feedback_;
-  scout_planner::pathFollowerActionResult result_;
+  actionlib::SimpleActionServer<scout_planner_msgs::scoutExecutePathActionAction> action_server_;
+  scout_planner_msgs::scoutExecutePathActionFeedback feedback_;
+  scout_planner_msgs::scoutExecutePathActionResult result_;
 
   
   nav_msgs::Path path_to_exec_;
