@@ -16,12 +16,14 @@ StageInterface::StageInterface(
     : nh_(nh),
       nh_private_(nh_private),
       map_manager_(map_manager),
-      action_server_(nh_, "scout_planner_path",
+      action_server_(nh_, "/scout_planner/execute_path",
                      boost::bind(&StageInterface::actionGoalCallback, this, _1),
                      false),
       ac_("stage_interface_path", true)
 
 {
+
+  action_server_.start();
   StageInterface::initializeAttributes();
 };
 
@@ -425,6 +427,12 @@ void StageInterface::actionGoalCallback(
     }
 
     if (reachedEndOfPath()) {
+      
+      if (global_path_iterator_ == (path_to_exec_.poses.size() - 1)) {
+        return;
+      }
+      
+      command_path.poses.clear();
       geometry_msgs::PoseStamped p;
       p = path_to_exec_.poses[global_path_iterator_];
       geometry_msgs::PoseStamped p1;
@@ -454,8 +462,8 @@ void StageInterface::actionGoalCallback(
         std::vector<geometry_msgs::Pose> raw_path;
         raw_path.clear();
         improved_path.clear();
-        raw_path.push_back(path_orig_[global_path_iterator_]);
-        raw_path.push_back(path_orig_[global_path_iterator_ + 1]);
+        raw_path.push_back(path_to_exec_.poses[global_path_iterator_].pose);
+        raw_path.push_back(path_to_exec_.poses[global_path_iterator_ + 1].pose);
         bool path_improvement_success = graph_manager_->improveFreePath(
             raw_path, improved_path, true, false);
 
