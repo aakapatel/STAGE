@@ -16,6 +16,9 @@ StageInterface::StageInterface(
     : nh_(nh),
       nh_private_(nh_private),
       map_manager_(map_manager),
+      action_server_(nh_, "scout_planner_path",
+                     boost::bind(&StageInterface::actionGoalCallback, this, _1),
+                     false),
       ac_("stage_interface_path", true)
 
 {
@@ -28,9 +31,6 @@ void StageInterface::initializeAttributes() {
 
   goalSubscriber_ = nh_.subscribe("/move_base_simple/goal", 1,
                                   &StageInterface::goalCallback, this);
-
-  global_route_subscriber_ = nh_.subscribe(
-      "/scout_planner/path_grounded", 1, &StageInterface::globalRouteCallback, this);
 
   trajectory_Publisher =
       nh_.advertise<trajectory_msgs::MultiDOFJointTrajectory>(
@@ -71,10 +71,6 @@ void StageInterface::initializeAttributes() {
 
   planner_periodic_timer_ = nh_.createTimer(
       ros::Duration(0.1), &StageInterface::periodicTimerCallback, this);
-
-  global_route_periodic_timer_ =
-      nh_.createTimer(ros::Duration(0.1),
-                      &StageInterface::globalRoutePeriodicTimerCallback, this);
 
   graph_manager_ = new GraphManager(nh_, nh_private_, map_manager_);
   visualization_server_ = new VisualizationServer(nh_, nh_private_);
@@ -376,96 +372,132 @@ bool StageInterface::initializePlanner(
   return true;
 }
 
-void StageInterface::globalRouteCallback(
-    const nav_msgs::Path::ConstPtr& global_route) {
-  path_orig_.clear();
-
-  command_path.poses.clear();
-  for (int i = 0; i < global_route->poses.size(); i++) {
-    geometry_msgs::Pose p = global_route->poses[i].pose;
-    path_orig_.push_back(p);
-  }
+void StageInterface::actionGoalCallback(
+    const scout_planner::pathFollowerActionGoalConstPtr& goal) {
+  path_to_exec_.poses.clear();
+  path_to_exec_ = goal->path;
+  start_execution_ = true;
+  float dt = 0.05;
+  ros::Rate rate(1.0 / dt);
   global_path_iterator_ = 0;
+  command_path.poses.clear();
 
-  std::cout << "Path orig size : " << path_orig_.size() << std::endl;
-}
+  while (ros::ok()) {
+    // Check if the action is preempted
+    if (action_server_.isPreemptRequested()) {
+      ROS_WARN("Path Tracker: Path tracking preempted, stopping");
 
-void StageInterface::globalRoutePeriodicTimerCallback(
-    const ros::TimerEvent& event) {
-  if (!path_execution_complete_) {
-    return;
-  } else {
-    command_path.poses.clear();
-  }
+      path_to_exec_.poses.clear();
+      command_path.poses.clear();
 
-  if (path_orig_.empty()) {
-    ROS_WARN("Original path is empty \n");
-    return;
-  }
+      global_path_iterator_ = 0;
+      action_server_.setPreempted();
 
-  if (global_path_iterator_ == path_orig_.size() - 1) {
-    path_orig_.clear();
-    // planner_status_ = StageInterface::PlannerStatus::READY;
-    global_path_iterator_ = 0;
-  }
-
-  // command_path.poses.clear();
-
-  geometry_msgs::PoseStamped p;
-  p.pose = path_orig_[global_path_iterator_];
-  geometry_msgs::PoseStamped p1;
-  p1.pose = path_orig_[global_path_iterator_ + 1];
-  p.header.stamp = p1.header.stamp = ros::Time::now();
-  p.header.frame_id = p1.header.frame_id = world_frame_id;
-  Eigen::Vector3d v(p.pose.position.x, p.pose.position.y, p.pose.position.z);
-  Eigen::Vector3d v1(p1.pose.position.x, p1.pose.position.y,
-                     p1.pose.position.z);
-  MapManager::VoxelStatus vs =
-      map_manager_->getPathStatus(v, v1, robot_box_size_, true);
-  if (MapManager::VoxelStatus::kOccupied != vs) {
-    command_path.poses.push_back(p);
-    command_path.poses.push_back(p1);
-    global_path_iterator_ = global_path_iterator_ + 1;
-    command_path.header.frame_id = world_frame_id;
-    command_path.header.stamp = ros::Time::now();
-    if (!command_path.poses.empty()) {
-      command_Path_Publisher.publish(command_path);
-      planner_status_ = StageInterface::PlannerStatus::EXECUTING_PATH;
-      // StageInterface::callActionServer();  // only for ground robot
+      return;
     }
-  } else {
-    ROS_WARN_STREAM("Global route index " << global_path_iterator_ << " to "
-                                          << global_path_iterator_ + 1
-                                          << " is not traversable \n");
-    std::vector<geometry_msgs::Pose> improved_path;
-    std::vector<geometry_msgs::Pose> raw_path;
-    raw_path.clear();
-    improved_path.clear();
-    raw_path.push_back(path_orig_[global_path_iterator_]);
-    raw_path.push_back(path_orig_[global_path_iterator_ + 1]);
-    bool path_improvement_success =
-        graph_manager_->improveFreePath(raw_path, improved_path, true, false);
 
-    if (path_improvement_success) {
-      for (int j = 0; j < improved_path.size(); j++) {
-        geometry_msgs::PoseStamped p2;
-        p2.pose = improved_path[j];
-        p2.header.stamp = ros::Time::now();
-        p2.header.frame_id = world_frame_id;
-        command_path.poses.push_back(p2);
-      }
+    // Check if the path to execute is empty
+    // std::cout << path_to_exec_.size() << std::endl;
+    if (path_to_exec_.poses.size() <= 0) {
+      ROS_WARN("Path Tracker: scout planner path is empty, stopping");
 
-      if (!command_path.poses.empty()) {
-        ROS_INFO("Path improvement success! \n");
+      result_.success = false;
+      action_server_.setSucceeded(result_);
+      global_path_iterator_ = 0;
+
+      command_path.poses.clear();
+      return;
+    }
+
+    Eigen::Vector3d curr_pos(robotState_[0], robotState_[1], robotState_[2]);
+    Eigen::Vector3d final_pos(path_to_exec_.poses.back().pose.position.x,
+                              path_to_exec_.poses.back().pose.position.y,
+                              path_to_exec_.poses.back().pose.position.z);
+
+    if (calculateDistance(curr_pos, final_pos) < 0.5) {
+      ROS_INFO("Path Tracker: Reached end of path");
+      result_.success = true;
+      action_server_.setSucceeded(result_);
+      global_path_iterator_ = 0;
+      command_path.poses.clear();
+      start_execution_ = false;
+
+      return;
+    }
+
+    if (reachedEndOfPath()) {
+      geometry_msgs::PoseStamped p;
+      p = path_to_exec_.poses[global_path_iterator_];
+      geometry_msgs::PoseStamped p1;
+      p1 = path_to_exec_.poses[global_path_iterator_ + 1];
+      p.header.stamp = p1.header.stamp = ros::Time::now();
+      p.header.frame_id = p1.header.frame_id = world_frame_id;
+      Eigen::Vector3d v(p.pose.position.x, p.pose.position.y,
+                        p.pose.position.z);
+      Eigen::Vector3d v1(p1.pose.position.x, p1.pose.position.y,
+                         p1.pose.position.z);
+      MapManager::VoxelStatus vs =
+          map_manager_->getPathStatus(v, v1, robot_box_size_, true);
+      if (MapManager::VoxelStatus::kOccupied != vs) {
+        command_path.poses.push_back(p);
+        command_path.poses.push_back(p1);
+        global_path_iterator_ = global_path_iterator_ + 1;
         command_path.header.frame_id = world_frame_id;
         command_path.header.stamp = ros::Time::now();
-        command_Path_Publisher.publish(command_path);
-        planner_status_ = StageInterface::PlannerStatus::EXECUTING_PATH;
+        if (!command_path.poses.empty()) {
+          command_Path_Publisher.publish(command_path);
+        }
+      } else {
+        ROS_WARN_STREAM("Global route index " << global_path_iterator_ << " to "
+                                              << global_path_iterator_ + 1
+                                              << " is not traversable \n");
+        std::vector<geometry_msgs::Pose> improved_path;
+        std::vector<geometry_msgs::Pose> raw_path;
+        raw_path.clear();
+        improved_path.clear();
+        raw_path.push_back(path_orig_[global_path_iterator_]);
+        raw_path.push_back(path_orig_[global_path_iterator_ + 1]);
+        bool path_improvement_success = graph_manager_->improveFreePath(
+            raw_path, improved_path, true, false);
+
+        if (path_improvement_success) {
+          ROS_INFO("Improvement success \n");
+          for (int j = 0; j < improved_path.size(); j++) {
+            geometry_msgs::PoseStamped p2;
+            p2.pose = improved_path[j];
+            p2.header.stamp = ros::Time::now();
+            p2.header.frame_id = world_frame_id;
+            command_path.poses.push_back(p2);
+          }
+
+          if (!command_path.poses.empty()) {
+            ROS_INFO("Path improvement success! \n");
+            command_path.header.frame_id = world_frame_id;
+            command_path.header.stamp = ros::Time::now();
+            command_Path_Publisher.publish(command_path);
+          }
+        } else {
+          ROS_ERROR("No alternate solution found! :( \n");
+          planner_status_ = StageInterface::PlannerStatus::NOT_READY;
+
+          result_.success = false;
+          std::string path_status = "Next segment is not traversable";
+          feedback_.collision_segment_index = global_path_iterator_ + 1;
+          feedback_.status = path_status;
+          action_server_.setSucceeded(result_);
+          action_server_.publishFeedback(feedback_);
+          return;
+        }
       }
-    } else {
-      ROS_ERROR("No alternate solution found! :( \n");
-      planner_status_ = StageInterface::PlannerStatus::NOT_READY;
     }
+
+    // set feedback here
+
+    std::string path_status = "following path successfully ..";
+    feedback_.status = path_status;
+    action_server_.publishFeedback(feedback_);
+    rate.sleep();
+    ros::spinOnce();
   }
 }
 

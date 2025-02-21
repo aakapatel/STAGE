@@ -2,9 +2,11 @@
 #define STAGE_INTERFACE_H
 
 #include <actionlib/client/simple_action_client.h>
+#include <actionlib/server/simple_action_server.h>
 
 #include "graph_management.h"
 #include "stage_planner/pathFollowerActionAction.h"
+#include "scout_planner/pathFollowerActionAction.h"
 
 class StageInterface {
  public:
@@ -42,7 +44,6 @@ class StageInterface {
   void odometryCallback(const nav_msgs::Odometry& odom);
   void goalCallback(const geometry_msgs::PoseStamped::ConstPtr& goal_msg);
 
-  void globalRouteCallback(const nav_msgs::Path::ConstPtr& global_route);
   double calculateDistance(Eigen::Vector3d p1, Eigen::Vector3d p2);
   void segmentPath(const nav_msgs::Path& path, nav_msgs::Path& path_seg);
   void generateTrajectory(nav_msgs::Path);
@@ -57,7 +58,7 @@ class StageInterface {
   void callActionServer();
 
   void periodicTimerCallback(const ros::TimerEvent& event);
-  void globalRoutePeriodicTimerCallback(const ros::TimerEvent& event);
+  void actionGoalCallback(const scout_planner::pathFollowerActionGoalConstPtr &goal);
 
  private:
   ros::NodeHandle nh_;
@@ -91,7 +92,6 @@ class StageInterface {
   // Subscribers
   ros::Subscriber odometry_Subscriber_;
   ros::Subscriber goalSubscriber_;
-  ros::Subscriber global_route_subscriber_;
 
   // Services
   ros::ServiceServer planner_initialization_service_;
@@ -101,11 +101,23 @@ class StageInterface {
   ros::ServiceClient planner_land_client_;
   ros::ServiceClient planner_arming_client_;
   ros::ServiceClient planner_set_mode_client_;
+
+
+  actionlib::SimpleActionServer<scout_planner::pathFollowerActionAction> action_server_;
+  scout_planner::pathFollowerActionFeedback feedback_;
+  scout_planner::pathFollowerActionResult result_;
+
+  
+  nav_msgs::Path path_to_exec_;
+
+  // State variables
+  bool start_execution_ = false;
+
+
   // Timer
 
   ros::Time rostime_start_;
   ros::Timer planner_periodic_timer_;
-  ros::Timer global_route_periodic_timer_;
   double time_elapsed = 0.0;
 
   std::vector<geometry_msgs::PoseStamped> goal_path;
