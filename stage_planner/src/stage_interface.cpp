@@ -854,13 +854,9 @@ void StageInterface::generateTrajectory(nav_msgs::Path raw_path) {
   goal.path = goal_path;
   // Publish the trajectory --> Aerial robot
 
-  // commenting out for xFlie implementation. Only for Test and Debug purposes.
-
-  /*
   if (planning_params_.planner_mode == PlannerMode::kSim) {
     trajectory_Publisher.publish(trajectory_array_);
   }
-  */
 
 }  // generateTrajectory
 

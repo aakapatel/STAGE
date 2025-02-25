@@ -126,14 +126,14 @@ Visualization Manager:
     - Alpha: 0.10000000149011612
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 4.125
-        Min Value: -0.125
+        Max Value: 3.0500001907348633
+        Min Value: -0.3500000238418579
         Value: true
       Axis: Z
       Channel Name: intensity
       Class: rviz/PointCloud2
       Color: 93; 118; 123
-      Color Transformer: AxisColor
+      Color Transformer: FlatColor
       Decay Time: 0
       Enabled: true
       Invert Rainbow: false
@@ -276,13 +276,13 @@ Visualization Manager:
       Use rainbow: true
       Value: false
     - Class: rviz/MarkerArray
-      Enabled: false
-      Marker Topic: /hummingbird/random_nodes
+      Enabled: true
+      Marker Topic: /yolo/aligned_bounding_boxes
       Name: MarkerArray
       Namespaces:
         {}
       Queue Size: 100
-      Value: false
+      Value: true
     - Alpha: 1
       Axes Length: 1
       Axes Radius: 0.10000000149011612
@@ -355,7 +355,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 61.62715148925781
+      Distance: 31.585416793823242
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -363,9 +363,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 0.13632771372795105
-        Y: 0.004956711083650589
-        Z: 1.1298959255218506
+        X: 0.9896663427352905
+        Y: 2.7763941287994385
+        Z: 0.012205168604850769
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -373,7 +373,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: hummingbird/base_link
-      Yaw: 3.138610363006592
+      Yaw: 3.1454310417175293
     Saved: ~
 Window Geometry:
   Displays:
@@ -393,5 +393,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1876
-  X: 44
+  X: 72
   Y: 27
