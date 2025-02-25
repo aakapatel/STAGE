@@ -75,6 +75,9 @@
 #include <ros/ros.h>
 #include <ros/serialization.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <stage_planner/Edge.h>
+#include <stage_planner/Graph.h>
+#include <stage_planner/Vertex.h>
 #include <std_msgs/Bool.h>
 #include <std_msgs/ColorRGBA.h>
 #include <std_msgs/Float32MultiArray.h>
@@ -102,10 +105,7 @@
 #include "stage_planner/stopPlanning.h"
 #include "std_msgs/Int64.h"
 #include "trajectory.h"
-
-#include <stage_planner/Edge.h>
-#include <stage_planner/Graph.h>
-#include <stage_planner/Vertex.h>
+#include "xflie_msgs/CollisionCheck.h"
 
 typedef Eigen::Vector3d State;  // x, y, z
 

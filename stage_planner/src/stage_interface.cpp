@@ -62,6 +62,9 @@ void StageInterface::initializeAttributes() {
   planner_initialization_service_ = nh_.advertiseService(
       "initialize_planner", &StageInterface::initializePlanner, this);
 
+  collision_check_service_ = nh_.advertiseService(
+      "collision_check", &StageInterface::collisionCheckCallback, this);
+
   planner_stop_service_ =
       nh_.advertiseService("stop_planner", &StageInterface::stopPlanner, this);
 
@@ -232,10 +235,37 @@ void StageInterface::odometryCallback(const nav_msgs::Odometry& odom) {
   }
 }
 
+bool StageInterface::collisionCheckCallback(
+    xflie_msgs::CollisionCheck::Request& req,
+    xflie_msgs::CollisionCheck::Response& res) {
+  if (!odom_received) {
+    ROS_WARN("Odom not received - collision check service failed \n");
+    return false;
+  }
+
+  geometry_msgs::Point start = req.start;
+  geometry_msgs::Point end = req.end;
+
+  Eigen::Vector3d v(start.x, start.y, start.z);
+  Eigen::Vector3d v1(end.x, end.y, end.z);
+  MapManager::VoxelStatus vs =
+      map_manager_->getPathStatus(v, v1, robot_box_size_, true);
+  if (MapManager::VoxelStatus::kOccupied != vs) {
+    res.collision_status = false;
+    std::cout << "Collision check NOT OK \n" << std::endl;
+  } else {
+    res.collision_status = true;
+    std::cout << "Collision check OK \n" << std::endl;
+  }
+
+  return true;
+}
+
 bool StageInterface::initializePlanner(
     stage_planner::initializePlanning::Request& req,
     stage_planner::initializePlanning::Response& res) {
   if (!odom_received) {
+    ROS_WARN("Odom not received \n");
     return false;
   }
 
@@ -383,7 +413,7 @@ void StageInterface::actionGoalCallback(
   global_path_iterator_ = 0;
   command_path.poses.clear();
   re_planning_attempt_ = 0;
-  
+
   // Only for trajectory generation Debug purposes
   /*
   StageInterface::generateTrajectory(goal_path->path);
@@ -391,8 +421,7 @@ void StageInterface::actionGoalCallback(
                   << goal_path->path.poses.size()
                   << " & Generated trajectory length : "
                   << command_path.poses.size() << "\n");
-  */ 
-
+  */
 
   while (ros::ok()) {
     // Check if the action is preempted
@@ -445,8 +474,8 @@ void StageInterface::actionGoalCallback(
           p.pose.position.x = robotState_[0];
           p.pose.position.y = robotState_[1];
           p.pose.position.z = robotState_[2];
-          // p.pose.orientation =
-          //     path_to_exec_.poses[path_iterator_].pose.orientation;
+          p.pose.orientation =
+              path_to_exec_.poses[global_path_iterator_].pose.orientation;
 
         } else {
           p.pose.position.x =
@@ -455,11 +484,19 @@ void StageInterface::actionGoalCallback(
               path_to_exec_.poses[global_path_iterator_ - 1].pose.position.y;
           p.pose.position.z =
               path_to_exec_.poses[global_path_iterator_ - 1].pose.position.z;
-          // p.pose.orientation =
-          //     path_to_exec_.poses[path_iterator_ - 1].pose.orientation;
+          p.pose.orientation =
+              path_to_exec_.poses[global_path_iterator_ - 1].pose.orientation;
         }
-        geometry_msgs::PoseStamped p1 =
-            path_to_exec_.poses[global_path_iterator_];
+        geometry_msgs::PoseStamped p1;
+
+        p1.pose.position.x =
+            path_to_exec_.poses[global_path_iterator_].pose.position.x;
+        p1.pose.position.y =
+            path_to_exec_.poses[global_path_iterator_].pose.position.y;
+        p1.pose.position.z =
+            path_to_exec_.poses[global_path_iterator_].pose.position.z;
+        p1.pose.orientation =
+            path_to_exec_.poses[global_path_iterator_].pose.orientation;
 
         p.header.stamp = p1.header.stamp = ros::Time::now();
         p.header.frame_id = p1.header.frame_id = world_frame_id;
@@ -480,10 +517,9 @@ void StageInterface::actionGoalCallback(
             command_Path_Publisher.publish(command_path);
           }
         } else {
-          ROS_WARN_STREAM("Global route index " << global_path_iterator_ - 1
-                                                << " to "
-                                                << global_path_iterator_
-                                                << " is not traversable \n");
+          ROS_WARN_STREAM("Global route index "
+                          << global_path_iterator_ - 1 << " to "
+                          << global_path_iterator_ << " is not traversable \n");
 
           StateVec s = StateVec::Zero();
           s[0] = final_pos[0];
@@ -494,7 +530,6 @@ void StageInterface::actionGoalCallback(
           bool re_planning_success = false;
 
           while (global_temp_path.poses.empty() and re_planning_attempt_ < 10) {
-            
             re_planning_attempt_++;
             global_temp_path = graph_manager_->runPlannerkManualMode(s);
             if (!global_temp_path.poses.empty()) {
@@ -507,9 +542,8 @@ void StageInterface::actionGoalCallback(
               re_planning_success = true;
               break;
             }
-          } 
+          }
           if (!re_planning_success) {
-
             ROS_ERROR("No alternate solution found! :( \n");
 
             result_.success = false;

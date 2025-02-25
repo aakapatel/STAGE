@@ -59,6 +59,8 @@ class StageInterface {
 
   void periodicTimerCallback(const ros::TimerEvent& event);
   void actionGoalCallback(const scout_planner_msgs::scoutExecutePathActionGoalConstPtr &goal);
+  bool collisionCheckCallback(xflie_msgs::CollisionCheck::Request& req,
+                         xflie_msgs::CollisionCheck::Response& res);
 
  private:
   ros::NodeHandle nh_;
@@ -102,6 +104,7 @@ class StageInterface {
   ros::ServiceClient planner_arming_client_;
   ros::ServiceClient planner_set_mode_client_;
 
+  ros::ServiceServer collision_check_service_;
 
   actionlib::SimpleActionServer<scout_planner_msgs::scoutExecutePathActionAction> action_server_;
   scout_planner_msgs::scoutExecutePathActionFeedback feedback_;

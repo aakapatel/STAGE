@@ -37,6 +37,7 @@
   <build_depend>voxblox_ros</build_depend>
   <build_depend>voxblox</build_depend>
   <build_depend>scout_planner_msgs</build_depend>
+  <build_depend>xflie_msgs</build_depend>
 
 <!-- <build_depend>exploration</build_depend> -->
   <exec_depend>roscpp_serialization</exec_depend>
@@ -56,6 +57,7 @@
   <exec_depend>voxblox_ros</exec_depend>
   <exec_depend>voxblox</exec_depend>  
   <exec_depend>scout_planner_msgs</exec_depend>  
+  <exec_depend>xflie_msgs</exec_depend>  
 
 
   <!-- The export tag contains other, unspecified, tags -->

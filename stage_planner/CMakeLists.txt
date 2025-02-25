@@ -73,6 +73,7 @@ find_package(catkin REQUIRED COMPONENTS
   voxblox_ros
   voxblox
   scout_planner_msgs
+  xflie_msgs
 )
 
 find_package(catkin_simple REQUIRED)
