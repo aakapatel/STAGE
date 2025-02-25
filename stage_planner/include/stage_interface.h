@@ -145,6 +145,7 @@ class StageInterface {
   int path_iterator_ = 0;
   int global_path_iterator_ = 0;
   int planning_iteration_ = 0;
+  int re_planning_attempt_ = 0;
 
   bool firstTime;
   bool planner_initialized = false;
