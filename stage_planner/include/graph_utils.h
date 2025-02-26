@@ -228,6 +228,7 @@ struct Vertex {
     is_cluster_centroid = false;
     is_hanging = false;
     is_inside_frustum = false;
+    is_semantic = false;
     cluster_id = -1;
     sub_id = 0;
     sub_graph_id = 0;
@@ -268,6 +269,8 @@ struct Vertex {
   bool is_hanging;
   // if point inside frustum
   bool is_inside_frustum;
+  // if vertex is semantic label
+  bool is_semantic;
   // cluster id
   int cluster_id;
   // Sub graph id to keep track while adding to global graph
@@ -385,6 +388,7 @@ class GraphUtils {
   std::vector<int> state_ids_;
   std::list<int> frontier_vertices_ids_;
   std::vector<int> leaf_vertices_ids_;
+  std::vector<int> semantic_vertices_ids_;
 
  private:
   // IDs are non-negative integer from 0 (root node)

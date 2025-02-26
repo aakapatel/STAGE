@@ -187,9 +187,9 @@ void GraphManager::setState(StateVec& state) {
     prev_state = state;
   }
   robotState_ = state;
-  if ((prev_state.head(3) - robotState_.head(3)).norm() > 1.9) {
+  if ((prev_state.head(3) - robotState_.head(3)).norm() > 1.0) {
     StateVec* nearest_state = nullptr;
-    if (!robot_state_hist_->getNearestStateInRange(&robotState_, 1.8,
+    if (!robot_state_hist_->getNearestStateInRange(&robotState_, 0.4,
                                                    &nearest_state)) {
       GraphManager::updateGlobalGraph();
     }
@@ -1847,6 +1847,80 @@ GraphManager::GraphStatus GraphManager::buildGraph(
   return build_graph_status;
 }
 
+void GraphManager::insertSemanticsToGraph(
+    std::shared_ptr<GraphUtils> graph,
+    std::vector<geometry_msgs::Point> semantics_positions) {
+  
+  graph->semantic_vertices_ids_.clear();
+
+  for (int i = 0; i < semantics_positions.size(); i++) {
+    
+    StateVec state =
+        Eigen::Vector4d(semantics_positions[i].x, semantics_positions[i].y,
+                        semantics_positions[i].z, 0.0);
+    
+    if(graph->stateExist(&state)) {
+      continue;
+    }
+
+    Vertex* vertex = new Vertex(graph->generateVertexID(), state);
+    vertex->is_semantic = true;
+    graph->addVertex(vertex);
+    
+    // Add vertex id to semantic vertices ids to only form edges with semantic nodes. 
+    graph->semantic_vertices_ids_.push_back(vertex->id);
+
+  }
+
+  // Iterate through the graph and if vertex is a semantic, form new edges with
+  // nearest neighbours of the semantic vertex.
+
+  for (int it = 0; it < graph->semantic_vertices_ids_.size(); ++it) {
+
+    int id = graph->semantic_vertices_ids_[it];
+
+    // Get nearby vertices from the current vertex and connect the them to form
+    // local edges
+    std::vector<Vertex*> nearby_vertices;
+    graph->getNearestVertices(&graph->vertices_map_[id]->state,
+                              1.5 * planning_params_.nearest_range,
+                              &nearby_vertices);
+
+    for (int i = 0; i < nearby_vertices.size(); i++) {
+
+      if (graph->vertices_map_[id]->is_semantic and nearby_vertices[i]->is_semantic) {
+        continue;
+      }
+
+      Eigen::Vector3d v1(graph->vertices_map_[id]->state[0],
+                         graph->vertices_map_[id]->state[1],
+                         graph->vertices_map_[id]->state[2]);
+
+      Eigen::Vector3d v2(nearby_vertices[i]->state[0],
+                         nearby_vertices[i]->state[1],
+                         nearby_vertices[i]->state[2]);
+      MapManager::VoxelStatus vn =
+          map_manager_->getPathStatus(v1, v2, robot_box_size_, true);
+
+      double edge_length = graph->distanceBetweenVertices(
+          graph->vertices_map_[id], nearby_vertices[i]);
+
+      // if (edge_length < 2 * planning_params_.edge_length_max and
+      //     MapManager::VoxelStatus::kFree == vn) {
+      
+
+      if (edge_length < 1.5 * planning_params_.edge_length_max and graph->vertices_map_[id]->edges < 4) {
+        
+        graph->addEdge(graph->vertices_map_[id], nearby_vertices[i],
+                       graph->distanceBetweenVertices(graph->vertices_map_[id],
+                                                      nearby_vertices[i]));
+      }
+    }
+  }
+
+
+}
+
 nav_msgs::Path GraphManager::runPlannerkManualMode(StateVec s) {
   GraphManager::GraphStatus local_planner_status =
       GraphManager::GraphStatus::NOT_OK;
@@ -2387,6 +2461,16 @@ void GraphManager::updateGlobalGraph() {
   }
 
   prev_pose_vertex_ = vertex;
+
+  if (!semantics_.empty()) {
+
+    GraphManager::insertSemanticsToGraph(global_graph_, semantics_);
+    
+    stage_planner::Graph graph_msg;
+    global_graph_->convertGraphToMsg(graph_msg);
+    visualization_server_->publishSemanticGraph(graph_msg);
+
+  }
 
   visualization_server_->visualizeGlobalGraph(global_graph_);
 

@@ -33,6 +33,9 @@ void StageInterface::initializeAttributes() {
   goalSubscriber_ = nh_.subscribe("/move_base_simple/goal", 1,
                                   &StageInterface::goalCallback, this);
 
+  semantics_Subscriber_ = nh_.subscribe("/yolo/aligned_bounding_boxes", 100, 
+                                            &StageInterface::semanticsCallback, this); 
+
   trajectory_Publisher =
       nh_.advertise<trajectory_msgs::MultiDOFJointTrajectory>(
           "command/trajectory", 1, true);
@@ -578,6 +581,31 @@ void StageInterface::actionGoalCallback(
     rate.sleep();
     ros::spinOnce();
   }
+}
+
+
+void StageInterface::semanticsCallback(
+    const visualization_msgs::MarkerArray::ConstPtr& semantics_msg) { 
+  
+  // Create a vector to store the positions of markers
+  
+  graph_manager_->semantics_.clear();
+
+  // Iterate through all the markers in the MarkerArray
+  for (const auto& marker : semantics_msg->markers) {
+    // Extract the position from each marker's pose
+    const geometry_msgs::Point& position = marker.pose.position;
+
+    // Store the position in the vector
+    graph_manager_->semantics_.push_back(position);
+  }
+
+  /*graph_manager_->resetSparseGraph();*/
+  /*graph_manager_->sparse_graph_ = graph_manager_->global_graph_;*/
+  /*graph_manager_->insertSemanticsToGraph(graph_manager_->global_graph_, marker_positions);*/
+  /*visualization_server_->visualizeSparseGraph(graph_manager_->sparse_graph_);*/
+
+
 }
 
 void StageInterface::goalCallback(

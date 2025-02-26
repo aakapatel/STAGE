@@ -40,6 +40,8 @@ class VisualizationServer {
   void visualizeExplorationPath(nav_msgs::Path exploration_path);
   void visualizeRawPath(nav_msgs::Path raw_path);
   void visualizePclMap(const pcl::PointCloud<pcl::PointXYZ>* pcl);
+  void publishSemanticGraph(stage_planner::Graph graph_msg);
+
 
   // Set the fixed frame of the mission for visualization
   void setGlobalFrame(std::string frame_id) { world_frame_id = frame_id; }
@@ -64,6 +66,7 @@ class VisualizationServer {
   ros::Publisher sparse_Graph_Vis_Pub_;
   ros::Publisher exploration_Direction_Vis_Pub;
   ros::Publisher pcl_Pub_;
+  ros::Publisher semantic_graph_publisher_;
 
   std::string world_frame_id;
 };

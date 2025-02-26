@@ -1,5 +1,6 @@
 int32 id
 geometry_msgs/Pose pose
+bool is_semantic
 
 # For volumetric gain
 int32 num_unknown_voxels

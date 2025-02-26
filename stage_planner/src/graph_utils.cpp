@@ -420,6 +420,8 @@ void GraphUtils::convertGraphToMsg(stage_planner::Graph& graph_msg) {
     vertex.num_occupied_voxels = v.second->vol_gain.num_occupied_voxels;
     vertex.num_free_voxels = v.second->vol_gain.num_free_voxels;
     vertex.is_frontier = v.second->vol_gain.is_frontier;
+    vertex.is_semantic = v.second->is_semantic;
+
     graph_msg.vertices.emplace_back(vertex);
   }
 

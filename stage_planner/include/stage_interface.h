@@ -43,6 +43,7 @@ class StageInterface {
   Eigen::Quaternion<float> Euler2Quaternion(Eigen::Vector3d v);
   void odometryCallback(const nav_msgs::Odometry& odom);
   void goalCallback(const geometry_msgs::PoseStamped::ConstPtr& goal_msg);
+  void semanticsCallback(const visualization_msgs::MarkerArray::ConstPtr& semantics_msg);
 
   double calculateDistance(Eigen::Vector3d p1, Eigen::Vector3d p2);
   void segmentPath(const nav_msgs::Path& path, nav_msgs::Path& path_seg);
@@ -94,6 +95,7 @@ class StageInterface {
   // Subscribers
   ros::Subscriber odometry_Subscriber_;
   ros::Subscriber goalSubscriber_;
+  ros::Subscriber semantics_Subscriber_;
 
   // Services
   ros::ServiceServer planner_initialization_service_;

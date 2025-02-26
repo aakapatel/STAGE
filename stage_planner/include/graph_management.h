@@ -64,6 +64,10 @@ class GraphManager {
                         Vertex* new_vertex, ExpandGraphReport& rep);
   GraphStatus buildGraph(std::shared_ptr<GraphUtils> graph, bool manual_mode);
 
+  void insertSemanticsToGraph(
+      std::shared_ptr<GraphUtils> graph,
+      std::vector<geometry_msgs::Point> semantics_positions);
+
   Eigen::Quaternion<float> Euler2Quaternion(Eigen::Vector3d v);
 
   bool extractShortestPaths(std::shared_ptr<GraphUtils> graph,
@@ -152,7 +156,16 @@ class GraphManager {
   GraphStatus graph_status_ = GraphManager::GraphStatus::OK;
 
 
- private:
+  std::shared_ptr<GraphUtils> global_graph_;
+  std::shared_ptr<GraphUtils> sparse_graph_;
+  ShortestPathsReport global_graph_rep_;
+  ShortestPathsReport sparse_graph_rep_;
+  std::vector<geometry_msgs::Point> semantics_;
+
+
+
+
+private:
   ros::NodeHandle nh_;
   ros::NodeHandle nh_private_;
   MapManagerVoxblox<MapManagerVoxbloxServer, MapManagerVoxbloxVoxel>*
@@ -181,11 +194,11 @@ class GraphManager {
   StateVec prev_state = Eigen::Vector4d(0, 0, 0, 0);
   std::shared_ptr<GraphUtils> local_graph_;
   std::shared_ptr<GraphUtils> projected_graph_;
-  std::shared_ptr<GraphUtils> global_graph_;
+  /*std::shared_ptr<GraphUtils> global_graph_;*/
   std::shared_ptr<GraphUtils> path_ways_graph_;
   std::shared_ptr<GraphUtils> improvement_graph_;
   std::shared_ptr<GraphUtils> pose_graph_;
-  std::shared_ptr<GraphUtils> sparse_graph_;
+  /*std::shared_ptr<GraphUtils> sparse_graph_;*/
 
   std::shared_ptr<GeofenceManager> geofence_manager_;
   std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> obs_pcl_;
@@ -199,12 +212,12 @@ class GraphManager {
   kdtree* kd_tree_;
 
   ShortestPathsReport local_graph_rep_;
-  ShortestPathsReport global_graph_rep_;
+  /*ShortestPathsReport global_graph_rep_;*/
   ShortestPathsReport homing_graph_rep_;
   ShortestPathsReport improvement_graph_rep_;
   ShortestPathsReport path_ways_graph_rep_;
   ShortestPathsReport pose_graph_rep_;
-  ShortestPathsReport sparse_graph_rep_;
+  /*ShortestPathsReport sparse_graph_rep_;*/
 
   // boolean
   bool odometry_ready = false;

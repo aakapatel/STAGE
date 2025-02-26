@@ -47,6 +47,10 @@ VisualizationServer::VisualizationServer(const ros::NodeHandle& nh,
 
   sparse_Graph_Vis_Pub_ =
       nh_.advertise<visualization_msgs::MarkerArray>("sparse_graph", 10);
+  
+  semantic_graph_publisher_ = 
+      nh_.advertise<stage_planner::Graph>("semantic_graph", 10);
+
 }
 
 std_msgs::ColorRGBA VisualizationServer::getGainColor(double h) {
@@ -854,6 +858,12 @@ void VisualizationServer::visualizeRawPath (nav_msgs::Path raw_path) {
   raw_path.header.frame_id = world_frame_id;
   raw_path.header.stamp = ros::Time::now();
   raw_Path_Vis_Pub.publish(raw_path);
+}
+
+void VisualizationServer::publishSemanticGraph (stage_planner::Graph graph) {
+
+  semantic_graph_publisher_.publish(graph);
+  ROS_INFO("Published semantic graph \n");
 }
 
 void VisualizationServer::visualizePclMap(
