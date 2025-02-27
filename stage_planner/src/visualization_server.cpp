@@ -7,9 +7,8 @@ VisualizationServer::VisualizationServer(const ros::NodeHandle& nh,
 
   exploration_Path_Vis_Pub =
       nh_.advertise<nav_msgs::Path>("exploration_path", 10);
-  
-  raw_Path_Vis_Pub =
-      nh_.advertise<nav_msgs::Path>("raw_path", 10);
+
+  raw_Path_Vis_Pub = nh_.advertise<nav_msgs::Path>("raw_path", 10);
 
   homing_Path_Vis_Pub = nh_.advertise<nav_msgs::Path>("homing_path", 10);
 
@@ -45,12 +44,11 @@ VisualizationServer::VisualizationServer(const ros::NodeHandle& nh,
   random_Nodes_Vis_Pub_ =
       nh_.advertise<visualization_msgs::MarkerArray>("random_nodes", 10);
 
-  sparse_Graph_Vis_Pub_ =
-      nh_.advertise<visualization_msgs::MarkerArray>("sparse_graph", 10);
-  
-  semantic_graph_publisher_ = 
-      nh_.advertise<stage_planner::Graph>("semantic_graph", 10);
+  dense_graph_Vis_Pub_ =
+      nh_.advertise<visualization_msgs::MarkerArray>("dense_graph", 10);
 
+  semantic_graph_publisher_ =
+      nh_.advertise<stage_planner::Graph>("semantic_graph", 10);
 }
 
 std_msgs::ColorRGBA VisualizationServer::getGainColor(double h) {
@@ -411,7 +409,7 @@ void VisualizationServer::visualizeLocalGraph(
     vertex_marker.colors.push_back(getGainColor(h));
     vertex_marker.points.push_back(p1);
     if (v_map[id]->vol_gain.is_frontier) {
-    // if (v_map[id]->is_leaf_vertex) {
+      // if (v_map[id]->is_leaf_vertex) {
       geometry_msgs::Point p1;
       p1.x = v_map[id]->state[0];
       p1.y = v_map[id]->state[1];
@@ -455,7 +453,6 @@ void VisualizationServer::visualizeGlobalGraph(
     int src_id, tgt_id;
     double weight;
     std::tie(src_id, tgt_id, weight) = g->getEdgeProperty(it);
-    
 
     geometry_msgs::Point p1;
     p1.x = v_map[src_id]->state[0];
@@ -466,11 +463,9 @@ void VisualizationServer::visualizeGlobalGraph(
     p2.y = v_map[tgt_id]->state[1];
     p2.z = v_map[tgt_id]->state[2];
     if (v_map[src_id]->is_semantic) {
-        
       p1.z = v_map[src_id]->state[2] + 5;
     }
     if (v_map[tgt_id]->is_semantic) {
-        
       p2.z = v_map[tgt_id]->state[2] + 5;
     }
 
@@ -514,7 +509,6 @@ void VisualizationServer::visualizeGlobalGraph(
   frontier_vertex_marker.color.a = 1.0;
   frontier_vertex_marker.frame_locked = false;
 
-
   visualization_msgs::Marker semantic_vertex;
   semantic_vertex.header.stamp = ros::Time::now();
   semantic_vertex.header.seq = 0;
@@ -531,7 +525,6 @@ void VisualizationServer::visualizeGlobalGraph(
   semantic_vertex.color.b = 0.0 / 255.0;
   semantic_vertex.color.a = 1.0;
   semantic_vertex.frame_locked = false;
-
 
   std::pair<Graph::GraphType::vertex_iterator,
             Graph::GraphType::vertex_iterator>
@@ -556,7 +549,6 @@ void VisualizationServer::visualizeGlobalGraph(
 
       semantic_vertex.points.push_back(p1);
     }
-
 
     geometry_msgs::Point p1;
     p1.x = v_map[id]->state[0];
@@ -689,12 +681,12 @@ void VisualizationServer::visualizeGlobalPaths(
   global_Paths_Vis_Pub_.publish(marker_array);
 }
 
-void VisualizationServer::visualizeSparseGraph(
-    std::shared_ptr<GraphUtils> sparse_graph) {
-  if (sparse_graph->getNumVertices() == 0) return;
+void VisualizationServer::visualizeDenseGraph(
+    std::shared_ptr<GraphUtils> dense_graph) {
+  if (dense_graph->getNumVertices() == 0) return;
 
-  std::shared_ptr<Graph> g = sparse_graph->graph_;
-  std::unordered_map<int, Vertex*>& v_map = sparse_graph->vertices_map_;
+  std::shared_ptr<Graph> g = dense_graph->graph_;
+  std::unordered_map<int, Vertex*>& v_map = dense_graph->vertices_map_;
 
   visualization_msgs::MarkerArray marker_array;
   visualization_msgs::Marker edge_marker;
@@ -727,6 +719,12 @@ void VisualizationServer::visualizeSparseGraph(
     p2.x = v_map[tgt_id]->state[0];
     p2.y = v_map[tgt_id]->state[1];
     p2.z = v_map[tgt_id]->state[2];
+    if (v_map[src_id]->is_semantic) {
+      p1.z = v_map[src_id]->state[2] + 5;
+    }
+    if (v_map[tgt_id]->is_semantic) {
+      p2.z = v_map[tgt_id]->state[2] + 5;
+    }
     edge_marker.points.push_back(p1);
     edge_marker.points.push_back(p2);
   }
@@ -766,12 +764,30 @@ void VisualizationServer::visualizeSparseGraph(
   frontier_vertex_marker.color.a = 0.8;
   frontier_vertex_marker.frame_locked = false;
 
+  visualization_msgs::Marker semantic_vertex;
+  semantic_vertex.header.stamp = ros::Time::now();
+  semantic_vertex.header.seq = 0;
+  semantic_vertex.header.frame_id = world_frame_id;
+  semantic_vertex.id = 0;
+  semantic_vertex.ns = "semantic";
+  semantic_vertex.action = visualization_msgs::Marker::ADD;
+  semantic_vertex.type = visualization_msgs::Marker::SPHERE_LIST;
+  semantic_vertex.scale.x = 0.5;
+  semantic_vertex.scale.y = 0.5;
+  semantic_vertex.scale.z = 0.5;
+  semantic_vertex.color.r = 0.0 / 255.0;
+  semantic_vertex.color.g = 255.0 / 255.0;
+  semantic_vertex.color.b = 0.0 / 255.0;
+  semantic_vertex.color.a = 1.0;
+  semantic_vertex.frame_locked = false;
+
   std::pair<Graph::GraphType::vertex_iterator,
             Graph::GraphType::vertex_iterator>
       vi;
   g->getVertexIterator(vi);
   for (Graph::GraphType::vertex_iterator it = vi.first; it != vi.second; ++it) {
     int id = g->getVertexProperty(it);
+
     if (v_map[id]->vol_gain.is_frontier) {
       geometry_msgs::Point p1;
       p1.x = v_map[id]->state[0];
@@ -779,6 +795,13 @@ void VisualizationServer::visualizeSparseGraph(
       p1.z = v_map[id]->state[2];
 
       frontier_vertex_marker.points.push_back(p1);
+    } else if (v_map[id]->is_semantic) {
+      geometry_msgs::Point p1;
+      p1.x = v_map[id]->state[0];
+      p1.y = v_map[id]->state[1];
+      p1.z = v_map[id]->state[2] + 5;
+
+      semantic_vertex.points.push_back(p1);
     } else {
       geometry_msgs::Point p1;
       p1.x = v_map[id]->state[0];
@@ -790,7 +813,8 @@ void VisualizationServer::visualizeSparseGraph(
   }
   marker_array.markers.push_back(vertex_marker);
   marker_array.markers.push_back(frontier_vertex_marker);
-  sparse_Graph_Vis_Pub_.publish(marker_array);
+  marker_array.markers.push_back(semantic_vertex);
+  dense_graph_Vis_Pub_.publish(marker_array);
 }
 
 void VisualizationServer::visualizePoseGraph(
@@ -894,14 +918,13 @@ void VisualizationServer::visualizeExplorationPath(
   exploration_Path_Vis_Pub.publish(exploration_path);
 }
 
-void VisualizationServer::visualizeRawPath (nav_msgs::Path raw_path) {
+void VisualizationServer::visualizeRawPath(nav_msgs::Path raw_path) {
   raw_path.header.frame_id = world_frame_id;
   raw_path.header.stamp = ros::Time::now();
   raw_Path_Vis_Pub.publish(raw_path);
 }
 
-void VisualizationServer::publishSemanticGraph (stage_planner::Graph graph) {
-
+void VisualizationServer::publishSemanticGraph(stage_planner::Graph graph) {
   semantic_graph_publisher_.publish(graph);
   ROS_INFO("Published semantic graph \n");
 }

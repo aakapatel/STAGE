@@ -40,18 +40,21 @@ class GraphNode:
         self.vertex_coordinates = np.array(self.vertex_coordinates)
 
         # Create or update the adjacency matrix
-        self.adjacency_matrix = np.array([[0] * num_vertices for _ in range(num_vertices)])  # Convert to NumPy array
+        self.adjacency_matrix = np.zeros((num_vertices, num_vertices), dtype=int)  # Initialize with zeros
         
         for edge in msg.edges:
             source_id = edge.source_id
             target_id = edge.target_id
-            self.adjacency_matrix[source_id][target_id] = 1  # Mark the edge in the adjacency matrix
+            self.adjacency_matrix[source_id, target_id] = 1  # Mark the edge in the adjacency matrix
+            self.adjacency_matrix[target_id, source_id] = 1  # Mark the edge in the adjacency matrix
+
+        # print(self.adjacency_matrix)
 
         rospy.loginfo("Adjacency matrix created. Propagating weights.")
         # Propagate
         weight_matrix = self.propagate_weights_adaptive(self.vertex_coordinates,self.is_semantic_list,self.adjacency_matrix)
-        print(f"Received {list(weight_matrix)} vertices from the graph message.")
-        cluster_centroids, object_cluster_matrix = self.cluster_objects(self.vertex_coordinates,self.is_semantic_list,self.adjacency_matrix, weight_matrix, z_threshold=2)
+        # print(*weight_matrix)
+        cluster_centroids, object_cluster_matrix = self.cluster_objects(self.vertex_coordinates,self.is_semantic_list,self.adjacency_matrix, weight_matrix, z_threshold=10)
         rospy.loginfo(f"Clustered objects into {len(cluster_centroids)} clusters.")
         marker_array = self.create_marker_array(self.vertex_coordinates, cluster_centroids, object_cluster_matrix)
         
@@ -90,42 +93,41 @@ class GraphNode:
         
         # Calculate the edge propagation value for each object node based on the distance to its 3 closest object nodes.
         for idx in object_indices:
-            # Find the 3 closest object nodes to the current object node.
-            closest_neighbors = np.argsort(adjacency_matrix[idx])[:3]
-            # Calculate the distance (number of edges) to each of the closest neighbors using BFS.
-            distances = []
-            for neighbor in closest_neighbors:
-                if neighbor != idx:  # Avoid self-loop
-                    # Perform BFS to find the shortest path
-                    visited = np.zeros(num_nodes, dtype=bool)
-                    queue_bfs = deque([idx])
-                    visited[idx] = True
-                    distance = 0
-                    found = False
-                    
-                    while queue_bfs and not found:
-                        for _ in range(len(queue_bfs)):
-                            current = queue_bfs.popleft()
-                            if current == neighbor:
-                                found = True
-                                break
-                            for next_node in np.where(adjacency_matrix[current] == 1)[0]:
-                                if not visited[next_node]:
-                                    visited[next_node] = True
-                                    queue_bfs.append(next_node)
-                        distance += 1
-                    
-                    if found:
-                        distances.append(distance)
+            # Find the distances to all other nodes using BFS
+            distances = np.full(num_nodes, np.inf)  # Initialize distances with infinity
+            distances[idx] = 0  # Distance to itself is 0
+            queue_bfs = deque([idx])
+            
+            while queue_bfs:
+                current = queue_bfs.popleft()
+                for neighbor in np.where(adjacency_matrix[current] == 1)[0]:
+                    if distances[neighbor] == np.inf:  # Not visited
+                        distances[neighbor] = distances[current] + 1
+                        queue_bfs.append(neighbor)
 
-            # Calculate the minimum distance and use its integer part as the edge propagation value.
-            if distances:
-                min_distance = np.min(distances)
-                edge_propagation = int(min_distance/2 + 1)
+            # Find the 3 closest object nodes based on the calculated distances
+            closest_neighbors = np.argsort(distances[object_indices])[:3]  # Sort only among object nodes
+            closest_neighbors = [object_indices[i] for i in closest_neighbors]  # Get global indices
+            
+            # Calculate the edge propagation value based on the mean distance - min distance of the closest neighbors
+            if closest_neighbors:
+                min_distance = distances[closest_neighbors[0]]
+                total_distance = sum(distances[neighbor] for neighbor in closest_neighbors if distances[neighbor] < np.inf)
+                mean_distance = total_distance / len(closest_neighbors)
+                edge_propagation = int(mean_distance - min_distance)
             else:
-                edge_propagation = 0  # Default if no distances found
+                edge_propagation = 0
 
-            # print(edge_propagation)
+            # print(total_distance)
+                    
+            # # Calculate the edge propagation value based on the closest neighbors
+            # edge_propagation = np.inf
+            # for neighbor in closest_neighbors:
+            #     if distances[neighbor] < np.inf:  # Ensure the neighbor is reachable
+            #         edge_propagation = min(edge_propagation, int(distances[neighbor] / 2 + 2))
+
+            print(edge_propagation)
+
             # rospy.loginfo(f"Edge propagation value for node {idx}: {edge_propagation}")
             
             if edge_propagation > max_prop[idx]:
@@ -156,73 +158,84 @@ class GraphNode:
     def cluster_objects(self, nodes, object_nodes, adjacency_matrix, weight_matrix, z_threshold):
         """
         Correctly clusters object nodes based on connectivity through edges with weight > 0.
+        
+        Args:
+            nodes (list or np.ndarray): List of existing node coordinates.
+            object_nodes (list of bool): List of booleans indicating which nodes are objects.
+            adjacency_matrix (np.ndarray): Adjacency matrix for the entire graph.
         """
         num_places = len(nodes) - sum(object_nodes)  # Calculate number of places based on object_nodes
         num_objects = sum(object_nodes)  # Count the number of objects
         total_nodes = len(nodes)  # Total nodes is now just the length of nodes
 
         # Validate input shapes
-        assert adjacency_matrix.shape == (total_nodes, total_nodes), "Adjacency matrix shape mismatch"
-        assert weight_matrix.shape == (total_nodes, total_nodes), "Weight matrix shape mismatch"
+        # assert adjacency_matrix.shape == (total_nodes, total_nodes), "Adjacency matrix shape mismatch"
+        # assert weight_matrix.shape == (total_nodes, total_nodes), "Weight matrix shape mismatch"
+
+        # Debugging: Log the adjacency and weight matrices
+        rospy.loginfo(f"Adjacency Matrix: {adjacency_matrix}")
+        rospy.loginfo(f"Weight Matrix: {weight_matrix}")
 
         # Track visited status for all nodes
         visited_all = np.zeros(total_nodes, dtype=bool)
 
         # Track clustered object nodes
+        object_indices = [i for i in range(total_nodes) if object_nodes[i]]  # List of indices for object nodes
+        num_objects = len(object_indices)  # Count the number of objects
         object_visited = np.zeros(num_objects, dtype=bool)
         clusters = []
 
-        for i in range(total_nodes):
-            if object_nodes[i]:
-                local_idx = i - num_places  # Adjusted index for object tracking
-                if local_idx >= 0 and not object_visited[local_idx]:  # Ensure local_idx is valid
-                    start_global = i
-                    if visited_all[start_global]:
-                        continue
+        for start_global in object_indices:
+            local_idx = object_indices.index(start_global)  # Get the local index based on object_indices
+            if object_visited[local_idx]:  # Ensure local_idx is valid
+                continue
 
-                    queue = deque([start_global])
-                    cluster = []
-                    visited_all[start_global] = True
+            queue = deque([start_global])
+            cluster = []
+            visited_all[start_global] = True
 
-                    while queue:
-                        current_global = queue.popleft()
+            while queue:
+                current_global = queue.popleft()
 
-                        # Add object nodes to the cluster
-                        if object_nodes[current_global]:
-                            local_idx = current_global - num_places
-                            if not object_visited[local_idx]:
-                                object_visited[local_idx] = True
-                                cluster.append(local_idx)
+                # Add object nodes to the cluster
+                if object_nodes[current_global]:
+                    local_idx = object_indices.index(current_global)  # Get the local index based on object_indices
+                    if not object_visited[local_idx]:
+                        object_visited[local_idx] = True
+                        cluster.append(local_idx)
 
-                        # Find valid neighbors (adjacent + weight > 0)
-                        neighbors = np.where(
-                            (adjacency_matrix[current_global] == 1) & 
-                            (weight_matrix[current_global] > 0)
-                        )[0]
+                # Find valid neighbors (adjacent + weight > 0)
+                neighbors = np.where(
+                    (adjacency_matrix[current_global] == 1) & 
+                    (weight_matrix[current_global] > 0)
+                )[0]
 
-                        for neighbor in neighbors:
-                            if not visited_all[neighbor]:
-                                visited_all[neighbor] = True
-                                queue.append(neighbor)
+                for neighbor in neighbors:
+                    if not visited_all[neighbor]:
+                        visited_all[neighbor] = True
+                        queue.append(neighbor)
 
-                    if cluster:
-                        clusters.append(cluster)
+            if cluster:
+                clusters.append(cluster)
 
         # Log the identified clusters
-        # rospy.loginfo(f"Identified clusters: {clusters}")
+        rospy.loginfo(f"Identified clusters: {clusters}")
 
         # Compute cluster centroids with Z adjustment
         cluster_centroids = []
         for cluster in clusters:
-            centroid = np.mean(nodes[cluster], axis=0)  # Ensure nodes is a NumPy array
+            # Use global indices to access the nodes
+            global_indices = [object_indices[local_idx] for local_idx in cluster]
+            centroid = np.mean(nodes[global_indices], axis=0)  # Ensure nodes is a NumPy array
             centroid[2] = z_threshold  # Adjust Z coordinate
             cluster_centroids.append(centroid.tolist())
 
         # Build object-cluster adjacency matrix
-        object_cluster_matrix = np.zeros((len(clusters), total_nodes), dtype=int)  # Adjusted shape
+        object_cluster_matrix = np.zeros((len(nodes), len(clusters)), dtype=int)  # Adjusted shape
         for cluster_idx, cluster in enumerate(clusters):
-            for obj_idx in cluster:
-                object_cluster_matrix[cluster_idx, obj_idx] = 1  # Connect clusters to their objects
+            for local_idx in cluster:
+                global_idx = object_indices[local_idx]  # Get the global index from the local index
+                object_cluster_matrix[global_idx, cluster_idx] = 1  # Connect clusters to their objects
 
         return cluster_centroids, object_cluster_matrix
 
@@ -252,7 +265,7 @@ class GraphNode:
 
             # Create line markers from centroid to its respective objects
             for obj_idx in range(len(vertex_coordinates)):
-                if object_cluster_matrix[idx][obj_idx] == 1:  # If the object belongs to this cluster
+                if object_cluster_matrix[obj_idx,idx] == 1:  # If the object belongs to this cluster
                     line_marker = Marker()
                     line_marker.header.frame_id = "world"
                     line_marker.header.stamp = rospy.Time.now()
@@ -269,9 +282,51 @@ class GraphNode:
 
                     # Add points for the line
                     line_marker.points.append(Point(centroid[0], centroid[1], centroid[2]))  # Centroid position
-                    line_marker.points.append(Point(vertex_coordinates[obj_idx][0], vertex_coordinates[obj_idx][1], vertex_coordinates[obj_idx][2]))  # Object position
+                    line_marker.points.append(Point(vertex_coordinates[obj_idx][0], vertex_coordinates[obj_idx][1], vertex_coordinates[obj_idx][2]+5))  # Object position
 
                     marker_array.markers.append(line_marker)
+
+        # Create a yellow square marker at the centroid position
+        yellow_square_marker = Marker()
+        yellow_square_marker.header.frame_id = "world"
+        yellow_square_marker.header.stamp = rospy.Time.now()
+        yellow_square_marker.ns = "yellow_squares"
+        yellow_square_marker.id = len(marker_array.markers)  # Unique ID
+        yellow_square_marker.type = Marker.CUBE
+        yellow_square_marker.action = Marker.ADD
+        yellow_square_marker.pose.position.x = np.mean([centroid[0] for centroid in cluster_centroids])
+        yellow_square_marker.pose.position.y = np.mean([centroid[1] for centroid in cluster_centroids])
+        yellow_square_marker.pose.position.z = np.mean([centroid[2] for centroid in cluster_centroids]) + 5
+        yellow_square_marker.scale.x = 0.5  # Size of the cube
+        yellow_square_marker.scale.y = 0.5
+        yellow_square_marker.scale.z = 0.5
+        yellow_square_marker.color.r = 1.0  # Yellow color
+        yellow_square_marker.color.g = 1.0
+        yellow_square_marker.color.b = 0.0
+        yellow_square_marker.color.a = 1.0  # Fully opaque
+        marker_array.markers.append(yellow_square_marker)
+
+        # Create edges from the yellow square to the clusters
+        for idx, centroid in enumerate(cluster_centroids):
+            edge_marker = Marker()
+            edge_marker.header.frame_id = "world"
+            edge_marker.header.stamp = rospy.Time.now()
+            edge_marker.ns = "edges"
+            edge_marker.id = len(marker_array.markers) + idx  # Unique ID
+            edge_marker.type = Marker.LINE_STRIP
+            edge_marker.action = Marker.ADD
+            edge_marker.pose.orientation.w = 1.0  # No rotation
+            edge_marker.scale.x = 0.1  # Line thickness
+            edge_marker.color.r = 1.0  # Black color for edges
+            edge_marker.color.g = 1.0
+            edge_marker.color.b = 0.0
+            edge_marker.color.a = 1.0
+
+            # Add points for the edge
+            edge_marker.points.append(Point(np.mean([centroid[0] for centroid in cluster_centroids]), np.mean([centroid[1] for centroid in cluster_centroids]), np.mean([centroid[2] for centroid in cluster_centroids]) + 5))  # Centroid position
+            edge_marker.points.append(Point(centroid[0], centroid[1], centroid[2])) # Object position
+
+            marker_array.markers.append(edge_marker)
 
         return marker_array
 

@@ -73,18 +73,18 @@ Visualization Manager:
       Name: MarkerArray
       Namespaces:
         edges: true
-        frontier: true
+        semantic: true
         vertices: true
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
-      Enabled: false
+      Enabled: true
       Marker Topic: /hummingbird/local_planning_graph
       Name: MarkerArray
       Namespaces:
         {}
       Queue Size: 100
-      Value: false
+      Value: true
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
@@ -110,13 +110,13 @@ Visualization Manager:
       Unreliable: false
       Value: true
     - Class: rviz/MarkerArray
-      Enabled: false
-      Marker Topic: /hummingbird/local_dijkstra_paths
+      Enabled: true
+      Marker Topic: /hummingbird/dense_graph
       Name: MarkerArray
       Namespaces:
         {}
       Queue Size: 100
-      Value: false
+      Value: true
     - Class: rviz/MarkerArray
       Enabled: false
       Marker Topic: /hummingbird/global_dijkstra_paths
@@ -207,8 +207,7 @@ Visualization Manager:
       Marker Topic: /graph/areas
       Name: MarkerArray
       Namespaces:
-        clusters: true
-        lines: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -359,7 +358,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 32.9534797668457
+      Distance: 23.86669158935547
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -377,7 +376,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: hummingbird/base_link
-      Yaw: 3.1404342651367188
+      Yaw: 3.1504344940185547
     Saved: ~
 Window Geometry:
   Displays:

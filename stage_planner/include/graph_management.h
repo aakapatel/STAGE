@@ -104,8 +104,9 @@ class GraphManager {
   void resetProjectedGraph();
   void resetGlobalGraph();
   void resetPathWaysGraph();
-  void resetSparseGraph();
+  void resetDenseGraph();
   nav_msgs::Path runPlannerkManualMode(StateVec s);
+  GraphManager::GraphStatus buildDenseGraph();
   GraphManager::GraphStatus runLocalPlanner();
   GraphManager::GraphStatus runGlobalPlanner();
   GraphManager::GraphStatus planLocalPath(
@@ -131,6 +132,8 @@ class GraphManager {
       const Eigen::Vector3d& box_size, bool stop_at_unknown_voxel,
       std::vector<Eigen::Vector3d>& projected_edge, bool);
 
+  void publishDenseGraphWithSemantics();
+  
   int global_root_id = 0;
 
   ros::Timer graph_timer_;
@@ -157,9 +160,9 @@ class GraphManager {
 
 
   std::shared_ptr<GraphUtils> global_graph_;
-  std::shared_ptr<GraphUtils> sparse_graph_;
+  std::shared_ptr<GraphUtils> dense_graph_;
   ShortestPathsReport global_graph_rep_;
-  ShortestPathsReport sparse_graph_rep_;
+  ShortestPathsReport dense_graph_rep_;
   std::vector<geometry_msgs::Point> semantics_;
 
 
@@ -198,7 +201,7 @@ private:
   std::shared_ptr<GraphUtils> path_ways_graph_;
   std::shared_ptr<GraphUtils> improvement_graph_;
   std::shared_ptr<GraphUtils> pose_graph_;
-  /*std::shared_ptr<GraphUtils> sparse_graph_;*/
+  /*std::shared_ptr<GraphUtils> dense_graph_;*/
 
   std::shared_ptr<GeofenceManager> geofence_manager_;
   std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> obs_pcl_;
@@ -217,7 +220,7 @@ private:
   ShortestPathsReport improvement_graph_rep_;
   ShortestPathsReport path_ways_graph_rep_;
   ShortestPathsReport pose_graph_rep_;
-  /*ShortestPathsReport sparse_graph_rep_;*/
+  /*ShortestPathsReport dense_graph_rep_;*/
 
   // boolean
   bool odometry_ready = false;
@@ -347,7 +350,7 @@ private:
   ros::Publisher pose_Graph_Vis_Pub_;
   ros::Publisher overlap_Vis_Pub_;
   ros::Publisher random_Nodes_Vis_Pub_;
-  ros::Publisher sparse_Graph_Vis_Pub_;
+  ros::Publisher dense_graph_Vis_Pub_;
   ros::Publisher tree_Vis_Pub_;
   ros::Publisher execution_Time_Pub_;
   ros::Publisher exploration_Direction_Pub;

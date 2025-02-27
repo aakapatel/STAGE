@@ -28,7 +28,7 @@ class VisualizationServer {
   void visualizeVoxelGain(std::shared_ptr<GraphUtils> graph);
   void visualizeLocalGraph(std::shared_ptr<GraphUtils> local_graph);
   void visualizeGlobalGraph(std::shared_ptr<GraphUtils> global_graph);
-  void visualizeSparseGraph(std::shared_ptr<GraphUtils> sparse_graph);
+  void visualizeDenseGraph(std::shared_ptr<GraphUtils> dense_graph);
   void visualizePoseGraph(std::shared_ptr<GraphUtils> pose_graph);
   void visualizeLocalPaths(
       std::vector<std::pair<std::vector<Vertex*>, double>> local_paths);
@@ -63,7 +63,7 @@ class VisualizationServer {
   ros::Publisher pose_Graph_Vis_Pub_;
   ros::Publisher overlap_Vis_Pub_;
   ros::Publisher random_Nodes_Vis_Pub_;
-  ros::Publisher sparse_Graph_Vis_Pub_;
+  ros::Publisher dense_graph_Vis_Pub_;
   ros::Publisher exploration_Direction_Vis_Pub;
   ros::Publisher pcl_Pub_;
   ros::Publisher semantic_graph_publisher_;

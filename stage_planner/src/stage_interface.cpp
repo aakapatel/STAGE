@@ -33,8 +33,9 @@ void StageInterface::initializeAttributes() {
   goalSubscriber_ = nh_.subscribe("/move_base_simple/goal", 1,
                                   &StageInterface::goalCallback, this);
 
-  semantics_Subscriber_ = nh_.subscribe("/yolo/aligned_bounding_boxes", 100, 
-                                            &StageInterface::semanticsCallback, this); 
+  semantics_Subscriber_ =
+      nh_.subscribe("/yolo/aligned_bounding_boxes", 100,
+                    &StageInterface::semanticsCallback, this);
 
   trajectory_Publisher =
       nh_.advertise<trajectory_msgs::MultiDOFJointTrajectory>(
@@ -73,6 +74,10 @@ void StageInterface::initializeAttributes() {
 
   planner_homing_service_ = nh_.advertiseService(
       "start_homing_planner", &StageInterface::homingPlanner, this);
+
+  semantic_graph_publisher_service_ =
+      nh_.advertiseService("publish_semantic_graph",
+                           &StageInterface::semanticsGraphSrvCallback, this);
 
   // Planner periodic timer
 
@@ -583,12 +588,10 @@ void StageInterface::actionGoalCallback(
   }
 }
 
-
 void StageInterface::semanticsCallback(
-    const visualization_msgs::MarkerArray::ConstPtr& semantics_msg) { 
-  
+    const visualization_msgs::MarkerArray::ConstPtr& semantics_msg) {
   // Create a vector to store the positions of markers
-  
+
   graph_manager_->semantics_.clear();
 
   // Iterate through all the markers in the MarkerArray
@@ -599,13 +602,12 @@ void StageInterface::semanticsCallback(
     // Store the position in the vector
     graph_manager_->semantics_.push_back(position);
   }
+}
 
-  /*graph_manager_->resetSparseGraph();*/
-  /*graph_manager_->sparse_graph_ = graph_manager_->global_graph_;*/
-  /*graph_manager_->insertSemanticsToGraph(graph_manager_->global_graph_, marker_positions);*/
-  /*visualization_server_->visualizeSparseGraph(graph_manager_->sparse_graph_);*/
-
-
+bool StageInterface::semanticsGraphSrvCallback(
+    std_srvs::Empty::Request& request, std_srvs::Empty::Response& response) {
+  graph_manager_->publishDenseGraphWithSemantics();
+  return true;
 }
 
 void StageInterface::goalCallback(
@@ -925,7 +927,7 @@ void StageInterface::callActionServer() {
 }
 
 void StageInterface::periodicTimerCallback(const ros::TimerEvent& event) {
- if (!manual_homing_triggered_ && !path_execution_complete_) {
+  if (!manual_homing_triggered_ && !path_execution_complete_) {
     return;
   } else if (!path_execution_complete_ && manual_homing_triggered_) {
     planner_status_ = StageInterface::PlannerStatus::HOMING;

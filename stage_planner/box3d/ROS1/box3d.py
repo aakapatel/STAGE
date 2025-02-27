@@ -208,7 +208,7 @@ class yolo_lidar:
 		## Keep a color for each bbox for instance coloring
 		#self.colors += [np.random.rand(3) for _ in range(len(bboxes))]
 		## Keep a color for each bbox for class coloring
-		self.colors += [np.array(self.cmaplist[int(classes[i])])[:3] for i in range(len(bboxes))]
+		# self.colors += [np.array(self.cmaplist[int(classes[i])])[:3] for i in range(len(bboxes))]
 
 		# Publish the bounding boxes. Make a marker array for each bbox in bboxes
 		# marker_array = publishBboxes(self.global_bboxes, color=(1.0, 1.0, 0.0))
@@ -223,7 +223,7 @@ class yolo_lidar:
 		# print(self.global_bboxes)
 
 		## Publish the bounding boxes. Make a marker array for each bbox in bboxes
-		maeker_array = self.publishBboxes(self.global_bboxes, self.colors, time=odom_data.header.stamp)
+		maeker_array = self.publishBboxes(self.global_bboxes, time=odom_data.header.stamp)
 		self.bbox_pub.publish(maeker_array)
 
 		header = Header()
@@ -268,9 +268,9 @@ class yolo_lidar:
 			marker.color.a = 0.7#35
 			## Get random color for every bbox
 			if color is None:
-				marker.color.r = np.random.rand()
-				marker.color.g = np.random.rand()
-				marker.color.b = np.random.rand()
+				marker.color.r = 0.0
+				marker.color.g = 1.0
+				marker.color.b = 0.0
 			else:
 				marker.color.r = color[idx][0]
 				marker.color.g = color[idx][1]

@@ -16,9 +16,10 @@ from ultralytics import YOLO
 import open3d as o3d
 from nav_msgs.msg import Odometry
 from scipy.spatial.transform import Rotation as R
-from visualization_msgs.msg import MarkerArray
+from visualization_msgs.msg import MarkerArray, Marker
 import time
 import ros2_numpy as rnp
+import cv2
 
 # ####################### ELLI CORE ############################
 
@@ -88,13 +89,13 @@ class yolo_lidar(Node):
 		self.global_bboxes = []
 		self.colors = []
 
-	def callback_intrinsics(self, data):
+	def callback_intrinsics(self,data):
 		self.height = data.height
 		self.width = data.width
 		self.camera_matrix = np.asarray(data.K).reshape((3, 3))
 		self.dist_coeffs = np.asarray(data.D)
 		print(self.camera_matrix, self.dist_coeffs)
-		self.intrinsics_sub.destroy()
+		self.intrinsics_sub.unregister()
 
 	def pointcloud2_to_array(self, point_cloud_msg):
 		# Convert PointCloud2 message to a numpy array
@@ -109,11 +110,6 @@ class yolo_lidar(Node):
 		#print("Callback")
 		frame = self.bridge.imgmsg_to_cv2(img_data, desired_encoding="bgr8")
 
-		# points = []
-		# for point in pcl2.read_points(pcl_data, field_names=('x', 'y', 'z'), skip_nans=True):
-		# 	if np.linalg.norm(point) > 0 and point[0]>self.tvec[0]:
-		# 		points.append(list(point))
-
 		points = self.pointcloud2_to_array(pcl_data).tolist()
 
 		pixels, _ = cv2.projectPoints(np.asarray(points), self.rvec, self.tvec, self.camera_matrix, self.dist_coeffs)
@@ -121,7 +117,7 @@ class yolo_lidar(Node):
 		# Undistorting
 		if UNDISTORT:
 			newcameramatrix, _ = cv2.getOptimalNewCameraMatrix(self.camera_matrix, self.dist_coeffs, (self.width, self.height), 1, (self.width, self.height))
-			frame = cv2.undistort(frame, self.camera_matrix, self.dist_coeffs, None, newcameratrix)
+			frame = cv2.undistort(frame, self.camera_matrix, self.dist_coeffs, None, newcameramatrix)
 
 		# frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 		results = self.model.predict(frame, classes = OOI) 
@@ -223,7 +219,7 @@ class yolo_lidar(Node):
 		## Keep a color for each bbox for instance coloring
 		#self.colors += [np.random.rand(3) for _ in range(len(bboxes))]
 		## Keep a color for each bbox for class coloring
-		self.colors += [np.array(self.cmaplist[int(classes[i])])[:3] for i in range(len(bboxes))]
+		# self.colors += [np.array(self.cmaplist[int(classes[i])])[:3] for i in range(len(bboxes))]
 
 		# Publish the bounding boxes. Make a marker array for each bbox in bboxes
 		# marker_array = publishBboxes(self.global_bboxes, color=(1.0, 1.0, 0.0))
@@ -238,12 +234,12 @@ class yolo_lidar(Node):
 		# print(self.global_bboxes)
 
 		## Publish the bounding boxes. Make a marker array for each bbox in bboxes
-		maeker_array = self.publishBboxes(self.global_bboxes, self.colors)
+		maeker_array = self.publishBboxes(self.global_bboxes, time=odom_data.header.stamp)
 		self.bbox_pub.publish(maeker_array)
 
 		# header = Header()
 		# header.frame_id = FRAME
-		# header.stamp = self.get_clock().now().to_msg()
+		# header.stamp = rospy.Time.now()
 
 		# fields = [PointField('x', 0, PointField.FLOAT32, 1),
 		# 	PointField('y', 4, PointField.FLOAT32, 1),
@@ -260,49 +256,47 @@ class yolo_lidar(Node):
 		# except:
 		# 	pass
 
-	def publishBboxes(self, bboxes:List[o3d.geometry.AxisAlignedBoundingBox], color=None):
-    ## Publish the bounding boxes. Make a marker array for each bbox in bboxes
-    markerArray = MarkerArray()
-    for idx, bbox in enumerate(bboxes):
-        marker = Marker()
-        marker.header.frame_id = FRAME
-        marker.header.stamp = self.get_clock().now().to_msg()
-        marker.id = idx
-        marker.type = Marker.CUBE
-        marker.action = Marker.ADD
-        marker.pose.position.x = bbox.get_center()[0]
-        marker.pose.position.y = bbox.get_center()[1]
-        marker.pose.position.z = bbox.get_center()[2]
-        # marker.pose.orientation.x = R.from_matrix([bbox.R]).as_quat()[0][0]
-        # marker.pose.orientation.y = R.from_matrix([bbox.R]).as_quat()[0][1]
-        # marker.pose.orientation.z = R.from_matrix([bbox.R]).as_quat()[0][2]
-        # marker.pose.orientation.w = R.from_matrix([bbox.R]).as_quat()[0][3]
-        marker.scale.x = (bbox.get_max_bound()[0] - bbox.get_min_bound()[0])*1
-        marker.scale.y = (bbox.get_max_bound()[1] - bbox.get_min_bound()[1])*1
-        marker.scale.z = (bbox.get_max_bound()[2] - bbox.get_min_bound()[2])*1
-        marker.color.a = 0.7#35
-        ## Get random color for every bbox
-        if color is None:
-            marker.color.r = np.random.rand()
-            marker.color.g = np.random.rand()
-            marker.color.b = np.random.rand()
-        else:
-            marker.color.r = color[idx][0]
-            marker.color.g = color[idx][1]
-            marker.color.b = color[idx][2]
-        markerArray.markers.append(marker)
-    # self.bbox_pub.publish(markerArray)
-    print(f"Marker Ready, number of markers: {len(markerArray.markers)}")
+	def publishBboxes(self, bboxes:List[o3d.geometry.AxisAlignedBoundingBox], color=None, time=None):
+		## Publish the bounding boxes. Make a marker array for each bbox in bboxes
+		markerArray = MarkerArray()
+		for idx, bbox in enumerate(bboxes):
+			marker = Marker()
+			marker.header.frame_id = FRAME
+			marker.header.stamp = rospy.Time.now() if time is None else time
+			marker.id = idx
+			marker.type = Marker.CUBE
+			marker.action = Marker.ADD
+			marker.pose.position.x = bbox.get_center()[0]
+			marker.pose.position.y = bbox.get_center()[1]
+			marker.pose.position.z = bbox.get_center()[2]
+			# marker.pose.orientation.x = R.from_matrix([bbox.R]).as_quat()[0][0]
+			# marker.pose.orientation.y = R.from_matrix([bbox.R]).as_quat()[0][1]
+			# marker.pose.orientation.z = R.from_matrix([bbox.R]).as_quat()[0][2]
+			# marker.pose.orientation.w = R.from_matrix([bbox.R]).as_quat()[0][3]
+			marker.scale.x = (bbox.get_max_bound()[0] - bbox.get_min_bound()[0])*1
+			marker.scale.y = (bbox.get_max_bound()[1] - bbox.get_min_bound()[1])*1
+			marker.scale.z = (bbox.get_max_bound()[2] - bbox.get_min_bound()[2])*1
+			marker.color.a = 0.7#35
+			## Get random color for every bbox
+			if color is None:
+				marker.color.r = 0.0
+				marker.color.g = 1.0
+				marker.color.b = 0.0
+			else:
+				marker.color.r = color[idx][0]
+				marker.color.g = color[idx][1]
+				marker.color.b = color[idx][2]
+			markerArray.markers.append(marker)
+		# self.bbox_pub.publish(markerArray)
+		print(f"Marker Ready, number of markers: {len(markerArray.markers)}")
 
-    return markerArray
+		return markerArray
 
-def main(args=None):
-	rclpy.init(args=args)
+if __name__ == '__main__':
+	rclpy.init_node()
 	yt = yolo_lidar()
 	try:
-		rclpy.spin(yt)
+		rclpy.spin()
 	except KeyboardInterrupt:
 		print("Shutting down") 
 
-if __name__ == '__main__':
-	main()

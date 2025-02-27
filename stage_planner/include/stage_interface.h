@@ -5,8 +5,8 @@
 #include <actionlib/server/simple_action_server.h>
 
 #include "graph_management.h"
-#include "stage_planner/pathFollowerActionAction.h"
 #include "scout_planner_msgs/scoutExecutePathActionAction.h"
+#include "stage_planner/pathFollowerActionAction.h"
 
 class StageInterface {
  public:
@@ -43,7 +43,8 @@ class StageInterface {
   Eigen::Quaternion<float> Euler2Quaternion(Eigen::Vector3d v);
   void odometryCallback(const nav_msgs::Odometry& odom);
   void goalCallback(const geometry_msgs::PoseStamped::ConstPtr& goal_msg);
-  void semanticsCallback(const visualization_msgs::MarkerArray::ConstPtr& semantics_msg);
+  void semanticsCallback(
+      const visualization_msgs::MarkerArray::ConstPtr& semantics_msg);
 
   double calculateDistance(Eigen::Vector3d p1, Eigen::Vector3d p2);
   void segmentPath(const nav_msgs::Path& path, nav_msgs::Path& path_seg);
@@ -59,9 +60,12 @@ class StageInterface {
   void callActionServer();
 
   void periodicTimerCallback(const ros::TimerEvent& event);
-  void actionGoalCallback(const scout_planner_msgs::scoutExecutePathActionGoalConstPtr &goal);
+  void actionGoalCallback(
+      const scout_planner_msgs::scoutExecutePathActionGoalConstPtr& goal);
   bool collisionCheckCallback(xflie_msgs::CollisionCheck::Request& req,
-                         xflie_msgs::CollisionCheck::Response& res);
+                              xflie_msgs::CollisionCheck::Response& res);
+  bool semanticsGraphSrvCallback(std_srvs::Empty::Request& request,
+                                 std_srvs::Empty::Response& response);
 
  private:
   ros::NodeHandle nh_;
@@ -107,17 +111,18 @@ class StageInterface {
   ros::ServiceClient planner_set_mode_client_;
 
   ros::ServiceServer collision_check_service_;
+  ros::ServiceServer semantic_graph_publisher_service_;
 
-  actionlib::SimpleActionServer<scout_planner_msgs::scoutExecutePathActionAction> action_server_;
+  actionlib::SimpleActionServer<
+      scout_planner_msgs::scoutExecutePathActionAction>
+      action_server_;
   scout_planner_msgs::scoutExecutePathActionFeedback feedback_;
   scout_planner_msgs::scoutExecutePathActionResult result_;
 
-  
   nav_msgs::Path path_to_exec_;
 
   // State variables
   bool start_execution_ = false;
-
 
   // Timer
 

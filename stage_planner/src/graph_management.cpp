@@ -83,7 +83,7 @@ void GraphManager::reset() {
 
   GraphManager::resetPoseGraph();
   GraphManager::resetLocalGraph();
-  GraphManager::resetSparseGraph();
+  GraphManager::resetDenseGraph();
   GraphManager::resetGlobalGraph();
   GraphManager::resetPathWaysGraph();
 }
@@ -217,12 +217,12 @@ void GraphManager::resetPathWaysGraph() {
   path_ways_graph_rep_.reset();
 }
 
-void GraphManager::resetSparseGraph() {
-  if (sparse_graph_ != NULL) {
-    sparse_graph_->reset();
+void GraphManager::resetDenseGraph() {
+  if (dense_graph_ != NULL) {
+    dense_graph_->reset();
   }
-  sparse_graph_.reset(new GraphUtils());
-  sparse_graph_rep_.reset();
+  dense_graph_.reset(new GraphUtils());
+  dense_graph_rep_.reset();
 }
 
 void GraphManager::setGlobalFrame(std::string frame_id) {
@@ -1850,45 +1850,41 @@ GraphManager::GraphStatus GraphManager::buildGraph(
 void GraphManager::insertSemanticsToGraph(
     std::shared_ptr<GraphUtils> graph,
     std::vector<geometry_msgs::Point> semantics_positions) {
-  
   graph->semantic_vertices_ids_.clear();
 
   for (int i = 0; i < semantics_positions.size(); i++) {
-    
     StateVec state =
         Eigen::Vector4d(semantics_positions[i].x, semantics_positions[i].y,
                         semantics_positions[i].z, 0.0);
-    
-    
+
     Vertex* nearest_vertex = NULL;
     if (!graph->getNearestVertex(&state, &nearest_vertex)) {
-      ROS_DEBUG("Insert Semantics Fcn : Could not find nearest vertex \n");  
-    } 
+      ROS_DEBUG("Insert Semantics Fcn : Could not find nearest vertex \n");
+    }
 
     if (nearest_vertex->is_semantic) {
-
-      ROS_DEBUG("Insert Semantics Fcn : Nearest vertex is already a semantic !! \n");  
+      ROS_DEBUG(
+          "Insert Semantics Fcn : Nearest vertex is already a semantic !! \n");
       continue;
     }
 
-    if(graph->stateExist(&state)) {
+    if (graph->stateExist(&state)) {
       continue;
     }
 
     Vertex* vertex = new Vertex(graph->generateVertexID(), state);
     vertex->is_semantic = true;
     graph->addVertex(vertex);
-    
-    // Add vertex id to semantic vertices ids to only form edges with semantic nodes. 
-    graph->semantic_vertices_ids_.push_back(vertex->id);
 
+    // Add vertex id to semantic vertices ids to only form edges with semantic
+    // nodes.
+    graph->semantic_vertices_ids_.push_back(vertex->id);
   }
 
   // Iterate through the graph and if vertex is a semantic, form new edges with
   // nearest neighbours of the semantic vertex.
 
   for (int it = 0; it < graph->semantic_vertices_ids_.size(); ++it) {
-
     int id = graph->semantic_vertices_ids_[it];
 
     // Get nearby vertices from the current vertex and connect the them to form
@@ -1899,8 +1895,8 @@ void GraphManager::insertSemanticsToGraph(
                               &nearby_vertices);
 
     for (int i = 0; i < nearby_vertices.size(); i++) {
-
-      if (graph->vertices_map_[id]->is_semantic and nearby_vertices[i]->is_semantic) {
+      if (graph->vertices_map_[id]->is_semantic and
+          nearby_vertices[i]->is_semantic) {
         continue;
       }
 
@@ -1919,18 +1915,89 @@ void GraphManager::insertSemanticsToGraph(
 
       // if (edge_length < 2 * planning_params_.edge_length_max and
       //     MapManager::VoxelStatus::kFree == vn) {
-      
 
-      if (edge_length < 1.5 * planning_params_.edge_length_max and nearby_vertices[i]->edges < 4) {
-        
+      if (edge_length < 1.5 * planning_params_.edge_length_max and
+          nearby_vertices[i]->edges < 4) {
         graph->addEdge(graph->vertices_map_[id], nearby_vertices[i],
                        graph->distanceBetweenVertices(graph->vertices_map_[id],
                                                       nearby_vertices[i]));
       }
     }
   }
+}
 
+GraphManager::GraphStatus GraphManager::buildDenseGraph() {
+  GraphManager::GraphStatus dense_graph_status =
+      GraphManager::GraphStatus::NOT_OK;
+  high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
+  GraphManager::resetDenseGraph();
+  local_dijkstra_paths_.clear();
+  Vertex* dense_graph_root_vertex =
+      new Vertex(dense_graph_->generateVertexID(), robotState_);
+  dense_graph_root_vertex->is_root = true;
+  dense_graph_->addVertex(dense_graph_root_vertex);
+
+  bool manual_mode = true;
+  std::vector<std::vector<Vertex*>> dijkstra_paths;
+  GraphManager::GraphStatus build_graph_status =
+      GraphManager::buildGraph(dense_graph_, manual_mode);
+  switch (build_graph_status) {
+    case GraphManager::GraphStatus::OK:
+      dense_graph_status = GraphManager::GraphStatus::OK;
+      ROS_DEBUG("[DENSE GRAPH STATUS] build : OK ");
+      break;
+    case GraphManager::GraphStatus::ERR_KDTREE:
+      ROS_DEBUG("[PLANNER_ERROR] An issue occurred with kdtree data.");
+      break;
+    case GraphManager::GraphStatus::NOT_OK:
+      ROS_DEBUG("[DENSE GRAPH STATUS] : NOT_OK");
+      break;
+    default:
+      ROS_DEBUG("[PLANNER_ERROR] Error occurred in test graph.");
+      break;
+  }
+
+  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+  auto duration_total =
+      duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+  ROS_DEBUG_STREAM("DG --> build time " << duration_total.count() << " ms \n");
+
+  ROS_DEBUG_STREAM("Dense graph has "
+                   << dense_graph_->getNumVertices() << " nodes & "
+                   << dense_graph_->getNumEdges() << " edges\n");
+
+  visualization_server_->visualizeDenseGraph(dense_graph_);
+  return dense_graph_status;
+}
+
+void GraphManager::publishDenseGraphWithSemantics() {
+
+  // First check if we have semantics lables.
+
+  if (!semantics_.empty()) {
+  
+    GraphManager::GraphStatus status = buildDenseGraph();
+    if (status == GraphManager::GraphStatus::OK) {
+      
+      // Populate dense graph with semantics and expand the graph 
+      GraphManager::insertSemanticsToGraph(dense_graph_, semantics_);
+      stage_planner::Graph graph_msg;
+      graph_msg.vertices.clear();
+      graph_msg.edges.clear();
+      
+      // Publish and visualize dense graph.
+      dense_graph_->convertGraphToMsg(graph_msg);
+      visualization_server_->visualizeDenseGraph(dense_graph_);
+      visualization_server_->publishSemanticGraph(graph_msg);
+    } else {
+      ROS_ERROR("Build dense graph status : NOT OK \n");
+      return;
+    } {
+      ROS_WARN("No semantics to insert into dense graph \n");
+      return;
+    }
+  }
 }
 
 nav_msgs::Path GraphManager::runPlannerkManualMode(StateVec s) {
@@ -2446,7 +2513,7 @@ bool GraphManager::connectStateToGraph(std::shared_ptr<GraphUtils> graph,
 void GraphManager::updateGlobalGraph() {
   Vertex* vertex = new Vertex(global_graph_->generateVertexID(), robotState_);
   global_graph_->addVertex(vertex);
-  StateVec s (0,1,2,3);
+  StateVec s(0, 1, 2, 3);
   ROS_DEBUG_COND(global_graph_->stateExist(&vertex->state), "State exits.");
   ROS_DEBUG_COND(global_graph_->stateExist(&s), "State does not exits.");
   if (prev_pose_vertex_ != nullptr) {
@@ -2475,16 +2542,14 @@ void GraphManager::updateGlobalGraph() {
   prev_pose_vertex_ = vertex;
 
   if (!semantics_.empty()) {
-
     GraphManager::insertSemanticsToGraph(global_graph_, semantics_);
-    
+
     stage_planner::Graph graph_msg;
     graph_msg.vertices.clear();
     graph_msg.edges.clear();
 
     global_graph_->convertGraphToMsg(graph_msg);
     visualization_server_->publishSemanticGraph(graph_msg);
-
   }
 
   visualization_server_->visualizeGlobalGraph(global_graph_);
