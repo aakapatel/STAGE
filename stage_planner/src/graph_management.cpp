@@ -1859,6 +1859,18 @@ void GraphManager::insertSemanticsToGraph(
         Eigen::Vector4d(semantics_positions[i].x, semantics_positions[i].y,
                         semantics_positions[i].z, 0.0);
     
+    
+    Vertex* nearest_vertex = NULL;
+    if (!graph->getNearestVertex(&state, &nearest_vertex)) {
+      ROS_DEBUG("Insert Semantics Fcn : Could not find nearest vertex \n");  
+    } 
+
+    if (nearest_vertex->is_semantic) {
+
+      ROS_DEBUG("Insert Semantics Fcn : Nearest vertex is already a semantic !! \n");  
+      continue;
+    }
+
     if(graph->stateExist(&state)) {
       continue;
     }
@@ -1909,7 +1921,7 @@ void GraphManager::insertSemanticsToGraph(
       //     MapManager::VoxelStatus::kFree == vn) {
       
 
-      if (edge_length < 1.5 * planning_params_.edge_length_max and graph->vertices_map_[id]->edges < 4) {
+      if (edge_length < 1.5 * planning_params_.edge_length_max and nearby_vertices[i]->edges < 4) {
         
         graph->addEdge(graph->vertices_map_[id], nearby_vertices[i],
                        graph->distanceBetweenVertices(graph->vertices_map_[id],
@@ -2467,6 +2479,9 @@ void GraphManager::updateGlobalGraph() {
     GraphManager::insertSemanticsToGraph(global_graph_, semantics_);
     
     stage_planner::Graph graph_msg;
+    graph_msg.vertices.clear();
+    graph_msg.edges.clear();
+
     global_graph_->convertGraphToMsg(graph_msg);
     visualization_server_->publishSemanticGraph(graph_msg);
 

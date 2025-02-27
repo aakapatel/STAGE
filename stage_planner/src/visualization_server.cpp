@@ -455,6 +455,7 @@ void VisualizationServer::visualizeGlobalGraph(
     int src_id, tgt_id;
     double weight;
     std::tie(src_id, tgt_id, weight) = g->getEdgeProperty(it);
+    
 
     geometry_msgs::Point p1;
     p1.x = v_map[src_id]->state[0];
@@ -464,6 +465,15 @@ void VisualizationServer::visualizeGlobalGraph(
     p2.x = v_map[tgt_id]->state[0];
     p2.y = v_map[tgt_id]->state[1];
     p2.z = v_map[tgt_id]->state[2];
+    if (v_map[src_id]->is_semantic) {
+        
+      p1.z = v_map[src_id]->state[2] + 5;
+    }
+    if (v_map[tgt_id]->is_semantic) {
+        
+      p2.z = v_map[tgt_id]->state[2] + 5;
+    }
+
     edge_marker.points.push_back(p1);
     edge_marker.points.push_back(p2);
   }
@@ -504,6 +514,25 @@ void VisualizationServer::visualizeGlobalGraph(
   frontier_vertex_marker.color.a = 1.0;
   frontier_vertex_marker.frame_locked = false;
 
+
+  visualization_msgs::Marker semantic_vertex;
+  semantic_vertex.header.stamp = ros::Time::now();
+  semantic_vertex.header.seq = 0;
+  semantic_vertex.header.frame_id = world_frame_id;
+  semantic_vertex.id = 0;
+  semantic_vertex.ns = "semantic";
+  semantic_vertex.action = visualization_msgs::Marker::ADD;
+  semantic_vertex.type = visualization_msgs::Marker::SPHERE_LIST;
+  semantic_vertex.scale.x = 0.5;
+  semantic_vertex.scale.y = 0.5;
+  semantic_vertex.scale.z = 0.5;
+  semantic_vertex.color.r = 0.0 / 255.0;
+  semantic_vertex.color.g = 255.0 / 255.0;
+  semantic_vertex.color.b = 0.0 / 255.0;
+  semantic_vertex.color.a = 1.0;
+  semantic_vertex.frame_locked = false;
+
+
   std::pair<Graph::GraphType::vertex_iterator,
             Graph::GraphType::vertex_iterator>
       vi;
@@ -519,6 +548,16 @@ void VisualizationServer::visualizeGlobalGraph(
       frontier_vertex_marker.points.push_back(p1);
     }
 
+    if (v_map[id]->is_semantic) {
+      geometry_msgs::Point p1;
+      p1.x = v_map[id]->state[0];
+      p1.y = v_map[id]->state[1];
+      p1.z = v_map[id]->state[2] + 5;
+
+      semantic_vertex.points.push_back(p1);
+    }
+
+
     geometry_msgs::Point p1;
     p1.x = v_map[id]->state[0];
     p1.y = v_map[id]->state[1];
@@ -528,6 +567,7 @@ void VisualizationServer::visualizeGlobalGraph(
   }
   marker_array.markers.push_back(vertex_marker);
   marker_array.markers.push_back(frontier_vertex_marker);
+  marker_array.markers.push_back(semantic_vertex);
 
   global_Graph_Vis_Pub_.publish(marker_array);
 }

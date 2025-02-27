@@ -187,5 +187,11 @@ add_executable(spot_path_tracker_ros_node src/path_tracker_node.cpp)
   ${CMAKE_DL_LIBS}
 )
 
+# Add the Python executable for the graph node
+catkin_install_python(PROGRAMS
+  graph_node.py  # Path to your Python node
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
 cs_install()
 # cs_export(LIBRARIES)

@@ -402,6 +402,12 @@ int GraphUtils::generateVertexID() {
 
 void GraphUtils::convertGraphToMsg(stage_planner::Graph& graph_msg) {
   // Get all the vertices
+  
+  
+  graph_msg.vertices.clear();
+  graph_msg.edges.clear();
+
+
   for (auto& v : vertices_map_) {
     stage_planner::Vertex vertex;
     vertex.id = v.second->id;
@@ -420,7 +426,13 @@ void GraphUtils::convertGraphToMsg(stage_planner::Graph& graph_msg) {
     vertex.num_occupied_voxels = v.second->vol_gain.num_occupied_voxels;
     vertex.num_free_voxels = v.second->vol_gain.num_free_voxels;
     vertex.is_frontier = v.second->vol_gain.is_frontier;
-    vertex.is_semantic = v.second->is_semantic;
+    
+    if (v.second->is_semantic) {
+      std::cout << "Semantic vertex id : " << v.second->id << "\n" << std::endl;  
+      vertex.is_semantic = true;
+    } else {
+      vertex.is_semantic = false;
+    }
 
     graph_msg.vertices.emplace_back(vertex);
   }
