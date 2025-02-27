@@ -42,6 +42,7 @@ void StageInterface::initializeAttributes() {
 
   reference_Publisher =
       nh_.advertise<geometry_msgs::PoseStamped>("command/pose", 1, true);
+      
 
   controller_Start_Publisher = nh_.advertise<std_msgs::String>("start", 1);
 
