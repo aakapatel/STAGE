@@ -14,14 +14,19 @@ class GraphNode:
         # self.adjacency_matrix = []  # Adjacency matrix to store edges
         # self.vertex_coordinates = []  # List to store vertex coordinates
         # self.is_semantic_list = []  # List to store is_semantic attributes
+        self.marker_array = MarkerArray()
 
     def graph_callback(self, msg):
+
+        # Check if the existing marker array is empty
+        # if not self.marker_array.markers:  # Check if the marker array is empty
+        self.delete_marker_array(self.marker_array)  # Call the delete function if not empty
+            # self.marker_array = MarkerArray()
 
         self.graph_data = []  # List to store graph data
         self.adjacency_matrix = []  # Adjacency matrix to store edges
         self.vertex_coordinates = []  # List to store vertex coordinates
         self.is_semantic_list = []  # List to store is_semantic attributes
-        marker_array = MarkerArray()
 
         # Initialize lists for vertex coordinates and is_semantic attributes
         num_vertices = len(msg.vertices)  # Moved this line up to avoid using uninitialized variable
@@ -56,10 +61,11 @@ class GraphNode:
         # print(*weight_matrix)
         cluster_centroids, object_cluster_matrix = self.cluster_objects(self.vertex_coordinates,self.is_semantic_list,self.adjacency_matrix, weight_matrix, z_threshold=10)
         rospy.loginfo(f"Clustered objects into {len(cluster_centroids)} clusters.")
-        marker_array = self.create_marker_array(self.vertex_coordinates, cluster_centroids, object_cluster_matrix)
+
+        self.marker_array = self.create_marker_array(self.vertex_coordinates, cluster_centroids, object_cluster_matrix)
         
         # Process the graph message and populate the marker_array
-        self.publisher.publish(marker_array)
+        self.publisher.publish(self.marker_array)
         rospy.loginfo("Published marker array.")
 
     def propagate_weights_adaptive(self, nodes, object_nodes, adjacency_matrix):
@@ -286,27 +292,27 @@ class GraphNode:
 
                     marker_array.markers.append(line_marker)
 
-        # Create a yellow square marker at the centroid position
-        yellow_square_marker = Marker()
-        yellow_square_marker.header.frame_id = "world"
-        yellow_square_marker.header.stamp = rospy.Time.now()
-        yellow_square_marker.ns = "yellow_squares"
-        yellow_square_marker.id = len(marker_array.markers)  # Unique ID
-        yellow_square_marker.type = Marker.CUBE
-        yellow_square_marker.action = Marker.ADD
-        yellow_square_marker.pose.position.x = np.mean([centroid[0] for centroid in cluster_centroids])
-        yellow_square_marker.pose.position.y = np.mean([centroid[1] for centroid in cluster_centroids])
-        yellow_square_marker.pose.position.z = np.mean([centroid[2] for centroid in cluster_centroids]) + 5
-        yellow_square_marker.scale.x = 0.5  # Size of the cube
-        yellow_square_marker.scale.y = 0.5
-        yellow_square_marker.scale.z = 0.5
-        yellow_square_marker.color.r = 1.0  # Yellow color
-        yellow_square_marker.color.g = 1.0
-        yellow_square_marker.color.b = 0.0
-        yellow_square_marker.color.a = 1.0  # Fully opaque
-        marker_array.markers.append(yellow_square_marker)
+        # Create a cyan square marker at the centroid position
+        cyan_square_marker = Marker()
+        cyan_square_marker.header.frame_id = "world"
+        cyan_square_marker.header.stamp = rospy.Time.now()
+        cyan_square_marker.ns = "cyan_squares"
+        cyan_square_marker.id = len(marker_array.markers)  # Unique ID
+        cyan_square_marker.type = Marker.CUBE
+        cyan_square_marker.action = Marker.ADD
+        cyan_square_marker.pose.position.x = np.mean([centroid[0] for centroid in cluster_centroids])
+        cyan_square_marker.pose.position.y = np.mean([centroid[1] for centroid in cluster_centroids])
+        cyan_square_marker.pose.position.z = np.mean([centroid[2] for centroid in cluster_centroids]) + 5
+        cyan_square_marker.scale.x = 0.5  # Size of the cube
+        cyan_square_marker.scale.y = 0.5
+        cyan_square_marker.scale.z = 0.5
+        cyan_square_marker.color.r = 0.0  # Cyan color
+        cyan_square_marker.color.g = 1.0
+        cyan_square_marker.color.b = 1.0
+        cyan_square_marker.color.a = 1.0  # Fully opaque
+        marker_array.markers.append(cyan_square_marker)
 
-        # Create edges from the yellow square to the clusters
+        # Create edges from the cyan square to the clusters
         for idx, centroid in enumerate(cluster_centroids):
             edge_marker = Marker()
             edge_marker.header.frame_id = "world"
@@ -317,9 +323,9 @@ class GraphNode:
             edge_marker.action = Marker.ADD
             edge_marker.pose.orientation.w = 1.0  # No rotation
             edge_marker.scale.x = 0.1  # Line thickness
-            edge_marker.color.r = 1.0  # Black color for edges
+            edge_marker.color.r = 0.0  
             edge_marker.color.g = 1.0
-            edge_marker.color.b = 0.0
+            edge_marker.color.b = 1.0
             edge_marker.color.a = 1.0
 
             # Add points for the edge
@@ -329,6 +335,26 @@ class GraphNode:
             marker_array.markers.append(edge_marker)
 
         return marker_array
+
+    def delete_marker_array(self, marker_array):
+        """
+        Republish the given marker array with the action set to delete.
+        
+        Args:
+            marker_array (MarkerArray): The marker array to delete.
+        """
+        delete_marker_array = MarkerArray()
+        for marker in marker_array.markers:
+            delete_marker = Marker()
+            delete_marker.header = marker.header  # Keep the same header
+            delete_marker.ns = marker.ns
+            delete_marker.id = marker.id
+            delete_marker.action = Marker.DELETE  # Set action to delete
+            delete_marker_array.markers.append(delete_marker)
+
+        # Publish the delete marker array
+        self.publisher.publish(delete_marker_array)
+        rospy.loginfo("Published delete marker array.")
 
 if __name__ == '__main__':
     rospy.init_node('graph_node')
