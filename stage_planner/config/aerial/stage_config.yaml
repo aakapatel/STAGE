@@ -140,8 +140,8 @@ BoundedSpaceParams:
     max_extension:  [15.0, 15.0, 15.0]
   LocalSearch:
     type:           kCuboid
-    min_val:        [-15.0, -15.0, -0.2]
-    max_val:        [15.0, 15.0, 0.2]
+    min_val:        [-6.0, -6.0, -0.2]
+    max_val:        [6.0, 6.0, 0.2]
   # Adaptive OBB:
   LocalAdaptiveExp:
     type:           kCuboid

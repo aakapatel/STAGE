@@ -252,10 +252,10 @@ bool StageInterface::collisionCheckCallback(
       map_manager_->getPathStatus(v, v1, robot_box_size_, true);
   if (MapManager::VoxelStatus::kOccupied != vs) {
     res.collision_status = false;
-    std::cout << "Collision check NOT OK \n" << std::endl;
+    std::cout << "Collision status is FALSE \n" << std::endl;
   } else {
     res.collision_status = true;
-    std::cout << "Collision check OK \n" << std::endl;
+    std::cout << "Collision status is TRUE \n" << std::endl;
   }
 
   return true;
@@ -529,18 +529,39 @@ void StageInterface::actionGoalCallback(
           global_temp_path.poses.clear();
           bool re_planning_success = false;
 
-          while (global_temp_path.poses.empty() and re_planning_attempt_ < 10) {
+          while (global_temp_path.poses.empty() or re_planning_attempt_ < 10) {
             re_planning_attempt_++;
             global_temp_path = graph_manager_->runPlannerkManualMode(s);
+
             if (!global_temp_path.poses.empty()) {
-              ROS_INFO("Successfully planned alternate path \n");
-              global_temp_path.header.frame_id = world_frame_id;
-              global_temp_path.header.stamp = ros::Time::now();
-              StageInterface::generateTrajectory(global_temp_path);
-              command_Path_Publisher.publish(command_path);
-              global_path_iterator_ = path_to_exec_.poses.size() - 1;
-              re_planning_success = true;
-              break;
+              Eigen::Vector3d eop;
+              eop[0] = global_temp_path.poses.back().pose.position.x;
+              eop[1] = global_temp_path.poses.back().pose.position.y;
+              eop[2] = global_temp_path.poses.back().pose.position.z;
+              if (calculateDistance(eop, s.head(3)) < 1) {
+                ROS_INFO("Successfully planned alternate path \n");
+                global_temp_path.header.frame_id = world_frame_id;
+                global_temp_path.header.stamp = ros::Time::now();
+                StageInterface::generateTrajectory(global_temp_path);
+                command_Path_Publisher.publish(command_path);
+                global_path_iterator_ = path_to_exec_.poses.size();
+                re_planning_success = true;
+                break;
+              } else {
+                global_path_iterator_ = path_to_exec_.poses.size();
+                ROS_ERROR("Alternate path not good enough to reach target! :( \n");
+
+                result_.success = false;
+                std::string path_status = "Alternate path is not feasible";
+                std::cout << "global path iterator FB : " << global_path_iterator_
+                          << std::endl;
+                feedback_.collision_segment_index = global_path_iterator_;
+                feedback_.status = path_status;
+                action_server_.setSucceeded(result_);
+                action_server_.publishFeedback(feedback_);
+                return;
+              }
+
             }
           }
           if (!re_planning_success) {
