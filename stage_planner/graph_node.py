@@ -34,7 +34,7 @@ class GraphNode:
             self.vertex_coordinates[vertex_id] = (vertex.pose.position.x, vertex.pose.position.y, vertex.pose.position.z)  # Save 3D coordinates
             self.is_semantic_list[vertex_id] = vertex.is_semantic  # Save is_semantic attribute
 
-        rospy.loginfo(f"Received {self.is_semantic_list} vertices from the graph message.")
+        # rospy.loginfo(f"Received {self.is_semantic_list} vertices from the graph message.")
 
         # Convert vertex_coordinates to a NumPy array
         self.vertex_coordinates = np.array(self.vertex_coordinates)
@@ -50,7 +50,7 @@ class GraphNode:
         rospy.loginfo("Adjacency matrix created. Propagating weights.")
         # Propagate
         weight_matrix = self.propagate_weights_adaptive(self.vertex_coordinates,self.is_semantic_list,self.adjacency_matrix)
-        rospy.loginfo(f"Received {weight_matrix} vertices from the graph message.")
+        print(f"Received {list(weight_matrix)} vertices from the graph message.")
         cluster_centroids, object_cluster_matrix = self.cluster_objects(self.vertex_coordinates,self.is_semantic_list,self.adjacency_matrix, weight_matrix, z_threshold=2)
         rospy.loginfo(f"Clustered objects into {len(cluster_centroids)} clusters.")
         marker_array = self.create_marker_array(self.vertex_coordinates, cluster_centroids, object_cluster_matrix)
