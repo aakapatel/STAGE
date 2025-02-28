@@ -249,8 +249,8 @@ bool StageInterface::collisionCheckCallback(
   Eigen::Vector3d v(start.x, start.y, start.z);
   Eigen::Vector3d v1(end.x, end.y, end.z);
   MapManager::VoxelStatus vs =
-      map_manager_->getPathStatus(v, v1, robot_box_size_, true);
-  if (MapManager::VoxelStatus::kOccupied != vs) {
+      map_manager_->getPathStatus(v, v1, robot_box_size_, false);
+  if (MapManager::VoxelStatus::kOccupied != vs and MapManager::VoxelStatus::kUnknown != vs ) {
     res.collision_status = false;
     std::cout << "Collision status is FALSE \n" << std::endl;
   } else {
@@ -505,8 +505,8 @@ void StageInterface::actionGoalCallback(
         Eigen::Vector3d v1(p1.pose.position.x, p1.pose.position.y,
                            p1.pose.position.z);
         MapManager::VoxelStatus vs =
-            map_manager_->getPathStatus(v, v1, robot_box_size_, true);
-        if (MapManager::VoxelStatus::kOccupied != vs) {
+            map_manager_->getPathStatus(v, v1, robot_box_size_, false);
+        if (MapManager::VoxelStatus::kOccupied != vs and MapManager::VoxelStatus::kUnknown != vs) {
           global_temp_path.poses.push_back(p);
           global_temp_path.poses.push_back(p1);
           global_path_iterator_ = global_path_iterator_ + 1;
