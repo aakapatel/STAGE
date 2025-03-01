@@ -428,7 +428,6 @@ void GraphUtils::convertGraphToMsg(stage_planner::Graph& graph_msg) {
     vertex.is_frontier = v.second->vol_gain.is_frontier;
     
     if (v.second->is_semantic) {
-      std::cout << "Semantic vertex id : " << v.second->id << "\n" << std::endl;  
       vertex.is_semantic = true;
     } else {
       vertex.is_semantic = false;

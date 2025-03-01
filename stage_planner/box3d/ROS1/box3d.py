@@ -29,13 +29,13 @@ from box3d_core import *
 # #####################################################
 
 FRAME = "world"
-KERNEL = 8
+KERNEL = 5
 UNDISTORT = False
 SEGMENTED = True
 
 # #Indoors COCO
-REMAP = {13:0,24:1,25:2,26:3,39:4,40:5,41:6,42:7,43:8,44:9,45:10,56:11,57:12,58:13,60:14,61:15,68:16,69:17,71:18,73:19,74:20} 
-OOI = [13,24,25,26,39,40,41,42,43,44,45,56,57,58,60,61,68,69,71,73,74]
+# REMAP = {13:0,24:1,25:2,26:3,39:4,40:5,41:6,42:7,43:8,44:9,45:10,56:11,57:12,58:13,60:14,61:15,68:16,69:17,71:18,73:19,74:20} 
+# OOI = [13,24,25,26,39,40,41,42,43,44,45,56,57,58,60,61,68,69,71,73,74]
 
 #Outdoors COCO
 # REMAP = {0:0,1:1,2:2,3:3,5:4,6:5} 
@@ -109,7 +109,7 @@ class yolo_lidar:
 			frame = cv2.undistort(frame, self.camera_matrix, self.dist_coeffs, None, newcameramatrix)
 
 		# frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-		results = self.model.predict(frame, classes = OOI) 
+		results = self.model.predict(frame, retina_masks=True, conf=0.25) 
 		self.yolo_pub.publish(self.bridge.cv2_to_imgmsg(results[0].plot(), 'bgr8'))
 
 		segMask = np.zeros((self.height,self.width), dtype = np.uint8)
@@ -125,7 +125,8 @@ class yolo_lidar:
 				mask = cv2.erode(mask, kernel) 
 
 				#segMask = cv2.add(segMask, mask*int(results[0].boxes[idxMask].cpu().numpy().data[0][5] + 1)) 
-				segMask = cv2.add(segMask, mask * (REMAP[results[0].boxes[idxMask].cpu().numpy().data[0][5]] + 1)) 
+				# segMask = cv2.add(segMask, mask * (REMAP[results[0].boxes[idxMask].cpu().numpy().data[0][5]] + 1)) 
+				segMask = cv2.add(segMask, mask * (int(results[0].boxes[idxMask].cpu().numpy().data[0][5]) + 1)) 
 				instMask = cv2.add(instMask, mask * (idxMask + 1))
 
 		else: 
@@ -148,7 +149,8 @@ class yolo_lidar:
 				central_sector_mask = np.zeros((self.height, self.width), dtype=np.uint8)
 				central_sector_mask[central_sector_y1:central_sector_y2, central_sector_x1:central_sector_x2] = 1
 
-				segMask = cv2.add(segMask, central_sector_mask * (REMAP[results[0].boxes[idxBox].cpu().numpy().data[0][5]] + 1))
+				# segMask = cv2.add(segMask, central_sector_mask * (REMAP[results[0].boxes[idxBox].cpu().numpy().data[0][5]] + 1))
+				segMask = cv2.add(segMask, central_sector_mask * (int(results[0].boxes[idxBox].cpu().numpy().data[0][5]) + 1))
 				instMask = cv2.add(instMask, central_sector_mask * (idxBox + 1))
 			
 		self.yolo_seg_pub.publish(self.bridge.cv2_to_imgmsg(segMask, 'mono8'))

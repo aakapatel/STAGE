@@ -20,7 +20,7 @@ class GraphNode:
 
         # Check if the existing marker array is empty
         # if not self.marker_array.markers:  # Check if the marker array is empty
-        self.delete_marker_array(self.marker_array)  # Call the delete function if not empty
+        # self.delete_marker_array(self.marker_array)  # Call the delete function if not empty
             # self.marker_array = MarkerArray()
 
         self.graph_data = []  # List to store graph data
@@ -53,16 +53,20 @@ class GraphNode:
             self.adjacency_matrix[source_id, target_id] = 1  # Mark the edge in the adjacency matrix
             self.adjacency_matrix[target_id, source_id] = 1  # Mark the edge in the adjacency matrix
 
+        print(len(self.vertex_coordinates))
+        print(len(msg.edges))
+
         # print(self.adjacency_matrix)
 
         rospy.loginfo("Adjacency matrix created. Propagating weights.")
         # Propagate
         weight_matrix = self.propagate_weights_adaptive(self.vertex_coordinates,self.is_semantic_list,self.adjacency_matrix)
         # print(*weight_matrix)
-        cluster_centroids, object_cluster_matrix = self.cluster_objects(self.vertex_coordinates,self.is_semantic_list,self.adjacency_matrix, weight_matrix, z_threshold=10)
+        cluster_centroids, object_cluster_matrix = self.cluster_objects(self.vertex_coordinates,self.is_semantic_list,self.adjacency_matrix, weight_matrix, z_threshold=20)
         rospy.loginfo(f"Clustered objects into {len(cluster_centroids)} clusters.")
 
-        self.marker_array = self.create_marker_array(self.vertex_coordinates, cluster_centroids, object_cluster_matrix)
+        self.delete_marker_array(self.marker_array) 
+        self.marker_array = self.create_marker_array(self.vertex_coordinates, cluster_centroids, object_cluster_matrix, self.adjacency_matrix)
         
         # Process the graph message and populate the marker_array
         self.publisher.publish(self.marker_array)
@@ -132,7 +136,7 @@ class GraphNode:
             #     if distances[neighbor] < np.inf:  # Ensure the neighbor is reachable
             #         edge_propagation = min(edge_propagation, int(distances[neighbor] / 2 + 2))
 
-            print(edge_propagation)
+            # print(edge_propagation)
 
             # rospy.loginfo(f"Edge propagation value for node {idx}: {edge_propagation}")
             
@@ -245,94 +249,97 @@ class GraphNode:
 
         return cluster_centroids, object_cluster_matrix
 
-    def create_marker_array(self, vertex_coordinates, cluster_centroids, object_cluster_matrix):
+    def create_marker_array(self, vertex_coordinates, cluster_centroids, object_cluster_matrix, adjacency_matrix):
         marker_array = MarkerArray()
         
         # Create markers for cluster centroids
         for idx, centroid in enumerate(cluster_centroids):
-            marker = Marker()
-            marker.header.frame_id = "world"  # Set the frame of reference
-            marker.header.stamp = rospy.Time.now()
-            marker.ns = "clusters"
-            marker.id = idx
-            marker.type = Marker.CUBE
-            marker.action = Marker.ADD
-            marker.pose.position.x = centroid[0]
-            marker.pose.position.y = centroid[1]
-            marker.pose.position.z = centroid[2]
-            marker.scale.x = 0.5  # Size of the cube
-            marker.scale.y = 0.5
-            marker.scale.z = 0.5
-            marker.color.r = 1.0  # Orange color
-            marker.color.g = 0.5
-            marker.color.b = 0.0
-            marker.color.a = 1.0  # Fully opaque
-            marker_array.markers.append(marker)
+            # Check if the cluster has more than one node or if it has one node with connections
+            if sum(object_cluster_matrix[:, idx]) > 1 or np.any(adjacency_matrix[object_cluster_matrix[:, idx] == 1, :].sum(axis=0) > 0):
+                marker = Marker()
+                marker.header.frame_id = "world"  # Set the frame of reference
+                marker.header.stamp = rospy.Time.now()
+                marker.ns = "clusters"
+                marker.id = idx
+                marker.type = Marker.CUBE
+                marker.action = Marker.ADD
+                marker.pose.position.x = centroid[0]
+                marker.pose.position.y = centroid[1]
+                marker.pose.position.z = centroid[2]
+                marker.scale.x = 1.5  # Size of the cube
+                marker.scale.y = 1.5
+                marker.scale.z = 1.5
+                marker.color.r = 1.0  # Orange color
+                marker.color.g = 0.5
+                marker.color.b = 0.0
+                marker.color.a = 1.0  # Fully opaque
+                marker_array.markers.append(marker)
 
-            # Create line markers from centroid to its respective objects
-            for obj_idx in range(len(vertex_coordinates)):
-                if object_cluster_matrix[obj_idx,idx] == 1:  # If the object belongs to this cluster
-                    line_marker = Marker()
-                    line_marker.header.frame_id = "world"
-                    line_marker.header.stamp = rospy.Time.now()
-                    line_marker.ns = "lines"
-                    line_marker.id = len(marker_array.markers) + obj_idx  # Unique ID
-                    line_marker.type = Marker.LINE_STRIP
-                    line_marker.action = Marker.ADD
-                    line_marker.pose.orientation.w = 1.0  # No rotation
-                    line_marker.scale.x = 0.1  # Line thickness
-                    line_marker.color.r = 1.0  # Orange color for lines
-                    line_marker.color.g = 0.5
-                    line_marker.color.b = 0.0
-                    line_marker.color.a = 1.0
+                # Create line markers from centroid to its respective objects
+                for obj_idx in range(len(vertex_coordinates)):
+                    if object_cluster_matrix[obj_idx, idx] == 1:  # If the object belongs to this cluster
+                        line_marker = Marker()
+                        line_marker.header.frame_id = "world"
+                        line_marker.header.stamp = rospy.Time.now()
+                        line_marker.ns = "lines"
+                        line_marker.id = len(marker_array.markers) + obj_idx  # Unique ID
+                        line_marker.type = Marker.LINE_STRIP
+                        line_marker.action = Marker.ADD
+                        line_marker.pose.orientation.w = 1.0  # No rotation
+                        line_marker.scale.x = 0.2  # Line thickness
+                        line_marker.color.r = 1.0  # Orange color for lines
+                        line_marker.color.g = 0.5
+                        line_marker.color.b = 0.0
+                        line_marker.color.a = 1.0
 
-                    # Add points for the line
-                    line_marker.points.append(Point(centroid[0], centroid[1], centroid[2]))  # Centroid position
-                    line_marker.points.append(Point(vertex_coordinates[obj_idx][0], vertex_coordinates[obj_idx][1], vertex_coordinates[obj_idx][2]+5))  # Object position
+                        # Add points for the line
+                        line_marker.points.append(Point(centroid[0], centroid[1], centroid[2]))  # Centroid position
+                        line_marker.points.append(Point(vertex_coordinates[obj_idx][0], vertex_coordinates[obj_idx][1], vertex_coordinates[obj_idx][2] + 10))  # Object position
 
-                    marker_array.markers.append(line_marker)
+                        marker_array.markers.append(line_marker)
 
-        # Create a cyan square marker at the centroid position
-        cyan_square_marker = Marker()
-        cyan_square_marker.header.frame_id = "world"
-        cyan_square_marker.header.stamp = rospy.Time.now()
-        cyan_square_marker.ns = "cyan_squares"
-        cyan_square_marker.id = len(marker_array.markers)  # Unique ID
-        cyan_square_marker.type = Marker.CUBE
-        cyan_square_marker.action = Marker.ADD
-        cyan_square_marker.pose.position.x = np.mean([centroid[0] for centroid in cluster_centroids])
-        cyan_square_marker.pose.position.y = np.mean([centroid[1] for centroid in cluster_centroids])
-        cyan_square_marker.pose.position.z = np.mean([centroid[2] for centroid in cluster_centroids]) + 5
-        cyan_square_marker.scale.x = 0.5  # Size of the cube
-        cyan_square_marker.scale.y = 0.5
-        cyan_square_marker.scale.z = 0.5
-        cyan_square_marker.color.r = 0.0  # Cyan color
-        cyan_square_marker.color.g = 1.0
-        cyan_square_marker.color.b = 1.0
-        cyan_square_marker.color.a = 1.0  # Fully opaque
-        marker_array.markers.append(cyan_square_marker)
+        # Create a purple square marker at the centroid position
+        purple_square_marker = Marker()
+        purple_square_marker.header.frame_id = "world"
+        purple_square_marker.header.stamp = rospy.Time.now()
+        purple_square_marker.ns = "purple_squares"
+        purple_square_marker.id = len(marker_array.markers)  # Unique ID
+        purple_square_marker.type = Marker.CUBE
+        purple_square_marker.action = Marker.ADD
+        purple_square_marker.pose.position.x = np.mean([centroid[0] for centroid in cluster_centroids])
+        purple_square_marker.pose.position.y = np.mean([centroid[1] for centroid in cluster_centroids])
+        purple_square_marker.pose.position.z = np.mean([centroid[2] for centroid in cluster_centroids]) + 10
+        purple_square_marker.scale.x = 2.5  # Size of the cube
+        purple_square_marker.scale.y = 2.5
+        purple_square_marker.scale.z = 2.5
+        purple_square_marker.color.r = 0.5  # Purple color
+        purple_square_marker.color.g = 0.0
+        purple_square_marker.color.b = 0.5
+        purple_square_marker.color.a = 1.0  # Fully opaque
+        marker_array.markers.append(purple_square_marker)
 
-        # Create edges from the cyan square to the clusters
+        # Create edges from the purple square to the clusters
         for idx, centroid in enumerate(cluster_centroids):
-            edge_marker = Marker()
-            edge_marker.header.frame_id = "world"
-            edge_marker.header.stamp = rospy.Time.now()
-            edge_marker.ns = "edges"
-            edge_marker.id = len(marker_array.markers) + idx  # Unique ID
-            edge_marker.type = Marker.LINE_STRIP
-            edge_marker.action = Marker.ADD
-            edge_marker.pose.orientation.w = 1.0  # No rotation
-            edge_marker.scale.x = 0.1  # Line thickness
-            edge_marker.color.r = 0.0  
-            edge_marker.color.g = 1.0
-            edge_marker.color.b = 1.0
-            edge_marker.color.a = 1.0
+            if sum(object_cluster_matrix[:, idx]) > 1 or np.any(adjacency_matrix[object_cluster_matrix[:, idx] == 1, :].sum(axis=0) > 0):
+                edge_marker = Marker()
+                edge_marker.header.frame_id = "world"
+                edge_marker.header.stamp = rospy.Time.now()
+                edge_marker.ns = "edges"
+                edge_marker.id = len(marker_array.markers) + idx  # Unique ID
+                edge_marker.type = Marker.LINE_STRIP
+                edge_marker.action = Marker.ADD
+                edge_marker.pose.orientation.w = 1.0  # No rotation
+                edge_marker.scale.x = 0.3  # Line thickness
+                edge_marker.color.r = 0.5  
+                edge_marker.color.g = 0.0
+                edge_marker.color.b = 0.5
+                edge_marker.color.a = 0.70
 
-            # Add points for the edge
-            edge_marker.points.append(Point(np.mean([centroid[0] for centroid in cluster_centroids]), np.mean([centroid[1] for centroid in cluster_centroids]), np.mean([centroid[2] for centroid in cluster_centroids]) + 5))  # Centroid position
-            edge_marker.points.append(Point(centroid[0], centroid[1], centroid[2])) # Object position
+                # Add points for the edge
+                edge_marker.points.append(Point(np.mean([centroid[0] for centroid in cluster_centroids]), np.mean([centroid[1] for centroid in cluster_centroids]), np.mean([centroid[2] for centroid in cluster_centroids]) + 10))  # Centroid position
+                edge_marker.points.append(Point(centroid[0], centroid[1], centroid[2])) # Object position
 
-            marker_array.markers.append(edge_marker)
+                marker_array.markers.append(edge_marker)
 
         return marker_array
 

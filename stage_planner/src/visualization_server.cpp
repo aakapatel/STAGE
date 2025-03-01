@@ -463,10 +463,10 @@ void VisualizationServer::visualizeGlobalGraph(
     p2.y = v_map[tgt_id]->state[1];
     p2.z = v_map[tgt_id]->state[2];
     if (v_map[src_id]->is_semantic) {
-      p1.z = v_map[src_id]->state[2] + 5;
+      p1.z = v_map[src_id]->state[2] + 10;
     }
     if (v_map[tgt_id]->is_semantic) {
-      p2.z = v_map[tgt_id]->state[2] + 5;
+      p2.z = v_map[tgt_id]->state[2] + 10;
     }
 
     edge_marker.points.push_back(p1);
@@ -486,9 +486,9 @@ void VisualizationServer::visualizeGlobalGraph(
   vertex_marker.scale.x = 0.3;
   vertex_marker.scale.y = 0.3;
   vertex_marker.scale.z = 0.3;
-  vertex_marker.color.r = 240.0 / 255.0;
-  vertex_marker.color.g = 128.0 / 255.0;
-  vertex_marker.color.b = 128.0 / 255.0;
+  vertex_marker.color.r = 0.0 / 255.0;
+  vertex_marker.color.g = 255.0 / 255.0;
+  vertex_marker.color.b = 255.0 / 255.0;
   vertex_marker.color.a = 1.0;
   vertex_marker.frame_locked = false;
 
@@ -517,9 +517,9 @@ void VisualizationServer::visualizeGlobalGraph(
   semantic_vertex.ns = "semantic";
   semantic_vertex.action = visualization_msgs::Marker::ADD;
   semantic_vertex.type = visualization_msgs::Marker::SPHERE_LIST;
-  semantic_vertex.scale.x = 0.5;
-  semantic_vertex.scale.y = 0.5;
-  semantic_vertex.scale.z = 0.5;
+  semantic_vertex.scale.x = 0.8;
+  semantic_vertex.scale.y = 0.8;
+  semantic_vertex.scale.z = 0.8;
   semantic_vertex.color.r = 0.0 / 255.0;
   semantic_vertex.color.g = 255.0 / 255.0;
   semantic_vertex.color.b = 0.0 / 255.0;
@@ -545,7 +545,7 @@ void VisualizationServer::visualizeGlobalGraph(
       geometry_msgs::Point p1;
       p1.x = v_map[id]->state[0];
       p1.y = v_map[id]->state[1];
-      p1.z = v_map[id]->state[2] + 5;
+      p1.z = v_map[id]->state[2] + 10;
 
       semantic_vertex.points.push_back(p1);
     }
@@ -926,7 +926,7 @@ void VisualizationServer::visualizeRawPath(nav_msgs::Path raw_path) {
 
 void VisualizationServer::publishSemanticGraph(stage_planner::Graph graph) {
   semantic_graph_publisher_.publish(graph);
-  ROS_INFO("Published semantic graph \n");
+  ROS_DEBUG("Published semantic graph \n");
 }
 
 void VisualizationServer::visualizePclMap(

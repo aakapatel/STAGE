@@ -1081,7 +1081,7 @@ bool GraphManager::improveFreePath(
     } else if (e2_admissible) {
       p1_target = p1;
     } else {
-      ROS_WARN("Segment not free");
+      ROS_DEBUG("Segment not free");
       seg_free = false;
     }
 
@@ -1163,7 +1163,7 @@ bool GraphManager::improveFreePath(
                                                  robot_box_size_[1]))))))) {
         p1_mod = p1;
         mod_success = false;
-        ROS_WARN("Newly modified path is not collision-free.");
+        ROS_DEBUG("Newly modified path is not collision-free.");
         // break; // break to save time @recheck
       }
     } else {
@@ -1917,7 +1917,7 @@ void GraphManager::insertSemanticsToGraph(
       //     MapManager::VoxelStatus::kFree == vn) {
 
       if (edge_length < 1.5 * planning_params_.edge_length_max and
-          nearby_vertices[i]->edges < 4) {
+          graph->vertices_map_[id]->edges < 5) {
         graph->addEdge(graph->vertices_map_[id], nearby_vertices[i],
                        graph->distanceBetweenVertices(graph->vertices_map_[id],
                                                       nearby_vertices[i]));

@@ -352,55 +352,6 @@ bool StageInterface::initializePlanner(
     nav_msgs::Path initialization_path;
     initialization_path.poses.clear();
 
-    /*
-
-    std::vector<geometry_msgs::PoseStamped> initialization_poses;
-    initialization_poses.clear();
-    geometry_msgs::PoseStamped init_pose;
-
-    init_pose.pose.position.x = robotState_[0];
-    init_pose.pose.position.y = robotState_[1];
-    init_pose.pose.position.z = robotState_[2];
-    init_pose.pose.orientation.x = 0;
-    init_pose.pose.orientation.y = 0;
-    init_pose.pose.orientation.z = 0;
-    init_pose.pose.orientation.w = 1;
-    initialization_path.poses.push_back(init_pose);
-    init_pose.pose.position.x = robotState_[0];
-    init_pose.pose.position.y = robotState_[1];
-    if (robot_params_.type == RobotType::kGroundRobot) {
-      ROS_WARN("robot type --> ground \n");
-      init_pose.pose.position.z = robotState_[2];
-    } else {
-      ROS_WARN("robot type --> aerial \n");
-      init_pose.pose.position.z = robotState_[2];
-    }
-    init_pose.pose.orientation.x = 0;
-    init_pose.pose.orientation.y = 0;
-    init_pose.pose.orientation.z = 0;
-    init_pose.pose.orientation.w = 1;
-    initialization_path.poses.push_back(init_pose);
-    init_pose.pose.position.x = robotState_[0] + init_x;
-    init_pose.pose.position.y = robotState_[1];
-    if (robot_params_.type == RobotType::kGroundRobot) {
-      init_pose.pose.position.z = robotState_[2];
-    } else {
-      init_pose.pose.position.z = robotState_[2];
-    }
-    init_pose.pose.orientation.x = 0;
-    init_pose.pose.orientation.y = 0;
-    init_pose.pose.orientation.z = 0;
-    init_pose.pose.orientation.w = 1;
-    initialization_path.poses.push_back(init_pose);
-
-    StageInterface::generateTrajectory(initialization_path);
-    command_Path_Publisher.publish(command_path);
-    planner_initialized = true;
-    StageInterface::callActionServer();
-    planner_status_ = StageInterface::PlannerStatus::READY;
-
-  */
-
     planner_initialized = true;
     res.success = true;
     ROS_INFO("Initialization Successful : Ready ");
@@ -934,7 +885,7 @@ void StageInterface::periodicTimerCallback(const ros::TimerEvent& event) {
     manual_homing_triggered_ = false;
   }
 
-  ROS_INFO_STREAM("Time remaining : " << time_budget_remaining_ << "s \n");
+  ROS_DEBUG_STREAM("Time remaining : " << time_budget_remaining_ << "s \n");
 
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
   switch (planner_status_) {
@@ -994,7 +945,9 @@ void StageInterface::periodicTimerCallback(const ros::TimerEvent& event) {
 
     case StageInterface::PlannerStatus::EXECUTING_PATH:
       ROS_DEBUG("[PLANNER STATUS : ] Executing path \n");
-
+      
+      // STAGE ICRA 2024 feature. Check for collision along path and dynamic replanning.  
+      
       if (path_iterator_ < (exploration_path_.poses.size())) {
         temp_path.poses.clear();
         geometry_msgs::PoseStamped p;
@@ -1022,9 +975,10 @@ void StageInterface::periodicTimerCallback(const ros::TimerEvent& event) {
                           p.pose.position.z);
         Eigen::Vector3d v1(p1.pose.position.x, p1.pose.position.y,
                            p1.pose.position.z);
-        MapManager::VoxelStatus vs =
-            map_manager_->getPathStatus(v, v1, robot_box_size_, true);
-        if (MapManager::VoxelStatus::kOccupied != vs) {
+        // MapManager::VoxelStatus vs =
+        //     map_manager_->getPathStatus(v, v1, robot_box_size_, true);
+        // if (MapManager::VoxelStatus::kOccupied != vs) {
+        if (true) {
           temp_path.poses.push_back(p);
           temp_path.poses.push_back(p1);
           path_iterator_ = path_iterator_ + 1;
@@ -1054,6 +1008,7 @@ void StageInterface::periodicTimerCallback(const ros::TimerEvent& event) {
           planner_status_ = StageInterface::PlannerStatus::READY;
         }
       }
+
       break;
 
     case StageInterface::PlannerStatus::HOMING:
@@ -1069,6 +1024,20 @@ void StageInterface::periodicTimerCallback(const ros::TimerEvent& event) {
     case StageInterface::PlannerStatus::EXECUTING_HOMING_PATH:
       ROS_DEBUG("[PLANNER STATUS : ] Executing homing path \n");
 
+      // For direct path execution. Without checking for potential collision along the exploration path. 
+
+      command_path.poses.clear();
+      StageInterface::generateTrajectory(exploration_path_);
+      if (!command_path.poses.empty()) {
+        // planner_status_ = StageInterface::PlannerStatus::EXECUTING_HOMING_PATH;
+        command_Path_Publisher.publish(command_path);
+        StageInterface::callActionServer();  // only for ground robot
+        command_path.poses.clear();
+        exploration_path_.poses.clear();
+      }
+      
+      // STAGE ICRA 2024 feature. Check for collision along path and dynamic replanning.  
+      
       if (path_iterator_ < (exploration_path_.poses.size())) {
         temp_path.poses.clear();
         geometry_msgs::PoseStamped p;
@@ -1095,10 +1064,11 @@ void StageInterface::periodicTimerCallback(const ros::TimerEvent& event) {
           planner_status_ = StageInterface::PlannerStatus::NOT_READY;
         }
       }
+      
       break;
 
     case StageInterface::PlannerStatus::NOT_READY:
-      ROS_WARN("[PLANNER STATUS] NOT READY \n");
+      ROS_DEBUG("[PLANNER STATUS] NOT READY \n");
       break;
 
     default:
