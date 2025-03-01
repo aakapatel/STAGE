@@ -30,7 +30,7 @@
       
       <param name="path_topic" type="string" value="command_path"/>
 
-      <param name="odom_topic" type="string" value="ground_truth/odometry"/>
+      <param name="odom_topic" type="string" value="odometry/imu"/>
 
       <param name="wp_topic" type="string" value="/next_waypoint"/>
 

@@ -545,11 +545,11 @@ void StageInterface::actionGoalCallback(
                 global_temp_path.header.stamp = ros::Time::now();
                 StageInterface::generateTrajectory(global_temp_path);
                 command_Path_Publisher.publish(command_path);
-                global_path_iterator_ = path_to_exec_.poses.size();
+                global_path_iterator_ = path_to_exec_.poses.size()-1;
                 re_planning_success = true;
                 break;
               } else {
-                global_path_iterator_ = path_to_exec_.poses.size();
+                global_path_iterator_ = path_to_exec_.poses.size()-1;
                 ROS_ERROR("Alternate path not good enough to reach target! :( \n");
 
                 result_.success = false;
