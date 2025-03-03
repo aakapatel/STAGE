@@ -66,6 +66,38 @@ def getBoundingBox(points:np.ndarray) -> o3d.geometry.AxisAlignedBoundingBox:
     bbox = pcd.get_axis_aligned_bounding_box()
     return bbox
 
+# def mergeBboxes(bboxes:List[o3d.geometry.AxisAlignedBoundingBox]) -> List[o3d.geometry.AxisAlignedBoundingBox]:
+#     """ Check if boxes are overlapping and get all the points from the boxes. Then create the bbox of the merged points.
+#     Only merge if the combined volume is not more than 2x the sum of individual volumes.
+#     """
+#     merged_bboxes = []
+#     processed = set()
+#     for idx1, bbox1 in enumerate(bboxes):
+#         if idx1 in processed:
+#             continue
+#         merged_bbox = bbox1
+#         overlapping_indices = [idx1]
+#         current_volume = bbox1.volume()
+        
+#         for idx2, bbox2 in enumerate(bboxes[idx1 + 1:]):
+#             if idx2 + idx1 + 1 in processed:
+#                 continue
+#             if isOverlapping(merged_bbox, bbox2):
+#                 # Calculate combined volume
+#                 temp_merged = mergeBoxes(merged_bbox, bbox2)
+#                 combined_volume = temp_merged.volume()
+#                 separate_volumes = current_volume + bbox2.volume()
+                
+#                 # Only merge if combined volume isn't too large
+#                 if combined_volume < 0.1: #combined_volume <= 2 * separate_volumes and 
+#                     merged_bbox = temp_merged
+#                     current_volume = combined_volume
+#                     overlapping_indices.append(idx2 + idx1 + 1)
+                    
+#         merged_bboxes.append(merged_bbox)
+#         processed.update(overlapping_indices)
+#     return merged_bboxes
+
 def mergeBboxes(bboxes:List[o3d.geometry.AxisAlignedBoundingBox]) -> List[o3d.geometry.AxisAlignedBoundingBox]:
     """ Check if boxes are overlapping and get all the points from the boxes. Then create the bbox of the merged points
     """

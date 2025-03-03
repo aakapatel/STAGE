@@ -9,7 +9,9 @@ from geometry_msgs.msg import Point
 class GraphNode:
     def __init__(self):
         self.subscriber = rospy.Subscriber('/hummingbird/semantic_graph', Graph, self.graph_callback)
-        self.publisher = rospy.Publisher('/graph/areas', MarkerArray, queue_size=10)
+        # self.subscriber = rospy.Subscriber('/spot/semantic_graph', Graph, self.graph_callback)
+
+        self.publisher = rospy.Publisher('/graph/areas', MarkerArray, queue_size=30)
         # self.graph_data = []  # List to store graph data
         # self.adjacency_matrix = []  # Adjacency matrix to store edges
         # self.vertex_coordinates = []  # List to store vertex coordinates
@@ -62,7 +64,7 @@ class GraphNode:
         # Propagate
         weight_matrix = self.propagate_weights_adaptive(self.vertex_coordinates,self.is_semantic_list,self.adjacency_matrix)
         # print(*weight_matrix)
-        cluster_centroids, object_cluster_matrix = self.cluster_objects(self.vertex_coordinates,self.is_semantic_list,self.adjacency_matrix, weight_matrix, z_threshold=20)
+        cluster_centroids, object_cluster_matrix = self.cluster_objects(self.vertex_coordinates,self.is_semantic_list,self.adjacency_matrix, weight_matrix, z_threshold=5)
         rospy.loginfo(f"Clustered objects into {len(cluster_centroids)} clusters.")
 
         self.delete_marker_array(self.marker_array) 
@@ -294,7 +296,7 @@ class GraphNode:
 
                         # Add points for the line
                         line_marker.points.append(Point(centroid[0], centroid[1], centroid[2]))  # Centroid position
-                        line_marker.points.append(Point(vertex_coordinates[obj_idx][0], vertex_coordinates[obj_idx][1], vertex_coordinates[obj_idx][2] + 10))  # Object position
+                        line_marker.points.append(Point(vertex_coordinates[obj_idx][0], vertex_coordinates[obj_idx][1], vertex_coordinates[obj_idx][2]))  # Object position
 
                         marker_array.markers.append(line_marker)
 

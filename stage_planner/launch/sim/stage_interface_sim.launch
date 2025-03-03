@@ -5,6 +5,7 @@
   <env name="ROSCONSOLE_CONFIG_FILE" value="$(find stage_planner)/custom_rosconsole.conf"/>
   
   <arg name="robot_name" default="hummingbird"/>
+  <!-- <arg name="robot_name" default="spot"/> -->
   <arg name="mapping_config" default="$(find stage_planner)/config/aerial/voxblox_sim_config.yaml"/>
   <arg name="stage_config" default="$(find stage_planner)/config/aerial/stage_config.yaml"/>
   
@@ -13,8 +14,9 @@
     <node pkg="stage_planner" type="stage_interface_node" name="stage_interface_node" output="screen">
 
       <remap from="odometry" to="ground_truth/odometry" />
-       <!--<remap from="pointcloud" to="velodyne_points" /> -->
-       <remap from="pointcloud" to="ouster/points" /> 
+      <remap from="pointcloud" to="ouster/points" /> 
+      <!-- <remap from="odometry" to="odometry/imu" /> -->
+       <!-- <remap from="pointcloud" to="velodyne_points" /> -->
       <remap from="reference_topic" to="command/pose" />
       <rosparam command="load" file="$(arg mapping_config)" /> 
       <rosparam command="load" file="$(arg stage_config)" /> 
@@ -31,6 +33,8 @@
       <param name="path_topic" type="string" value="command_path"/>
 
       <param name="odom_topic" type="string" value="ground_truth/odometry"/>
+
+      <!-- <param name="odom_topic" type="string" value="odometry/imu"/> -->
 
       <param name="wp_topic" type="string" value="/next_waypoint"/>
 

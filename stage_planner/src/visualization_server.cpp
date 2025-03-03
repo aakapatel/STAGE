@@ -698,10 +698,10 @@ void VisualizationServer::visualizeDenseGraph(
   edge_marker.action = visualization_msgs::Marker::ADD;
   edge_marker.type = visualization_msgs::Marker::LINE_LIST;
   edge_marker.scale.x = 0.04;
-  edge_marker.color.r = 90.0 / 255.0;
-  edge_marker.color.g = 80.0 / 255.0;
-  edge_marker.color.b = 100.0;
-  edge_marker.color.a = 0.8;
+  edge_marker.color.r = 173.0 / 255.0;
+  edge_marker.color.g = 216.0 / 255.0;
+  edge_marker.color.b = 230.0 / 255.0;
+  edge_marker.color.a = 0.5;
   edge_marker.frame_locked = false;
 
   std::pair<Graph::GraphType::edge_iterator, Graph::GraphType::edge_iterator>
@@ -711,6 +711,7 @@ void VisualizationServer::visualizeDenseGraph(
     int src_id, tgt_id;
     double weight;
     std::tie(src_id, tgt_id, weight) = g->getEdgeProperty(it);
+
     geometry_msgs::Point p1;
     p1.x = v_map[src_id]->state[0];
     p1.y = v_map[src_id]->state[1];
@@ -720,15 +721,19 @@ void VisualizationServer::visualizeDenseGraph(
     p2.y = v_map[tgt_id]->state[1];
     p2.z = v_map[tgt_id]->state[2];
     if (v_map[src_id]->is_semantic) {
-      p1.z = v_map[src_id]->state[2] + 5;
+      // p1.z = v_map[src_id]->state[2]+ 20;
+      p1.z = v_map[src_id]->state[2];
     }
     if (v_map[tgt_id]->is_semantic) {
-      p2.z = v_map[tgt_id]->state[2] + 5;
+      // p2.z = v_map[tgt_id]->state[2] + 20;
+      p2.z = v_map[tgt_id]->state[2];
     }
+
     edge_marker.points.push_back(p1);
     edge_marker.points.push_back(p2);
   }
   marker_array.markers.push_back(edge_marker);
+
   // Plot all vertices
   visualization_msgs::Marker vertex_marker;
   vertex_marker.header.stamp = ros::Time::now();
@@ -741,11 +746,11 @@ void VisualizationServer::visualizeDenseGraph(
   vertex_marker.scale.x = 0.3;
   vertex_marker.scale.y = 0.3;
   vertex_marker.scale.z = 0.3;
-  vertex_marker.frame_locked = false;
-  vertex_marker.color.r = 125.0 / 255.0;
-  vertex_marker.color.g = 42.0 / 255.0;
-  vertex_marker.color.b = 104.0 / 255.0;
+  vertex_marker.color.r = 0.0 / 255.0;
+  vertex_marker.color.g = 255.0 / 255.0;
+  vertex_marker.color.b = 255.0 / 255.0;
   vertex_marker.color.a = 1.0;
+  vertex_marker.frame_locked = false;
 
   visualization_msgs::Marker frontier_vertex_marker;
   frontier_vertex_marker.header.stamp = ros::Time::now();
@@ -754,14 +759,14 @@ void VisualizationServer::visualizeDenseGraph(
   frontier_vertex_marker.id = 0;
   frontier_vertex_marker.ns = "frontier";
   frontier_vertex_marker.action = visualization_msgs::Marker::ADD;
-  frontier_vertex_marker.type = visualization_msgs::Marker::CUBE_LIST;
-  frontier_vertex_marker.scale.x = 0.3;
-  frontier_vertex_marker.scale.y = 0.3;
-  frontier_vertex_marker.scale.z = 0.3;
-  frontier_vertex_marker.color.r = 0.0 / 255.0;
-  frontier_vertex_marker.color.g = 0.0 / 255.0;
-  frontier_vertex_marker.color.b = 200.0 / 255.0;
-  frontier_vertex_marker.color.a = 0.8;
+  frontier_vertex_marker.type = visualization_msgs::Marker::SPHERE_LIST;
+  frontier_vertex_marker.scale.x = 0.4;
+  frontier_vertex_marker.scale.y = 0.4;
+  frontier_vertex_marker.scale.z = 0.4;
+  frontier_vertex_marker.color.r = 255.0 / 255.0;
+  frontier_vertex_marker.color.g = 20.0 / 255.0;
+  frontier_vertex_marker.color.b = 145.0 / 255.0;
+  frontier_vertex_marker.color.a = 1.0;
   frontier_vertex_marker.frame_locked = false;
 
   visualization_msgs::Marker semantic_vertex;
@@ -772,14 +777,15 @@ void VisualizationServer::visualizeDenseGraph(
   semantic_vertex.ns = "semantic";
   semantic_vertex.action = visualization_msgs::Marker::ADD;
   semantic_vertex.type = visualization_msgs::Marker::SPHERE_LIST;
-  semantic_vertex.scale.x = 0.5;
-  semantic_vertex.scale.y = 0.5;
-  semantic_vertex.scale.z = 0.5;
+  semantic_vertex.scale.x = 0.8;
+  semantic_vertex.scale.y = 0.8;
+  semantic_vertex.scale.z = 0.8;
   semantic_vertex.color.r = 0.0 / 255.0;
   semantic_vertex.color.g = 255.0 / 255.0;
   semantic_vertex.color.b = 0.0 / 255.0;
   semantic_vertex.color.a = 1.0;
   semantic_vertex.frame_locked = false;
+
 
   std::pair<Graph::GraphType::vertex_iterator,
             Graph::GraphType::vertex_iterator>
@@ -799,7 +805,8 @@ void VisualizationServer::visualizeDenseGraph(
       geometry_msgs::Point p1;
       p1.x = v_map[id]->state[0];
       p1.y = v_map[id]->state[1];
-      p1.z = v_map[id]->state[2] + 5;
+      // p1.z = v_map[id]->state[2] + 10;
+      p1.z = v_map[id]->state[2];
 
       semantic_vertex.points.push_back(p1);
     } else {

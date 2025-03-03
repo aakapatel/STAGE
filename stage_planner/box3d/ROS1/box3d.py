@@ -33,6 +33,9 @@ KERNEL = 5
 UNDISTORT = False
 SEGMENTED = True
 
+# REMAP = {1:0,2:1,25:2,26:3,39:4,40:5,41:6,42:7,43:8,44:9,45:10,56:11,57:12,58:13,60:14,61:15,68:16,69:17,71:18,73:19,74:20} 
+# OOI = [0,1]
+
 # #Indoors COCO
 # REMAP = {13:0,24:1,25:2,26:3,39:4,40:5,41:6,42:7,43:8,44:9,45:10,56:11,57:12,58:13,60:14,61:15,68:16,69:17,71:18,73:19,74:20} 
 # OOI = [13,24,25,26,39,40,41,42,43,44,45,56,57,58,60,61,68,69,71,73,74]
@@ -61,23 +64,31 @@ class yolo_lidar:
 
 		######################## CAMERA INFO TOPIC ############################
 		self.intrinsics_sub = rospy.Subscriber("/hummingbird/camera/color/camera_info",CameraInfo,self.callback_intrinsics, queue_size=1)
+		# self.intrinsics_sub = rospy.Subscriber("/spot/camera/color/camera_info",CameraInfo,self.callback_intrinsics, queue_size=1)
+
 		
 		###################### REAL SENSE CAMERA #########################	
 		self.image_sub = message_filters.Subscriber("/hummingbird/camera/color/image_raw", Image)
 		self.points_sub = message_filters.Subscriber("/hummingbird/ouster/points",PointCloud2)
 		self.odometry_sub = message_filters.Subscriber("/hummingbird/ground_truth/odometry", Odometry)
+
+
+		# self.image_sub = message_filters.Subscriber("/spot/camera/color/image_raw_throttle", Image)
+		# self.points_sub = message_filters.Subscriber("/spot/velodyne_points",PointCloud2)
+		# self.odometry_sub = message_filters.Subscriber("/spot/odometry/imu", Odometry)
 		self.height = 720
 		self.width = 1280
 		self.camera_matrix = np.asarray([424.2752075195312, 0.0, 320.32861328125, 0.0, 424.6666259765625, 240.4922180175781, 0.0, 0.0, 1.0]).reshape((3, 3))
 		self.dist_coeffs = np.asarray([-0.05529356002807617, 0.06882049143314362, -0.00044326853821985424, 0.0005935364752076566, -0.021897781640291214])
-		self.tvec = np.asarray([0.060,0.018,0.072])
+		# self.tvec = np.asarray([0.060,0.018,0.072])
+		self.tvec = np.asarray([0.2,0.0,-0.01])
 		self.rvec,_ = cv2.Rodrigues(np.asarray([[0.0,0.0,-1.0],[1.0,0.0,0.0],[0.0,1.0,0.0]]))
 
 		#self.cmap = plt.cm.viridis
 		self.cmap = plt.cm.jet
 		self.cmaplist = [self.cmap(i) for i in range(self.cmap.N)]
 
-		self.ts = message_filters.ApproximateTimeSynchronizer([self.points_sub, self.image_sub, self.odometry_sub], queue_size=1, slop=0.1)
+		self.ts = message_filters.ApproximateTimeSynchronizer([self.points_sub, self.image_sub, self.odometry_sub], queue_size=1, slop=0.05)
 		# self.ts = message_filters.TimeSynchronizer([self.points_sub, self.image_sub, self.odometry_sub], queue_size=1)
 		self.ts.registerCallback(self.callback)
 		#print("Initialized")
@@ -109,7 +120,7 @@ class yolo_lidar:
 			frame = cv2.undistort(frame, self.camera_matrix, self.dist_coeffs, None, newcameramatrix)
 
 		# frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-		results = self.model.predict(frame, retina_masks=True, conf=0.25) 
+		results = self.model.predict(frame, retina_masks=True) 
 		self.yolo_pub.publish(self.bridge.cv2_to_imgmsg(results[0].plot(), 'bgr8'))
 
 		segMask = np.zeros((self.height,self.width), dtype = np.uint8)
@@ -191,7 +202,14 @@ class yolo_lidar:
 		print(f"Number of points: {len(points_yolo)}, Number of BBOX: {len(bboxes)}")
 
 		for bbox in bboxes:
-			self.global_bboxes.append(bbox)
+			# Calculate volume of the bounding box
+			extent = bbox.get_extent()
+			volume = extent[0] * extent[1] * extent[2]
+			
+			# Only add boxes with volume greater than threshold (e.g., 0.001 cubic meters)
+			if volume > 0.004:  # Adjust threshold as needed
+				self.global_bboxes.append(bbox)
+			# self.global_bboxes.append(bbox)
 
 		# ## Transform the bounding boxes based on odometry pose
 		# for bbox in bboxes:
@@ -267,7 +285,7 @@ class yolo_lidar:
 			marker.scale.x = (bbox.get_max_bound()[0] - bbox.get_min_bound()[0])*1
 			marker.scale.y = (bbox.get_max_bound()[1] - bbox.get_min_bound()[1])*1
 			marker.scale.z = (bbox.get_max_bound()[2] - bbox.get_min_bound()[2])*1
-			marker.color.a = 0.7#35
+			marker.color.a = 0.35#35
 			## Get random color for every bbox
 			if color is None:
 				marker.color.r = 0.0
