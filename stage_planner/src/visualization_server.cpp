@@ -721,12 +721,12 @@ void VisualizationServer::visualizeDenseGraph(
     p2.y = v_map[tgt_id]->state[1];
     p2.z = v_map[tgt_id]->state[2];
     if (v_map[src_id]->is_semantic) {
-      // p1.z = v_map[src_id]->state[2]+ 20;
-      p1.z = v_map[src_id]->state[2];
+      p1.z = v_map[src_id]->state[2]+ 20;
+      // p1.z = v_map[src_id]->state[2];
     }
     if (v_map[tgt_id]->is_semantic) {
-      // p2.z = v_map[tgt_id]->state[2] + 20;
-      p2.z = v_map[tgt_id]->state[2];
+      p2.z = v_map[tgt_id]->state[2] + 20;
+      // p2.z = v_map[tgt_id]->state[2];
     }
 
     edge_marker.points.push_back(p1);
@@ -805,8 +805,8 @@ void VisualizationServer::visualizeDenseGraph(
       geometry_msgs::Point p1;
       p1.x = v_map[id]->state[0];
       p1.y = v_map[id]->state[1];
-      // p1.z = v_map[id]->state[2] + 10;
-      p1.z = v_map[id]->state[2];
+      p1.z = v_map[id]->state[2] + 10;
+      // p1.z = v_map[id]->state[2];
 
       semantic_vertex.points.push_back(p1);
     } else {

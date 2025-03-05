@@ -1871,14 +1871,25 @@ void GraphManager::insertSemanticsToGraph(
     // if (graph->stateExist(&nearest_vertex->state)) {
     //   continue;
     // }
+    
+    
+    Eigen::Vector4d mid_state = (nearest_vertex->state + state) / 2;
+    MapManager::VoxelStatus voxel_state = map_manager_->getBoxStatus(
+      Eigen::Vector3d(mid_state[0], mid_state[1], mid_state[2]) +
+          robot_params_.center_offset,
+      robot_box_size_, true);
+    
+    if (MapManager::VoxelStatus::kFree != voxel_state) {
+      continue;
+    }
 
-    // Vertex* vertex = new Vertex(graph->generateVertexID(), nearest_vertex->state);
-    nearest_vertex->is_semantic = true;
-    // graph->addVertex(vertex);
+    Vertex* vertex = new Vertex(graph->generateVertexID(), mid_state.transpose());
+    vertex->is_semantic = true;
+    graph->addVertex(vertex);
 
     // Add vertex id to semantic vertices ids to only form edges with semantic
     // nodes.
-    graph->semantic_vertices_ids_.push_back(nearest_vertex->id);
+    graph->semantic_vertices_ids_.push_back(vertex->id);
   }
 
   // Iterate through the graph and if vertex is a semantic, form new edges with
@@ -1898,11 +1909,11 @@ void GraphManager::insertSemanticsToGraph(
       if (graph->vertices_map_[id]->is_semantic and
           nearby_vertices[i]->is_semantic) {
         
-        graph->removeEdge(graph->vertices_map_[id], nearby_vertices[i]);
-        ROS_DEBUG("Removed semantic to semantic Edge \n");
+        // graph->removeEdge(graph->vertices_map_[id], nearby_vertices[i]);
+        // ROS_DEBUG("Removed semantic to semantic Edge \n");
         continue;
       }
-        continue;
+        // continue;
       
       Eigen::Vector3d v1(graph->vertices_map_[id]->state[0],
                          graph->vertices_map_[id]->state[1],
@@ -1917,14 +1928,14 @@ void GraphManager::insertSemanticsToGraph(
       double edge_length = graph->distanceBetweenVertices(
           graph->vertices_map_[id], nearby_vertices[i]);
 
-      if (edge_length < 0.5 * planning_params_.edge_length_max and
+      if (edge_length < 1.5 * planning_params_.edge_length_max and
           MapManager::VoxelStatus::kFree == vn and graph->vertices_map_[id]->edges < 4) {
-
       // if (edge_length < 1.5 * planning_params_.edge_length_max and
       //     graph->vertices_map_[id]->edges < 5) {
         graph->addEdge(graph->vertices_map_[id], nearby_vertices[i],
                        graph->distanceBetweenVertices(graph->vertices_map_[id],
                                                       nearby_vertices[i]));
+      graph->vertices_map_[id]->edges++;
       }
     }
   }

@@ -20,10 +20,10 @@ PlanningParams:
   path_interpolation_distance: 1.5
   num_connections_max: 10 # maximum edges a vertex can have
   edge_overshoot:   0.0 # m - Account for possible tracking error by collision checking on an extended edge
-  num_vertices_max: 1200 # graph building stops if these many vertices are added 
-  num_edges_max:    15000 # graph building stops if these many edges are added
-  num_loops_cutoff: 3000 # Maximum iterations in which no vertices or edges are added to the graph
-  num_loops_max:    6000 # Maximum iterations possible for graph building
+  num_vertices_max: 700 # graph building stops if these many vertices are added 
+  num_edges_max:    9000 # graph building stops if these many edges are added
+  num_loops_cutoff: 2000 # Maximum iterations in which no vertices or edges are added to the graph
+  num_loops_max:    4000 # Maximum iterations possible for graph building
   nearest_range:    2.0 # The max range within which a new vertex can be connected to an existing vertex
   nearest_range_min: 0.5 # >= edge_length_min
   nearest_range_max: 2.0 # <= edge_length_max
@@ -50,7 +50,7 @@ PlanningParams:
   freespace_cloud_enable: false
   leafs_only_for_volumetric_gain: true # Whether to calculate gain of the entire path or only the leaf nodes
   cluster_vertices_for_gain: true
-  clustering_radius: 0.3
+  clustering_radius: 0.5
   
   auto_homing_enable: true
   go_home_if_fully_explored: true

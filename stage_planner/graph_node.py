@@ -64,7 +64,7 @@ class GraphNode:
         # Propagate
         weight_matrix = self.propagate_weights_adaptive(self.vertex_coordinates,self.is_semantic_list,self.adjacency_matrix)
         # print(*weight_matrix)
-        cluster_centroids, object_cluster_matrix = self.cluster_objects(self.vertex_coordinates,self.is_semantic_list,self.adjacency_matrix, weight_matrix, z_threshold=5)
+        cluster_centroids, object_cluster_matrix = self.cluster_objects(self.vertex_coordinates,self.is_semantic_list,self.adjacency_matrix, weight_matrix, z_threshold=20)
         rospy.loginfo(f"Clustered objects into {len(cluster_centroids)} clusters.")
 
         self.delete_marker_array(self.marker_array) 
@@ -296,7 +296,7 @@ class GraphNode:
 
                         # Add points for the line
                         line_marker.points.append(Point(centroid[0], centroid[1], centroid[2]))  # Centroid position
-                        line_marker.points.append(Point(vertex_coordinates[obj_idx][0], vertex_coordinates[obj_idx][1], vertex_coordinates[obj_idx][2]))  # Object position
+                        line_marker.points.append(Point(vertex_coordinates[obj_idx][0], vertex_coordinates[obj_idx][1], vertex_coordinates[obj_idx][2]+10))  # Object position
 
                         marker_array.markers.append(line_marker)
 
