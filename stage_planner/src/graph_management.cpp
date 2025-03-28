@@ -464,7 +464,7 @@ bool GraphManager::sampleVertex(Vertex& vertex, bool manual_mode) {
   StateVec state;
   bool hanging = false;
   bool found = false;
-
+  // bool pass = true;
   int while_thres = 1000;  // magic number
   BoundedSpaceParams reduced_global_space = global_space_params_;
   reduced_global_space.min_val += 0.5 * robot_box_size_;
@@ -521,6 +521,11 @@ bool GraphManager::sampleVertex(Vertex& vertex, bool manual_mode) {
       }
       found = true;
     } else {
+      // if (pass) {
+      //   ROS_ERROR("sampled node not in free space \n");
+      //   std::cout << "sample : " << state[0] << ", " << state[1] << ", " << state[2] << "\n" << std::endl;
+      //   pass = false;
+      // }
       stat_->num_vertices_fail++;
       if (manual_mode) {
         random_sampler_manual_mode_.pushSample(state, false);  // for debug.
@@ -1476,7 +1481,7 @@ void GraphManager::expandGraph(std::shared_ptr<GraphUtils> graph_manager,
   }
   if (nearest_vertex == NULL) {
     rep.status = ExpandGraphStatus::kErrorKdTree;
-    ROS_WARN("null \n");
+    ROS_WARN("nearest vertex nullptr \n");
     return;
   }
   if (graph_manager == global_graph_) {
@@ -1553,12 +1558,16 @@ void GraphManager::expandGraph(std::shared_ptr<GraphUtils> graph_manager,
     if (MapManager::VoxelStatus::kFree == vs) {
       admissible_edge = true;
     } else {
-      // ROS_WARN("not an admissible edge \n");
+      ROS_WARN("not an admissible edge \n");
     }
   } else if (robot_params_.type == RobotType::kGroundRobot) {
     bool is_hanging = nearest_vertex->is_hanging || new_vertex.is_hanging;
     ProjectedEdgeStatus es = getProjectedEdgeStatus(
         start_pos, end_pos, robot_box_size_, true, projected_edge, is_hanging);
+    // Hacky solution for getting initial path and map clearing. 
+    if (ProjectedEdgeStatus::kHanging == es and allow_hanging_edge_planner_initialization) {
+      admissible_edge = true;
+    }
     if (ProjectedEdgeStatus::kAdmissible == es) {
       admissible_edge = true;
 
@@ -1729,7 +1738,7 @@ void GraphManager::expandGraph(std::shared_ptr<GraphUtils> graph_manager,
       stat_->edges_fail.push_back(vtmp);
     }
     rep.status = ExpandGraphStatus::kErrorCollisionEdge;
-    // ROS_WARN("Err final check collision edge \n");
+    ROS_WARN("Err final check collision edge \n");
     return;
   }
   rep.status = ExpandGraphStatus::kSuccess;
@@ -1800,10 +1809,12 @@ GraphManager::GraphStatus GraphManager::buildGraph(
   // For manual mode scale max vertices and edges to match  larger sampling
   // space
   double scalar = planning_params_.graph_density_scalar;
+  bool manually_clear_unknown_voxels = false;
   if (manual_mode) {
     loop_count_max = scalar * planning_params_.num_loops_max;
     num_vertices_max = scalar * planning_params_.num_vertices_max;
     num_edges_max = scalar * planning_params_.num_edges_max;
+    manually_clear_unknown_voxels =  true;
   } else {
     loop_count_max = planning_params_.num_loops_max;
     num_vertices_max = planning_params_.num_vertices_max;
@@ -1820,7 +1831,7 @@ GraphManager::GraphStatus GraphManager::buildGraph(
 
     if (!sampleVertex(new_vertex, manual_mode)) {
       continue;
-    }
+    } 
     ExpandGraphReport rep;
     expandGraph(graph, new_vertex, rep);
     // visualization_server_->visualizeLocalGraph(graph);
@@ -1829,6 +1840,9 @@ GraphManager::GraphStatus GraphManager::buildGraph(
       num_vertices += rep.num_vertices_added;
       num_edges += rep.num_edges_added;
       local_exploration_ongoing_ = false;
+    } 
+    else {
+      // ROS_INFO("Expand Graph NOT_OK \n");
     }
 
     if ((loop_count >= planning_params_.num_loops_cutoff) &&
@@ -2019,6 +2033,24 @@ nav_msgs::Path GraphManager::runPlannerkManualMode(StateVec s) {
   GraphManager::GraphStatus local_planner_status =
       GraphManager::GraphStatus::NOT_OK;
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
+  
+  std::vector<Eigen::Vector3d> unknown;
+  std::vector<Eigen::Vector3d> free;
+  std::vector<Eigen::Vector3d> occupied;
+  Eigen::Vector3d bbx (5,5,5);
+  
+  map_manager_->extractLocalMap(robotState_.head(3), bbx, occupied, free, unknown);
+  
+  map_manager_->augmentFreeBox(
+    Eigen::Vector3d(robotState_[0], robotState_[1], robotState_[2]), bbx);
+  
+  unknown.clear();
+  occupied.clear();
+  free.clear();
+
+  map_manager_->extractLocalMap(robotState_.head(3), bbx, occupied, free, unknown);
+  visualization_server_->visualizeVoxels(unknown, free, occupied);
+  
   GraphManager::resetLocalGraph();
   local_dijkstra_paths_.clear();
 

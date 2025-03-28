@@ -148,6 +148,7 @@ class GraphManager {
 
   bool init = true;
   bool run_local_planner = true;
+  bool allow_hanging_edge_planner_initialization = true;
 
   Vertex* local_goal_vertex;
   Vertex* local_root_vertex;

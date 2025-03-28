@@ -120,7 +120,7 @@ class yolo_lidar:
 			frame = cv2.undistort(frame, self.camera_matrix, self.dist_coeffs, None, newcameramatrix)
 
 		# frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-		results = self.model.predict(frame, retina_masks=True) 
+		results = self.model.predict(frame, retina_masks=True, conf=0.5) 
 		self.yolo_pub.publish(self.bridge.cv2_to_imgmsg(results[0].plot(), 'bgr8'))
 
 		segMask = np.zeros((self.height,self.width), dtype = np.uint8)

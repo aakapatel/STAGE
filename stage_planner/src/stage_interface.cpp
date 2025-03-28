@@ -583,6 +583,7 @@ void StageInterface::goalCallback(
   command_Path_Publisher.publish(command_path);
   // received_init_location = true;
   StageInterface::callActionServer();
+  graph_manager_->allow_hanging_edge_planner_initialization = false;
   planner_status_ = StageInterface::PlannerStatus::READY;
 }
 

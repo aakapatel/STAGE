@@ -26,6 +26,9 @@ class VisualizationServer {
   std_msgs::ColorRGBA getGainColor(double h);
   void visualizePathWaysGraph(std::shared_ptr<GraphUtils> path_ways_graph);
   void visualizeVoxelGain(std::shared_ptr<GraphUtils> graph);
+  void visualizeVoxels(std::vector<Eigen::Vector3d> unk,
+                       std::vector<Eigen::Vector3d> fre,
+                       std::vector<Eigen::Vector3d> occ);
   void visualizeLocalGraph(std::shared_ptr<GraphUtils> local_graph);
   void visualizeGlobalGraph(std::shared_ptr<GraphUtils> global_graph);
   void visualizeDenseGraph(std::shared_ptr<GraphUtils> dense_graph);
@@ -42,7 +45,6 @@ class VisualizationServer {
   void visualizePclMap(const pcl::PointCloud<pcl::PointXYZ>* pcl);
   void publishSemanticGraph(stage_planner::Graph graph_msg);
 
-
   // Set the fixed frame of the mission for visualization
   void setGlobalFrame(std::string frame_id) { world_frame_id = frame_id; }
 
@@ -55,6 +57,7 @@ class VisualizationServer {
   ros::Publisher homing_Path_Vis_Pub;
   ros::Publisher local_Paths_Vis_Pub_;
   ros::Publisher voxel_Gain_Vis_Pub_;
+  ros::Publisher voxel_Vis_Pub_;
   ros::Publisher global_Paths_Vis_Pub_;
   ros::Publisher reposition_Path_Vis_Pub_;
   ros::Publisher local_Graph_Vis_Pub_;

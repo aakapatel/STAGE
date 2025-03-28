@@ -29,7 +29,7 @@ Panels:
         - /MarkerArray11
         - /PointCloud23
       Splitter Ratio: 0.5
-    Tree Height: 706
+    Tree Height: 441
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
@@ -73,10 +73,7 @@ Visualization Manager:
       Marker Topic: /hummingbird/global_planning_graph
       Name: MarkerArray
       Namespaces:
-        edges: true
-        frontier: true
-        semantic: true
-        vertices: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -208,10 +205,7 @@ Visualization Manager:
       Marker Topic: /graph/areas
       Name: MarkerArray
       Namespaces:
-        clusters: true
-        edges: true
-        lines: true
-        purple_squares: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -287,7 +281,7 @@ Visualization Manager:
       Marker Topic: /yolo/aligned_bounding_boxes
       Name: MarkerArray
       Namespaces:
-        "": true
+        {}
       Queue Size: 100
       Value: true
     - Alpha: 1

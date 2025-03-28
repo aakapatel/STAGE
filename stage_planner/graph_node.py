@@ -11,7 +11,7 @@ class GraphNode:
         self.subscriber = rospy.Subscriber('/hummingbird/semantic_graph', Graph, self.graph_callback)
         # self.subscriber = rospy.Subscriber('/spot/semantic_graph', Graph, self.graph_callback)
 
-        self.publisher = rospy.Publisher('/graph/areas', MarkerArray, queue_size=30)
+        self.publisher = rospy.Publisher('/graph/areas', MarkerArray, queue_size=1)
         # self.graph_data = []  # List to store graph data
         # self.adjacency_matrix = []  # Adjacency matrix to store edges
         # self.vertex_coordinates = []  # List to store vertex coordinates
@@ -118,7 +118,7 @@ class GraphNode:
                         queue_bfs.append(neighbor)
 
             # Find the 3 closest object nodes based on the calculated distances
-            closest_neighbors = np.argsort(distances[object_indices])[:3]  # Sort only among object nodes
+            closest_neighbors = np.argsort(distances[object_indices])[:2]  # Sort only among object nodes
             closest_neighbors = [object_indices[i] for i in closest_neighbors]  # Get global indices
             
             # Calculate the edge propagation value based on the mean distance - min distance of the closest neighbors
@@ -126,7 +126,10 @@ class GraphNode:
                 min_distance = distances[closest_neighbors[0]]
                 total_distance = sum(distances[neighbor] for neighbor in closest_neighbors if distances[neighbor] < np.inf)
                 mean_distance = total_distance / len(closest_neighbors)
-                edge_propagation = int(mean_distance - min_distance)
+                if int(mean_distance - min_distance) > 0:
+                    edge_propagation = int((mean_distance - min_distance)+1)
+                else: 
+                    edge_propagation = int(mean_distance - min_distance)
             else:
                 edge_propagation = 0
 

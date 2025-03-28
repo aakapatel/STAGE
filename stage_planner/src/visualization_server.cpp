@@ -20,6 +20,9 @@ VisualizationServer::VisualizationServer(const ros::NodeHandle& nh,
 
   voxel_Gain_Vis_Pub_ =
       nh_.advertise<visualization_msgs::MarkerArray>("voxel_gain", 10);
+  
+  voxel_Vis_Pub_ =
+      nh_.advertise<visualization_msgs::MarkerArray>("voxels", 10);
 
   global_Graph_Vis_Pub_ = nh_.advertise<visualization_msgs::MarkerArray>(
       "global_planning_graph", 10);
@@ -205,6 +208,95 @@ void VisualizationServer::visualizePathWaysGraph(
   marker_array.markers.push_back(vertex_marker);
 
   path_Ways_Graph_Vis_Pub_.publish(marker_array);
+}
+
+void VisualizationServer::visualizeVoxels(
+    std::vector<Eigen::Vector3d> unk, std::vector<Eigen::Vector3d> fre, std::vector<Eigen::Vector3d> occ) {
+
+  visualization_msgs::MarkerArray marker_array;
+  visualization_msgs::Marker unknown_marker;
+  visualization_msgs::Marker free_marker;
+  visualization_msgs::Marker occupied_marker;
+
+    std::vector<Eigen::Vector3d> unknown = unk;
+    std::vector<Eigen::Vector3d> free = fre;
+    std::vector<Eigen::Vector3d> occupied = occ;
+
+    unknown_marker.header.stamp = ros::Time::now();
+    unknown_marker.header.seq = 0;
+    unknown_marker.header.frame_id = world_frame_id;
+    unknown_marker.id = 0;
+    unknown_marker.ns = "unknown";
+    unknown_marker.action = visualization_msgs::Marker::ADD;
+    unknown_marker.type = visualization_msgs::Marker::CUBE_LIST;
+    unknown_marker.scale.x = 0.2;
+    unknown_marker.scale.y = 0.2;
+    unknown_marker.scale.z = 0.2;
+    unknown_marker.color.r = 0.0 / 255.0;
+    unknown_marker.color.g = 0.0 / 255.0;
+    unknown_marker.color.b = 255.0 / 255;
+    unknown_marker.color.a = 1.0;
+    unknown_marker.frame_locked = false;
+
+    free_marker.header.stamp = ros::Time::now();
+    free_marker.header.seq = 0;
+    free_marker.header.frame_id = world_frame_id;
+    free_marker.id = 0;
+    free_marker.ns = "free";
+    free_marker.action = visualization_msgs::Marker::ADD;
+    free_marker.type = visualization_msgs::Marker::CUBE_LIST;
+    free_marker.scale.x = 0.2;
+    free_marker.scale.y = 0.2;
+    free_marker.scale.z = 0.2;
+    free_marker.color.r = 0.0 / 255.0;
+    free_marker.color.g = 255.0 / 255.0;
+    free_marker.color.b = 0.0;
+    free_marker.color.a = 1.0;
+    free_marker.frame_locked = false;
+
+    occupied_marker.header.stamp = ros::Time::now();
+    occupied_marker.header.seq = 0;
+    occupied_marker.header.frame_id = world_frame_id;
+    occupied_marker.id = 0;
+    occupied_marker.ns = "occupied";
+    occupied_marker.action = visualization_msgs::Marker::ADD;
+    occupied_marker.type = visualization_msgs::Marker::CUBE_LIST;
+    occupied_marker.scale.x = 0.2;
+    occupied_marker.scale.y = 0.2;
+    occupied_marker.scale.z = 0.2;
+    occupied_marker.color.r = 255.0 / 255.0;
+    occupied_marker.color.g = 0.0 / 255.0;
+    occupied_marker.color.b = 0.0;
+    occupied_marker.color.a = 1.0;
+    occupied_marker.frame_locked = false;
+
+    for (int i = 0; i < unknown.size(); i++) {
+      geometry_msgs::Point p1;
+      p1.x = unknown[i][0];
+      p1.y = unknown[i][1];
+      p1.z = unknown[i][2];
+      unknown_marker.points.push_back(p1);
+    }
+    for (int i = 0; i < free.size(); i++) {
+      geometry_msgs::Point p1;
+      p1.x = free[i][0];
+      p1.y = free[i][1];
+      p1.z = free[i][2];
+      free_marker.points.push_back(p1);
+    }
+    for (int i = 0; i < occupied.size(); i++) {
+      geometry_msgs::Point p1;
+      p1.x = occupied[i][0];
+      p1.y = occupied[i][1];
+      p1.z = occupied[i][2];
+      occupied_marker.points.push_back(p1);
+    }
+
+    marker_array.markers.push_back(unknown_marker);
+    marker_array.markers.push_back(free_marker);
+    marker_array.markers.push_back(occupied_marker);
+
+  voxel_Vis_Pub_.publish(marker_array);
 }
 
 void VisualizationServer::visualizeVoxelGain(
